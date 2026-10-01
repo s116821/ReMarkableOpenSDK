@@ -1,0 +1,89 @@
+## ADDED Requirements
+
+### Requirement: Independent semantic capability contract
+The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
+
+#### Scenario: Unknown firmware
+- **WHEN** a caller requests page creation on an unqualified firmware/runtime fingerprint
+- **THEN** the SDK returns Unsupported without dispatching a native mutation even if another capability is qualified
+
+#### Scenario: Mock consumer
+- **WHEN** a consumer substitutes the deterministic mock adapter
+- **THEN** it uses the same semantic contract and receives explicitly synthetic evidence that cannot qualify production support
+
+### Requirement: Stable page identity and separate operational ownership
+The SDK SHALL identify a native page by validated document/page UUIDs and SHALL represent session, visit, order/content revision and evidence strength separately. Persisted last-opened metadata SHALL NOT alone prove current UI ownership.
+
+#### Scenario: Page revisited or runtime restarted
+- **WHEN** stable page UUIDs match but the runtime session or visit differs from a request precondition
+- **THEN** the old operational guard is rejected and cannot be silently repinned
+
+#### Scenario: Ambiguous native identity
+- **WHEN** a page/document identity is duplicated or order evidence conflicts
+- **THEN** observation returns explicit ambiguity and guarded mutations do not dispatch
+
+### Requirement: Capture carries bounded provenance
+The SDK SHALL return immutable capture content with digest, dimensions/transform and matching before/after page ownership observations, plus a session-bound monotonic observation interval. The SDK SHALL reject stale or mismatched capture ownership and SHALL leave durable source storage to its consumer.
+
+#### Scenario: Page changes during capture
+- **WHEN** document/page, session, visit or required revision differs across capture observations
+- **THEN** the frame is not returned as qualified evidence for the original page
+
+#### Scenario: Pixel match without owner proof
+- **WHEN** pixels match an earlier frame but current native ownership cannot be established
+- **THEN** the SDK reports unavailable evidence rather than promoting the matching image digest to page identity
+
+### Requirement: Guarded native navigation
+The SDK SHALL navigate only from a valid expected observation through a qualified semantic operation and SHALL report observed target completion separately from command dispatch. It SHALL NOT use autonomous menu automation or a per-request UI restart to satisfy navigation.
+
+#### Scenario: Source ownership lost
+- **WHEN** external input or runtime state invalidates the source guard before dispatch
+- **THEN** navigation stops without issuing the operation
+
+#### Scenario: Uncertain navigation completion
+- **WHEN** an operation was dispatched but the target cannot be freshly verified
+- **THEN** the result reports uncertainty and grants no permission to write on the presumed target
+
+### Requirement: Creation has exact preconditions and durable receipts
+The SDK SHALL accept an immutable operation/request identity, exact source/order preconditions and intended target UUID for creation-after-source. It SHALL return Committed only with qualified evidence binding that request to the intended observed target, exact permitted after-order and persisted revision. Generic success callbacks or idle indicators SHALL NOT substitute for that evidence.
+
+#### Scenario: Intended and observed target differ
+- **WHEN** native observation reports a target UUID different from the immutable request
+- **THEN** the result is Indeterminate and is not usable as a successful consumer binding receipt
+
+#### Scenario: Unexpected concurrent order change
+- **WHEN** observed order contains changes beyond the one requested insertion
+- **THEN** the SDK refuses a Committed receipt and requires reconciliation
+
+### Requirement: Ambiguity never causes blind replay
+The SDK SHALL distinguish failure/cancellation before dispatch from uncertainty after dispatch. Reconciliation SHALL observe the original request outcome without repeating an uncertain mutation. Historical receipt reuse SHALL NOT recreate removed pages or grant fresh rendering ownership.
+
+#### Scenario: Deadline after dispatch
+- **WHEN** a native call was issued but the deadline expires before durable outcome evidence
+- **THEN** the SDK returns Indeterminate rather than asserting cancellation or safely retrying creation
+
+#### Scenario: Retry after receipt persistence
+- **WHEN** the same request has a verified historical receipt but the page has since changed or disappeared
+- **THEN** the SDK preserves historical evidence, reports current state separately and does not recreate the page
+
+### Requirement: Safe adapter lifecycle and evidence scope
+Production adapters SHALL exclude XOVI and SHALL preserve ordinary tablet startup/use with fail-closed compatibility and recoverable lifecycle behavior. Support claims SHALL distinguish native qualification from host/mock/cross-build evidence and SHALL NOT publish proprietary firmware or reconstructed source.
+
+#### Scenario: Cross-build succeeds for Paper Pro
+- **WHEN** an AArch64 artifact builds but no Paper Pro native acceptance evidence exists
+- **THEN** its native capabilities remain explicitly unqualified and it is not advertised as hardware-tested
+
+#### Scenario: Native mechanism requires fragile boot changes
+- **WHEN** a candidate depends on XOVI or creates an unacceptable normal-startup recovery burden
+- **THEN** it is excluded from production regardless of successful research demonstrations
+
+### Requirement: Build-time independent consumption
+SDK releases SHALL identify exact semantic contract and adapter qualification revisions per target artifact. Buddy SHALL consume the appropriate target at build time, and ordinary Manager installation SHALL require only its compatible Buddy artifact rather than a separately installed SDK runtime.
+
+#### Scenario: Independent release versions
+- **WHEN** SDK and Buddy release versions differ
+- **THEN** compatibility is determined from the pinned contract/target qualification metadata rather than version-number equality
+
+#### Scenario: Unsupported artifact selection
+- **WHEN** connected model/architecture/firmware is outside an artifact's qualified capabilities
+- **THEN** installation/integration fails closed instead of selecting the closest device build
