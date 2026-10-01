@@ -10,7 +10,7 @@ SDK specifications and workflow live in this repository. [ReMarkableBuddiesDocs]
 
 Buddy consumes the SDK at build time. Manager selects a compatible Buddy release artifact, without separately installing an SDK runtime. The SDK must remain independently consumable and mockable.
 
-XOVI is research prior art only and is excluded as a production dependency. Proprietary firmware binaries and reconstructed proprietary source must not be committed. Interface discovery is not proof of safe native operation.
+Prefer robust direct/native integration. Supervised, session-scoped lazy XOVI is an allowed candidate where necessary under the October 1 lifecycle refinement, not a selected or qualified production dependency. See the [mechanism comparison and acceptance gates](openspec/changes/establish-native-platform-contract/runtime-mechanism-comparison.md). Cold boot must remain stock, recovery must survive runtime/supervisor failure, and restart invalidates old source handles. Proprietary firmware binaries and reconstructed proprietary source must not be committed. Interface discovery is not proof of safe native operation.
 
 Read [contributor guidance](CONTRIBUTING.md), the [workflow](openspec/README.md), and the active design before implementation.
 

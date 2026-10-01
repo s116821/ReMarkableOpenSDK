@@ -8,7 +8,7 @@ SDK owns native facts and mechanisms. Buddy owns conversation identities, bindin
 
 Goals: one semantic, mockable API; independently useful device primitives; bounded operations; explicit evidence strength; no duplicate creation on ambiguous retries; build-time consumption; exact adapter qualification.
 
-Non-goals: bulk extraction of all Buddy internals, layout/composer/business rules, LLM/provider behavior, sync services, general device administration, firmware recovery, XOVI production integration or declaring Paper Pro tested through compilation.
+Non-goals: bulk extraction of all Buddy internals, layout/composer/business rules, LLM/provider behavior, sync services, general device administration, firmware recovery, an alternate tablet shell or declaring Paper Pro tested through compilation. Supervised session-scoped XOVI is an eligible integration candidate, not a selected implementation.
 
 ## Decisions
 
@@ -59,7 +59,13 @@ Native page commit does not grant permission to render. Buddy requires a fresh c
 
 Prefer existing IPC/runtime services or independently implementable native contracts with normal boot/use semantics. Inventory first, then inspect narrow interfaces without invoking mutators. The saved RM2 binary contains D-Bus sync/device-policy leads and page-related Qt metadata, but neither proves an out-of-process page API. Passive runtime evidence must come through the sole coordinated tablet owner.
 
-Compare candidates against annotated-PDF preservation, ordering, durability, user input, cancellation, repeated operations, cache/serialization coordination and lifecycle recovery. Direct file mutation while xochitl is unaware is not accepted. XOVI is excluded as production and is retained only as research. Replacing its name with a similarly fragile custom injection scheme does not satisfy the operability requirement.
+Compare candidates against annotated-PDF preservation, ordering, durability, user input, cancellation, repeated operations, cache/serialization coordination, failure isolation and lifecycle recovery. Direct file mutation while xochitl is unaware is not accepted. The October 1 23:40 UTC decision supersedes the prior blanket XOVI ban: supervised, session-scoped lazy activation is eligible where robust direct seams are insufficient. An out-of-process wrapper is not inherently safer if its underlying mechanism is brittle. Compare the actual mechanisms using [the pinned-source matrix and staged experiment](runtime-mechanism-comparison.md); retain Unsupported until qualification.
+
+The SDK owns exact model/firmware/runtime/payload capability fingerprints, explicit activation requirements, bounded readiness/health semantics, runtime generation changes and invalidation, native dispatch guards and recovery outcomes. Capability queries remain observational and never activate an injected runtime. Buddy owns supported gesture recognition, intent retention, the independent Supervisor and its policy/orchestration; Manager owns the unified artifact lifecycle. These consumer requirements remain canonical in ReMarkableBuddiesDocs, with exact revision links added at integration.
+
+If selected, the injected component is a narrow internal semantic adapter loaded only after explicit consumer activation and complete preflight. No automatic cold-boot injection, persistent preload/startup modification, arbitrary extension-directory loading, broad QML replacement or UI-dependent recovery is acceptable. A single first-use restart/rebind may be part of qualified activation; subsequent requests must not routinely restart xochitl. A reboot restores the stock non-injected baseline. Readiness must prove the required execution context is responsive, rather than merely that a heartbeat thread exists. Runtime failure, supervisor failure and races during activation/rollback must have independently reachable bounded recovery, with a session latch preventing repeated activation after failure. An external supervisor alone does not contain a loader fault in xochitl.
+
+Every activation restart creates a fresh runtime/adapter scope and invalidates old pointers, observations, guards and pending native dispatch. A retained product intent is not an operational handle. Continue only after the consumer reacquires a qualified source and the SDK validates its new session, identity, visit, order/content/input preconditions and operation eligibility; unknown or changed source refuses continuation. Historical pixels, matching UUIDs alone or successful rebind do not restore authority. If an earlier mutation might have started, retain Indeterminate and reconcile its original operation identity without redispatch. No component may call restart a cancellation proof.
 
 ### Tests and releases
 
@@ -79,7 +85,7 @@ Target toolchain qualification includes ELF class/machine, ARM floating-point AB
 
 ## Migration Plan
 
-Bootstrap this active SDK plan, agree receipt/identity semantics with REM-37, narrow native research, implement the smallest tested contract/mocks, qualify RM2 mechanism, then move only current Reader/native creation seams behind it. Pair exact SDK and Buddy revisions with the Docs product delta. Keep old synthetic XOVI experiments as research evidence only. Sync/archive only after implementation and required native/consumer gates pass.
+Bootstrap this active SDK plan, agree receipt/identity semantics with REM-37, narrow native research, implement the smallest tested contract/mocks, qualify RM2 mechanism, then move only current Reader/native creation seams behind it. Pair exact SDK and Buddy revisions with the Docs product delta. Old synthetic XOVI experiments remain research evidence only; the new candidate permission does not promote them to native qualification. Sync/archive only after implementation and required native/consumer gates pass.
 
 ## Open Questions
 

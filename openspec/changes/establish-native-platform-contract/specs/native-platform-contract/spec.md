@@ -115,15 +115,41 @@ The SDK SHALL distinguish failure/cancellation before dispatch from uncertainty 
 - **THEN** the SDK preserves historical evidence, reports current state separately and does not recreate the page
 
 ### Requirement: Safe adapter lifecycle and evidence scope
-Production adapters SHALL exclude XOVI and SHALL preserve ordinary tablet startup/use with fail-closed compatibility and recoverable lifecycle behavior. Support claims SHALL distinguish native qualification from host/mock/cross-build evidence and SHALL NOT publish proprietary firmware or reconstructed source.
+Production adapters SHALL preserve ordinary tablet startup/use with fail-closed compatibility and recoverable lifecycle behavior. Stable direct/native mechanisms SHOULD be preferred where robust. A supervised, session-scoped lazy XOVI adapter MAY be selected only after qualifying its exact runtime/payload capabilities and lifecycle, including runtime and supervisor failure. Permission to investigate SHALL NOT imply selection or support. Support claims SHALL distinguish native qualification from host/mock/cross-build evidence and SHALL NOT publish proprietary firmware or reconstructed source.
 
 #### Scenario: Cross-build succeeds for Paper Pro
 - **WHEN** an AArch64 artifact builds but no Paper Pro native acceptance evidence exists
 - **THEN** its native capabilities remain explicitly unqualified and it is not advertised as hardware-tested
 
 #### Scenario: Native mechanism requires fragile boot changes
-- **WHEN** a candidate depends on XOVI or creates an unacceptable normal-startup recovery burden
+- **WHEN** a candidate requires automatic cold-boot injection, persistent startup modification or recovery dependent on the modified UI
 - **THEN** it is excluded from production regardless of successful research demonstrations
+
+### Requirement: Explicit runtime activation and bounded recovery
+Capability queries SHALL NOT activate runtime injection. A conditional adapter SHALL expose its exact compatibility, activation and recovery requirements separately from operation support. Activation SHALL require a qualified model/firmware/runtime/payload match, bounded readiness and health checks, and independently reachable recovery from runtime or supervisor failure. A failed activation or rapid restart loop SHALL latch the injected path unavailable for the session and restore stock operation through the qualified recovery mechanism. A cold reboot SHALL return to a non-injected baseline. SDK contracts SHALL define these device/runtime outcomes while consumer trigger policy, supervision orchestration and installation remain consumer-owned.
+
+#### Scenario: First-use activation on a qualified runtime
+- **WHEN** the consumer explicitly requests activation after complete compatibility preflight
+- **THEN** the adapter may perform one qualified session activation/restart, reports ready only after bounded execution-context checks, and does not require repeated restarts for subsequent ordinary operations.
+
+#### Scenario: Runtime or supervisor fails during activation
+- **WHEN** the injected process fails, readiness times out, a restart loop starts, or its consumer supervisor dies at any activation/rollback boundary
+- **THEN** independently reachable recovery restores stock operation within the qualified bound without relying on the modified UI or retrying activation automatically, and unproved operation outcomes remain indeterminate.
+
+#### Scenario: Compatibility or recovery evidence is missing
+- **WHEN** the runtime/payload fingerprint is unknown or recovery cannot be demonstrated on the target profile
+- **THEN** the affected capability remains unavailable without changing preload/startup state or attempting speculative injection.
+
+### Requirement: Restart invalidates source authority before continuation
+An activation/recovery restart SHALL invalidate prior runtime and adapter-instance handles, observations and guards. Resuming a retained consumer intent SHALL require a new qualified source observation and execution-time validation under the fresh scope. Stable IDs or historical captures alone SHALL NOT authorize continuation. An operation that may have started before failure SHALL be reconciled without redispatch.
+
+#### Scenario: Triggering intent survives first-use restart
+- **WHEN** the consumer retains an intent through activation and obtains a freshly qualified matching source and eligible action
+- **THEN** a new request may use only the fresh scope and preconditions; old pointers, visits and guards are rejected.
+
+#### Scenario: Source is changed or unknown after restart
+- **WHEN** the requested source/action cannot be validated after rebind
+- **THEN** continuation refuses before native effects rather than replaying a stale request or treating the restart as proof that no earlier mutation occurred.
 
 ### Requirement: Build-time independent consumption
 SDK releases SHALL identify exact semantic contract and adapter qualification revisions per target artifact. Buddy SHALL consume the appropriate target at build time, and ordinary Manager installation SHALL require only its compatible Buddy artifact rather than a separately installed SDK runtime.

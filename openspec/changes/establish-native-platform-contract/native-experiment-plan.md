@@ -1,6 +1,6 @@
 # Native insertion reachability and bounded experiment
 
-Status: active research plan, October 1, 2026. One read-only R1 observation has completed; see the attributed result in [research.md](research.md). No native adapter or mutation experiment is qualified. This supplements research tasks 2.2–2.4 without completing them. Main remains the sole tablet operator. R2 and production Gates A–D remain unexecuted. Development observation is distinct from production acceptance.
+Status: active research plan, October 1, 2026. Read-only R1, R2 and R2D observations have completed; see attributed results in [research.md](research.md). No native adapter or mutation experiment is qualified. This supplements research tasks 2.2–2.4 without completing them. Main remains the sole tablet operator. Production Gates A–D remain unexecuted. Development observation is distinct from production acceptance. The October 1 23:40 UTC lifecycle refinement makes supervised lazy XOVI eligible for comparison, not selected; see [the current mechanism assessment](runtime-mechanism-comparison.md).
 
 ## Candidate comparison
 
@@ -12,13 +12,13 @@ Status: active research plan, October 1, 2026. One read-only R1 observation has 
 | Native Qt controller/task/worker | Concrete insertion path, caller-supplied UUID handling, queue dispatch and save callback traced. | Strongest semantic lead, but no acceptable externally reachable entry point or mutation-time source guard. Qt metadata is not an IPC transport. |
 | Cooperative filesystem lock plus metadata edit | Entry locking reaches QLockFile-backed helpers. | Lock participation alone does not prove UI ownership, cache invalidation, worker exclusion or native reload. Exact path/lifetime and coordinated reload remain unproved. Offline editing would not satisfy current live insertion behavior. |
 | Internal calendar page generation | Diagnostic provenance identifies an internal calendar integration path. | No independently callable insertion transport or qualified source guard demonstrated. Do not invoke account integrations to probe it. |
-| Custom in-process bridge | Qt invocation is a possible research technique once a valid object and execution context exist. | No operable supported loading/object-access lifecycle established. A bridge reached through production injection or a fragile startup modification fails the accepted design. Renaming XOVI is not a solution. |
+| Narrow in-process bridge, with supervised XOVI or an independently justified loader | Pinned XOVI and Inkling source demonstrate a loader and Qt-dispatch prior art; no local injected experiment has run. | Eligible after the October 1 refinement. Must qualify bounded activation, exact payload/runtime ABI, GUI and worker execution, supervisor-failure recovery, stock reboot and source reacquisition. A custom loader has the same in-process failure domain and needs its own evidence. |
 
 The current evidence does not identify a production-compatible mechanism that reaches insertion safely. It also does not establish that automatic insertion is impossible. This does not block the separately authorized development observation below or select manual fallback.
 
 ## Development stage R: temporary read-only runtime observation
 
-The [REM-25 coordinator clarification](https://linear.app/magentumdragon/issue/REM-25#comment-b60d9e4a-a2e4-4d79-8c0f-9a425b852833) distinguishes existing development-only interoperability research authorization from production qualification. A supported plugin facility is preferred, not a prerequisite for private bounded observation. No shipping constraint changes.
+The earlier [REM-25 coordinator clarification](https://linear.app/magentumdragon/issue/REM-25#comment-b60d9e4a-a2e4-4d79-8c0f-9a425b852833) separated development observation from production qualification. Its categorical XOVI restriction is superseded by the later [October 1 user decision](https://linear.app/magentumdragon/issue/REM-25#comment-0cf9f583-1f09-47d1-89b1-7ff71f0a9137). The fixed R1/R2/R2D no-call scopes remain unchanged; none authorizes injection or mutation.
 
 ### Concrete first access mechanism
 
@@ -52,7 +52,7 @@ Research observations can test whether a proposed ownership/serialization seam e
 
 For a proposed mechanism, record the exact endpoint or process-entry facility, provider and access policy; acquisition of the real document/controller object; executor thread and worker queue; startup, reconnect and teardown behavior; and package/lifecycle behavior under normal boot. Reproduce a bounded read-only observation through that same path on the qualified firmware. An unrelated successful probe does not qualify insertion reachability.
 
-Reject the candidate if it needs denied-access bypass, XOVI as production, autonomous menu navigation, per-conversation restart or an unqualified custom injection scheme. A host-built ELF and ABI match establish build compatibility only. Do not transfer or execute a helper merely because it builds.
+Reject the candidate if it needs denied-access bypass, autonomous menu navigation, per-conversation restart, persistent cold-boot injection or an unqualified lifecycle. Supervised session-scoped XOVI is eligible only under the current lifecycle and source-invalidation gates; its name neither qualifies nor disqualifies it. A host-built ELF and ABI match establish build compatibility only. Do not transfer or execute a helper merely because it builds.
 
 ## Gate B: close the dispatch-to-execution race
 
@@ -82,14 +82,14 @@ Use bounded observation polling with a fixed monotonic deadline and output cap; 
 | Save error after native insertion | No committed receipt based solely on callback; preserve uncertainty and original request. Use an isolated fault-capable test environment, not tablet-wide disk exhaustion or unbounded permission changes. |
 | Native commit before consumer receipt/binding write | Recovery discovers and attributes exactly the original target; no duplicate page or authority restored from historical evidence. |
 | Adapter drop/reopen with unchanged runtime | Fresh instance scope; historical receipt cannot become a mutation guard. |
-| Controlled runtime restart after verified persistence | Fresh session; reconcile original target/order/content and fixture preservation without dispatch. A restart here is a qualification test, never the production insertion mechanism. |
+| Controlled runtime restart after verified persistence | Fresh session; reconcile original target/order/content and fixture preservation without dispatch. This tests recovery, not a per-operation insertion workaround. A separately qualified one-time lazy activation restart is permitted but invalidates all prior authority. |
 | Target later deleted/reordered or original source revisited | Historical outcome stays historical; current state is reported separately, with no recreation or stale rendering authority. |
 
 Runtime restart tests establish restart recovery, not arbitrary power-loss durability. Power-interruption claims require a separately controlled, bounded qualification method and full constituent-file evidence. Do not infer them from one successful reopen.
 
 ## Decision needed if Gate A remains unresolved
 
-Production implementation continues only with a named, reviewable entry mechanism and a credible execution-time serialization design. Development stage R may proceed independently under its bounded observation plan. If a shipping route requires changing the existing no-production-injection/lifecycle constraints, bring its concrete tested tradeoffs and explicit design change to the owner before adoption. This plan does not approve such a change or an opaque mutator. Capability remains Unsupported until the required evidence exists.
+Production implementation continues only with a named, reviewable entry mechanism and a credible execution-time serialization design. Development stage R remains separately bounded. The current direct-versus-supervised-XOVI comparison and lifecycle-first experiment are in [runtime-mechanism-comparison.md](runtime-mechanism-comparison.md); the revised candidate permission is not an approval to inject or run an opaque mutator. Capability remains Unsupported until the required evidence exists.
 
 ## Source basis
 

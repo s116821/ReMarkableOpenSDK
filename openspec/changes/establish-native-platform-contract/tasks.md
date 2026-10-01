@@ -6,14 +6,14 @@
 
 ## 2. Native research
 - [ ] 2.1 Inventory passive IPC/service/interface evidence and firmware/runtime fingerprints through the coordinated tablet owner.
-- [ ] 2.2 Compare credible native and coordinated-metadata alternatives against safety, cache/persistence and lifecycle criteria; keep XOVI research-only.
+- [ ] 2.2 Compare credible direct/native, coordinated-metadata and supervised lazy-XOVI alternatives against measured safety, cache/persistence, supervisor/runtime failure, RM2/RMPP portability and maintenance criteria; record the selected mechanism only after qualification.
 - [ ] 2.3 Qualify mutation-time compare-and-act/serialization, client-selected or durably correlated native-assigned target identity, exact insertion order and durable reconciliation on disposable notebook and annotated PDF fixtures.
 - [ ] 2.4 Record rejected paths, remaining unknowns and recovery constraints; do not select product fallback without REM-25's exhaustive evidence gate.
 
 ## 3. Implementation
 - [ ] 3.1 Implement versioned capability/profile and identity/evidence types with unsupported results and explicit synthetic origin.
 - [ ] 3.2 Implement deterministic mocks and tests for input/order change between dispatch and execution, two devices sharing UUIDs, recreated adapter handles, stale ownership, capture races, native-assigned ID recovery, cancellation and indeterminate outcomes.
-- [ ] 3.3 Implement qualified RM2 adapter operations without XOVI or production boot hacks; keep unknown firmware disabled.
+- [ ] 3.3 Implement qualified RM2 adapter operations using the accepted mechanism; keep unknown firmware disabled and cold boot stock. Any XOVI path requires the lifecycle gates in runtime-mechanism-comparison.md, not persistent boot injection.
 - [ ] 3.4 Integrate current Reader/native creation seams through build-time consumption; keep Buddy journal/bindings and product policy in Buddy.
 - [ ] 3.5 Establish reproducible target artifacts, exact compatibility/provenance manifest and license notices; leave unqualified Paper Pro capabilities unsupported.
 
@@ -24,6 +24,8 @@
 - [ ] 4.4 Verify Manager installs the compatible Buddy artifact without a separate SDK runtime and preserves normal boot/use.
 - [ ] 4.5 Validate OpenSpec, publish exact coordinated revisions and resolve CI/review findings.
 - [ ] 4.6 Sync implemented SDK canonical specs and archive only after all required delivery gates pass; keep product specs in Docs.
+- [ ] 4.7 Verify conditional runtime activation, bounded readiness/heartbeat, crash-loop cutoff, stock rollback after runtime and supervisor failure, UI-independent disable/update/uninstall and clean cold reboot. Coordinate exact Buddy Supervisor/product revisions without duplicating their specifications.
+- [ ] 4.8 Verify first-use restart invalidation and fresh source/action validation before continuation, including changed/unknown source and in-flight indeterminate mutation; no stale-handle replay or repeated conversation restart.
 
 ## 5. Historical evidence export amendment
 - [x] 5.1 Independently review evidence-export-contract.md with root and consumer against exact source revisions. Both accepted SDK 9b61d7284edabe6a1fea61c3f621049300b3bc32 against consumer Docs fbb2fd4cbf0352eeb71ecb32b2b3a0683a4fabd6.

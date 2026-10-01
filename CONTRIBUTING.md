@@ -6,6 +6,8 @@ The experimental Rust model declares Rust 1.88 as its minimum; verification curr
 
 Use a topic branch and read AGENTS.md. The active SDK change records planned behavior, not an implemented baseline. No native capability is advertised before its acceptance evidence exists. Preserve unfinished work and use isolated checkouts.
 
+The October 1 lifecycle refinement permits supervised, session-scoped lazy XOVI as a candidate; it supersedes earlier categorical bans without selecting a loader. Read the active runtime-mechanism comparison and qualify exact payload/runtime dependencies, stock cold boot, runtime and supervisor failure recovery, and fresh source scope after restart. A process boundary alone is not safety evidence. Product gestures and Supervisor orchestration belong in Buddy/Docs; device/runtime capability semantics belong here.
+
 To check specification structure with the OpenSpec CLI:
 
 ```text
