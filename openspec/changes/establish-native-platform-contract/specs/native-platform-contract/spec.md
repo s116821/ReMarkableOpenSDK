@@ -169,3 +169,18 @@ The SDK SHALL provide the pure derive_geometry helper defined in evidence-export
 #### Scenario: Supported composition remains historical
 - **WHEN** all recomputed fields match exact stored bits under the pinned supported procedure
 - **THEN** the consumer may accept structural composition only; the explicit source-plane roundoff allowance does not relax descriptor equality or restore a live guard.
+
+### Requirement: Explicit legacy history remains outside SDK capture evidence
+The SDK SHALL NOT convert identity-free legacy pixels into Capture facts, SourceObservation or operational authority. A consumer MAY retain explicitly selected legacy acquisition in a separate unbound historical container with native identity and qualification absent, as defined in capture-contract.md. An attempted SDK capture failure SHALL remain a refusal and SHALL NOT implicitly select the legacy path. Consumer container policy SHALL NOT weaken SDK qualification, native guards or receipt semantics.
+
+#### Scenario: Explicit unbound historical association
+- **WHEN** a consumer selects legacy acquisition explicitly before capture and persists its actual ordered provider images plus any supplied acquisition parent
+- **THEN** the consumer record may belong to an unbound historical conversation while native identity/qualification and an unavailable parent remain explicitly absent, with no invented geometry, SDK facts or native binding.
+
+#### Scenario: SDK capture cannot downgrade into legacy history
+- **WHEN** an attempted SDK capture is unsupported, loses identity, fails or lacks required facts
+- **THEN** that attempt refuses its qualified provider-source path and cannot be converted into a legacy record to continue dispatch.
+
+#### Scenario: Legacy history cannot authorize native output
+- **WHEN** a consumer operation requires qualified native capture, page ownership, binding or output completion
+- **THEN** legacy historical association supplies none of those capabilities and cannot satisfy the required SDK guard or receipt.
