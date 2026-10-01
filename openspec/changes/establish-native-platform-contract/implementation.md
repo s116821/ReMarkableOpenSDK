@@ -26,3 +26,11 @@ Capture retains private immutable encoded PNG bytes, SHA-256 digests, dimensions
 These checks do not establish aggregate process-memory bounds, actual runtime acquisition/freshness/cancellation, durable storage, a canonical evidence wire format, Reader integration or hardware qualification. Observation evidence export remains an outstanding consumer API contract; consumers must not serialize Debug output or invent unavailable scope identifiers.
 
 Direct dependencies are image =0.25.10 (PNG only, default features disabled) and sha2 =0.10.9, each MIT OR Apache-2.0. Cargo.lock pins the transitive graph. Reviewed dependency metadata declares permissive license alternatives, but SDK license selection, dependency/publication policy and release notices remain open under task 1.4. The crate remains publish=false; no third-party code is relicensed by this work.
+
+## Historical evidence export checkpoint
+
+Root and consumer accepted contract 9b61d7284edabe6a1fea61c3f621049300b3bc32 against consumer Docs fbb2fd4cbf0352eeb71ecb32b2b3a0683a4fabd6. Independent Sol ordinary-code review accepted implementation 644811c52aa6af5d151a0f8ace3cf9d7ed45f927; integration d4eb7f84ea11c1f0324aac89144acf86258e494e has the identical tree. The reviewer independently passed 22 tests and five compile-fail doctests, strict Clippy in both feature modes, formatting and strict OpenSpec 1/1 on Rust 1.98.1. The declared Rust 1.88 floor remains untested.
+
+Observation, receipt and capture facts now expose original scope/identity/order/revision and full capture descriptor lineage through private immutable historical types. Canonical UUID output, exact integer/duration/geometry-bit access, stable schema names and pre-copy aggregate bounds are implemented. Synthetic fixture-local clock interpretation and absent native qualification are explicit. Saved facts cannot be passed to operational capture/creation APIs. Exact image media remains on the original batch and must be persisted alongside descriptors.
+
+This supplies SDK facts APIs, not a complete consumer persistence container or storage/reopen test. Task 5.3 remains open until complete consumer mapping, lossless persistence and exact revision integration are verified. Native acquisition, freshness, durable creation, Reader integration and release gates remain open.

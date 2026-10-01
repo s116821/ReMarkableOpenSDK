@@ -70,3 +70,9 @@ No script from this repository should run automatically on a tablet. The complet
 - [systemd busctl documentation source](https://github.com/systemd/systemd/blob/main/man/busctl.xml), checked October 1: bus peer inventory and interface introspection are distinct operations. Validate installed tool options rather than assuming latest-systemd features.
 
 Source basis: current Linear/GitHub outputs, local static evidence and hashes, official documentation, plus explicitly attributed coordinator tablet report. Proposed API/research ordering is design inference. No copied proprietary implementation is included.
+
+### Host metadata follow-up: web and document-lock roles
+
+A bounded host-only Qt static-metadata scan of the same private xochitl artifact identified DeviceWebServer enable/disable/settings methods and disabled/failed properties. UploadRequest and DownloadRequest yielded class metadata with no declared methods or properties in this parser output. DocumentLockManager metadata includes document/task-tracker properties and sleep, page-modified and lines-stored callbacks. The original binary was parsed as data in the existing network-disabled local container; it was not executed. Raw metadata and the inspection script remain private.
+
+These observations narrow interface roles only. The web metadata does not establish an external page-insertion route. Document-lock callbacks do not expose a verified external acquire/release protocol, compare-and-act guard or durable receipt. Empty parser results are not proof of absent behavior. No endpoint was contacted or enabled, and no new tablet experiment follows from this scan. The next research question is whether a supported externally callable mechanism can combine source ownership, coordinated mutation and durable attribution; none is yet demonstrated.
