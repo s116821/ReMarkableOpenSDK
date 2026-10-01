@@ -1,0 +1,61 @@
+# Proposed Reader capture boundary
+
+Status: proposed consumer seam; native implementation and this refinement's independent review remain pending. This extends the reviewed creation model without claiming native capture qualification.
+
+## Identity outcomes
+
+`observe_page` returns a known scoped `PageObservation`, or an explicit observation failure:
+
+- `Unsupported(reason)`: this adapter cannot perform qualified identity observation for the detected runtime/capability.
+- `UnknownIdentity(reason)`: observation ran but could not establish exactly one current native page. Reasons include no document open, unsettled state, ambiguous identities, missing identifiers and insufficient ownership evidence.
+
+Unknown is not a PageKey with nil/generated UUIDs, a filename/index surrogate, an old last-opened record or an automatically adopted page. UUID validation rejects nil document/page IDs. An operational failure never permits binding, creation, provider-source persistence or native output using a guessed owner.
+
+Unbound is different: a known native PageKey may lack a Buddy conversation binding. That is a consumer lookup result, not SDK identity failure. The SDK does not know whether a conversation exists, whether a source is a legacy QA page, or whether product policy permits starting a new conversation. REM-37 can retain its nonnil source identity requirement unchanged. It must not construct SourceObservation on UnknownIdentity/Unsupported.
+
+If legacy behavior still allows an identity-free diagnostic screenshot, represent it separately as unqualified diagnostic pixels. It cannot be implicitly converted into a qualified source batch or associated with a conversation. Whether a user-visible degraded flow is allowed belongs in Docs/Buddy policy; it does not relax SDK provenance or fabricate identity.
+
+## Immutable evidence batch
+
+A capture request carries one already-known scoped observation, an operation/capture correlation ID, monotonic deadline and cancellation context. Native adapter code brackets acquisition with fresh observations and continuous ownership/input checks; matching before/after UUIDs alone cannot hide navigation away and back. Every overview/detail image belongs to the same capture operation and source observation. Loss of guard anywhere invalidates the whole qualified batch rather than returning partial success.
+
+The response is either `Qualified(CapturedBatch)` or an explicit unsupported, unknown/stale ownership, canceled or capture-failed outcome. There is no native mutation in capture, so a failure does not imply page creation; existing creation indeterminacy remains a separate type.
+
+CapturedBatch owns immutable image buffers (for example Arc<[u8]> behind private fields), their SHA-256 digests computed over those exact encoded bytes, and immutable metadata. No borrowed mutable framebuffer, mutable global last-image cache, inferred file identity or caller-supplied unverified digest is accepted as qualified evidence. Production adapters construct qualified batches internally; synthetic constructors are feature-gated and explicitly synthetic.
+
+Required batch facts:
+
+| Fact | Semantics |
+| --- | --- |
+| Source | Exact native document/page plus device/adapter instance, runtime session, visit, content and order revision evidence; opaque tokens are not globally comparable clocks |
+| Procedure | Semantic capability/contract revision, adapter qualification/procedure identity and evidence origin |
+| Acquisition interval | Monotonic start/end in the observation's clock scope, plus optional wall-clock timestamp with explicit clock provenance; UTC alone is not freshness proof |
+| Overview | Exact immutable bytes, digest, validated MIME/encoding and nonzero decoded pixel dimensions |
+| Details | Each has exact bytes/digest/encoding/dimensions and a parent overview ID/digest, parent pixel dimensions and crop rectangle |
+| Geometry | Finite invertible affine image-pixel-to-normalized-source transform, with declared coordinate convention/viewport and orientation |
+| Target | Optional normalized source target, validated against the same source/transform; absence does not mean whole-document permission |
+
+Coordinate convention: image coordinates use continuous pixel-edge units, origin at top-left; an image spans [0,width] by [0,height]. A pixel center is (x+0.5,y+0.5). Normalized source coordinates refer to the observed native page plane, origin at top-left, with the page rectangle [0,1] by [0,1]; viewport offsets, scrolling and rotation are encoded in the transform. UI chrome/padding outside that page plane is represented by a valid-source region or masked out, not mislabeled as page content. Do not clamp invalid coordinates into range silently.
+
+For a detail image cropped from the overview, its rectangle uses checked parent-pixel bounds, and its transform must equal the parent transform composed with crop origin and any declared resampling. For an independently recaptured detail, mark a separate acquisition with its own guarded interval and provenance; do not claim it is a pixel crop of the overview. First delivery should support overview-derived crops only unless existing Reader behavior requires and independently qualifies recapture.
+
+Validate byte/count/decoded-dimension limits before allocation or decoding; reject malformed images, MIME/dimension mismatches, nonfinite/singular transforms, overflow/out-of-bounds crops, missing/foreign parents, mixed owner/visit/revisions and inconsistent crop transforms. Immutable storage alone does not prove correct pixels or source ownership.
+
+## Consumer handoff
+
+The incremental DeviceBackend adapter maps SDK capture outcomes into existing Reader workflow results. On Qualified, the conversation domain persists the exact overview/detail batch and source facts before any provider call, then retrieves immutable stored bytes. Storage owns its content-addressed keys and retention policy; the SDK owns native observation/capture facts. Neither layer silently recomputes a crop or re-encodes an image after the digest/source record is committed.
+
+Source identity loss yields an explicit unsupported/unknown-source workflow outcome before creating the REM-37 source record/provider request. A known source without a conversation binding follows the consumer's normal binding/start policy. No raw hardware access is added to the conversation domain.
+
+Persisted facts never confer operational authority. After provider completion or a page revisit, native output requires a newly checked device/adapter/session guard and the correct Buddy binding. `CapturedBatch`, stored SourceObservation and historical CreationReceipt are all insufficient alone. Existing native output outcomes must distinguish unsupported or rejected-without-mutation from uncertain post-dispatch effects; typed text acknowledgement is not automatically durable completion.
+
+## Acceptance before native use
+
+- Unknown/unsupported identity cannot construct REM-37 SourceObservation or enter the qualified capture path; known-but-unbound remains distinguishable.
+- Nil UUIDs and forged identity surrogates are rejected.
+- Capture rejects page change and away/back input between brackets, foreign/recreated adapter guards and mixed-frame batches.
+- Original overview/details remain byte-identical across persistence and provider retrieval; wrong MIME/dimensions/digest/crop/transform/parent fail deterministically.
+- Rotation, scrolled viewport and resampled crop geometry are tested against fixed synthetic fixtures, with native geometry qualified separately.
+- Provider/output integration tests prove source persistence precedes dispatch and persisted evidence cannot grant native rendering permission.
+
+This refinement requires root API review and consumer-owner agreement before native integration. It does not authorize a new device experiment or mark existing SDK tasks complete.

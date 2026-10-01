@@ -30,6 +30,14 @@ The SDK SHALL identify a native page by validated document/page UUIDs and SHALL 
 - **WHEN** a new adapter instance receives a prior instance's guard or historical receipt
 - **THEN** it rejects that evidence as mutation authority and requires fresh scoped observation for any permitted reconciliation
 
+#### Scenario: Native source identity cannot be established
+- **WHEN** identity observation is unsupported or cannot resolve exactly one current nonnil document/page identity
+- **THEN** the SDK returns explicit Unsupported or UnknownIdentity and does not fabricate UUIDs or a qualified source observation
+
+#### Scenario: Known source lacks a consumer binding
+- **WHEN** native source identity is known but no Buddy conversation binding exists
+- **THEN** the SDK retains the known identity and leaves the separate unbound-conversation decision to the consumer
+
 ### Requirement: Capture carries bounded provenance
 The SDK SHALL return immutable capture content with digest, dimensions/transform and matching before/after page ownership observations, plus a session-bound monotonic observation interval. The SDK SHALL reject stale or mismatched capture ownership and SHALL leave durable source storage to its consumer.
 
@@ -40,6 +48,18 @@ The SDK SHALL return immutable capture content with digest, dimensions/transform
 #### Scenario: Pixel match without owner proof
 - **WHEN** pixels match an earlier frame but current native ownership cannot be established
 - **THEN** the SDK reports unavailable evidence rather than promoting the matching image digest to page identity
+
+#### Scenario: Immutable overview and detail batch
+- **WHEN** a qualified capture batch is returned
+- **THEN** its exact image bytes, computed digests, encoding/dimensions, shared source/procedure/time provenance and checked crop/transform relationships are immutable and cannot be substituted by later mutable framebuffer or cache contents
+
+#### Scenario: Invalid detail provenance
+- **WHEN** a detail has a foreign parent, invalid crop/transform, encoding/dimension mismatch or different source ownership
+- **THEN** the complete qualified batch is rejected rather than emitting partial or misattributed source evidence
+
+#### Scenario: Historical source evidence used for native output
+- **WHEN** a caller holds a persisted capture or source record but lacks a current scoped native guard
+- **THEN** that historical evidence grants no permission to render or mutate a page
 
 ### Requirement: Guarded native navigation
 The SDK SHALL navigate only from a valid expected observation through a qualified semantic operation and SHALL enforce its ownership preconditions when execution occurs, not only before dispatch. It SHALL report observed target completion separately from command dispatch. It SHALL NOT use autonomous menu automation or a per-request UI restart to satisfy navigation.
