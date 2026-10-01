@@ -51,7 +51,15 @@ The SDK SHALL return immutable capture content with digest, dimensions/transform
 
 #### Scenario: Immutable overview and detail batch
 - **WHEN** a qualified capture batch is returned
-- **THEN** its exact image bytes, computed digests, encoding/dimensions, shared source/procedure/time provenance and checked crop/transform relationships are immutable and cannot be substituted by later mutable framebuffer or cache contents
+- **THEN** its exact immutable native acquisition parent and derived overview/detail bytes, computed digests, encoding/dimensions, shared source/procedure/time provenance and checked crop/transform relationships cannot be substituted by later mutable framebuffer or cache contents
+
+#### Scenario: Stable identity with stale rendered buffer
+- **WHEN** current ownership observations identify page B but the selected buffer contains prior page A content
+- **THEN** the SDK rejects the capture because its qualified logical render/acquisition binding does not match page/content/viewport state, regardless of matching before/after IDs or recent timestamps
+
+#### Scenario: Plausible metadata with unrelated detail pixels
+- **WHEN** valid image bytes are presented with plausible native-parent digest, crop and transform but no trusted or verified parent-pixel derivation
+- **THEN** the SDK rejects their attribution as a derivative of that native acquisition
 
 #### Scenario: Invalid detail provenance
 - **WHEN** a detail has a foreign parent, invalid crop/transform, encoding/dimension mismatch or different source ownership
