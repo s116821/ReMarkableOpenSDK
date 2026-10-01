@@ -24,11 +24,23 @@ The official firmware-matched vendor compiler SDK installer was already acquired
 
 ## Bounded passive runtime handoff
 
+### Completed inventory and root introspection
+
+The coordinator executed the first two bounded read-only stages on October 1. This worker read the raw records afterward. Firmware/model match the RM2 baseline; xochitl and rm-sync PID/start identities remained unchanged across both stages. Installed busctl is systemd255.21. System-bus inventory shows two unique connections owned by xochitl and one by rm-sync. The acquired-name list has a sync service but no named xochitl service; that does not mean xochitl has no exported objects.
+
+The observed abstract xochitl socket is a connected Unix stream (state03, no listening flag), not evidence of a listening RPC endpoint. It must not be treated as a discovered server address.
+
+With the current sync unique owner verified, a standard Introspect call at `/` returned only the standard Introspectable/Peer interfaces and a child named `Synchronizer`. No property getters or sync/native mutation methods were invoked. The next request is restricted to XML at the discovered `/Synchronizer` and the roots of the two verified xochitl connections, after fresh owner/process guards. Errors or empty roots would narrow these endpoints only, not exhaust every possible native mechanism.
+
+Private raw evidence remains with the coordinator, not in Git: `sdk-passive-inventory-20261001-unique.txt` SHA256 `ec43c02242a617c322560ac905b4abd19121f470b84077df643ce50e4f0a4d89`; `sdk-passive-inventory-20261001-sync-root.txt` SHA256 `b5092be8842b0f7e68a6d1fb0a1d6548abbfdacdd783787c09292e3d9c5aadd3`. This worker independently checked those file hashes. Session-specific unique bus names are not a stable SDK API.
+
+### Operator boundaries
+
 Main remains sole tablet operator. First inventory only: current model/firmware and xochitl PID/start identity, presence/version/help of busctl, existing system-bus peers, existing Unix socket names and xochitl socket-FD inode links, then the same process identity afterward. Use the existing host-side 10-second per-command deadline and a64KiB output cap; stop on change/truncation. Do not read document content, environment secrets, network traffic or unrelated account/configuration files.
 
 If busctl is available, inspect help before using supported options and list peers without starting services. Do not yet run tree/introspection, getters, mutator methods, activation, monitor/capture, service restart, file writes or UI actions. A second exact interface-introspection request should name only already-running candidate owners/paths after inventory establishes them, disable auto-start, avoid property values and retain bounded output. Endpoint observation is not permission to invoke its methods.
 
-No script from this repository should run automatically on a tablet. This is a proposed operator handoff, not executed evidence.
+No script from this repository should run automatically on a tablet. The completed stages above are attributed coordinator evidence; subsequent requests remain unexecuted until their raw results are reviewed.
 
 ## Primary external sources
 
