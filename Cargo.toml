@@ -8,3 +8,7 @@ description = "Experimental semantic reMarkable platform contract; no native ada
 [features]
 default = []
 mock = []
+
+[dependencies]
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
+sha2 = "=0.10.9"

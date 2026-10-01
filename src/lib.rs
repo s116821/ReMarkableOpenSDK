@@ -2,6 +2,8 @@
 //! The optional mock is synthetic and cannot establish device qualification.
 #![forbid(unsafe_code)]
 
+pub mod capture;
+
 #[cfg(any(test, feature = "mock"))]
 pub mod mock;
 
@@ -207,6 +209,10 @@ pub enum Reconciliation {
 /// First experimental slice. Capture/navigation remain unimplemented capabilities;
 /// they must gain their full provenance/guard contract before becoming callable.
 pub trait Platform {
+    /// Until acquisition is qualified, the safe default cannot produce a batch.
+    fn capture(&mut self, _: &capture::CaptureRequest) -> capture::CaptureOutcome {
+        capture::CaptureOutcome::Unsupported(UnsupportedReason::CapabilityNotImplemented)
+    }
     fn observe_page(&self) -> Result<PageObservation, ObservationFailure>;
     fn create_after(&mut self, request: &CreationRequest, canceled: bool) -> CreationOutcome;
     fn reconcile_creation(&self, request: &CreationRequest) -> Reconciliation;
