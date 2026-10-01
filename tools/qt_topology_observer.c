@@ -14,9 +14,12 @@
 #include <time.h>
 #include <unistd.h>
 
-enum { REMOTE_CAP=65536, OUTPUT_CAP=65536, MAP_CAP=131072, MAPS_CAP=1024,
+#ifndef QT_OBSERVER_OUTPUT_LIMIT
+#define QT_OBSERVER_OUTPUT_LIMIT 65536
+#endif
+enum { REMOTE_CAP=65536, OUTPUT_CAP=QT_OBSERVER_OUTPUT_LIMIT, MAP_CAP=131072, MAPS_CAP=1024,
        NODE_CAP=64, CHILD_CAP=64, DEPTH_CAP=4 };
-typedef struct { uint64_t lo, hi, inode; unsigned dev_major, dev_minor; bool read, write; } Mapping;
+typedef struct { uint64_t lo, hi, inode, offset; unsigned dev_major, dev_minor; bool read, write, execute; } Mapping;
 typedef struct { uint32_t object_bytes, data_bytes, dptr, qptr, parent, children, count; } Layout;
 typedef ssize_t (*ReadFn)(void *, uint32_t, void *, size_t);
 typedef struct {
@@ -35,15 +38,18 @@ static bool budget(Observer *o) {
     if (monotonic_ms() >= o->deadline) { o->fatal=true; return false; }
     return !o->fatal;
 }
-static const Mapping *range(const Observer *o, uint32_t pointer, size_t bytes) {
+static const Mapping *range_bytes(const Observer *o, uint32_t pointer, size_t bytes) {
     uint64_t end=(uint64_t)pointer+bytes;
-    if (!pointer || pointer%4 || !bytes || end>UINT64_C(0x100000000)) return NULL;
+    if (!pointer || !bytes || end>UINT64_C(0x100000000)) return NULL;
     for (size_t i=0;i<o->map_count;i++)
         if (o->maps[i].read && pointer>=o->maps[i].lo && end<=o->maps[i].hi) return &o->maps[i];
     return NULL;
 }
-static bool read_exact(Observer *o, uint32_t pointer, void *data, size_t bytes) {
-    if (!budget(o) || !range(o,pointer,bytes) || bytes>REMOTE_CAP-o->remote_bytes) {
+static const Mapping *range(const Observer *o, uint32_t pointer, size_t bytes) {
+    return pointer%4?NULL:range_bytes(o,pointer,bytes);
+}
+static bool read_exact_bytes(Observer *o, uint32_t pointer, void *data, size_t bytes) {
+    if (!budget(o) || !range_bytes(o,pointer,bytes) || bytes>REMOTE_CAP-o->remote_bytes) {
         o->incomplete=true; return false;
     }
     o->remote_bytes+=bytes; /* Charge the request even on partial/error transfer. */
@@ -51,6 +57,10 @@ static bool read_exact(Observer *o, uint32_t pointer, void *data, size_t bytes) 
     if (got<0 && (errno==EPERM || errno==ENOSYS)) o->fatal=true;
     if (got!=(ssize_t)bytes || !budget(o)) { o->incomplete=true; return false; }
     return true;
+}
+static bool read_exact(Observer *o, uint32_t pointer, void *data, size_t bytes) {
+    if (!range(o,pointer,bytes)) { o->incomplete=true; return false; }
+    return read_exact_bytes(o,pointer,data,bytes);
 }
 static uint32_t u32(const unsigned char *p) {
     return (uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;
@@ -64,6 +74,7 @@ static bool emit(Observer *o, const char *format, ...) {
 }
 
 /* No RTTI/class strings: unknown is safer than reading uncorroborated descriptors. */
+#ifndef QT_OBSERVER_NO_TOPOLOGY
 static void visit(Observer *o, uint32_t object, uint32_t parent, unsigned depth) {
     if (!budget(o)) return;
     for (size_t i=0;i<o->nodes;i++) if (o->visited[i]==object) { o->incomplete=true; return; }
@@ -102,6 +113,7 @@ static void visit(Observer *o, uint32_t object, uint32_t parent, unsigned depth)
         (count && (!read_exact(o,children,again,(size_t)count*4) || memcmp(raw,again,(size_t)count*4))))
         o->incomplete=true;
 }
+#endif
 
 #ifndef QT_TOPOLOGY_TEST
 static ssize_t remote_read(void *context, uint32_t pointer, void *data, size_t bytes) {
@@ -135,7 +147,7 @@ static bool parse_maps(Observer *o, char *text) {
         if (sscanf(line,"%" SCNx64 "-%" SCNx64 " %4s %" SCNx64 " %x:%x %" SCNu64,
             &m.lo,&m.hi,perms,&offset,&m.dev_major,&m.dev_minor,&m.inode)!=7 ||
             m.lo>=m.hi || o->map_count==MAPS_CAP) return false;
-        m.read=perms[0]=='r'; m.write=perms[1]=='w';
+        m.read=perms[0]=='r'; m.write=perms[1]=='w'; m.execute=perms[2]=='x'; m.offset=offset;
         o->maps[o->map_count++]=m;
     }
     return o->map_count>0;
@@ -145,6 +157,7 @@ static bool number(const char *text, int base, uint64_t *value) {
     errno=0; char *tail; *value=strtoull(text,&tail,base);
     return !errno && !*tail;
 }
+#ifndef QT_OBSERVER_NO_MAIN
 int main(int argc, char **argv) {
     /* Slot comes from separately hash-verified ELF COPY relocation + runtime maps.
        This collector cannot authenticate ELF/provider hashes; operator must do so. */
@@ -203,4 +216,5 @@ int main(int argc, char **argv) {
     if (o->output_bytes>=OUTPUT_CAP || fwrite(o->output,1,o->output_bytes,stdout)!=o->output_bytes) result=3;
     free(o); free(maps); free(maps_again); return result;
 }
+#endif
 #endif

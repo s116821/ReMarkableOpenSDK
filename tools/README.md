@@ -51,3 +51,55 @@ gcc -std=c11 -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined -no-pie t
 Source basis: approved Stage R1 plan and original implementation/owned fixtures.
 The plan references the process_vm_readv permission and non-atomicity contract;
 host fixture success does not establish tablet permissions, ABI layout or topology.
+
+## Separate Stage R2 existing-instance observation
+
+`qml_singleton_observer.c` implements the separately approved fixed read chain in
+native-singleton-observation.md. It reuses the bounded reader/identity/mapping code;
+the byte reader is used only for the declared lifecycle guard. R1 aligned pointer
+reads remain aligned. No type names, URLs, properties, factories, callbacks, engine
+fields, worker data or reference-count writes are accessed. Matching raw callback
+words are compared exactly without ARM/Thumb normalization.
+
+Invocation: `qml-observer PID START_TICKS PRIVATE_MANIFEST`. A manifest is at most
+4096 bytes: first line `qml-existing-instance-arm32-v1`, second line the exact
+provider file path, then exactly 25 hexadecimal integers in this order:
+
+1. PT_LOAD virtual address, file offset, file bytes, memory bytes.
+2. Registry-list virtual address and lifecycle-guard virtual address.
+3. Type kind/meta/extra offsets, singleton kind, expected meta-object pointer.
+4. Singleton-info offset, callback offset/size, capture/manager/invoker offsets,
+   expected raw manager/invoker pointers.
+5. Guarded control/object offsets, sampled strong-count offset, expected vptr,
+   QObject data-pointer offset and backlink offset.
+
+Actual locators and ABI values stay in the private operator manifest. Invalid shape,
+unaligned/out-of-bound fields, duplicate callback slots and extra tokens refuse.
+The operator checks exact provider/executable hashes and ELF facts. The helper derives
+load bias from file-backed mapping identity/offset, corroborates relevant RELRO-split
+mappings and readable segment continuity, and allows BSS anonymous continuation.
+It reads only declared discrete type fields; only exact kind/meta/callback matches
+permit capture/object reads. Nonzero sampled strong count is not retained lifetime.
+
+Caps: 1024 types, four candidates, 64 KiB remote requests, 8 KiB output, two 128 KiB mapping
+snapshots, 2-second cooperative budget and the same 10-second outer operator procedure.
+An unknown/expired/ambiguous or changed candidate is incomplete, never a callable
+capability. Even a unique matching sample remains untrusted/non-atomic and grants
+no current-page authority or safe native insertion. A larger registry is refused
+without paging or heap scanning. No retry follows a refused sample.
+
+Owned R2 fixtures cover guard states, wrong kind/meta, foreign callbacks with zero
+capture reads, expiry, null/malformed pointers, ambiguity/candidate/type caps,
+changed registry/type/callback/capture/object fields, partial reads/deadline/output
+caps, manifest rejection and provider identity/RELRO/BSS mapping behavior. Run:
+
+```sh
+gcc -std=c11 -Wall -Wextra -Werror -O2 tools/qml_singleton_observer_test.c -o /tmp/qml-test
+/tmp/qml-test
+gcc -std=c11 -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined tools/qml_singleton_observer_test.c -o /tmp/qml-sanitized
+/tmp/qml-sanitized
+```
+
+Repeat the R1 owned fixtures when shared reader code changes. This does not request
+another live R1 run. Native access/layout results require the coordinated actual R2
+operator receipt; host tests do not substitute for it.
