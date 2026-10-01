@@ -17,7 +17,7 @@ If legacy behavior still allows an identity-free diagnostic screenshot, represen
 
 ## Immutable evidence batch
 
-A capture request carries one already-known scoped observation, an operation/capture correlation ID, monotonic deadline and cancellation context. Native adapter code brackets acquisition with fresh observations and continuous ownership/input checks; matching before/after UUIDs alone cannot hide navigation away and back. Every overview/detail image belongs to the same capture operation and source observation. Loss of guard anywhere invalidates the whole qualified batch rather than returning partial success.
+A capture request carries one already-known scoped observation, an operation/capture correlation ID, monotonic deadline and cancellation context. Native adapter code brackets acquisition with fresh observations and continuous ownership/input checks; matching before/after UUIDs alone cannot hide navigation away and back. One immutable native acquisition parent produces the overview and details under the same operation/source observation. Loss of guard anywhere invalidates the whole qualified batch rather than returning partial success.
 
 The response is either `Qualified(CapturedBatch)` or an explicit unsupported, unknown/stale ownership, canceled or capture-failed outcome. There is no native mutation in capture, so a failure does not imply page creation; existing creation indeterminacy remains a separate type.
 
@@ -30,20 +30,23 @@ Required batch facts:
 | Source | Exact native document/page plus device/adapter instance, runtime session, visit, content and order revision evidence; opaque tokens are not globally comparable clocks |
 | Procedure | Semantic capability/contract revision, adapter qualification/procedure identity and evidence origin |
 | Acquisition interval | Monotonic start/end in the observation's clock scope, plus optional wall-clock timestamp with explicit clock provenance; UTC alone is not freshness proof |
-| Overview | Exact immutable bytes, digest, validated MIME/encoding and nonzero decoded pixel dimensions |
-| Details | Each has exact bytes/digest/encoding/dimensions and a parent overview ID/digest, parent pixel dimensions and crop rectangle |
+| Native acquisition parent | Exact immutable encoded native-resolution pixels, computed digest, validated MIME/encoding/nonzero decoded dimensions and acquisition/conversion procedure; retain this parent even if it is not submitted to a provider |
+| Overview | Exact immutable bytes, digest, validated MIME/encoding/dimensions and explicit derivation from the native parent, including resampling/normalization procedure |
+| Details | Each has exact bytes/digest/encoding/dimensions and the native acquisition parent ID/digest, parent pixel dimensions and crop rectangle plus any resampling procedure |
 | Geometry | Finite invertible affine image-pixel-to-normalized-source transform, with declared coordinate convention/viewport and orientation |
 | Target | Optional normalized source target, validated against the same source/transform; absence does not mean whole-document permission |
 
 Coordinate convention: image coordinates use continuous pixel-edge units, origin at top-left; an image spans [0,width] by [0,height]. A pixel center is (x+0.5,y+0.5). Normalized source coordinates refer to the observed native page plane, origin at top-left, with the page rectangle [0,1] by [0,1]; viewport offsets, scrolling and rotation are encoded in the transform. UI chrome/padding outside that page plane is represented by a valid-source region or masked out, not mislabeled as page content. Do not clamp invalid coordinates into range silently.
 
-For a detail image cropped from the overview, its rectangle uses checked parent-pixel bounds, and its transform must equal the parent transform composed with crop origin and any declared resampling. For an independently recaptured detail, mark a separate acquisition with its own guarded interval and provenance; do not claim it is a pixel crop of the overview. First delivery should support overview-derived crops only unless existing Reader behavior requires and independently qualifies recapture.
+Each derivative's rectangle uses checked native-parent pixel bounds, and its transform must equal the parent transform composed with crop origin and declared resampling. Overview and detail are siblings; a detail must not claim the resampled overview as its pixel parent. For an independently recaptured image, mark a separate acquisition with its own guarded interval/provenance; that is outside this initial same-acquisition contract.
+
+Current Reader topology, verified in Buddy origin/main ff8ad75 `src/device/screenshot.rs`: `take_screenshot` captures a native image once, serializes native_data, normalizes/resamples the overview and publishes both only after completion. `detail_images_base64` decodes that native_data and crops three overlapping full-width strips at y=0,(h-th)/2,h-th where th=h*2/5. It does not recapture or crop from the 768x1024 overview. Preserve this exact full-resolution detail behavior and store the native parent; do not downgrade provider detail resolution to fit the API.
 
 Validate byte/count/decoded-dimension limits before allocation or decoding; reject malformed images, MIME/dimension mismatches, nonfinite/singular transforms, overflow/out-of-bounds crops, missing/foreign parents, mixed owner/visit/revisions and inconsistent crop transforms. Immutable storage alone does not prove correct pixels or source ownership.
 
 ## Consumer handoff
 
-The incremental DeviceBackend adapter maps SDK capture outcomes into existing Reader workflow results. On Qualified, the conversation domain persists the exact overview/detail batch and source facts before any provider call, then retrieves immutable stored bytes. Storage owns its content-addressed keys and retention policy; the SDK owns native observation/capture facts. Neither layer silently recomputes a crop or re-encodes an image after the digest/source record is committed.
+The incremental DeviceBackend adapter maps SDK capture outcomes into existing Reader workflow results. On Qualified, the conversation domain persists the exact native parent, overview/detail batch and source facts before any provider call, then retrieves immutable stored bytes. Parent persistence is required even when only overview/details go to the provider. Storage owns its content-addressed keys and retention policy; the SDK owns native observation/capture facts. Neither layer silently recomputes a crop or re-encodes an image after the digest/source record is committed.
 
 Source identity loss yields an explicit unsupported/unknown-source workflow outcome before creating the REM-37 source record/provider request. A known source without a conversation binding follows the consumer's normal binding/start policy. No raw hardware access is added to the conversation domain.
 
@@ -54,7 +57,7 @@ Persisted facts never confer operational authority. After provider completion or
 - Unknown/unsupported identity cannot construct REM-37 SourceObservation or enter the qualified capture path; known-but-unbound remains distinguishable.
 - Nil UUIDs and forged identity surrogates are rejected.
 - Capture rejects page change and away/back input between brackets, foreign/recreated adapter guards and mixed-frame batches.
-- Original overview/details remain byte-identical across persistence and provider retrieval; wrong MIME/dimensions/digest/crop/transform/parent fail deterministically.
+- Original native parent/overview/details remain byte-identical across persistence and provider retrieval; wrong MIME/dimensions/digest/crop/transform/parent fail deterministically. Full-resolution details must not be derived from a downsampled overview.
 - Rotation, scrolled viewport and resampled crop geometry are tested against fixed synthetic fixtures, with native geometry qualified separately.
 - Provider/output integration tests prove source persistence precedes dispatch and persisted evidence cannot grant native rendering permission.
 
