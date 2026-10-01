@@ -144,3 +144,11 @@ Host inspection of Inkling revision `089efb2c9f24ce64127c6fc4d7fd30f93ae5ad94` c
 The inspected executor clears its shared pending-job flag before calling the job. Its wait therefore does not establish operation completion. The hand-built slot object deliberately accommodates multiple ABI layouts; it is prior art, not an accepted SDK lifetime or dispatch implementation. The documented worker-thread screen-grab exception remains an upstream empirical claim, not a locally verified rule.
 
 The extension still uses XOVI loading. No code or loader was adopted, no tablet call was made, and R2 remains unchanged. A later dispatch experiment needs exact ABI, ownership, thread, completion and teardown evidence; GUI dispatch alone does not establish DocumentWorker serialization or a mutation-time source fence.
+
+### View identity and asynchronous state follow-through
+
+Host metadata and static dispatch tracing on the same private xochitl identify separate SceneView page-ID, document-wrapper, controller, worker and viewport properties. The page-ID read path copies a shared QString and increments its allocation reference count; the viewport read path invokes a virtual method. Calling those getters would exceed a strictly external read-only observation. Property names alone do not establish current visual ownership.
+
+The traced page-ID write path resets view state, assigns the new ID, and conditionally calls a helper that can enqueue a worker command before emitting the identity-change signal. The reset path clears viewport/controller state and emits separate change signals. These static paths establish staged state changes and queueing, not a synchronous rendered-buffer completion contract. The queued command's full semantics remain unresolved.
+
+A future view probe must distinguish an identity sample from a coherent, fresh capture. Separate fields can be sampled during transitions; repeated equal values cannot exclude an intervening away-and-back visit. This finding does not expand R2, authorize a getter or setter call, or qualify a source guard. Raw field offsets and trace locators remain private.
