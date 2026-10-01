@@ -103,3 +103,26 @@ gcc -std=c11 -Wall -Wextra -Werror -O1 -g -fsanitize=address,undefined tools/qml
 Repeat the R1 owned fixtures when shared reader code changes. This does not request
 another live R1 run. Native access/layout results require the coordinated actual R2
 operator receipt; host tests do not substitute for it.
+
+## Separate Stage R2D descriptor-only diagnostic
+
+`qml_descriptor_observer.c` is a separately selected executable under the approved
+R2D amendment. It does not run automatically after R2 refusal. It reuses the exact
+private manifest and identity/provider/mapping checks, but reads only one lifecycle
+byte and fixed 12-byte list descriptor twice, at most 26 remote bytes. Allocation
+and buffer words are output data only: they never drive reads, allocations or loops.
+The type count cannot expand the read set, including huge or negative values.
+
+Private output is capped at 1 KiB and retains each fully sampled guard/descriptor,
+unsigned and signed count, equality and incomplete/non-atomic flags. Unavailable
+fields are null rather than invented zeros. Refusal preserves preceding complete
+samples. The diagnostic cannot establish registry ABI, discover a controller or
+justify greater traversal; R2's 1024-entry discovery bound remains unchanged.
+
+Owned fixtures verify exact fixed reads/no pointer traversal, huge/negative/zero
+counts, unknown guards, changed/partial samples, timeout, mapping and overflow
+refusals. Build/run `qml_descriptor_observer_test.c` with the same native GCC and
+ASAN/UBSAN recipes as R2. Repeat R1/R2 fixtures after shared cap configuration edits.
+R2D requires its own independently reproduced ARM artifact/operator review and one
+announced run with fresh checks, evidence-before-cleanup and no retry. Process/SSH
+continuity is distinct from untested physical UI responsiveness.
