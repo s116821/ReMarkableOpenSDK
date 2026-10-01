@@ -1,6 +1,6 @@
 # Native insertion reachability and bounded experiment
 
-Status: host research plan, October 1, 2026. No native adapter or mutation experiment is qualified. This supplements [research.md](research.md) and implements the comparison work in tasks 2.2–2.4 without completing those tasks. Main remains the sole tablet operator. All device stages below are proposed, not executed. Development observation is distinct from production acceptance Gates A–D.
+Status: active research plan, October 1, 2026. One read-only R1 observation has completed; see the attributed result in [research.md](research.md). No native adapter or mutation experiment is qualified. This supplements research tasks 2.2–2.4 without completing them. Main remains the sole tablet operator. R2 and production Gates A–D remain unexecuted. Development observation is distinct from production acceptance.
 
 ## Candidate comparison
 
@@ -43,6 +43,8 @@ Cleanup is termination of the one-shot helper, collection of its bounded private
 ### R2: explicit follow-up, not implicit scope expansion
 
 If R1 locates relevant controller/document/worker objects, design a separate allowlisted read manifest for their pointer relationships and lock/queue descriptors using corroborated static evidence. Do not emit unrelated strings, content or raw memory. Root reachability may omit QML singletons, unparented workers or scene objects; missing children do not prove those objects absent. If R1 is insufficient, evaluate a named temporary debugger/Qt bridge with its exact stop/resume, thread-affinity, deadline and independent detach/recovery behavior before main executes it. R1 does not authorize that escalation or any native method call.
+
+The completed R1 tree did not match the private native-class allowlist. A concrete [existing-singleton registry observation proposal](native-singleton-observation.md) now supplies a separate no-call discovery path for review. It does not expand the already executed R1 scope.
 
 Research observations can test whether a proposed ownership/serialization seam exists. A later instrumented mutation experiment requires its own concrete executor guard and disposable-fixture plan; production acceptance still requires Gates A–D. Experimental access alone cannot qualify a shipping loader, current-page authority or durable creation.
 
