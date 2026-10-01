@@ -12,7 +12,7 @@ The SDK SHALL expose versioned semantic operations through device/firmware adapt
 - **THEN** it uses the same semantic contract and receives explicitly synthetic evidence that cannot qualify production support
 
 ### Requirement: Stable page identity and separate operational ownership
-The SDK SHALL identify a native page by validated document/page UUIDs and SHALL represent session, visit, order/content revision and evidence strength separately. Persisted last-opened metadata SHALL NOT alone prove current UI ownership.
+The SDK SHALL identify a native page by validated document/page UUIDs and SHALL represent device-connection/adapter-instance scope, session, visit, order/content revision and evidence strength separately. Operational handles SHALL NOT cross device or adapter-instance boundaries. Persisted last-opened metadata SHALL NOT alone prove current UI ownership.
 
 #### Scenario: Page revisited or runtime restarted
 - **WHEN** stable page UUIDs match but the runtime session or visit differs from a request precondition
@@ -21,6 +21,14 @@ The SDK SHALL identify a native page by validated document/page UUIDs and SHALL 
 #### Scenario: Ambiguous native identity
 - **WHEN** a page/document identity is duplicated or order evidence conflicts
 - **THEN** observation returns explicit ambiguity and guarded mutations do not dispatch
+
+#### Scenario: Two devices share page UUIDs
+- **WHEN** a guard from device A is presented to device B with the same document/page UUIDs and coincident session-token text
+- **THEN** the SDK rejects the foreign operational scope before dispatch
+
+#### Scenario: Adapter recreated
+- **WHEN** a new adapter instance receives a prior instance's guard or historical receipt
+- **THEN** it rejects that evidence as mutation authority and requires fresh scoped observation for any permitted reconciliation
 
 ### Requirement: Capture carries bounded provenance
 The SDK SHALL return immutable capture content with digest, dimensions/transform and matching before/after page ownership observations, plus a session-bound monotonic observation interval. The SDK SHALL reject stale or mismatched capture ownership and SHALL leave durable source storage to its consumer.
@@ -34,7 +42,7 @@ The SDK SHALL return immutable capture content with digest, dimensions/transform
 - **THEN** the SDK reports unavailable evidence rather than promoting the matching image digest to page identity
 
 ### Requirement: Guarded native navigation
-The SDK SHALL navigate only from a valid expected observation through a qualified semantic operation and SHALL report observed target completion separately from command dispatch. It SHALL NOT use autonomous menu automation or a per-request UI restart to satisfy navigation.
+The SDK SHALL navigate only from a valid expected observation through a qualified semantic operation and SHALL enforce its ownership preconditions when execution occurs, not only before dispatch. It SHALL report observed target completion separately from command dispatch. It SHALL NOT use autonomous menu automation or a per-request UI restart to satisfy navigation.
 
 #### Scenario: Source ownership lost
 - **WHEN** external input or runtime state invalidates the source guard before dispatch
@@ -45,11 +53,23 @@ The SDK SHALL navigate only from a valid expected observation through a qualifie
 - **THEN** the result reports uncertainty and grants no permission to write on the presumed target
 
 ### Requirement: Creation has exact preconditions and durable receipts
-The SDK SHALL accept an immutable operation/request identity, exact source/order preconditions and intended target UUID for creation-after-source. It SHALL return Committed only with qualified evidence binding that request to the intended observed target, exact permitted after-order and persisted revision. Generic success callbacks or idle indicators SHALL NOT substitute for that evidence.
+The SDK SHALL accept an immutable operation/request identity, exact source/order preconditions and explicit target-allocation policy for creation-after-source. It SHALL enforce those preconditions at native mutation execution through a qualified race-closing mechanism and SHALL report Unsupported if the backend cannot do so. It SHALL return Committed only with qualified evidence binding the request to the observed target, exact permitted after-order and persisted revision. Client-selected IDs SHALL match the intended UUID; native-assigned IDs SHALL have a qualified durable atomic operation/request-to-target mapping. Generic callbacks, idle indicators or position-based inference SHALL NOT substitute for that evidence.
 
 #### Scenario: Intended and observed target differ
-- **WHEN** native observation reports a target UUID different from the immutable request
+- **WHEN** client-selected allocation reports a target UUID different from the immutable request
 - **THEN** the result is Indeterminate and is not usable as a successful consumer binding receipt
+
+#### Scenario: Ownership changes between dispatch and execution
+- **WHEN** external input or source/order state changes after request dispatch but before native mutation executes
+- **THEN** the qualified backend rejects the stale request without mutation; an adapter that cannot enforce this guarantee does not expose that mutation capability as supported
+
+#### Scenario: Native assigns the page UUID
+- **WHEN** the native operation durably maps the immutable operation/request identity to a generated UUID and exact insertion evidence matches it
+- **THEN** the SDK may return a receipt under its qualified native-assigned allocation mode without pretending the caller selected that UUID
+
+#### Scenario: Native allocation lacks durable correlation
+- **WHEN** an interrupted native-assigned request can only be matched by new page position or timestamps
+- **THEN** the SDK reports Indeterminate and does not infer attribution or dispatch a retry
 
 #### Scenario: Unexpected concurrent order change
 - **WHEN** observed order contains changes beyond the one requested insertion
