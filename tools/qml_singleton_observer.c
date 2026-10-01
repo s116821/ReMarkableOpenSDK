@@ -1,5 +1,7 @@
 /* Fixed-shape, read-only existing-instance discovery; private manifest required. */
+#ifndef QT_OBSERVER_OUTPUT_LIMIT
 #define QT_OBSERVER_OUTPUT_LIMIT 8192
+#endif
 #define QT_OBSERVER_NO_TOPOLOGY
 #define QT_OBSERVER_NO_MAIN
 #include "qt_topology_observer.c"

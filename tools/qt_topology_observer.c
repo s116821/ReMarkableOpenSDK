@@ -17,7 +17,10 @@
 #ifndef QT_OBSERVER_OUTPUT_LIMIT
 #define QT_OBSERVER_OUTPUT_LIMIT 65536
 #endif
-enum { REMOTE_CAP=65536, OUTPUT_CAP=QT_OBSERVER_OUTPUT_LIMIT, MAP_CAP=131072, MAPS_CAP=1024,
+#ifndef QT_OBSERVER_REMOTE_LIMIT
+#define QT_OBSERVER_REMOTE_LIMIT 65536
+#endif
+enum { REMOTE_CAP=QT_OBSERVER_REMOTE_LIMIT, OUTPUT_CAP=QT_OBSERVER_OUTPUT_LIMIT, MAP_CAP=131072, MAPS_CAP=1024,
        NODE_CAP=64, CHILD_CAP=64, DEPTH_CAP=4 };
 typedef struct { uint64_t lo, hi, inode, offset; unsigned dev_major, dev_minor; bool read, write, execute; } Mapping;
 typedef struct { uint32_t object_bytes, data_bytes, dptr, qptr, parent, children, count; } Layout;
