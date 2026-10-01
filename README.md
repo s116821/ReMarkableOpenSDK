@@ -14,4 +14,4 @@ XOVI is research prior art only and is excluded as a production dependency. Prop
 
 Read [contributor guidance](CONTRIBUTING.md), the [workflow](openspec/README.md), and the active design before implementation.
 
-The dependency-free Rust prototype models scoped page observations and creation/reconciliation outcomes. Its optional `mock` feature is synthetic; native defaults are unsupported. Run `cargo test --all-features` and `cargo clippy --all-targets --all-features -- -D warnings`. See [implementation limits](openspec/changes/establish-native-platform-contract/implementation.md) before using the prototype.
+The experimental Rust prototype models scoped page observations, creation/reconciliation outcomes and bounded synthetic PNG capture evidence. It pins image 0.25.10 (PNG only) and sha2 0.10.9; Cargo.lock records transitive dependencies. Its optional `mock` feature is synthetic; native defaults are unsupported. Run `cargo test --all-features` and `cargo clippy --all-targets --all-features -- -D warnings`. See [implementation limits](openspec/changes/establish-native-platform-contract/implementation.md) before using the prototype.
