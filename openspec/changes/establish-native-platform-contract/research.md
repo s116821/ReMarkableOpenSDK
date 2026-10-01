@@ -36,6 +36,30 @@ Private raw evidence remains with the coordinator, not in Git: `sdk-passive-inve
 
 ### Operator boundaries
 
+### Completed interface inspection and host-only follow-up
+
+The coordinator's third stage verified owners/process identities before each standard Introspect request and reported unchanged identities afterward. `/Synchronizer` exposes the `no.remarkable.sync.Synchronizer` interface, with sync/authentication, protocol, entry-lock, cleanup and availability methods plus sync/progress signals. Its generic `execute` declaration takes a base path and an `ExecuteRequest` structure; the declaration does not establish page creation, atomicity, mutation-time guards or durable operation correlation. No declared method or property getter was invoked. This interface is not an accepted automatic-page mechanism.
+
+The roots of both verified xochitl connections returned `Access denied`. No policy change, identity spoofing, alternate-call bypass or repeated denied request is planned. These results establish a permission boundary for the attempted calls, not absence of exported objects or every possible native mechanism. Live interface discovery pauses here while host research continues.
+
+Private raw stage-three evidence hashes (independently checked by this worker):
+
+| Record suffix | SHA256 |
+| --- | --- |
+| interface-1-435.txt | 6d7e3170d1d70dd077955b1f586175785265d4e87a2113ee7cde3f83561d3564 |
+| interface-1-436.txt | 79aa44eb9a5f0f1f0132443dc8475bd7e5f75e5c80f4ff6716ee5265c60e9cf2 |
+| interface-1-437.txt | 2d7237d028e31f0775de41f50ff28b3e4ea808d85db4c58c63b13324b76ee81c |
+
+Filenames share prefix `sdk-passive-inventory-20261001-` in the coordinator's private outputs directory. Raw process/network details are not committed here.
+
+Host-only scans of the preserved xochitl dynamic symbols matched Qt D-Bus client/watcher functions but no Qt registerObject/registerService/QDBusAbstractAdaptor import in that executable's dynamic-symbol table. This does not exclude indirect, static or other-library mechanisms. A bounded vendor SDK filename scan found Qt synchronization facilities, not an identified reMarkable native creation interface; names such as QtLabsSynchronizer must not be confused with the observed rm-sync service.
+
+The saved executable depends on `libQtWebAppHttpServer.so.1` and contains DeviceWebServer, document/upload/download request names and `/documents/`, `/upload`, `/download/`, `/thumbnails/` identifiers. These are a separate document-management discovery lead only. No HTTP listener was enabled, contacted or fuzzed, and no file/document operation was issued. Safe insertion into an open document, cache coherence and exactly attributed durable receipts remain unproved; route names cannot satisfy those requirements.
+
+Next host work should map independently observed interface roles and credible operation/serialization mechanisms, then propose a concrete bounded experiment only if it can test the required safety guarantees. Do not broaden sync calls, modify policy, or select manual fallback merely because these initial endpoints did not qualify.
+
+### Retained operator boundaries
+
 Main remains sole tablet operator. First inventory only: current model/firmware and xochitl PID/start identity, presence/version/help of busctl, existing system-bus peers, existing Unix socket names and xochitl socket-FD inode links, then the same process identity afterward. Use the existing host-side 10-second per-command deadline and a64KiB output cap; stop on change/truncation. Do not read document content, environment secrets, network traffic or unrelated account/configuration files.
 
 If busctl is available, inspect help before using supported options and list peers without starting services. Do not yet run tree/introspection, getters, mutator methods, activation, monitor/capture, service restart, file writes or UI actions. A second exact interface-introspection request should name only already-running candidate owners/paths after inventory establishes them, disable auto-start, avoid property values and retain bounded output. Endpoint observation is not permission to invoke its methods.
