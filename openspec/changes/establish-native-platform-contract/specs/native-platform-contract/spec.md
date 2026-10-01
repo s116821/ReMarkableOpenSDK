@@ -139,3 +139,18 @@ SDK releases SHALL identify exact semantic contract and adapter qualification re
 #### Scenario: Correct architecture but incompatible dynamic ABI
 - **WHEN** an artifact has the expected CPU architecture but its interpreter, float ABI, required library or versioned symbol cannot be satisfied by the qualified target runtime
 - **THEN** compatibility fails and the artifact is not advertised as supported, even if it built or ran under a different emulator/sysroot
+
+### Requirement: Historical facts remain separate from operational authority
+The SDK SHALL expose bounded, versioned, lossless historical evidence with original identity, scope, origin, order, receipt and capture lineage facts. It SHALL explicitly identify unavailable qualification/clock facts and SHALL NOT reconstruct operational guards from exported or imported historical records. Consumers SHALL NOT invent missing facts or use Debug output as an evidence protocol.
+
+#### Scenario: Persisting and restoring a synthetic capture
+- **WHEN** a consumer exports and restores the synthetic batch facts and exact image bytes
+- **THEN** original numeric and geometry values, source/order facts and parent/derivative lineage survive without loss, synthetic qualification and fixture-local clock meaning remain explicit, and the record grants no native operational authority.
+
+#### Scenario: Evidence exceeds export limits
+- **WHEN** source order or variable metadata exceeds the validated bounded export schema
+- **THEN** export returns an explicit error before copying oversized variable data and does not truncate, omit or fabricate facts.
+
+#### Scenario: Required native evidence is absent
+- **WHEN** a consumer requires a qualified profile or native clock/ownership evidence that the synthetic model cannot supply
+- **THEN** that consumer path refuses before effects rather than inferring qualification from stored IDs, hashes or elapsed time.

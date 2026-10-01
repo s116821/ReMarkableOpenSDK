@@ -24,3 +24,8 @@
 - [ ] 4.4 Verify Manager installs the compatible Buddy artifact without a separate SDK runtime and preserves normal boot/use.
 - [ ] 4.5 Validate OpenSpec, publish exact coordinated revisions and resolve CI/review findings.
 - [ ] 4.6 Sync implemented SDK canonical specs and archive only after all required delivery gates pass; keep product specs in Docs.
+
+## 5. Historical evidence export amendment
+- [ ] 5.1 Independently review evidence-export-contract.md with root and consumer against exact source revisions.
+- [ ] 5.2 Implement bounded immutable facts, canonical UUID output and explicit synthetic clock/qualification semantics; preserve operational opacity.
+- [ ] 5.3 Verify complete lossless round trips, limits and inability to restore authority; coordinate exact consumer mappings before Reader integration.

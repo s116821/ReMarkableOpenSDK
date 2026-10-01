@@ -84,3 +84,7 @@ Bootstrap this active SDK plan, agree receipt/identity semantics with REM-37, na
 ## Open Questions
 
 Which native service/mechanism can satisfy creation and durable reconciliation without fragile startup modification? Which exact current firmware/runtime fingerprints are qualified? Which existing Reader capture/navigation primitives should move in the first slice? What SDK license and dependencies are approved for independent public consumption? These remain explicit implementation gates, not assumed facts.
+
+### Historical evidence export
+
+The proposed additive contract in [evidence-export-contract.md](evidence-export-contract.md) defines bounded, versioned, lossless facts for observations, creation receipts and capture batches. Export is one-way and separate from operational guards. Native qualification/profile and clock facts absent from the synthetic model remain explicitly unavailable; persistence cannot supply them. Exact review and consumer agreement precede implementation.
