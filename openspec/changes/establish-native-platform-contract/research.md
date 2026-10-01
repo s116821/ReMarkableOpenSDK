@@ -20,7 +20,7 @@ The saved xochitl executable imports versions through GLIBC_2.38; this establish
 
 Therefore the official Buddy ARMv7 package's reported GLIBC_2.39 import is not, by itself, a demonstrated mismatch with this tablet. Failure under an older emulator sysroot is an emulator/provider mismatch until full artifact/provider evidence says otherwise. This corrects the unsupported inference that the tablet's libc ceiling was2.38.
 
-The official firmware-matched vendor compiler SDK installer was already acquired and freshly hash-verified; no repeated download. SHA256e2daf17a86d375aae6d290af993060f3dfb488568ca83c401eaa47869e975179. An isolated local Docker build is installing it for actual target sysroot inspection. Installation completion, target provider hashes and compile/import results remain pending; do not infer them from the installer version.
+The official firmware-matched vendor compiler SDK installer was already acquired and freshly hash-verified; no repeated download. SHA256e2daf17a86d375aae6d290af993060f3dfb488568ca83c401eaa47869e975179. Isolated local Docker installation completed successfully in image SHA256416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618. Its target libc and loader hashes independently match both coordinator-reported tablet hashes above exactly. The target provider defines GLIBC_2.39; GCC reports13.4.0; QtCore headers and Qt6Core/Gui/Qml pkg-config report6.10.3. This establishes a concrete compiler/sysroot baseline, not qualification of every dependency or private native API. No ARM application/probe has yet been built in it.
 
 ## Bounded passive runtime handoff
 

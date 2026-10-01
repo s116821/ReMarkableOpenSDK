@@ -2,7 +2,7 @@
 
 An independent, unofficial reMarkable hardware and native-runtime SDK, intended for ReMarkableBuddies and unrelated applications.
 
-**Status: active research and contract design. No native adapter, supported firmware matrix, shipping library or page-creation capability is implemented here yet.**
+**Status: active research, contract design and an unpublished experimental Rust model. No native adapter, supported firmware matrix or shipping page-creation capability is implemented here yet.**
 
 The first change is [establish-native-platform-contract](openspec/changes/establish-native-platform-contract/proposal.md). It targets a capability-oriented boundary for page identity, evidence-bound capture, navigation and safe native page creation. RM2/ARMv7 is the first qualification target. Paper Pro/AArch64 is an adapter target whose native qualification remains later work; cross-builds do not imply hardware support.
 
@@ -13,3 +13,5 @@ Buddy consumes the SDK at build time. Manager selects a compatible Buddy release
 XOVI is research prior art only and is excluded as a production dependency. Proprietary firmware binaries and reconstructed proprietary source must not be committed. Interface discovery is not proof of safe native operation.
 
 Read [contributor guidance](CONTRIBUTING.md), the [workflow](openspec/README.md), and the active design before implementation.
+
+The dependency-free Rust prototype models scoped page observations and creation/reconciliation outcomes. Its optional `mock` feature is synthetic; native defaults are unsupported. Run `cargo test --all-features` and `cargo clippy --all-targets --all-features -- -D warnings`. See [implementation limits](openspec/changes/establish-native-platform-contract/implementation.md) before using the prototype.

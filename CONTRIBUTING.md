@@ -2,6 +2,8 @@
 
 This repository is currently a research/design bootstrap. Public GitHub discussion and the checked-in requirements are sufficient; Linear, Mem, Codex and private device exports are optional maintainer tools.
 
+The experimental Rust model uses Rust stable and no third-party dependencies. Run `cargo fmt --all -- --check`, `cargo test --all-features`, and `cargo clippy --all-targets --all-features -- -D warnings`. It is unpublished (`publish = false`) pending the full contract/native/license gates.
+
 Use a topic branch and read AGENTS.md. The active SDK change records planned behavior, not an implemented baseline. No native capability is advertised before its acceptance evidence exists. Preserve unfinished work and use isolated checkouts.
 
 To check specification structure with the OpenSpec CLI:
