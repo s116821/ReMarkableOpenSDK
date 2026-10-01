@@ -34,8 +34,6 @@ With the current sync unique owner verified, a standard Introspect call at `/` r
 
 Private raw evidence remains with the coordinator, not in Git: `sdk-passive-inventory-20261001-unique.txt` SHA256 `ec43c02242a617c322560ac905b4abd19121f470b84077df643ce50e4f0a4d89`; `sdk-passive-inventory-20261001-sync-root.txt` SHA256 `b5092be8842b0f7e68a6d1fb0a1d6548abbfdacdd783787c09292e3d9c5aadd3`. This worker independently checked those file hashes. Session-specific unique bus names are not a stable SDK API.
 
-### Operator boundaries
-
 ### Completed interface inspection and host-only follow-up
 
 The coordinator's third stage verified owners/process identities before each standard Introspect request and reported unchanged identities afterward. `/Synchronizer` exposes the `no.remarkable.sync.Synchronizer` interface, with sync/authentication, protocol, entry-lock, cleanup and availability methods plus sync/progress signals. Its generic `execute` declaration takes a base path and an `ExecuteRequest` structure; the declaration does not establish page creation, atomicity, mutation-time guards or durable operation correlation. No declared method or property getter was invoked. This interface is not an accepted automatic-page mechanism.
