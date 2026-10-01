@@ -1,6 +1,6 @@
 # Native insertion reachability and bounded experiment
 
-Status: host research plan, October 1, 2026. No native adapter or mutation experiment is qualified. This supplements [research.md](research.md) and implements the comparison work in tasks 2.2–2.4 without completing those tasks. Main remains the sole tablet operator. All stages below are proposed, not executed.
+Status: host research plan, October 1, 2026. No native adapter or mutation experiment is qualified. This supplements [research.md](research.md) and implements the comparison work in tasks 2.2–2.4 without completing those tasks. Main remains the sole tablet operator. All device stages below are proposed, not executed. Development observation is distinct from production acceptance Gates A–D.
 
 ## Candidate comparison
 
@@ -14,7 +14,37 @@ Status: host research plan, October 1, 2026. No native adapter or mutation exper
 | Internal calendar page generation | Diagnostic provenance identifies an internal calendar integration path. | No independently callable insertion transport or qualified source guard demonstrated. Do not invoke account integrations to probe it. |
 | Custom in-process bridge | Qt invocation is a possible research technique once a valid object and execution context exist. | No operable supported loading/object-access lifecycle established. A bridge reached through production injection or a fragile startup modification fails the accepted design. Renaming XOVI is not a solution. |
 
-The current evidence does not identify an executable production-compatible experiment that reaches insertion safely. It also does not establish that automatic insertion is impossible. The next decision is about a concrete entry/coordination mechanism, not weakening receipts or selecting manual fallback.
+The current evidence does not identify a production-compatible mechanism that reaches insertion safely. It also does not establish that automatic insertion is impossible. This does not block the separately authorized development observation below or select manual fallback.
+
+## Development stage R: temporary read-only runtime observation
+
+The [REM-25 coordinator clarification](https://linear.app/magentumdragon/issue/REM-25#comment-b60d9e4a-a2e4-4d79-8c0f-9a425b852833) distinguishes existing development-only interoperability research authorization from production qualification. A supported plugin facility is preferred, not a prerequisite for private bounded observation. No shipping constraint changes.
+
+### Concrete first access mechanism
+
+Use a separately launched one-shot ARM helper calling Linux `process_vm_readv` against the verified xochitl PID. This is an external memory observation facility, not injection: no ptrace attach, thread suspension, code patch, function invocation, signal to xochitl, loader modification or persistent boot/service change. Permission is still governed by the kernel's ptrace access check. EPERM/ENOSYS ends the attempt; do not change access policy or silently fall back to a debugger.
+
+Host evidence establishes a concrete root candidate. The matched Qt 6.10.3 header implements QCoreApplication::instance through its exported self pointer. The saved executable has a dynamic object symbol for that pointer and an ARM COPY relocation. Therefore resolve the effective executable storage from its verified ELF symbol/relocation and runtime mapping; reading only the Qt library's nominal symbol storage can be wrong. Keep artifact-local addresses in the private manifest, not a public hard-coded API.
+
+An original compile-only layout probe against the vendor GCC13.4.0/Qt6.10.3 headers establishes ARM pointer width, QObject data-pointer offset, QObjectData q_ptr/parent/children offsets and the list descriptor's pointer/count layout. Compiler warnings explicitly identify non-standard-layout offsetof as conditionally supported: these measurements qualify only that toolchain/header baseline and must be corroborated by runtime invariants. They are not portable Qt promises. The actual mapped QtCore provider hash must match the inspected baseline before interpreting its data.
+
+### R1: root and bounded object topology only
+
+Main first reviews the exact helper/source and artifact imports, and records its checksum. Implementation and independent review remain with main's ordinary implementation lane. Test the reader against an owned host fixture for invalid pointers, partial reads, negative/oversized counts, cycles, PID identity mismatch and changing descriptors. Never execute xochitl on the host.
+
+Before device execution, main gives advance notice and verifies USB SSH recovery independently of the UI, exact device/firmware, executable SHA, PID/start time, process state, and mapped QtCore identity. Use a temporary private directory with no auto-start registration; do not read document bodies, account fields, environment or whole process dumps. The existing 10-second outer operator deadline covers the command. The helper has a 2-second monotonic read budget and 64 KiB output cap; limit remote payload to 64 KiB, 64 visited objects, depth four and 64 children per node. Report truncation as an incomplete observation, never absence. Mapping input has its own 256 KiB cap; refuse overflow.
+
+Resolve the self slot through the checked ELF/mapping, read its pointer, then only the fixed QObject header and QObjectData prefix needed for q_ptr/parent/list topology. Require aligned pointers and checked ranges contained in currently readable mappings; validate q_ptr backlink, list count and checked byte sizes before following children. Resolve class identity only from corroborated read-only image/vtable/RTTI metadata; do not call metaObject(), QObject getters, QML evaluation or constructors. Leave unrecognized classes unknown. Do not scan arbitrary heap regions to find missing objects.
+
+Every remote transfer must return its full requested length; stop that branch on partial transfer, inaccessible range or inconsistent descriptor. Reread descriptors and root/process identity to flag change. These checks reduce misinterpretation but cannot establish atomicity, object lifetime or absence of ABA reuse. Report topology as sampled, untrusted research observations; it grants no page guard or mutation authority. A non-mutating read can still cause page faults or scheduling overhead, so record process continuity and observed effects.
+
+Cleanup is termination of the one-shot helper, collection of its bounded private result and removal of only its exact temporary files. The helper never owns a suspended target or installed hook, so timeout does not require debugger detach. Main verifies the original xochitl PID/start/state and tablet responsiveness afterward. Unexpected target restart or responsiveness loss stops the experiment; recovery uses the preverified SSH channel under main's control, with no automatic service restart or retry.
+
+### R2: explicit follow-up, not implicit scope expansion
+
+If R1 locates relevant controller/document/worker objects, design a separate allowlisted read manifest for their pointer relationships and lock/queue descriptors using corroborated static evidence. Do not emit unrelated strings, content or raw memory. Root reachability may omit QML singletons, unparented workers or scene objects; missing children do not prove those objects absent. If R1 is insufficient, evaluate a named temporary debugger/Qt bridge with its exact stop/resume, thread-affinity, deadline and independent detach/recovery behavior before main executes it. R1 does not authorize that escalation or any native method call.
+
+Research observations can test whether a proposed ownership/serialization seam exists. A later instrumented mutation experiment requires its own concrete executor guard and disposable-fixture plan; production acceptance still requires Gates A–D. Experimental access alone cannot qualify a shipping loader, current-page authority or durable creation.
 
 ## Gate A: specify reachability before building a mutator
 
@@ -57,10 +87,12 @@ Runtime restart tests establish restart recovery, not arbitrary power-loss durab
 
 ## Decision needed if Gate A remains unresolved
 
-Continue only with a named, reviewable entry mechanism and a credible execution-time serialization design. If the proposed route requires changing the existing no-production-injection/lifecycle constraints, bring that explicit design change to the owner before implementation. This plan does not approve such a change and does not ask the tablet operator to try an opaque mutator. Capability remains Unsupported until the required evidence exists.
+Production implementation continues only with a named, reviewable entry mechanism and a credible execution-time serialization design. Development stage R may proceed independently under its bounded observation plan. If a shipping route requires changing the existing no-production-injection/lifecycle constraints, bring its concrete tested tradeoffs and explicit design change to the owner before adoption. This plan does not approve such a change or an opaque mutator. Capability remains Unsupported until the required evidence exists.
 
 ## Source basis
 
 Candidate roles and save/lock observations derive from host-only static analysis of hash-verified private firmware artifacts documented in [research.md](research.md), plus the explicitly attributed operator inventory. The raw artifacts and locators are private and have no public evidence link. This file contains original conclusions and a proposed experiment, not proprietary implementation text or an executed acceptance report.
 
 [Vendor documentation](https://developer.remarkable.com/documentation/xochitl) recommends stopping xochitl when accessing/changing stored documents; a live coordinated-metadata route therefore needs affirmative cache/lifecycle evidence. [Qt meta-object documentation](https://doc.qt.io/qt-6/qmetaobject.html) describes object-based invocation, and [QLockFile documentation](https://doc.qt.io/qt-6/qlockfile.html) describes cooperating-process locking. These general references do not qualify private runtime behavior; exact target Qt 6.10.3 headers/providers remain the implementation baseline. Gates and acceptance procedures above are design inference from the accepted SDK contract.
+
+The [Linux process_vm_readv manual](https://man7.org/linux/man-pages/man2/process_vm_readv.2.html) documents permission checks, partial reads and non-atomic transfers. Stage R uses these limits explicitly. Exported-symbol and layout findings come from current host ELF/header inspection and compile-only measurement; no live memory read has been performed.
