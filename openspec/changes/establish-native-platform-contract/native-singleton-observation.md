@@ -1,6 +1,6 @@
 # Candidate R2: observe the registered controller without invoking QML
 
-Status: host-derived follow-up proposal, October 1, 2026. Not executed and not part of the accepted R1 helper scope. Main owns implementation, review and device operation. Review this exact scope after the initial [development observation](native-experiment-plan.md) establishes external access and provider/layout checks. Production insertion remains unqualified.
+Status: original R2 executed once on October 1, 2026 and refused at its type-count bound; see [recorded evidence](research.md#completed-development-observation-r2-bounded-refusal). No controller was located. The original scope below is retained for traceability. Main owns implementation, review and device operation. Production insertion remains unqualified. The separate R2D proposal below is not execution authorization.
 
 ## Concrete discovery chain
 
@@ -33,3 +33,13 @@ Reuse R1's advance notice, independent USB SSH recovery, private temporary files
 Worker/queue/lock fields are outside this proposal. A later manifest may inspect them only after a corroborated root path exists. Native method invocation and any mutation require a separate concrete executor/guard experiment; registry discovery cannot substitute for execution-time source serialization.
 
 Source basis: host-only ELF/control-flow inspection of the privately retained executable and vendor QtQml provider; Qt 6.10.3 public/private headers; original compile-only layout measurements; accepted R1 limits. Raw locators and traces have no public link. The read sequence and bounds are a proposed experiment, not a live result or shipping mechanism.
+
+## R2D proposal: fixed descriptor diagnostic after count refusal
+
+The saved R2 output omitted the rejected raw count. Offline reinspection confirms the manifest's descriptor/guard locators against the exact provider instructions, the compile-only type-list offset, and load-bias arithmetic from the operator's saved mappings. No concrete locator correction was found. This corroboration does not establish the contents of the omitted live descriptor. Raising the existing traversal bound would assume the answer to that unresolved question.
+
+Propose a separately selected descriptor-only diagnostic, implemented and independently reviewed by the ordinary helper lane before one new announced operator run. It must not automatically run after an R2 refusal. Reuse the exact provider/executable/QtCore checks, fixed private registry/guard manifest, mapping validation, process continuity and cleanup rules. The entire remote read set is one guard byte plus the same 12-byte list descriptor, followed by a second guard byte and descriptor: at most 26 bytes. Refuse unknown guard state, partial reads, changed identity/mappings or changed descriptor. No type-array, allocation-header, record, callback or object pointer is followed; do not allocate or iterate according to the sampled count. No target calls, writes, locks, factory invocation or heap scan.
+
+Private output, capped at 1 KiB, should contain the two guard values, the three fixed descriptor words with semantic labels, the count interpreted both as signed and unsigned 32-bit, descriptor equality and incomplete/non-atomic flags. Partial failure must distinguish absent fields from sampled zero. Fixed pointer values remain private and are data only, not addresses accepted for another read. Retain the 2-second cooperative/10-second outer deadlines and 256 KiB maps bound, but tighten total remote payload to 26 bytes. Owned fixtures must prove zero pointer traversal for huge/negative counts, exactly bounded reads, and refusal for uninitialized/changed/partial samples. Independent artifact reproduction and exact operator review remain required.
+
+The diagnostic can distinguish a sampled positive over-cap count from a negative/implausible count and expose the fixed descriptor for offline comparison. It still cannot prove that the registry layout is semantically correct, discover the controller, or justify broader traversal. A later discovery strategy requires its own evidence-based bound and review; R2D neither changes R2's 1024-entry limit nor authorizes a retry of R2. This is a reviewable proposal only, pending the existing coordinator/sole-operator decision.
