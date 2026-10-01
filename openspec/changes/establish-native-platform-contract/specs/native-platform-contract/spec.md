@@ -154,3 +154,18 @@ The SDK SHALL expose bounded, versioned, lossless historical evidence with origi
 #### Scenario: Required native evidence is absent
 - **WHEN** a consumer requires a qualified profile or native clock/ownership evidence that the synthetic model cannot supply
 - **THEN** that consumer path refuses before effects rather than inferring qualification from stored IDs, hashes or elapsed time.
+
+### Requirement: Historical derivative composition uses shared SDK geometry
+The SDK SHALL provide the pure derive_geometry helper defined in evidence-export-contract.md, available without mock features and shared with synthetic capture construction. It SHALL validate checked dimensions/crop and parent/derived source-plane geometry while preserving current arithmetic. Consumers SHALL compare recomputed affine and valid-region fields to restored descriptors by exact f64 bits for the supported pinned procedure, preserve stored values and refuse unknown procedure semantics. This validation SHALL NOT create operational evidence or imply pixel authenticity or native qualification.
+
+#### Scenario: Individually valid but inconsistent derivative
+- **WHEN** a restored child affine or valid source region is individually valid but differs from SDK composition of the parent, crop and output
+- **THEN** historical structural validation refuses the descriptor, including a signed-zero bit mismatch, without rewriting the original stored fields.
+
+#### Scenario: Invalid derivation geometry
+- **WHEN** dimensions exceed the mathematical bound, crop arithmetic overflows or escapes the parent, valid-region intersection is empty, or source-plane geometry is invalid
+- **THEN** derive_geometry returns InvalidGeometry without producing capture evidence or allocating decoded media.
+
+#### Scenario: Supported composition remains historical
+- **WHEN** all recomputed fields match exact stored bits under the pinned supported procedure
+- **THEN** the consumer may accept structural composition only; the explicit source-plane roundoff allowance does not relax descriptor equality or restore a live guard.
