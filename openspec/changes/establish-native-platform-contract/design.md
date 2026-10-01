@@ -63,6 +63,8 @@ Use deterministic mocks of the same contract with injected clocks, input, stale 
 
 Package the SDK target into the Buddy build. Independent third-party SDK releases can contain multiple target artifacts. Pin exact dependency/contract revisions and publish checksums/provenance and supported capability matrices. License/publication review precedes distributing any implementation derived from third-party materials.
 
+Target toolchain qualification includes ELF class/machine, ARM floating-point ABI where applicable, interpreter, NEEDED libraries and every versioned symbol requirement against the exact qualified target providers. Record compiler/linker/sysroot provenance. A host distribution's cross-linker can introduce newer glibc imports even when the architecture target is correct. A vendor SDK baseline is useful build evidence but does not alone verify the libraries actually mapped on a tablet. A version command under a different emulator/sysroot cannot override an unresolved provider mismatch.
+
 ## Risks / Trade-offs
 
 - Native IPC may not expose creation. Unknown remains unsupported, not evidence that every alternative has failed.

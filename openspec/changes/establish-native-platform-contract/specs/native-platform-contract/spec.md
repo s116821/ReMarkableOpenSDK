@@ -87,3 +87,7 @@ SDK releases SHALL identify exact semantic contract and adapter qualification re
 #### Scenario: Unsupported artifact selection
 - **WHEN** connected model/architecture/firmware is outside an artifact's qualified capabilities
 - **THEN** installation/integration fails closed instead of selecting the closest device build
+
+#### Scenario: Correct architecture but incompatible dynamic ABI
+- **WHEN** an artifact has the expected CPU architecture but its interpreter, float ABI, required library or versioned symbol cannot be satisfied by the qualified target runtime
+- **THEN** compatibility fails and the artifact is not advertised as supported, even if it built or ran under a different emulator/sysroot

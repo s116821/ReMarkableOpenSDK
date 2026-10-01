@@ -18,7 +18,7 @@
 - [ ] 3.5 Establish reproducible target artifacts, exact compatibility/provenance manifest and license notices; leave unqualified Paper Pro capabilities unsupported.
 
 ## 4. Verification and delivery
-- [ ] 4.1 Run contract/mock checks, relevant cross-build/import checks and independent SDK review; document evidence scope.
+- [ ] 4.1 Run contract/mock checks, ELF architecture/float ABI/interpreter/NEEDED/versioned-import comparisons against exact qualified providers, and independent SDK review; record toolchain/sysroot provenance and evidence scope.
 - [ ] 4.2 Complete native RM2 middle/end insertion, writable page, PDF bytes/ink/unknown metadata, navigation/reopen, retries, interruption and recovery acceptance.
 - [ ] 4.3 Verify consumer binding and fresh render guards with REM-37/current Reader, including restart after native commit and before binding commit.
 - [ ] 4.4 Verify Manager installs the compatible Buddy artifact without a separate SDK runtime and preserves normal boot/use.
