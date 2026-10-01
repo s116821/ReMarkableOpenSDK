@@ -144,7 +144,6 @@ pub struct PixelRect {
     pub height: u32,
 }
 impl PixelRect {
-    #[cfg(any(test, feature = "mock"))]
     fn validate(self, dimensions: [u32; 2]) -> Result<(), CaptureFailure> {
         if self.width == 0
             || self.height == 0
@@ -172,7 +171,6 @@ pub struct SourceRegion {
     pub height: f64,
 }
 impl SourceRegion {
-    #[cfg(any(test, feature = "mock"))]
     fn validate(self, dimensions: [u32; 2]) -> Result<(), CaptureFailure> {
         if ![self.x, self.y, self.width, self.height]
             .iter()
@@ -238,7 +236,6 @@ impl Affine {
             Err(CaptureFailure::InvalidGeometry)
         }
     }
-    #[cfg(any(test, feature = "mock"))]
     fn derived(self, crop: PixelRect, output: [u32; 2]) -> Result<Self, CaptureFailure> {
         if output.contains(&0) {
             return Err(CaptureFailure::InvalidGeometry);
@@ -255,6 +252,96 @@ impl Affine {
             b * f64::from(crop.x) + d * f64::from(crop.y) + f,
         ])
     }
+}
+
+/// Mathematical derivative descriptors only; never acquisition evidence or authority.
+/// The current versioned crop/resize procedure preserves exact arithmetic and f64 bits.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DerivedGeometry {
+    affine: Affine,
+    valid_source_region: SourceRegion,
+}
+impl DerivedGeometry {
+    pub fn affine(self) -> Affine {
+        self.affine
+    }
+    pub fn valid_source_region(self) -> SourceRegion {
+        self.valid_source_region
+    }
+}
+
+/// Derive structural geometry for the pinned crop/resize descriptor convention.
+/// Compare historical descriptors by exact IEEE-754 bits, including signed zero.
+/// The 1e-10 source-plane allowance does not relax descriptor equality or clamp values.
+/// This function neither reads pixels nor establishes identity or native qualification.
+pub fn derive_geometry(
+    parent_dimensions: [u32; 2],
+    parent_affine: Affine,
+    parent_valid_region: SourceRegion,
+    crop: PixelRect,
+    output_dimensions: [u32; 2],
+) -> Result<DerivedGeometry, CaptureFailure> {
+    if parent_dimensions
+        .into_iter()
+        .chain(output_dimensions)
+        .any(|axis| axis == 0 || axis > 32768)
+    {
+        return Err(CaptureFailure::InvalidGeometry);
+    }
+    crop.validate(parent_dimensions)?;
+    validate_source_plane(parent_affine, parent_valid_region, parent_dimensions)?;
+    let affine = parent_affine.derived(crop, output_dimensions)?;
+    let valid_source_region = region_for_crop(parent_valid_region, crop, output_dimensions)?;
+    validate_source_plane(affine, valid_source_region, output_dimensions)?;
+    Ok(DerivedGeometry {
+        affine,
+        valid_source_region,
+    })
+}
+
+fn region_for_crop(
+    region: SourceRegion,
+    crop: PixelRect,
+    output: [u32; 2],
+) -> Result<SourceRegion, CaptureFailure> {
+    let x = region.x.max(f64::from(crop.x));
+    let y = region.y.max(f64::from(crop.y));
+    let right = (region.x + region.width).min(f64::from(crop.x) + f64::from(crop.width));
+    let bottom = (region.y + region.height).min(f64::from(crop.y) + f64::from(crop.height));
+    if x >= right || y >= bottom {
+        return Err(CaptureFailure::InvalidGeometry);
+    }
+    let sx = f64::from(output[0]) / f64::from(crop.width);
+    let sy = f64::from(output[1]) / f64::from(crop.height);
+    Ok(SourceRegion {
+        x: (x - f64::from(crop.x)) * sx,
+        y: (y - f64::from(crop.y)) * sy,
+        width: (right - x) * sx,
+        height: (bottom - y) * sy,
+    })
+}
+fn validate_source_plane(
+    transform: Affine,
+    region: SourceRegion,
+    dimensions: [u32; 2],
+) -> Result<(), CaptureFailure> {
+    region.validate(dimensions)?;
+    for point in [
+        [region.x, region.y],
+        [region.x + region.width, region.y],
+        [region.x, region.y + region.height],
+        [region.x + region.width, region.y + region.height],
+    ] {
+        // Roundoff tolerance is explicit; coordinates are never changed/clamped.
+        if !transform
+            .map(point)?
+            .iter()
+            .all(|v| *v >= -1e-10 && *v <= 1.0 + 1e-10)
+        {
+            return Err(CaptureFailure::InvalidGeometry);
+        }
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -455,50 +542,6 @@ pub mod synthetic {
         }
         Ok(image)
     }
-    fn region_for_crop(
-        region: SourceRegion,
-        crop: PixelRect,
-        output: [u32; 2],
-    ) -> Result<SourceRegion, CaptureFailure> {
-        let x = region.x.max(f64::from(crop.x));
-        let y = region.y.max(f64::from(crop.y));
-        let right = (region.x + region.width).min(f64::from(crop.x) + f64::from(crop.width));
-        let bottom = (region.y + region.height).min(f64::from(crop.y) + f64::from(crop.height));
-        if x >= right || y >= bottom {
-            return Err(CaptureFailure::InvalidGeometry);
-        }
-        let sx = f64::from(output[0]) / f64::from(crop.width);
-        let sy = f64::from(output[1]) / f64::from(crop.height);
-        Ok(SourceRegion {
-            x: (x - f64::from(crop.x)) * sx,
-            y: (y - f64::from(crop.y)) * sy,
-            width: (right - x) * sx,
-            height: (bottom - y) * sy,
-        })
-    }
-    fn validate_source_plane(
-        transform: Affine,
-        region: SourceRegion,
-        dimensions: [u32; 2],
-    ) -> Result<(), CaptureFailure> {
-        region.validate(dimensions)?;
-        for point in [
-            [region.x, region.y],
-            [region.x + region.width, region.y],
-            [region.x, region.y + region.height],
-            [region.x + region.width, region.y + region.height],
-        ] {
-            // Roundoff tolerance is explicit; coordinates are never changed/clamped.
-            if !transform
-                .map(point)?
-                .iter()
-                .all(|v| *v >= -1e-10 && *v <= 1.0 + 1e-10)
-            {
-                return Err(CaptureFailure::InvalidGeometry);
-            }
-        }
-        Ok(())
-    }
     fn image(
         bytes: Vec<u8>,
         role: ImageRole,
@@ -642,12 +685,15 @@ pub mod synthetic {
             if expected.to_rgba8() != decode(&input.png, limits)?.to_rgba8() {
                 return Err(CaptureFailure::PixelMismatch);
             }
-            let transform = native
-                .transform
-                .derived(input.crop, input.output_dimensions)?;
-            let valid_source =
-                region_for_crop(native.valid_source, input.crop, input.output_dimensions)?;
-            validate_source_plane(transform, valid_source, input.output_dimensions)?;
+            let geometry = derive_geometry(
+                native_dimensions,
+                native.transform,
+                native.valid_source,
+                input.crop,
+                input.output_dimensions,
+            )?;
+            let transform = geometry.affine();
+            let valid_source = geometry.valid_source_region();
             let derivation = Derivation {
                 parent_digest: native.digest,
                 parent_dimensions: native_dimensions,
