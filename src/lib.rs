@@ -16,7 +16,7 @@ pub struct PageKey {
 pub struct Uuid([u8; 16]);
 
 impl Uuid {
-    /// Accept canonical lowercase UUID text only; indices/titles are not IDs.
+    /// Accept canonical lowercase, nonnil UUID text; indices/titles are not IDs.
     pub fn parse(text: &str) -> Option<Self> {
         if text.len() != 36 {
             return None;
@@ -38,7 +38,7 @@ impl Uuid {
                 digits += 1;
             }
         }
-        Some(Self(bytes))
+        (bytes != [0; 16]).then_some(Self(bytes))
     }
 }
 
@@ -161,6 +161,24 @@ pub enum UnsupportedReason {
     CapabilityNotImplemented,
 }
 
+/// Identity could not be established; never substitute a generated PageKey.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnknownIdentityReason {
+    NoDocumentOpen,
+    Unsettled,
+    AmbiguousIdentity,
+    MissingIdentifiers,
+    InsufficientOwnershipEvidence,
+}
+
+/// Unsupported observation differs from an observation with unknown identity.
+/// A known native page without a consumer conversation binding is neither error.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObservationFailure {
+    Unsupported(UnsupportedReason),
+    UnknownIdentity(UnknownIdentityReason),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CreationOutcome {
     Unsupported(UnsupportedReason),
@@ -189,7 +207,7 @@ pub enum Reconciliation {
 /// First experimental slice. Capture/navigation remain unimplemented capabilities;
 /// they must gain their full provenance/guard contract before becoming callable.
 pub trait Platform {
-    fn observe_page(&self) -> Result<PageObservation, UnsupportedReason>;
+    fn observe_page(&self) -> Result<PageObservation, ObservationFailure>;
     fn create_after(&mut self, request: &CreationRequest, canceled: bool) -> CreationOutcome;
     fn reconcile_creation(&self, request: &CreationRequest) -> Reconciliation;
 }
@@ -199,8 +217,10 @@ pub trait Platform {
 pub struct UnqualifiedPlatform;
 
 impl Platform for UnqualifiedPlatform {
-    fn observe_page(&self) -> Result<PageObservation, UnsupportedReason> {
-        Err(UnsupportedReason::NoNativeAdapter)
+    fn observe_page(&self) -> Result<PageObservation, ObservationFailure> {
+        Err(ObservationFailure::Unsupported(
+            UnsupportedReason::NoNativeAdapter,
+        ))
     }
     fn create_after(&mut self, _: &CreationRequest, _: bool) -> CreationOutcome {
         CreationOutcome::Unsupported(UnsupportedReason::NoNativeAdapter)

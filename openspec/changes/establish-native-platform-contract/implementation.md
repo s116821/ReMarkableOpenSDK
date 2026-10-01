@@ -9,6 +9,7 @@ Implemented prototype pieces:
 - Explicit unsupported, canceled-before-dispatch, proven no-mutation rejection (before dispatch or at executor), committed and indeterminate outcomes.
 - Synthetic receipts, historical reconciliation/current observation separation, and no blind replay in the in-memory mock.
 - Mock race injection between dispatch/execution, separate native-assigned allocation simulation, and unsupported native default.
+- Explicit Unsupported versus UnknownIdentity observation failures, nonnil UUID validation, and tests separating ambiguous/unsettled/no-open-document cases from valid native identity without a consumer binding. Capture batch design is in capture-contract.md; native capture remains unimplemented.
 
 Outstanding requirements remain unchecked in tasks.md: capability/version/profile manifest; full capture/navigation evidence and APIs; deadline/session lifetime details; canonical request encoding and digest; restart-persistent native correlation; actual adapter serialization; template/paper semantics; device/runtime/provider qualification; consumer integration; SDK licensing/release; native acceptance. The mock's instance counter is a process-local test identity, not a proposed persistent device identity scheme. Its in-memory receipt map does not establish durability or recovery across process restart. Evidence origin exposes only Synthetic at this stage, so callers cannot construct a native-qualified receipt through the prototype.
 

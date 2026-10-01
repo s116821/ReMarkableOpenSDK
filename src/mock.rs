@@ -74,9 +74,21 @@ impl MockPlatform {
 }
 
 impl Platform for MockPlatform {
-    fn observe_page(&self) -> Result<PageObservation, UnsupportedReason> {
-        if !self.valid_identity() {
-            return Err(UnsupportedReason::UnqualifiedMechanism);
+    fn observe_page(&self) -> Result<PageObservation, ObservationFailure> {
+        if self.state.order.is_empty() {
+            return Err(ObservationFailure::UnknownIdentity(
+                UnknownIdentityReason::NoDocumentOpen,
+            ));
+        }
+        if self.state.order.iter().collect::<HashSet<_>>().len() != self.state.order.len() {
+            return Err(ObservationFailure::UnknownIdentity(
+                UnknownIdentityReason::AmbiguousIdentity,
+            ));
+        }
+        if !self.state.order.contains(&self.state.page.page) {
+            return Err(ObservationFailure::UnknownIdentity(
+                UnknownIdentityReason::Unsettled,
+            ));
         }
         Ok(self.state.clone())
     }
@@ -319,11 +331,46 @@ mod tests {
     fn uuid_rejects_noncanonical_and_path_values() {
         assert!(Uuid::parse("12345678-1234-1234-abcd-123456789abc").is_some());
         for bad in [
+            "00000000-0000-0000-0000-000000000000",
             "../page",
             "12345678-1234-1234-ABCD-123456789ABC",
             "12345678/1234-1234-abcd-123456789abc",
         ] {
             assert!(Uuid::parse(bad).is_none());
         }
+    }
+
+    #[test]
+    fn unknown_identity_is_not_unsupported_or_a_fabricated_page() {
+        let empty = MockPlatform::new(id(1), id(2), vec![], id(3));
+        assert_eq!(
+            empty.observe_page(),
+            Err(ObservationFailure::UnknownIdentity(
+                UnknownIdentityReason::NoDocumentOpen
+            ))
+        );
+        let duplicate = MockPlatform::new(id(1), id(2), vec![id(3), id(3)], id(3));
+        assert_eq!(
+            duplicate.observe_page(),
+            Err(ObservationFailure::UnknownIdentity(
+                UnknownIdentityReason::AmbiguousIdentity
+            ))
+        );
+        let stale = MockPlatform::new(id(1), id(2), vec![id(4)], id(3));
+        assert_eq!(
+            stale.observe_page(),
+            Err(ObservationFailure::UnknownIdentity(
+                UnknownIdentityReason::Unsettled
+            ))
+        );
+        assert_eq!(
+            UnqualifiedPlatform.observe_page(),
+            Err(ObservationFailure::Unsupported(
+                UnsupportedReason::NoNativeAdapter
+            ))
+        );
+        // SDK has no conversation registry: a valid page is known regardless
+        // of whether the consumer has ever bound it to a conversation.
+        assert_eq!(platform().observe_page().unwrap().page().page, id(3));
     }
 }
