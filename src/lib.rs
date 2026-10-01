@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 pub mod capture;
+pub mod evidence;
 
 #[cfg(any(test, feature = "mock"))]
 pub mod mock;
@@ -18,6 +19,9 @@ pub struct PageKey {
 pub struct Uuid([u8; 16]);
 
 impl Uuid {
+    pub fn as_bytes(&self) -> &[u8; 16] {
+        &self.0
+    }
     /// Accept canonical lowercase, nonnil UUID text; indices/titles are not IDs.
     pub fn parse(text: &str) -> Option<Self> {
         if text.len() != 36 {
@@ -41,6 +45,18 @@ impl Uuid {
             }
         }
         (bytes != [0; 16]).then_some(Self(bytes))
+    }
+}
+
+impl std::fmt::Display for Uuid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (index, byte) in self.0.iter().enumerate() {
+            if [4, 6, 8, 10].contains(&index) {
+                f.write_str("-")?;
+            }
+            write!(f, "{byte:02x}")?;
+        }
+        Ok(())
     }
 }
 
