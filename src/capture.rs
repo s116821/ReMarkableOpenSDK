@@ -1,6 +1,8 @@
 //! Immutable capture evidence model. There is no qualified native acquisition here.
 //! Synthetic constructors are feature-gated and cannot produce native evidence.
-use crate::{EvidenceOrigin, ObservationFailure, OperationId, PageObservation, UnsupportedReason};
+use crate::{
+    EvidenceOrigin, OperationId, PageObservation, UnknownIdentityReason, UnsupportedReason,
+};
 use std::{sync::Arc, time::Duration};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,7 +30,13 @@ impl std::error::Error for CaptureFailure {}
 #[derive(Clone, Debug)]
 pub enum CaptureOutcome {
     Unsupported(UnsupportedReason),
-    UnknownIdentity(ObservationFailure),
+    /// Unknown identity cannot carry an unsupported-capability reason.
+    /// ```compile_fail
+    /// use remarkable_open_sdk::{capture::CaptureOutcome, UnsupportedReason};
+    /// let contradictory = CaptureOutcome::UnknownIdentity(
+    ///     UnsupportedReason::CapabilityNotImplemented);
+    /// ```
+    UnknownIdentity(UnknownIdentityReason),
     /// Only the optional test model can produce this outcome, never native success.
     Synthetic(Box<CapturedBatch>),
     Failed(CaptureFailure),
