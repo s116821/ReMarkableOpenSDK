@@ -55,7 +55,7 @@ inline const char *errorStage(const QList<QQmlError> &errors) {
 }
 
 // Private fixed-helper diagnostics only. Never serialize URLs or source text.
-inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors) {
+inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors, int attempt = 0) {
     QJsonArray retained;
     const qsizetype count = qMin<qsizetype>(errors.size(), 8);
     for (qsizetype i = 0; i < count; ++i) {
@@ -79,6 +79,8 @@ inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors) {
             {QStringLiteral("line"), error.line()}, {QStringLiteral("column"), error.column()}});
     }
     QJsonObject snapshot{
+        {QStringLiteral("context"), QStringLiteral("last-compile-failure")},
+        {QStringLiteral("failed_attempt"), attempt},
         {QStringLiteral("reported_error_count"), static_cast<qint64>(errors.size())},
         {QStringLiteral("retained_error_count"), static_cast<qint64>(count)},
         {QStringLiteral("count_truncated"), errors.size() > 8},
@@ -128,7 +130,18 @@ private:
     void queueAttempt() {
         if (queued_ || done_) return;
         queued_ = true;
-        QMetaObject::invokeMethod(this, [this] { queued_ = false; attempt(); }, Qt::QueuedConnection);
+        const unsigned epoch = eventEpoch_;
+        QMetaObject::invokeMethod(this, [this, epoch] {
+            if (epoch != eventEpoch_) return;
+            queued_ = false;
+            attempt();
+        }, Qt::QueuedConnection);
+    }
+    void queueComponentReady() {
+        const QPointer<QQmlComponent> current = component_;
+        QMetaObject::invokeMethod(this, [this, current] {
+            if (current && component_ == current) componentReady();
+        }, Qt::QueuedConnection);
     }
     void attempt() {
         if (done_ || component_ || expired()) return;
@@ -144,32 +157,52 @@ private:
             if (selected && selected != candidate) { finish("multiple-engines"); return; }
             selected = candidate;
         }
+        if (engineSelected_ && (!engine_ || !selected || selected != engine_)) { finish("engine-changed"); return; }
         if (!selected) return; // Only readiness events or the refusal deadline follow.
+        const bool firstEngine = !engineSelected_;
+        engineSelected_ = true;
         engine_ = selected;
         engineThread_ = engine_->thread() == app_->thread();
         if (!engineThread_) { finish("engine-thread"); return; }
-        connect(engine_, &QObject::destroyed, this, [this] {
-            QMetaObject::invokeMethod(this, [this] { finish("engine-lost"); }, Qt::QueuedConnection);
-        });
+        if (firstEngine) connect(engine_, &QObject::destroyed, this, [this] {
+                QMetaObject::invokeMethod(this, [this] { finish("engine-lost"); }, Qt::QueuedConnection);
+            });
         component_ = new QQmlComponent(engine_, this);
-        connect(component_, &QQmlComponent::statusChanged, this, [this] {
-            QMetaObject::invokeMethod(this, [this] { componentReady(); }, Qt::QueuedConnection);
+        const QPointer<QQmlComponent> producer = component_;
+        connect(component_, &QQmlComponent::statusChanged, this, [this, producer] {
+            if (producer && component_ == producer) queueComponentReady();
         });
         inCall_ = true;
         component_->setData(helper, QUrl());
         inCall_ = false;
         if (settlePending()) return;
         // Never create/delete inside setData or its synchronous status callback.
-        QMetaObject::invokeMethod(this, [this] { componentReady(); }, Qt::QueuedConnection);
+        queueComponentReady();
     }
     void componentReady() {
-        if (done_ || inCall_ || expired() || created_) return;
+        if (done_ || !component_ || inCall_ || expired() || created_) return;
         if (!engine_) { finish("engine-lost"); return; }
         if (component_->status() == QQmlComponent::Loading) return;
         if (component_->status() != QQmlComponent::Ready) {
             const auto errors = component_->errors();
-            diagnostic_ = diagnosticSnapshot(errors);
-            finish(errorStage(errors));
+            diagnostic_ = diagnosticSnapshot(errors, attempts_);
+            const char *stage = errorStage(errors);
+            if (QByteArrayView(stage) == QByteArrayView("missing-library")) {
+                // This failed component owns no helper. Remove it before any
+                // later readiness event can schedule a fresh compilation.
+                QQmlComponent *failed = component_;
+                // Keep the pointer nonnull during deletion to ignore reentrant
+                // window events; weak callback guards invalidate on deletion.
+                inCall_ = true;
+                delete failed;
+                component_ = nullptr;
+                inCall_ = false;
+                ++eventEpoch_;
+                queued_ = false; // Older queued events cannot authorize retry.
+                if (settlePending()) return;
+                if (!engine_) { finish("engine-lost"); return; }
+                (void)expired(); // Existing deadline stays fixed; no retry timer.
+            } else finish(stage);
             return;
         }
         created_ = true;
@@ -231,6 +264,8 @@ private:
     QTimer timer_;
     QElapsedTimer elapsed_;
     int deadlineMs_, attempts_ = 0;
+    unsigned eventEpoch_ = 0;
+    bool engineSelected_ = false;
     bool queued_ = false, done_ = false, created_ = false, inCall_ = false;
     bool cancelPending_ = false;
     const char *pendingStage_ = nullptr;

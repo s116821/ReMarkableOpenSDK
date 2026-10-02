@@ -11,6 +11,7 @@
 int main(int argc, char **argv) {
     assert(argc == 2);
     const std::string mode = argv[1];
+    const bool retry = mode.rfind("retry-", 0) == 0;
     QGuiApplication app(argc, argv);
     if (mode == "diagnostics") {
         auto error = [](const QString &text) { QQmlError e; e.setDescription(text); e.setLine(7); e.setColumn(9); e.setUrl(QUrl("file:///fixture/hidden.qml")); return e; };
@@ -117,10 +118,13 @@ int main(int argc, char **argv) {
                 QQmlEngine::setObjectOwnership(&singleton, QQmlEngine::CppOwnership);
                 return &singleton;
             });
-    } else if (mode != "absent")
+    } else if (mode != "absent" && !retry)
         qmlRegisterSingletonInstance("xofm.libs.library", mode == "major-version" ? 2 : 1, 0, "DocumentController", &singleton);
     QQmlEngine engine;
+    if (mode == "wrong-error") engine.setImportPathList({});
     QWindow window;
+    std::unique_ptr<QQmlContext> fixtureContext;
+    if (mode == "retry-changed") fixtureContext = std::make_unique<QQmlContext>(&engine);
     std::unique_ptr<QQmlEngine> other;
     std::unique_ptr<QWindow> otherWindow;
     std::vector<std::unique_ptr<QWindow>> extraWindows;
@@ -142,7 +146,7 @@ int main(int argc, char **argv) {
         assert(object && object->property("controllerAvailable").toBool());
     }
     if (mode != "deadline" && mode != "late" && mode != "cap" && mode != "cancel" && mode != "engine-lost")
-        QQmlEngine::setContextForObject(&window, engine.rootContext());
+        QQmlEngine::setContextForObject(&window, fixtureContext ? fixtureContext.get() : engine.rootContext());
     if (mode == "multiple") {
         other = std::make_unique<QQmlEngine>();
         otherWindow = std::make_unique<QWindow>();
@@ -158,17 +162,54 @@ int main(int argc, char **argv) {
         stage = s;
         fprintf(stderr, "stage=%s app=%d engine=%d helper=%d controller=%d\n", s, a, e, h, c);
         assert(a);
-        if (mode == "absent") {
+        if (mode == "absent" || retry) {
             assert(!diagnostic.isEmpty() && diagnostic.size() <= 8192);
             const auto parsed = QJsonDocument::fromJson(diagnostic).object();
+            assert(parsed.value("context").toString() == QStringLiteral("last-compile-failure"));
             assert(parsed.value("reported_error_count").toInt() > 0);
             assert(parsed.value("errors").toArray().first().toObject().value("description").toString() == QStringLiteral("module \"xofm.libs.library\" is not installed"));
-        } else assert(diagnostic.isEmpty());
-        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version") assert(e && h && c);
+            assert(parsed.value("failed_attempt").toInt() == (mode == "retry-cap" ? 8 : 1));
+        } else if (mode == "wrong-error") assert(!diagnostic.isEmpty());
+        else assert(diagnostic.isEmpty());
+        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late") assert(e && h && c);
         if (mode == "conflict") assert(!c);
         QTimer::singleShot(0, &app, &QCoreApplication::quit);
-    }, mode == "nested-deadline" ? 1000 : mode == "deadline" || mode == "cap" ? 150 : 3000);
+    }, mode == "nested-deadline" ? 1000 : mode == "deadline" || mode == "cap" ? 150 : retry || mode == "absent" ? 2000 : 3000);
     guard = probe;
+    int failedCleanups = 0;
+    std::function<void()> observeComponent;
+    observeComponent = [&] {
+        if (!guard) return;
+        auto *component = guard->findChild<QQmlComponent *>();
+        if (!component) { assert(receipts == 1); return; }
+        QObject::connect(component, &QObject::destroyed, &app, [&] {
+            ++failedCleanups;
+            if (mode == "retry-stale") {
+                QEvent stale(QEvent::Show);
+                QCoreApplication::sendEvent(&window, &stale); // During cleanup: ignored.
+            }
+            QMetaObject::invokeMethod(&app, [&] {
+                if (mode == "retry-late" || mode == "retry-no-event" || mode == "retry-stale")
+                    qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &singleton);
+                if (mode == "retry-changed" || mode == "retry-ambiguous") {
+                    if (mode == "retry-changed") fixtureContext.reset();
+                    other = std::make_unique<QQmlEngine>();
+                    otherWindow = std::make_unique<QWindow>();
+                    QQmlEngine::setContextForObject(otherWindow.get(), other->rootContext());
+                }
+                if (mode != "retry-no-event" && mode != "retry-stale") {
+                    QEvent fresh(QEvent::Show);
+                    QCoreApplication::sendEvent(otherWindow ? otherWindow.get() : &window, &fresh);
+                    if (mode == "retry-cap") QMetaObject::invokeMethod(&app, observeComponent, Qt::QueuedConnection);
+                }
+            }, Qt::QueuedConnection);
+        });
+        if (mode == "retry-stale") {
+            QEvent early(QEvent::Show);
+            QCoreApplication::sendEvent(&window, &early); // Component not yet refused.
+        }
+    };
+    if (retry) QMetaObject::invokeMethod(&app, observeComponent, Qt::QueuedConnection);
     if (mode == "engine-lost") QMetaObject::invokeMethod(&app, [&] { other.reset(); }, Qt::QueuedConnection);
     if (mode == "late") QTimer::singleShot(10, &app, [&] {
         QQmlEngine::setContextForObject(&window, engine.rootContext());
@@ -191,8 +232,12 @@ int main(int argc, char **argv) {
     if (mode == "cancel") assert(receipts == 0);
     else {
         assert(receipts == 1);
-        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version") assert(stage == "resolved");
-        else if (mode == "absent") assert(stage == "missing-library");
+        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late") assert(stage == "resolved");
+        else if (mode == "absent" || mode == "retry-no-event" || mode == "retry-stale") assert(stage == "deadline");
+        else if (mode == "retry-changed") assert(stage == "engine-changed");
+        else if (mode == "retry-ambiguous") assert(stage == "multiple-engines");
+        else if (mode == "retry-cap") assert(stage == "readiness-cap");
+        else if (mode == "wrong-error") assert(stage == "missing-qtqml" || stage == "component-error");
         else if (mode == "conflict") assert(stage == "unavailable" || stage == "create-error");
         else if (mode == "multiple") assert(stage == "multiple-engines");
         else if (mode == "window-cap") assert(stage == "window-cap");
@@ -202,5 +247,6 @@ int main(int argc, char **argv) {
         else assert(false && "unknown case");
     }
     if (mode == "nested-deadline") assert(nestedEntered);
+    if (retry) assert(failedCleanups == (mode == "retry-cap" ? 8 : 1));
     printf("%s: %s, receipts=%d, owned teardown passed\n", argv[1], stage.c_str(), receipts);
 }

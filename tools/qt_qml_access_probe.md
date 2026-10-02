@@ -12,6 +12,16 @@ events. Eight acquisition attempts are permitted. Once selected, the engine is
 never reacquired. The five-second elapsed deadline can only refuse; a timer is
 never evidence of readiness. Public component Ready/Error status transitions
 queue processing; Loading waits within the same deadline. There is one create.
+Only an exact `missing-library` compilation failure may delete the failed owned
+component and wait for a new Show/Expose/focus event after cleanup. Each new event
+can permit one fresh compile on the same guarded app-thread engine, after a
+new unique-window-engine check. Eight total acquisition/compile attempts and
+the original deadline remain fixed. Changed, absent or ambiguous engines refuse.
+Queued attempts from before cleanup are invalidated; component callbacks capture
+weak guards for both their producer and the queued completion. Events during
+compilation or teardown cannot authorize another attempt. Other compiler failures
+are terminal. The event only triggers a test; Ready plus own availability bool
+proves access. There is no retry timer or cache clearing.
 
 The fixed helper imports QtQml and versionless xofm.libs.library, binds a typed QtObject
 reference to DocumentController, and exposes its own availability boolean.
@@ -65,7 +75,9 @@ after cleanup to exclusive no-follow 0600 `diagnostics.json` in the same owned
 0700 nonce directory. It performs one write with no retry; a partial/error write
 is invalid and prevents the accompanying callback. The final JSON is at most
 8192 bytes, retaining at most eight errors and 256 UTF-16 units per description.
-The schema is `reported_error_count`, `retained_error_count`, `count_truncated`,
+The schema includes `context: last-compile-failure` and `failed_attempt` (the
+original failed attempt index), followed by `reported_error_count`,
+`retained_error_count`, `count_truncated`,
 `output_overflow`, and `errors` containing `description`, `description_truncated`,
 `description_redacted`, `line`, `column`. Oversized serialization is rejected
 and replaced with a bounded explicit overflow record with no descriptions.
@@ -78,6 +90,8 @@ general content filter. These private descriptions must never be published or
 copied into public logs/commits. The reviewed operator collects and hashes the
 single fixed file before removing it during exact cleanup. Public callback
 fields and size remain unchanged; prior spent packets are not reused.
+The last failed snapshot is retained even if a later compilation succeeds, and
+is historical failure evidence rather than the final availability result.
 
 Run `sh tools/qt_qml_access_probe_test.sh` with Qt development/runtime plugins,
 or set QT_PROBE_SDK_ENV to the firmware-matched SDK environment file to compile
@@ -85,6 +99,9 @@ and run owned ARM fixtures under qemu with the SDK offscreen/QML plugins.
 Fixtures cover fixed-category/unknown/mixed/count/description boundaries, actual
 owned compiler errors, versionless major-version selection,
 immediate/same-engine/late readiness, absent registration,
+delayed registration with a new event on the same engine, no-event deadline,
+stale/reentrant events, changed/ambiguous engines, compile-attempt cap and terminal
+wrong-module failures,
 conflicting and multiple engines, window cap, engine teardown, event cap,
 deadline refusal (including a deliberately nested owned singleton callback) and
 application cancellation. The nested fixture registration factory is confined
