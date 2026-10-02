@@ -116,6 +116,110 @@ int main(int argc, char **argv) {
         puts("compiler-errors: actual owned Qt categories and versionless major passed");
         return 0;
     }
+    if (mode.rfind("root-", 0) == 0) {
+        QObject singleton;
+        qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &singleton);
+        auto engine = std::make_unique<QQmlApplicationEngine>();
+        QQmlEngine unsupported;
+        QWindow window;
+        std::unique_ptr<QWindow> extra;
+        std::unique_ptr<QQmlContext> initialContext;
+        if (mode == "root-changed") initialContext = std::make_unique<QQmlContext>(engine.get());
+        QQmlEngine::setContextForObject(&window, mode == "root-unsupported" ? unsupported.rootContext() : initialContext ? initialContext.get() : engine->rootContext());
+        const auto loadRoot = [&] { engine->loadData("import QtQml\nQtObject {}", QUrl()); };
+        if (mode == "root-preexisting") loadRoot();
+        if (mode == "root-cap") for (int i = 0; i < 17; ++i) loadRoot();
+        // These handlers run before the probe's signal handler, but defer the
+        // destructive/blocking fixture action until after it captures witness.
+        if (mode == "root-lost") QObject::connect(engine.get(), &QQmlApplicationEngine::objectCreated, &app,
+            [&](QObject *root, const QUrl &) {
+                const QPointer<QObject> weak = root;
+                QMetaObject::invokeMethod(&app, [weak] { delete weak.data(); }, Qt::QueuedConnection);
+            });
+        if (mode == "root-queued-deadline") QObject::connect(engine.get(), &QQmlApplicationEngine::objectCreated, &app,
+            [&](QObject *, const QUrl &) {
+                QMetaObject::invokeMethod(&app, [] { QThread::msleep(150); }, Qt::QueuedConnection);
+            });
+        if (mode == "root-late-witness") QObject::connect(engine.get(), &QQmlApplicationEngine::objectCreated, &app,
+            [](QObject *, const QUrl &) { QThread::msleep(250); });
+        if (mode == "root-cancel-queued") QObject::connect(engine.get(), &QQmlApplicationEngine::objectCreated, &app,
+            [&](QObject *, const QUrl &) { QMetaObject::invokeMethod(&app, &QCoreApplication::quit, Qt::QueuedConnection); });
+        QJsonObject summary;
+        std::string stage;
+        int receipts = 0;
+        QPointer<qml_access::Probe> guard = new qml_access::Probe(&app,
+            [&](const char *s, bool a, bool e, bool h, bool c, const QByteArray &bytes) {
+                ++receipts; stage = s;
+                assert(a && e && bytes.size() <= 8192);
+                summary = QJsonDocument::fromJson(bytes).object();
+                assert(summary.value("terminal_stage").toString() == QString::fromLatin1(s));
+                if (stage == "resolved") assert(h && c);
+                else assert(!h && !c && summary.value("compile_attempts").toInt() == 0);
+                QTimer::singleShot(0, &app, &QCoreApplication::quit);
+            }, 200, 100);
+        if (mode != "root-preexisting" && mode != "root-cap" && mode != "root-unsupported")
+            QTimer::singleShot(20, &app, [&] {
+                assert(guard && !guard->findChild<QQmlComponent *>() && receipts == 0);
+                // Window activity while waiting cannot authorize compilation.
+                QEvent event(QEvent::Show); QCoreApplication::sendEvent(&window, &event);
+                if (mode == "root-wait") return;
+                if (mode == "root-cancel") { app.quit(); return; }
+                if (mode == "root-engine-lost") { engine.reset(); return; }
+                if (mode == "root-wrong-thread") {
+                    auto *worker = QThread::create([raw = engine.get()] { raw->objectCreated(nullptr, QUrl()); });
+                    worker->start(); worker->wait(); delete worker;
+                    return;
+                }
+                if (mode == "root-failed") engine->loadData("import QtQml\nMissingFixtureRoot {}", QUrl());
+                else {
+                    if (mode == "root-changed" || mode == "root-ambiguous") {
+                        if (mode == "root-changed") initialContext.reset();
+                        extra = std::make_unique<QWindow>(); QQmlEngine::setContextForObject(extra.get(), unsupported.rootContext());
+                    }
+                    loadRoot();
+                    if (mode == "root-duplicate") loadRoot();
+                    if (mode == "root-stale-failure") engine->loadData("import QtQml\nMissingFixtureRoot {}", QUrl());
+                }
+            });
+        QTimer::singleShot(1500, &app, [&] { assert(false && "root fixture timeout"); });
+        assert(app.exec() == 0);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        assert(!guard);
+        if (mode == "root-cancel" || mode == "root-cancel-queued") assert(receipts == 0);
+        else {
+            assert(receipts == 1 && summary.value("attempts").toInt() == 1);
+            assert(summary.value("admitted_post_failure_events").toInt() == 0);
+            assert(summary.value("readiness_budget_ms").toInt() == 200 && summary.value("access_budget_ms").toInt() == 100);
+            if (mode == "root-preexisting" || mode == "root-signal" || mode == "root-duplicate" || mode == "root-stale-failure") {
+                assert(stage == "resolved" && summary.value("compile_attempts").toInt() == 1);
+                assert(summary.value("root_gate").toString() == QStringLiteral("consumed"));
+                assert(summary.value("root_witness_kind").toString() == (mode == "root-preexisting" ? QStringLiteral("preexisting") : QStringLiteral("signal")));
+                const auto witness = summary.value("root_witness_at_ms").toInteger();
+                assert(witness >= 0 && witness < 200);
+                assert(summary.value("first_setData_begin_ms").toInteger() >= witness);
+                assert(summary.value("first_setData_return_ms").toInteger() >= summary.value("first_setData_begin_ms").toInteger());
+                assert(summary.value("first_error_handled_ms").isNull());
+            } else {
+                assert(summary.value("first_setData_begin_ms").isNull() && summary.value("first_setData_return_ms").isNull());
+                if (mode == "root-wait") assert(stage == "root-readiness-deadline" && summary.value("root_witness_at_ms").isNull());
+                else if (mode == "root-failed") assert(stage == "root-load-failed" && summary.value("root_witness_at_ms").isNull());
+                else if (mode == "root-cap") assert(stage == "root-cap" && summary.value("root_count").toInt() == 17);
+                else if (mode == "root-unsupported") assert(stage == "unsupported-engine" && summary.value("gate_engine_kind").toString() == QStringLiteral("unsupported"));
+                else if (mode == "root-lost") assert(stage == "root-witness-lost");
+                else if (mode == "root-engine-lost") assert(stage == "engine-lost");
+                else if (mode == "root-changed") assert(stage == "engine-changed");
+                else if (mode == "root-ambiguous") assert(stage == "multiple-engines");
+                else if (mode == "root-wrong-thread") assert(stage == "engine-thread" && summary.value("root_witness_at_ms").isNull());
+                else if (mode == "root-late-witness") assert(stage == "root-readiness-deadline" && summary.value("root_witness_at_ms").isNull());
+                else if (mode == "root-queued-deadline") {
+                    assert(stage == "deadline" && summary.value("root_witness_at_ms").toInteger() < 200);
+                    assert(summary.value("elapsed_ms").toInteger() >= summary.value("root_witness_at_ms").toInteger() + 100);
+                } else assert(false && "unknown root case");
+            }
+        }
+        printf("%s: %s, receipts=%d, root gate passed\n", argv[1], stage.c_str(), receipts);
+        return 0;
+    }
     QObject singleton;
     int deaths = 0;
     int receipts = 0;
@@ -135,7 +239,9 @@ int main(int argc, char **argv) {
             });
     } else if (mode != "absent" && !retry)
         qmlRegisterSingletonInstance("xofm.libs.library", mode == "major-version" ? 2 : 1, 0, "DocumentController", &singleton);
-    QQmlEngine engine;
+    QQmlApplicationEngine engine;
+    engine.loadData("import QtQml\nQtObject {}", QUrl());
+    assert(engine.rootObjects().size() == 1);
     if (mode == "wrong-error") engine.setImportPathList({});
     QWindow window;
     std::unique_ptr<QQmlContext> fixtureContext;
@@ -168,7 +274,9 @@ int main(int argc, char **argv) {
         QQmlEngine::setContextForObject(otherWindow.get(), other->rootContext());
     }
     if (mode == "engine-lost") {
-        other = std::make_unique<QQmlEngine>();
+        auto application = std::make_unique<QQmlApplicationEngine>();
+        application->loadData("import QtQml\nQtObject {}", QUrl());
+        other = std::move(application);
         QQmlEngine::setContextForObject(&window, other->rootContext());
     }
     std::string stage;
@@ -214,7 +322,8 @@ int main(int argc, char **argv) {
         if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late") assert(e && h && c);
         if (mode == "conflict") assert(!c);
         QTimer::singleShot(0, &app, &QCoreApplication::quit);
-    }, mode == "nested-deadline" ? 1000 : mode == "deadline" || mode == "cap" ? 150 : retry || mode == "absent" ? 2000 : 3000);
+    }, mode == "deadline" || mode == "cap" ? 150 : 3000,
+       mode == "nested-deadline" ? 1000 : retry || mode == "absent" ? 2000 : 3000);
     guard = probe;
     int failedCleanups = 0;
     std::function<void()> observeComponent;
@@ -249,7 +358,9 @@ int main(int argc, char **argv) {
             QCoreApplication::sendEvent(&window, &early); // Component not yet refused.
         }
     };
-    if (retry) QMetaObject::invokeMethod(&app, observeComponent, Qt::QueuedConnection);
+    if (retry) QMetaObject::invokeMethod(&app, [&] {
+        QMetaObject::invokeMethod(&app, observeComponent, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
     if (mode == "engine-lost") QMetaObject::invokeMethod(&app, [&] { other.reset(); }, Qt::QueuedConnection);
     if (mode == "late") QTimer::singleShot(10, &app, [&] {
         QQmlEngine::setContextForObject(&window, engine.rootContext());
@@ -277,13 +388,15 @@ int main(int argc, char **argv) {
         else if (mode == "retry-changed") assert(stage == "engine-changed");
         else if (mode == "retry-ambiguous") assert(stage == "multiple-engines");
         else if (mode == "retry-cap") assert(stage == "readiness-cap");
-        else if (mode == "wrong-error") assert(stage == "missing-qtqml" || stage == "component-error");
+        // The owned preloaded root may already cache QtQml before paths clear.
+        else if (mode == "wrong-error") assert(stage == "missing-qtqml" || stage == "type-missing" || stage == "component-error");
         else if (mode == "conflict") assert(stage == "unavailable" || stage == "create-error");
         else if (mode == "multiple") assert(stage == "multiple-engines");
         else if (mode == "window-cap") assert(stage == "window-cap");
         else if (mode == "engine-lost") assert(stage == "engine-lost");
         else if (mode == "cap") assert(stage == "readiness-cap");
-        else if (mode == "deadline" || mode == "nested-deadline") assert(stage == "deadline");
+        else if (mode == "deadline") assert(stage == "root-readiness-deadline");
+        else if (mode == "nested-deadline") assert(stage == "deadline");
         else assert(false && "unknown case");
     }
     if (mode == "nested-deadline") assert(nestedEntered);

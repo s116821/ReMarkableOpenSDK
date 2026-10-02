@@ -8,15 +8,47 @@ polling are copied. SDK license/publication decisions remain open.
 The app-context startup callback queues one probe. It inspects at most sixteen
 existing windows per attempt, accepts one distinct existing engine on the app
 thread, and otherwise retries only after coalesced window Show/Expose/focus
-events. Eight acquisition attempts are permitted. Once selected, the engine is
-never reacquired. The five-second elapsed deadline can only refuse; a timer is
-never evidence of readiness. Public component Ready/Error status transitions
-queue processing; Loading waits within the same deadline. There is one create.
+events before selection. Eight acquisition admissions are permitted. Once selected,
+the engine is never reacquired. The public root gate accepts only an existing
+`QQmlApplicationEngine` on the app thread. It subscribes once to `objectCreated`
+before checking `rootObjects`, inspects at most sixteen roots, and waits for
+either an already loaded root or a successful root-load signal. A null signal
+refuses as `root-load-failed`; a plain engine refuses as `unsupported-engine`.
+Too many roots refuse as `root-cap`, with private root_count capped at 17.
+Root list copying/allocation is owned by Qt; the cap bounds our inspection.
+Window events cannot bypass the pending root gate. No root properties or URLs
+are inspected or serialized, and no load, navigation or new engine is requested.
+
+Root readiness has twenty seconds from Probe construction. The first accepted
+root witness must precede that deadline and starts one five-second access budget
+at its observation timestamp. A preexisting root's timestamp is when observed,
+not its historical completion time. Neither queued processing, duplicate signals
+nor retries reset this absolute access deadline. Readiness expiry refuses as
+`root-readiness-deadline`; access expiry retains `deadline`. The nominal combined
+budget is at most twenty-five seconds; timers only refuse and prove no readiness.
+The explicitly direct signal handler first compares the current thread with the
+thread captured at subscription. Unexpected foreign-thread emission queues only
+a fixed refusal without reading root pointers or GUI-owned state. On the app
+thread it captures a weak root during the signal and queues processing without
+compiling or finishing inline. The queued continuation rechecks app/engine thread, the same
+unique engine among at most sixteen windows, and that the exact weak root still
+belongs to the bounded root list. Lost roots refuse as `root-witness-lost`.
+This continuation belongs to the original admitted acquisition; repeated safety
+snapshots do not increment the acquisition admission counter. Before the first
+compile the gate is consumed and its signal connection removed. Later root loads
+cannot authorize post-failure retries. Cancellation disconnects and invalidates
+pending gate work. Root success permits only the helper check: it proves neither
+native registration ordering nor controller availability. Existing roots may
+precede other unfinished loads. Queued delivery also does not guarantee native
+load() has unwound when native handlers enter nested event loops.
+
+Public component Ready/Error status transitions queue processing; Loading waits
+within the same access deadline. There is one create.
 Only an exact `missing-library` compilation failure may delete the failed owned
 component and wait for a new Show/Expose/focus event after cleanup. Each new event
 can permit one fresh compile on the same guarded app-thread engine, after a
 new unique-window-engine check. Eight total acquisition/compile attempts and
-the original deadline remain fixed. Changed, absent or ambiguous engines refuse.
+the original access deadline remain fixed. Changed, absent or ambiguous engines refuse.
 Queued attempts from before cleanup are invalidated; component callbacks capture
 weak guards for both their producer and the queued completion. Events during
 compilation or teardown cannot authorize another attempt. Other compiler failures
@@ -66,7 +98,7 @@ module descriptions for QtQml, QML, QtQml.Models, QtQml.WorkerScript and
 xofm.libs.library map respectively to fixed `missing-qtqml`, `missing-qml`,
 `missing-models`, `missing-worker` and `missing-library` stages. Other module
 names retain `module-missing`; mixed categories still use `component-error`.
-This adds no import or acquisition behavior. The original receipt remains
+The classifier itself adds no import or acquisition behavior. The original receipt remains
 unchanged and identifies no module; no root cause is established by this change.
 
 For this fixed helper's compilation failure only, the combined refinement also
@@ -94,7 +126,7 @@ The last failed snapshot is retained even if a later compilation succeeds, and
 is historical failure evidence rather than the final availability result.
 
 The same private diagnostic also contains a bounded runtime summary at terminal
-receipt emission: `attempts` counts admitted acquisition checks (0..8, excluding
+receipt emission: `attempts` counts acquisition admissions (0..8, excluding
 the ninth cap-triggering internal call), `compile_attempts` counts setData entries
 (0..8), and `admitted_post_failure_events` counts only new coalesced queue
 admissions after failed-component cleanup (0..8, including the final cap trigger).
@@ -106,8 +138,16 @@ When there has been no compile failure, context is `runtime-only`, failed_attemp
 is zero and errors is empty; historical compile errors retain their original
 last-failure context and index. The 8192-byte serialized cap is reapplied after
 the summary merge; overflow removes descriptions but retains counters and
-explicit overflow/truncation flags. No additional registration, readiness event,
-retry or timer is introduced. Cancellation still emits no callback/diagnostic.
+explicit overflow/truncation flags. The root-gate refinement also retains fixed
+`readiness_budget_ms`, `access_budget_ms`, `gate_engine_kind`
+(unselected/application/unsupported), `root_gate` (waiting/accepted/consumed/failed),
+`root_witness_kind` (none/preexisting/signal), and capped `root_count`.
+`root_witness_at_ms`, `first_setData_begin_ms`, `first_setData_return_ms` and
+`first_error_handled_ms` are monotonic observations from Probe birth, null until
+observed and sampled only once. Error-handled time is sampled after the expiry
+check and before diagnostic materialization. These spans do not identify causes
+or bound native Qt work. The same 8192-byte cap is applied after all metadata.
+Cancellation still emits no callback/diagnostic.
 Every Probe terminal receipt includes this summary. Startup no-gui and
 application-thread refusals occur before Probe construction and retain their
 existing callback-only path without a runtime summary.
@@ -123,7 +163,13 @@ stale/reentrant events, changed/ambiguous engines, compile-attempt cap and termi
 wrong-module failures,
 conflicting and multiple engines, window cap, engine teardown, event cap,
 deadline refusal (including a deliberately nested owned singleton callback) and
-application cancellation. The nested fixture registration factory is confined
+application cancellation. Focused application-engine fixtures cover preexisting
+and delayed roots, duplicate signals, pending-window activity, failed root loads,
+root cap, unsupported engines, lost roots/engines, changed/ambiguous engines,
+queued admission after the witness access deadline, and cancellation while waiting.
+They also cover foreign-thread signal refusal, a root witness observed too late,
+a failure signal after an accepted root, and cancellation before queued admission.
+The nested fixture registration factory is confined
 to the owned application; the payload has no such registration. These are synthetic fixtures,
 not hardware or production qualification. OpenSpec task 2.5 and native page
 creation/recovery gates remain open pending exact source/artifact/operator
