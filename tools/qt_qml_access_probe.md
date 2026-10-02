@@ -59,6 +59,26 @@ names retain `module-missing`; mixed categories still use `component-error`.
 This adds no import or acquisition behavior. The original receipt remains
 unchanged and identifies no module; no root cause is established by this change.
 
+For this fixed helper's compilation failure only, the combined refinement also
+snapshots actual compiler descriptions privately before cleanup and writes them
+after cleanup to exclusive no-follow 0600 `diagnostics.json` in the same owned
+0700 nonce directory. It performs one write with no retry; a partial/error write
+is invalid and prevents the accompanying callback. The final JSON is at most
+8192 bytes, retaining at most eight errors and 256 UTF-16 units per description.
+The schema is `reported_error_count`, `retained_error_count`, `count_truncated`,
+`output_overflow`, and `errors` containing `description`, `description_truncated`,
+`description_redacted`, `line`, `column`. Oversized serialization is rejected
+and replaced with a bounded explicit overflow record with no descriptions.
+URLs and source snippets are never serialized. Descriptions with /home/, /root/,
+/Users/, backslash Users prefixes (case insensitive), or a drive-qualified
+absolute path are replaced with a fixed personal-path redaction token. Detection
+inspects only the bounded retained text. System plugin paths are retained
+privately. The fixed helper has no user/document content inputs; this is not a
+general content filter. These private descriptions must never be published or
+copied into public logs/commits. The reviewed operator collects and hashes the
+single fixed file before removing it during exact cleanup. Public callback
+fields and size remain unchanged; prior spent packets are not reused.
+
 Run `sh tools/qt_qml_access_probe_test.sh` with Qt development/runtime plugins,
 or set QT_PROBE_SDK_ENV to the firmware-matched SDK environment file to compile
 and run owned ARM fixtures under qemu with the SDK offscreen/QML plugins.

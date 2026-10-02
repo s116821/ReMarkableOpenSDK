@@ -12,6 +12,36 @@ int main(int argc, char **argv) {
     assert(argc == 2);
     const std::string mode = argv[1];
     QGuiApplication app(argc, argv);
+    if (mode == "diagnostics") {
+        auto error = [](const QString &text) { QQmlError e; e.setDescription(text); e.setLine(7); e.setColumn(9); e.setUrl(QUrl("file:///fixture/hidden.qml")); return e; };
+        const QString actual = QStringLiteral("module \"QtQml\" is not installed");
+        auto snapshot = [&](const QList<QQmlError> &errors) {
+            const auto bytes = qml_access::diagnosticSnapshot(errors);
+            assert(!bytes.isEmpty() && bytes.size() <= 8192);
+            const auto doc = QJsonDocument::fromJson(bytes);
+            assert(doc.isObject());
+            return doc.object();
+        };
+        auto root = snapshot({error(actual)});
+        auto item = root.value("errors").toArray().first().toObject();
+        assert(item.value("description").toString() == actual && !item.contains("url"));
+        assert(item.value("line").toInt() == 7 && item.value("column").toInt() == 9);
+        for (const QString &path : {QStringLiteral("/home/person/item"), QStringLiteral("/ROOT/item"), QStringLiteral("/Users/person/item"), QStringLiteral("\\Users\\person\\item"), QStringLiteral("C:\\private\\item")}) {
+            item = snapshot({error(path)}).value("errors").toArray().first().toObject();
+            assert(item.value("description").toString() == QStringLiteral("[redacted personal path]") && item.value("description_redacted").toBool());
+        }
+        const QString system = QStringLiteral("Cannot load plugin /usr/lib/fixture.so");
+        item = snapshot({error(system)}).value("errors").toArray().first().toObject();
+        assert(item.value("description").toString() == system && !item.value("description_redacted").toBool());
+        root = snapshot(QList<QQmlError>(9, error(QString(257, QChar('x')))));
+        assert(root.value("reported_error_count").toInt() == 9 && root.value("retained_error_count").toInt() == 8 && root.value("count_truncated").toBool());
+        item = root.value("errors").toArray().first().toObject();
+        assert(item.value("description").toString().size() == 256 && item.value("description_truncated").toBool());
+        root = snapshot(QList<QQmlError>(8, error(QString(256, QChar(1)))));
+        assert(root.value("output_overflow").toBool() && root.value("errors").toArray().isEmpty() && root.value("retained_error_count").toInt() == 0);
+        puts("diagnostics: bounded actual text, redaction, URL omission and serialization overflow passed");
+        return 0;
+    }
     if (mode == "classifier") {
         auto error = [](const QString &description) { QQmlError e; e.setDescription(description); return e; };
         const auto missing = error(QStringLiteral("module \"fixture.absent\" is not installed"));
@@ -123,11 +153,17 @@ int main(int argc, char **argv) {
         QQmlEngine::setContextForObject(&window, other->rootContext());
     }
     std::string stage;
-    auto *probe = new qml_access::Probe(&app, [&](const char *s, bool a, bool e, bool h, bool c) {
+    auto *probe = new qml_access::Probe(&app, [&](const char *s, bool a, bool e, bool h, bool c, const QByteArray &diagnostic) {
         ++receipts;
         stage = s;
         fprintf(stderr, "stage=%s app=%d engine=%d helper=%d controller=%d\n", s, a, e, h, c);
         assert(a);
+        if (mode == "absent") {
+            assert(!diagnostic.isEmpty() && diagnostic.size() <= 8192);
+            const auto parsed = QJsonDocument::fromJson(diagnostic).object();
+            assert(parsed.value("reported_error_count").toInt() > 0);
+            assert(parsed.value("errors").toArray().first().toObject().value("description").toString() == QStringLiteral("module \"xofm.libs.library\" is not installed"));
+        } else assert(diagnostic.isEmpty());
         if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version") assert(e && h && c);
         if (mode == "conflict") assert(!c);
         QTimer::singleShot(0, &app, &QCoreApplication::quit);

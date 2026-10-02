@@ -17,7 +17,7 @@ constexpr bool validNonce() {
 }
 static_assert(validNonce(), "Invalid nonce");
 std::atomic_flag scheduled = ATOMIC_FLAG_INIT;
-void record(const char *stage, bool app, bool engine, bool helper, bool controller) {
+void record(const char *stage, bool app, bool engine, bool helper, bool controller, const QByteArray &diagnostic = {}) {
     char buffer[256];
     const int length = snprintf(buffer, sizeof buffer,
         "{\"nonce\":\"%s\",\"stage\":\"%s\",\"application_thread\":%s,\"engine_thread\":%s,\"helper_available\":%s,\"controller_available\":%s}\n",
@@ -28,6 +28,16 @@ void record(const char *stage, bool app, bool engine, bool helper, bool controll
     if (directory < 0) return;
     struct stat st{};
     if (fstat(directory, &st) != 0 || st.st_uid != geteuid() || (st.st_mode & 0777) != 0700) { close(directory); return; }
+    if (!diagnostic.isEmpty() && diagnostic.size() <= 8192) {
+        const int diagnosticFd = openat(directory, "diagnostics.json", O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+        if (diagnosticFd < 0) { close(directory); return; }
+        if (diagnosticFd >= 0) {
+            const ssize_t diagnosticWritten = write(diagnosticFd, diagnostic.constData(), static_cast<size_t>(diagnostic.size()));
+            close(diagnosticFd);
+            // A partial/error diagnostic remains invalid and is never retried.
+            if (diagnosticWritten != diagnostic.size()) { close(directory); return; }
+        }
+    }
     const int fd = openat(directory, "callback.json", O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
     close(directory);
     if (fd < 0) return;

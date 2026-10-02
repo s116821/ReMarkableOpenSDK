@@ -8,6 +8,10 @@
 #include <QQmlComponent>
 #include <QQmlError>
 #include <QByteArrayView>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
 #include <QPointer>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -50,9 +54,52 @@ inline const char *errorStage(const QList<QQmlError> &errors) {
     return category;
 }
 
+// Private fixed-helper diagnostics only. Never serialize URLs or source text.
+inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors) {
+    QJsonArray retained;
+    const qsizetype count = qMin<qsizetype>(errors.size(), 8);
+    for (qsizetype i = 0; i < count; ++i) {
+        const auto &error = errors.at(i);
+        const QString description = error.description();
+        QString retainedDescription = description.left(256);
+        // Fixed helper has no user/document input. Keep system plugin paths
+        // private, but suppress whole descriptions with personal path prefixes.
+        static const QRegularExpression drive(QStringLiteral(R"([A-Za-z]:[\\/])"));
+        const bool redacted = retainedDescription.contains(QStringLiteral("/home/"), Qt::CaseInsensitive) ||
+            retainedDescription.contains(QStringLiteral("/root/"), Qt::CaseInsensitive) ||
+            retainedDescription.contains(QStringLiteral("/Users/"), Qt::CaseInsensitive) ||
+            retainedDescription.contains(QStringLiteral("\\Users\\"), Qt::CaseInsensitive) ||
+            drive.match(retainedDescription).hasMatch();
+        if (redacted) retainedDescription = QStringLiteral("[redacted personal path]");
+        const bool truncated = description.size() > 256;
+        retained.append(QJsonObject{
+            {QStringLiteral("description"), retainedDescription.left(256)},
+            {QStringLiteral("description_redacted"), redacted},
+            {QStringLiteral("description_truncated"), truncated},
+            {QStringLiteral("line"), error.line()}, {QStringLiteral("column"), error.column()}});
+    }
+    QJsonObject snapshot{
+        {QStringLiteral("reported_error_count"), static_cast<qint64>(errors.size())},
+        {QStringLiteral("retained_error_count"), static_cast<qint64>(count)},
+        {QStringLiteral("count_truncated"), errors.size() > 8},
+        {QStringLiteral("output_overflow"), false},
+        {QStringLiteral("errors"), retained}};
+    QByteArray bytes = QJsonDocument(snapshot).toJson(QJsonDocument::Compact);
+    bytes.append('\n');
+    if (bytes.size() > 8192) {
+        // Reject the oversized serialization; emit a small explicit refusal.
+        snapshot.insert(QStringLiteral("errors"), QJsonArray{});
+        snapshot.insert(QStringLiteral("retained_error_count"), 0);
+        snapshot.insert(QStringLiteral("count_truncated"), true);
+        snapshot.insert(QStringLiteral("output_overflow"), true);
+        bytes = QJsonDocument(snapshot).toJson(QJsonDocument::Compact) + '\n';
+    }
+    return bytes;
+}
+
 class Probe final : public QObject {
 public:
-    using Receipt = std::function<void(const char *, bool, bool, bool, bool)>;
+    using Receipt = std::function<void(const char *, bool, bool, bool, bool, const QByteArray &)>;
     Probe(QGuiApplication *app, Receipt receipt, int deadlineMs = 5000)
         : QObject(app), app_(app), receipt_(std::move(receipt)), deadlineMs_(deadlineMs) {
         timer_.setSingleShot(true);
@@ -119,7 +166,12 @@ private:
         if (done_ || inCall_ || expired() || created_) return;
         if (!engine_) { finish("engine-lost"); return; }
         if (component_->status() == QQmlComponent::Loading) return;
-        if (component_->status() != QQmlComponent::Ready) { finish(errorStage(component_->errors())); return; }
+        if (component_->status() != QQmlComponent::Ready) {
+            const auto errors = component_->errors();
+            diagnostic_ = diagnosticSnapshot(errors);
+            finish(errorStage(errors));
+            return;
+        }
         created_ = true;
         inCall_ = true;
         owned_ = component_->create();
@@ -167,7 +219,7 @@ private:
         // weak guard/deadline check; neither check is a lifetime pin.
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
         if (controller_ && elapsed_.elapsed() >= deadlineMs_) { stage = "deadline"; controller_ = false; }
-        receipt_(stage, appThread_, engineThread_, helperFound_, controller_);
+        receipt_(stage, appThread_, engineThread_, helperFound_, controller_, diagnostic_);
     }
     bool settlePending() {
         if (cancelPending_) { cancel(); return true; }
@@ -187,5 +239,6 @@ private:
     QPointer<QQmlEngine> engine_;
     QQmlComponent *component_ = nullptr;
     QPointer<QObject> owned_;
+    QByteArray diagnostic_;
 };
 }
