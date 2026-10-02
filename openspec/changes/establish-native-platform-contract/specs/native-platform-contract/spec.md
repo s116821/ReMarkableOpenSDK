@@ -122,8 +122,12 @@ Production adapters SHALL preserve ordinary tablet startup/use with fail-closed 
 - **THEN** its native capabilities remain explicitly unqualified and it is not advertised as hardware-tested
 
 #### Scenario: Native mechanism requires fragile boot changes
-- **WHEN** a candidate requires automatic cold-boot injection, persistent startup modification or recovery dependent on the modified UI
+- **WHEN** a candidate requires automatic cold-boot injection, persistent injection-enabling xochitl/preload/startup changes, configuration that recreates injection or crash loops across cold boots, or recovery dependent on the modified UI
 - **THEN** it is excluded from production regardless of successful research demonstrations
+
+#### Scenario: Ordinary Supervisor autostart preserves stock boot
+- **WHEN** consumer installation configures ordinary Supervisor autostart without enabling injection and activation still requires an authorized fresh trigger
+- **THEN** that autostart is permitted only while xochitl boots stock and stale session state cannot activate injection after reboot.
 
 ### Requirement: Explicit runtime activation and bounded recovery
 Capability queries SHALL NOT activate runtime injection. A conditional adapter SHALL expose its exact compatibility, activation and recovery requirements separately from operation support. Activation SHALL require a qualified model/firmware/runtime/payload match, bounded readiness and health checks, and independently reachable recovery from runtime or supervisor failure. A failed activation or rapid restart loop SHALL latch the injected path unavailable for the session and restore stock operation through the qualified recovery mechanism. A cold reboot SHALL return to a non-injected baseline. SDK contracts SHALL define these device/runtime outcomes while consumer trigger policy, supervision orchestration and installation remain consumer-owned.
