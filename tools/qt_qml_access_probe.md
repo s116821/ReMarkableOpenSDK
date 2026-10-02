@@ -13,7 +13,7 @@ never reacquired. The five-second elapsed deadline can only refuse; a timer is
 never evidence of readiness. Public component Ready/Error status transitions
 queue processing; Loading waits within the same deadline. There is one create.
 
-The fixed helper imports QtQml and xofm.libs.library 1.0, binds a typed QtObject
+The fixed helper imports QtQml and versionless xofm.libs.library, binds a typed QtObject
 reference to DocumentController, and exposes its own availability boolean.
 C++ reads that boolean only. It does not retrieve the controller pointer, read
 native controller properties, call controller/page methods or access documents
@@ -39,10 +39,24 @@ are invalid. A fresh frozen 32-character lowercase hexadecimal QT_PROBE_NONCE
 is required for the independently built target artifact. The script nonce is
 synthetic and must never be reused on hardware.
 
+The original e017ccc/5ce development run reached `component-error` after engine
+acquisition; its saved receipt did not disclose a compiler reason. Removing the
+explicit 1.0 module version matches the pinned community import. A version
+mismatch remains a hypothesis, not an established explanation of that result.
+On a later component compilation failure, the classifier inspects at most eight
+errors with at most 256 UTF-16 code units per description. It emits only fixed
+`module-version`, `module-missing`, `type-missing`, `property-type` or
+`component-error` stages. Unknown, mixed or oversized diagnostics use the generic
+stage. It never emits error descriptions or URLs. These English vendor-Qt
+patterns are categorical hints, not a general parser or root-cause proof. Qt
+still owns/materializes the error list; this limit bounds our inspection only.
+
 Run `sh tools/qt_qml_access_probe_test.sh` with Qt development/runtime plugins,
 or set QT_PROBE_SDK_ENV to the firmware-matched SDK environment file to compile
 and run owned ARM fixtures under qemu with the SDK offscreen/QML plugins.
-Fixtures cover immediate/same-engine/late readiness, absent registration,
+Fixtures cover fixed-category/unknown/mixed/count/description boundaries, actual
+owned compiler errors, versionless major-version selection,
+immediate/same-engine/late readiness, absent registration,
 conflicting and multiple engines, window cap, engine teardown, event cap,
 deadline refusal (including a deliberately nested owned singleton callback) and
 application cancellation. The nested fixture registration factory is confined

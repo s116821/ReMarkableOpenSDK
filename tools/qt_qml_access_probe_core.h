@@ -6,6 +6,8 @@
 #include <QWindow>
 #include <QQmlEngine>
 #include <QQmlComponent>
+#include <QQmlError>
+#include <QByteArrayView>
 #include <QPointer>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -14,9 +16,32 @@
 
 namespace qml_access {
 inline constexpr char helper[] =
-    "import QtQml\nimport xofm.libs.library 1.0\n"
+    "import QtQml\nimport xofm.libs.library\n"
     "QtObject { property QtObject observedController: DocumentController; "
     "readonly property bool controllerAvailable: observedController !== null }";
+
+// English vendor-Qt diagnostics are hints, not a general parser or root cause.
+// Qt owns/materializes the error list; these limits bound our inspection only.
+inline const char *errorStage(const QList<QQmlError> &errors) {
+    if (errors.isEmpty() || errors.size() > 8) return "component-error";
+    const char *category = nullptr;
+    for (const auto &error : errors) {
+        const QString description = error.description();
+        if (description.size() > 256) return "component-error";
+        const char *current = nullptr;
+        if (description.startsWith(QStringLiteral("module \"")) &&
+            description.contains(QStringLiteral("\" version ")) &&
+            description.endsWith(QStringLiteral(" is not installed"))) current = "module-version";
+        else if (description.startsWith(QStringLiteral("module \"")) &&
+                 description.endsWith(QStringLiteral("\" is not installed"))) current = "module-missing";
+        else if (description.size() > 14 && description.endsWith(QStringLiteral(" is not a type"))) current = "type-missing";
+        else if (description == QStringLiteral("Invalid property assignment: unsupported type \"QObject*\"")) current = "property-type";
+        else return "component-error";
+        if (category && QByteArrayView(category) != QByteArrayView(current)) return "component-error";
+        category = current;
+    }
+    return category;
+}
 
 class Probe final : public QObject {
 public:
@@ -87,7 +112,7 @@ private:
         if (done_ || inCall_ || expired() || created_) return;
         if (!engine_) { finish("engine-lost"); return; }
         if (component_->status() == QQmlComponent::Loading) return;
-        if (component_->status() != QQmlComponent::Ready) { finish("component-error"); return; }
+        if (component_->status() != QQmlComponent::Ready) { finish(errorStage(component_->errors())); return; }
         created_ = true;
         inCall_ = true;
         owned_ = component_->create();
