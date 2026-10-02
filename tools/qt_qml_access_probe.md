@@ -93,6 +93,22 @@ fields and size remain unchanged; prior spent packets are not reused.
 The last failed snapshot is retained even if a later compilation succeeds, and
 is historical failure evidence rather than the final availability result.
 
+The same private diagnostic also contains a bounded runtime summary at terminal
+receipt emission: `attempts` counts admitted acquisition checks (0..8, excluding
+the ninth cap-triggering internal call), `compile_attempts` counts setData entries
+(0..8), and `admitted_post_failure_events` counts only new coalesced queue
+admissions after failed-component cleanup (0..8, including the final cap trigger).
+`component_status` is absent/null/loading/ready/error, sampled before final owned
+cleanup. `terminal_stage` matches the corrected callback stage and `elapsed_ms`
+uses the same single monotonic sample taken after cleanup for deadline correction.
+This timing is an observation, not a filesystem-write or Qt-call upper bound.
+When there has been no compile failure, context is `runtime-only`, failed_attempt
+is zero and errors is empty; historical compile errors retain their original
+last-failure context and index. The 8192-byte serialized cap is reapplied after
+the summary merge; overflow removes descriptions but retains counters and
+explicit overflow/truncation flags. No additional registration, readiness event,
+retry or timer is introduced. Cancellation still emits no callback/diagnostic.
+
 Run `sh tools/qt_qml_access_probe_test.sh` with Qt development/runtime plugins,
 or set QT_PROBE_SDK_ENV to the firmware-matched SDK environment file to compile
 and run owned ARM fixtures under qemu with the SDK offscreen/QML plugins.

@@ -162,6 +162,28 @@ int main(int argc, char **argv) {
         stage = s;
         fprintf(stderr, "stage=%s app=%d engine=%d helper=%d controller=%d\n", s, a, e, h, c);
         assert(a);
+        assert(!diagnostic.isEmpty() && diagnostic.size() <= 8192);
+        const auto summary = QJsonDocument::fromJson(diagnostic).object();
+        assert(summary.value("terminal_stage").toString() == QString::fromLatin1(s));
+        const int attempts = summary.value("attempts").toInt();
+        const int compiles = summary.value("compile_attempts").toInt();
+        const int admittedEvents = summary.value("admitted_post_failure_events").toInt();
+        assert(attempts >= 0 && attempts <= 8 && compiles >= 0 && compiles <= attempts && admittedEvents >= 0 && admittedEvents <= 8);
+        const qint64 terminalElapsed = summary.value("elapsed_ms").toInteger();
+        assert(terminalElapsed >= 0);
+        if (mode == "retry-late") {
+            assert(attempts == 2 && compiles == 2 && admittedEvents == 1);
+            assert(summary.value("component_status").toString() == QStringLiteral("ready"));
+        }
+        if (mode == "retry-no-event" || mode == "retry-stale" || mode == "absent") {
+            assert(attempts == 1 && compiles == 1 && admittedEvents == 0 && terminalElapsed >= 2000);
+            assert(summary.value("component_status").toString() == QStringLiteral("absent"));
+        }
+        if (mode == "retry-cap") assert(attempts == 8 && compiles == 8 && admittedEvents == 8);
+        if (mode == "nested-deadline") {
+            assert(attempts == 1 && compiles == 1 && admittedEvents == 0 && terminalElapsed >= 1000);
+            assert(summary.value("component_status").toString() == QStringLiteral("ready"));
+        }
         if (mode == "absent" || retry) {
             assert(!diagnostic.isEmpty() && diagnostic.size() <= 8192);
             const auto parsed = QJsonDocument::fromJson(diagnostic).object();
@@ -169,8 +191,11 @@ int main(int argc, char **argv) {
             assert(parsed.value("reported_error_count").toInt() > 0);
             assert(parsed.value("errors").toArray().first().toObject().value("description").toString() == QStringLiteral("module \"xofm.libs.library\" is not installed"));
             assert(parsed.value("failed_attempt").toInt() == (mode == "retry-cap" ? 8 : 1));
-        } else if (mode == "wrong-error") assert(!diagnostic.isEmpty());
-        else assert(diagnostic.isEmpty());
+        } else if (mode == "wrong-error") assert(summary.value("context").toString() == QStringLiteral("last-compile-failure"));
+        else {
+            assert(summary.value("context").toString() == QStringLiteral("runtime-only"));
+            assert(summary.value("failed_attempt").toInt() == 0 && summary.value("errors").toArray().isEmpty());
+        }
         if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late") assert(e && h && c);
         if (mode == "conflict") assert(!c);
         QTimer::singleShot(0, &app, &QCoreApplication::quit);

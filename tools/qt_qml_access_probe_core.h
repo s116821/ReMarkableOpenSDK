@@ -122,13 +122,14 @@ protected:
         if (!done_ && !component_ && qobject_cast<QWindow *>(object) &&
             (event->type() == QEvent::Show || event->type() == QEvent::Expose ||
              event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut))
-            queueAttempt();
+            queueAttempt(waitingAfterFailure_);
         return false;
     }
 private:
     bool expired() { if (elapsed_.elapsed() < deadlineMs_) return false; finish("deadline"); return true; }
-    void queueAttempt() {
+    void queueAttempt(bool postFailureEvent = false) {
         if (queued_ || done_) return;
+        if (postFailureEvent) ++admittedPostFailureEvents_;
         queued_ = true;
         const unsigned epoch = eventEpoch_;
         QMetaObject::invokeMethod(this, [this, epoch] {
@@ -168,11 +169,13 @@ private:
                 QMetaObject::invokeMethod(this, [this] { finish("engine-lost"); }, Qt::QueuedConnection);
             });
         component_ = new QQmlComponent(engine_, this);
+        waitingAfterFailure_ = false;
         const QPointer<QQmlComponent> producer = component_;
         connect(component_, &QQmlComponent::statusChanged, this, [this, producer] {
             if (producer && component_ == producer) queueComponentReady();
         });
         inCall_ = true;
+        ++compileAttempts_;
         component_->setData(helper, QUrl());
         inCall_ = false;
         if (settlePending()) return;
@@ -199,6 +202,7 @@ private:
                 inCall_ = false;
                 ++eventEpoch_;
                 queued_ = false; // Older queued events cannot authorize retry.
+                waitingAfterFailure_ = true;
                 if (settlePending()) return;
                 if (!engine_) { finish("engine-lost"); return; }
                 (void)expired(); // Existing deadline stays fixed; no retry timer.
@@ -247,11 +251,40 @@ private:
             if (app_) app_->removeEventFilter(this);
             return;
         }
+        const char *status = "absent";
+        if (component_) {
+            switch (component_->status()) {
+            case QQmlComponent::Null: status = "null"; break;
+            case QQmlComponent::Loading: status = "loading"; break;
+            case QQmlComponent::Ready: status = "ready"; break;
+            case QQmlComponent::Error: status = "error"; break;
+            }
+        }
         cancel();
         // Cleanup can reenter Qt. Terminal success follows cleanup and another
         // weak guard/deadline check; neither check is a lifetime pin.
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
-        if (controller_ && elapsed_.elapsed() >= deadlineMs_) { stage = "deadline"; controller_ = false; }
+        const qint64 elapsedMs = elapsed_.elapsed();
+        if (controller_ && elapsedMs >= deadlineMs_) { stage = "deadline"; controller_ = false; }
+        QJsonObject summary;
+        if (diagnostic_.isEmpty()) {
+            summary = QJsonDocument::fromJson(diagnosticSnapshot({})).object();
+            summary.insert(QStringLiteral("context"), QStringLiteral("runtime-only"));
+        } else summary = QJsonDocument::fromJson(diagnostic_).object();
+        summary.insert(QStringLiteral("attempts"), qMin(attempts_, 8));
+        summary.insert(QStringLiteral("compile_attempts"), compileAttempts_);
+        summary.insert(QStringLiteral("admitted_post_failure_events"), admittedPostFailureEvents_);
+        summary.insert(QStringLiteral("component_status"), QString::fromLatin1(status));
+        summary.insert(QStringLiteral("terminal_stage"), QString::fromLatin1(stage));
+        summary.insert(QStringLiteral("elapsed_ms"), elapsedMs);
+        diagnostic_ = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
+        if (diagnostic_.size() > 8192) {
+            summary.insert(QStringLiteral("errors"), QJsonArray{});
+            summary.insert(QStringLiteral("retained_error_count"), 0);
+            summary.insert(QStringLiteral("count_truncated"), true);
+            summary.insert(QStringLiteral("output_overflow"), true);
+            diagnostic_ = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
+        }
         receipt_(stage, appThread_, engineThread_, helperFound_, controller_, diagnostic_);
     }
     bool settlePending() {
@@ -264,6 +297,8 @@ private:
     QTimer timer_;
     QElapsedTimer elapsed_;
     int deadlineMs_, attempts_ = 0;
+    int compileAttempts_ = 0, admittedPostFailureEvents_ = 0;
+    bool waitingAfterFailure_ = false;
     unsigned eventEpoch_ = 0;
     bool engineSelected_ = false;
     bool queued_ = false, done_ = false, created_ = false, inCall_ = false;
