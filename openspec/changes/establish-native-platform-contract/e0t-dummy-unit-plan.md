@@ -1,0 +1,58 @@
+# E0T: finite device systemd comparator using owned dummy units
+
+Status: proposal/preparation only. Coordinator review of the frozen source/artifact/operator packet is required before staging or starting anything. Main is the sole operator. This addresses the host's unavailable live systemd manager; it does not relax E1 or qualify xochitl behavior. No wider host container privileges are requested.
+
+## Scope and ownership
+
+Use the actual tablet manager with original harmless helpers and fake units only. Preserve real xochitl, Reader Buddy, rm-sync, their processes and every vendor/user configuration byte. No XOVI, preload, native payload, document/account access, drawing/input, real failure/reboot handler, firmware/boot settings or global manager-environment changes. The names of real services appear only in the operator's fixed read-only continuity checks, never in dummy unit dependencies, helper action targets or cleanup lists.
+
+Generate one 128-bit transaction nonce on the host, freeze it in the reviewed manifest, and refuse if any corresponding name/path exists. Use exact names `buddy-e0t-<nonce>-<role>.service` with at most 12 enumerated roles; a role is not an arbitrary argument. Files live under one root-owned mode-0700 `/run/buddy-e0t-<nonce>/`; the at-most-12 unit fragments are exact regular files under `/run/systemd/system/`. No directory shadowing or drop-ins on existing units. Paths, inodes and initial absence belong to the manifest; no symlink traversal or wildcard deletion. All payloads and evidence are volatile. The approved packet lists every final path, not a shell-generated unconstrained prefix.
+
+Do not put dummy units in a boot target, enable them, attach them to real vendor units, or change global limits. Disable default dependencies in the fake units and inspect actual implicit manager dependencies; normal system.slice accounting is not a reference to a vendor application. Empty OnFailure cannot clear inherited handlers: an unexpected generic handler/action causes refusal before **any** dummy start, including the cleanup actor.
+
+## Frozen artifact and property gate
+
+Main supplies original helper source, reviewed operator source, exact commit and SHA-256 for each target ELF/script/unit/manifest. Compile ARM32 hard-float against satisfied target imports; prefer a small C helper without Python, Qt, shell-command interpretation or dynamically selected executables. Fixed modes may hold on an owned pipe, send bounded systemd notify messages, exit with a chosen fixture status, append a bounded marker, and restore owned dummy state. All reads/writes use owned paths except read-only process identity and the manager notification socket supplied to that helper. No arbitrary command option or remote shell API. Runtime helper identity includes nonce, PID/start identity and mode; repeated PID alone is insufficient.
+
+Before a manager reload, snapshot relevant effective properties/unit hashes and existing job IDs for the three original services. Refuse unrelated configuration drift that would make the reload apply unknown changes. A reload is a manager-wide action, so include it explicitly in the reviewed packet; it is not permission to change settings or reexecute PID1. After staging and one reload, inspect every dummy's effective fragment/drop-ins, ExecStart/stop/post commands, all dependency/action targets, user/group, cgroup, environment/preload, restart/start-limit/job/stop/runtime/watchdog settings and limits. Require exact allowlists and unchanged originals. Any mismatch aborts before start and removes only staged owned files through the reviewed cleanup path.
+
+The packet must also account for generic and dash-prefix drop-in lookup for the chosen names; checking only service.d is insufficient. No dummy may inherit a vendor handler or unexpected ExecStartPre/Post/ExecStopPost. Prove the harmless marker handlers' complete effective commands before a failure case. Never invoke a handler merely because its name looks owned.
+
+## Resource and time bounds
+
+Proposed dummy-only limits, subject to exact property verification: at most 8 concurrent helper processes, 12 named units, 16 MiB staged files, 256 KiB total evidence, 8 MiB memory and 2 tasks per simple helper (aggregate at most 64 MiB/16 tasks). Use supported service limits plus internal allocation/output caps; refusal if required limits cannot be enforced. No busy loops or network, no core dumps. Marker output is an append-only bounded record, not an unbounded journal stream.
+
+Run the eight cases below once, sequentially. Maximum 15 seconds per case, 180 seconds from the first dummy start to cleanup initiation, and 30 seconds reserved for cleanup. An independently armed cleanup actor has a finite lease and acts by 180 seconds regardless of controller connectivity; no lease extension or automatic retry. Dummy workers self-exit by their case bound. Proposed 2-second dummy stop bounds and 3-second notify/watchdog intervals test controlled helpers only; they are **not xochitl timing or device recovery guarantees**. Record actual monotonic times. A stuck manager/kernel operation yields failed/unknown cleanup; a deadline does not prove termination.
+
+## Independent cleanup and event protocol
+
+The cleanup actor is a separate owned unit outside the controller/worker cgroups. Start it only after its effective-property gate passes, verify its own start identity and nonce-bound acknowledgement, then allow case starts. It owns the immutable list of unit paths/job identities and an expiring lease. Controller loss triggers bounded cleanup; cleanup-actor loss makes the surviving controller stop the experiment and run the same idempotent cleanup. Do not test simultaneous loss in this packet or add recursive watchers. Self-exit limits on dummy workers bound leftovers but do not count as a cleanup receipt.
+
+Use owned pipes/socket events and manager job completion records as barriers; sleeps are only watchdog deadlines. Job IDs must be correlated with transaction/unit identity before cancellation; preserve all preexisting unrelated jobs. On a lost start reply, query the exact owned unit/job and reconcile, never resend the start blindly. A restore receipt requires no outstanding start writer/request/job capable of recreating a dummy, all owned workers gone, and exact owned-state results. Runner cleanup after a failed case is recorded separately from the recovery under test.
+
+## Eight finite cases
+
+| Case | Harmless stimulus | Required observation before case cleanup |
+| --- | --- | --- |
+| T1 dependency merge | Two owned marker handlers model vendor and added handler; an owned drop-in contains empty OnFailure then adds the second | Effective dependencies retain both; one intentional dummy exit causes only bounded owned markers. No real handler is referenced |
+| T2 direct restart versus no restart | Two sequential fake workers: direct/on-failure with a spent-claim fallback, then no-restart with marker handler | First worker fails once then runs its non-failing stock stand-in with no repeated experimental claim; second invokes its owned failure marker. Record actual starts/jobs, not parser output |
+| T3 separate-name and generic lookup | Inspect separate owned unit's full effective configuration before starting a short no-op | It has only expected owned dependencies/actions. Do not install a global service.d fixture on the tablet; generic inheritance is inspected here and already modeled offline |
+| T4 notify context | Own Type=notify worker sends nonce marker and READY/watchdog messages using its manager-supplied context, then stops messages | Correct unit becomes ready and its configured short dummy watchdog produces the expected owned failure/termination result. No watchdog device is opened and no global watchdog setting changes |
+| T5 pending start/cancel | Owned barrier unit holds a start job; request and then cancel the dependent owned worker job before releasing the barrier | Exact job terminal disposition and absence of worker start marker/process, then no late start after release; ambiguity fails the case |
+| T6 controller loss during restoration | Kill only the exact owned controller identity after restoration has begun at a recorded barrier | Independent actor completes the same transaction, proves dummy stock-state marker and actual stand-in liveness before ordinary runner cleanup |
+| T7 protection loss and publication fence | Terminate only the owned guard actor at the reviewed handoff barrier while controller survives; attempt a stale generation publication | Controller refuses new activation and restores dummy stock; late writer/job cannot replace it. Cleanup duties transfer explicitly without another watcher |
+| T8 cached receipt invalidation and idempotence | Terminate the exact dummy stock stand-in after a receipt, then issue one duplicate restore request | Old receipt is not reused as current liveness; reconcile actual process state and obtain new evidence or report failed/unknown. No repeated experimental claim |
+
+These are one bounded comparator run, not exhaustive race testing. Each intentional termination targets only a verified owned helper, never PID-by-name or a process group containing the operator/recovery actor. If a case requires more actors or time than the frozen limits, revise the packet before execution rather than extend it live. Stop at the first unexpected result and proceed only to the reviewed cleanup path.
+
+## Cleanup and final receipt
+
+Latch the transaction closed; resolve/cancel only its jobs; stop exact owned units; verify their cgroups/processes empty; preserve bounded evidence on the host; remove only exact owned fragments and files whose ownership still matches; reload once; verify no owned loaded/startable units or jobs remain. Keep the cleanup actor available until these duties are discharged; its final exit/removal is performed by the independent operator and verified. No reset-failed on unrelated units, global job cancellation or reboot. An unresolved cleanup duty remains explicit and forbids E1.
+
+Before/after and between cases check original xochitl/Reader/rm-sync PID/start identities, state, effective configuration hashes, mappings relevant to absence of new preload, and relevant job identities. Any original change terminates the experiment; record it without claiming E0T caused or repaired it. Preserve unrelated jobs rather than requiring the entire manager queue to be empty. Original physical UI responsiveness may remain unverified; no human participation is required.
+
+## Freeze checklist and evidence limits
+
+The runnable packet must contain exact source/artifact/unit hashes, all names/paths, original baseline/profile, complete commands/property expectations, actor ownership, case barriers, resource/time bounds, failure/cleanup routes and consumer Docs counterpart. Those artifacts are not yet supplied by this proposal. Main obtains independent source/operator review and coordinator approval of that exact packet before any device write/start. A replacement build, changed case or changed profile requires a new packet.
+
+E0T can establish dummy-unit behavior under the actual vendor manager. It cannot establish xochitl shutdown/persistence, rm-sync tolerance, native GUI behavior, loader safety, cold boot or production recovery. The observed rm-sync BindsTo/PartOf and reverse activation remain E1 gates. Source basis: coordinator's explicit proposal request, inspected configuration receipts, upstream parser/source and failed host-manager isolation. All dummy cases and bounds here are proposed, not executed.
