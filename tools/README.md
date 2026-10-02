@@ -81,7 +81,7 @@ mappings and readable segment continuity, and allows BSS anonymous continuation.
 It reads only declared discrete type fields; only exact kind/meta/callback matches
 permit capture/object reads. Nonzero sampled strong count is not retained lifetime.
 
-Caps: 1024 types, four candidates, 64 KiB remote requests, 8 KiB output, two 128 KiB mapping
+Caps: 4096 types, four candidates, 128 KiB remote requests, 8 KiB output, two 128 KiB mapping
 snapshots, 2-second cooperative budget and the same 10-second outer operator procedure.
 An unknown/expired/ambiguous or changed candidate is incomplete, never a callable
 capability. Even a unique matching sample remains untrusted/non-atomic and grants
@@ -117,7 +117,8 @@ Private output is capped at 1 KiB and retains each fully sampled guard/descripto
 unsigned and signed count, equality and incomplete/non-atomic flags. Unavailable
 fields are null rather than invented zeros. Refusal preserves preceding complete
 samples. The diagnostic cannot establish registry ABI, discover a controller or
-justify greater traversal; R2's 1024-entry discovery bound remains unchanged.
+justify greater traversal by itself. The separately reviewed October 2 R2 revision
+uses 4096 entries and 128 KiB; this diagnostic retains its independent 26-byte cap.
 
 Owned fixtures verify exact fixed reads/no pointer traversal, huge/negative/zero
 counts, unknown guards, changed/partial samples, timeout, mapping and overflow

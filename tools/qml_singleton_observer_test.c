@@ -62,8 +62,24 @@ static void discovery_cases(void) {
         assert(!strcmp(run(o,&m,c,&matches),count==2?"ambiguous":"candidate-cap") && o->incomplete && matches<=4);
     }
     for (unsigned large=0;large<2;large++) {
-        setup(o,f,&m);put(f,0x1108,large?UINT32_MAX:1025);
+        setup(o,f,&m);put(f,0x1108,large?UINT32_MAX:TYPE_CAP+1);
         assert(!strcmp(run(o,&m,c,&matches),"type-cap") && f->calls==2);
+    }
+    /* A full non-null registry, with its sole matching record at the end.
+     * Keep the array separate from the fixed candidate chain. */
+    const unsigned counts[]={3096,TYPE_CAP};
+    for (size_t k=0;k<sizeof counts/sizeof counts[0];k++) {
+        setup(o,f,&m);put(f,0x1104,0x4000);put(f,0x1108,counts[k]);
+        put(f,0x3000+60,0);put(f,0x3000+68,0);
+        for (unsigned i=0;i<counts[k];i++) put(f,0x4000+i*4,i+1==counts[k]?0x1800:0x3000);
+        assert(!strcmp(run(o,&m,c,&matches),"matched-sample-only") && matches==1 && !o->incomplete);
+        assert(o->remote_bytes==24u*counts[k]+26u+96u && o->remote_bytes<REMOTE_CAP);
+        /* Changed high-count array data is rejected on the second array read. */
+        o->remote_bytes=0;o->incomplete=false;f->change=0x4000;f->changed_reads=0;
+        assert(!strcmp(run(o,&m,c,&matches),"changed-registry") && o->incomplete);
+        /* Exhaust the remaining budget before this same high-count sample. */
+        o->remote_bytes=REMOTE_CAP-13;o->incomplete=false;f->change=0;f->changed_reads=0;
+        assert(!strcmp(run(o,&m,c,&matches),"type-array") && o->incomplete && o->remote_bytes==REMOTE_CAP);
     }
     const uint32_t changed[]={0x1800+60,0x2014,0x2200,0x2400,0x2504,0x10fd,0x1100,0x1400};
     for (size_t i=0;i<sizeof changed/sizeof changed[0];i++) {
