@@ -1,0 +1,159 @@
+/* Development experiment: no controller methods or page operations.
+ * QML singleton resolution may invoke registration and change engine ownership.
+ * Supported GUI lifecycle is assumed; weak guards do not pin native lifetimes. */
+#pragma once
+#include <QGuiApplication>
+#include <QWindow>
+#include <QQmlEngine>
+#include <QQmlComponent>
+#include <QPointer>
+#include <QTimer>
+#include <QElapsedTimer>
+#include <QThread>
+#include <functional>
+
+namespace qml_access {
+inline constexpr char helper[] =
+    "import QtQml\nimport xofm.libs.library 1.0\n"
+    "QtObject { property QtObject observedController: DocumentController; "
+    "readonly property bool controllerAvailable: observedController !== null }";
+
+class Probe final : public QObject {
+public:
+    using Receipt = std::function<void(const char *, bool, bool, bool, bool)>;
+    Probe(QGuiApplication *app, Receipt receipt, int deadlineMs = 5000)
+        : QObject(app), app_(app), receipt_(std::move(receipt)), deadlineMs_(deadlineMs) {
+        timer_.setSingleShot(true);
+        timer_.setTimerType(Qt::PreciseTimer);
+        connect(&timer_, &QTimer::timeout, this, [this] { finish("deadline"); });
+        connect(app, &QCoreApplication::aboutToQuit, this, [this] { cancel(); });
+        elapsed_.start();
+        timer_.start(deadlineMs_);
+        app->installEventFilter(this);
+        queueAttempt();
+    }
+    ~Probe() override {
+        if (app_) app_->removeEventFilter(this);
+        delete owned_.data();
+    }
+protected:
+    bool eventFilter(QObject *object, QEvent *event) override {
+        if (!done_ && !component_ && qobject_cast<QWindow *>(object) &&
+            (event->type() == QEvent::Show || event->type() == QEvent::Expose ||
+             event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut))
+            queueAttempt();
+        return false;
+    }
+private:
+    bool expired() { if (elapsed_.elapsed() < deadlineMs_) return false; finish("deadline"); return true; }
+    void queueAttempt() {
+        if (queued_ || done_) return;
+        queued_ = true;
+        QMetaObject::invokeMethod(this, [this] { queued_ = false; attempt(); }, Qt::QueuedConnection);
+    }
+    void attempt() {
+        if (done_ || component_ || expired()) return;
+        appThread_ = app_ && QThread::currentThread() == app_->thread();
+        if (!appThread_) { finish("application-thread"); return; }
+        if (++attempts_ > 8) { finish("readiness-cap"); return; }
+        const auto windows = QGuiApplication::allWindows();
+        if (windows.size() > 16) { finish("window-cap"); return; }
+        QPointer<QQmlEngine> selected;
+        for (QWindow *window : windows) {
+            QQmlEngine *candidate = qmlEngine(window);
+            if (!candidate) continue;
+            if (selected && selected != candidate) { finish("multiple-engines"); return; }
+            selected = candidate;
+        }
+        if (!selected) return; // Only readiness events or the refusal deadline follow.
+        engine_ = selected;
+        engineThread_ = engine_->thread() == app_->thread();
+        if (!engineThread_) { finish("engine-thread"); return; }
+        connect(engine_, &QObject::destroyed, this, [this] {
+            QMetaObject::invokeMethod(this, [this] { finish("engine-lost"); }, Qt::QueuedConnection);
+        });
+        component_ = new QQmlComponent(engine_, this);
+        connect(component_, &QQmlComponent::statusChanged, this, [this] {
+            QMetaObject::invokeMethod(this, [this] { componentReady(); }, Qt::QueuedConnection);
+        });
+        inCall_ = true;
+        component_->setData(helper, QUrl());
+        inCall_ = false;
+        if (settlePending()) return;
+        // Never create/delete inside setData or its synchronous status callback.
+        QMetaObject::invokeMethod(this, [this] { componentReady(); }, Qt::QueuedConnection);
+    }
+    void componentReady() {
+        if (done_ || inCall_ || expired() || created_) return;
+        if (!engine_) { finish("engine-lost"); return; }
+        if (component_->status() == QQmlComponent::Loading) return;
+        if (component_->status() != QQmlComponent::Ready) { finish("component-error"); return; }
+        created_ = true;
+        inCall_ = true;
+        owned_ = component_->create();
+        inCall_ = false;
+        if (settlePending()) return;
+        if (!engine_) { finish("engine-lost"); return; }
+        if (expired()) return;
+        if (!owned_ || component_->isError()) { finish("create-error"); return; }
+        helperFound_ = true;
+        const QVariant available = owned_->property("controllerAvailable");
+        if (!engine_) { finish("engine-lost"); return; }
+        if (expired()) return;
+        if (available.metaType() != QMetaType::fromType<bool>()) { finish("create-error"); return; }
+        controller_ = available.toBool();
+        finish(controller_ ? "resolved" : "unavailable");
+    }
+    void cancel() {
+        if (done_) return;
+        if (inCall_) {
+            cancelPending_ = true;
+            timer_.stop();
+            if (app_) app_->removeEventFilter(this);
+            return; // No deferred deletion can run inside a nested Qt loop.
+        }
+        done_ = true;
+        timer_.stop();
+        if (app_) app_->removeEventFilter(this);
+        // App-context destruction cancels queued transitions. Only owned objects.
+        delete owned_.data();
+        owned_.clear();
+        delete component_;
+        component_ = nullptr;
+        deleteLater();
+    }
+    void finish(const char *stage) {
+        if (done_) return;
+        if (inCall_) {
+            pendingStage_ = stage;
+            timer_.stop();
+            if (app_) app_->removeEventFilter(this);
+            return;
+        }
+        cancel();
+        // Cleanup can reenter Qt. Terminal success follows cleanup and another
+        // weak guard/deadline check; neither check is a lifetime pin.
+        if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
+        if (controller_ && elapsed_.elapsed() >= deadlineMs_) { stage = "deadline"; controller_ = false; }
+        receipt_(stage, appThread_, engineThread_, helperFound_, controller_);
+    }
+    bool settlePending() {
+        if (cancelPending_) { cancel(); return true; }
+        if (pendingStage_) { const char *stage = pendingStage_; pendingStage_ = nullptr; finish(stage); return true; }
+        return done_;
+    }
+    QPointer<QGuiApplication> app_;
+    Receipt receipt_;
+    QTimer timer_;
+    QElapsedTimer elapsed_;
+    int deadlineMs_, attempts_ = 0;
+    bool queued_ = false, done_ = false, created_ = false, inCall_ = false;
+    bool cancelPending_ = false;
+    const char *pendingStage_ = nullptr;
+    bool appThread_ = false, engineThread_ = false;
+    bool helperFound_ = false, controller_ = false;
+    QPointer<QQmlEngine> engine_;
+    QQmlComponent *component_ = nullptr;
+    QPointer<QObject> owned_;
+};
+}
