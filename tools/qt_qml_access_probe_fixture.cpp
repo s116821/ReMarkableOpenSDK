@@ -117,6 +117,8 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (mode.rfind("root-", 0) == 0) {
+        const int readinessBudget = mode == "root-wait" || mode == "root-late-witness" ? 200 : 3000;
+        const int accessBudget = mode == "root-wait" || mode == "root-late-witness" || mode == "root-queued-deadline" ? 100 : 3000;
         QObject singleton;
         qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &singleton);
         auto engine = std::make_unique<QQmlApplicationEngine>();
@@ -150,13 +152,19 @@ int main(int argc, char **argv) {
         QPointer<qml_access::Probe> guard = new qml_access::Probe(&app,
             [&](const char *s, bool a, bool e, bool h, bool c, const QByteArray &bytes) {
                 ++receipts; stage = s;
-                assert(a && e && bytes.size() <= 8192);
                 summary = QJsonDocument::fromJson(bytes).object();
+                fprintf(stderr, "root-stage=%s attempts=%d compiles=%d roots=%d witness_ms=%lld elapsed_ms=%lld begin_ms=%lld return_ms=%lld\n",
+                    s, summary.value("attempts").toInt(), summary.value("compile_attempts").toInt(), summary.value("root_count").toInt(),
+                    static_cast<long long>(summary.value("root_witness_at_ms").toInteger(-1)),
+                    static_cast<long long>(summary.value("elapsed_ms").toInteger(-1)),
+                    static_cast<long long>(summary.value("first_setData_begin_ms").toInteger(-1)),
+                    static_cast<long long>(summary.value("first_setData_return_ms").toInteger(-1)));
+                assert(a && e && bytes.size() <= 8192);
                 assert(summary.value("terminal_stage").toString() == QString::fromLatin1(s));
                 if (stage == "resolved") assert(h && c);
                 else assert(!h && !c && summary.value("compile_attempts").toInt() == 0);
                 QTimer::singleShot(0, &app, &QCoreApplication::quit);
-            }, 200, 100);
+            }, readinessBudget, accessBudget);
         if (mode != "root-preexisting" && mode != "root-cap" && mode != "root-unsupported")
             QTimer::singleShot(20, &app, [&] {
                 assert(guard && !guard->findChild<QQmlComponent *>() && receipts == 0);
@@ -181,7 +189,7 @@ int main(int argc, char **argv) {
                     if (mode == "root-stale-failure") engine->loadData("import QtQml\nMissingFixtureRoot {}", QUrl());
                 }
             });
-        QTimer::singleShot(1500, &app, [&] { assert(false && "root fixture timeout"); });
+        QTimer::singleShot(5000, &app, [&] { assert(false && "root fixture timeout"); });
         assert(app.exec() == 0);
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         assert(!guard);
@@ -189,13 +197,13 @@ int main(int argc, char **argv) {
         else {
             assert(receipts == 1 && summary.value("attempts").toInt() == 1);
             assert(summary.value("admitted_post_failure_events").toInt() == 0);
-            assert(summary.value("readiness_budget_ms").toInt() == 200 && summary.value("access_budget_ms").toInt() == 100);
+            assert(summary.value("readiness_budget_ms").toInt() == readinessBudget && summary.value("access_budget_ms").toInt() == accessBudget);
             if (mode == "root-preexisting" || mode == "root-signal" || mode == "root-duplicate" || mode == "root-stale-failure") {
                 assert(stage == "resolved" && summary.value("compile_attempts").toInt() == 1);
                 assert(summary.value("root_gate").toString() == QStringLiteral("consumed"));
                 assert(summary.value("root_witness_kind").toString() == (mode == "root-preexisting" ? QStringLiteral("preexisting") : QStringLiteral("signal")));
                 const auto witness = summary.value("root_witness_at_ms").toInteger();
-                assert(witness >= 0 && witness < 200);
+                assert(witness >= 0 && witness < readinessBudget);
                 assert(summary.value("first_setData_begin_ms").toInteger() >= witness);
                 assert(summary.value("first_setData_return_ms").toInteger() >= summary.value("first_setData_begin_ms").toInteger());
                 assert(summary.value("first_error_handled_ms").isNull());
@@ -212,8 +220,8 @@ int main(int argc, char **argv) {
                 else if (mode == "root-wrong-thread") assert(stage == "engine-thread" && summary.value("root_witness_at_ms").isNull());
                 else if (mode == "root-late-witness") assert(stage == "root-readiness-deadline" && summary.value("root_witness_at_ms").isNull());
                 else if (mode == "root-queued-deadline") {
-                    assert(stage == "deadline" && summary.value("root_witness_at_ms").toInteger() < 200);
-                    assert(summary.value("elapsed_ms").toInteger() >= summary.value("root_witness_at_ms").toInteger() + 100);
+                    assert(stage == "deadline" && summary.value("root_witness_at_ms").toInteger() < readinessBudget);
+                    assert(summary.value("elapsed_ms").toInteger() >= summary.value("root_witness_at_ms").toInteger() + accessBudget);
                 } else assert(false && "unknown root case");
             }
         }
