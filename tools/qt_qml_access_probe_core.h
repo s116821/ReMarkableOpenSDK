@@ -99,6 +99,30 @@ inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors, int attempt
     return bytes;
 }
 
+inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, int compiles,
+                                  int events, const char *status, const char *stage, qint64 elapsedMs) {
+    QJsonObject summary;
+    if (priorFailure.isEmpty()) {
+        summary = QJsonDocument::fromJson(diagnosticSnapshot({})).object();
+        summary.insert(QStringLiteral("context"), QStringLiteral("runtime-only"));
+    } else summary = QJsonDocument::fromJson(priorFailure).object();
+    summary.insert(QStringLiteral("attempts"), qMin(attempts, 8));
+    summary.insert(QStringLiteral("compile_attempts"), compiles);
+    summary.insert(QStringLiteral("admitted_post_failure_events"), events);
+    summary.insert(QStringLiteral("component_status"), QString::fromLatin1(status));
+    summary.insert(QStringLiteral("terminal_stage"), QString::fromLatin1(stage));
+    summary.insert(QStringLiteral("elapsed_ms"), elapsedMs);
+    QByteArray bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
+    if (bytes.size() > 8192) {
+        summary.insert(QStringLiteral("errors"), QJsonArray{});
+        summary.insert(QStringLiteral("retained_error_count"), 0);
+        summary.insert(QStringLiteral("count_truncated"), true);
+        summary.insert(QStringLiteral("output_overflow"), true);
+        bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
+    }
+    return bytes;
+}
+
 class Probe final : public QObject {
 public:
     using Receipt = std::function<void(const char *, bool, bool, bool, bool, const QByteArray &)>;
@@ -266,25 +290,7 @@ private:
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
         const qint64 elapsedMs = elapsed_.elapsed();
         if (controller_ && elapsedMs >= deadlineMs_) { stage = "deadline"; controller_ = false; }
-        QJsonObject summary;
-        if (diagnostic_.isEmpty()) {
-            summary = QJsonDocument::fromJson(diagnosticSnapshot({})).object();
-            summary.insert(QStringLiteral("context"), QStringLiteral("runtime-only"));
-        } else summary = QJsonDocument::fromJson(diagnostic_).object();
-        summary.insert(QStringLiteral("attempts"), qMin(attempts_, 8));
-        summary.insert(QStringLiteral("compile_attempts"), compileAttempts_);
-        summary.insert(QStringLiteral("admitted_post_failure_events"), admittedPostFailureEvents_);
-        summary.insert(QStringLiteral("component_status"), QString::fromLatin1(status));
-        summary.insert(QStringLiteral("terminal_stage"), QString::fromLatin1(stage));
-        summary.insert(QStringLiteral("elapsed_ms"), elapsedMs);
-        diagnostic_ = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
-        if (diagnostic_.size() > 8192) {
-            summary.insert(QStringLiteral("errors"), QJsonArray{});
-            summary.insert(QStringLiteral("retained_error_count"), 0);
-            summary.insert(QStringLiteral("count_truncated"), true);
-            summary.insert(QStringLiteral("output_overflow"), true);
-            diagnostic_ = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
-        }
+        diagnostic_ = runtimeSnapshot(diagnostic_, attempts_, compileAttempts_, admittedPostFailureEvents_, status, stage, elapsedMs);
         receipt_(stage, appThread_, engineThread_, helperFound_, controller_, diagnostic_);
     }
     bool settlePending() {

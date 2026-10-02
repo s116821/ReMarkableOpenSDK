@@ -108,6 +108,9 @@ last-failure context and index. The 8192-byte serialized cap is reapplied after
 the summary merge; overflow removes descriptions but retains counters and
 explicit overflow/truncation flags. No additional registration, readiness event,
 retry or timer is introduced. Cancellation still emits no callback/diagnostic.
+Every Probe terminal receipt includes this summary. Startup no-gui and
+application-thread refusals occur before Probe construction and retain their
+existing callback-only path without a runtime summary.
 
 Run `sh tools/qt_qml_access_probe_test.sh` with Qt development/runtime plugins,
 or set QT_PROBE_SDK_ENV to the firmware-matched SDK environment file to compile

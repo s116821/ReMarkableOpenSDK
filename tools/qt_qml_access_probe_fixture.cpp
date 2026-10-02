@@ -40,6 +40,21 @@ int main(int argc, char **argv) {
         assert(item.value("description").toString().size() == 256 && item.value("description_truncated").toBool());
         root = snapshot(QList<QQmlError>(8, error(QString(256, QChar(1)))));
         assert(root.value("output_overflow").toBool() && root.value("errors").toArray().isEmpty() && root.value("retained_error_count").toInt() == 0);
+        bool mergeOverflowFound = false;
+        for (int controls = 0; controls <= 256; ++controls) {
+            const auto prior = qml_access::diagnosticSnapshot(QList<QQmlError>(8, error(QString(controls, QChar(1)) + QString(256-controls, QChar('x')))), 1);
+            if (QJsonDocument::fromJson(prior).object().value("output_overflow").toBool()) continue;
+            const auto merged = qml_access::runtimeSnapshot(prior, 2, 2, 1, "ready", "resolved", 1234);
+            assert(merged.size() <= 8192);
+            const auto summary = QJsonDocument::fromJson(merged).object();
+            if (summary.value("output_overflow").toBool()) {
+                assert(summary.value("attempts").toInt() == 2 && summary.value("compile_attempts").toInt() == 2 && summary.value("admitted_post_failure_events").toInt() == 1);
+                assert(summary.value("terminal_stage").toString() == QStringLiteral("resolved") && summary.value("failed_attempt").toInt() == 1 && summary.value("errors").toArray().isEmpty());
+                mergeOverflowFound = true;
+                break;
+            }
+        }
+        assert(mergeOverflowFound); // Prior compiler JSON fit; runtime metadata crossed cap.
         puts("diagnostics: bounded actual text, redaction, URL omission and serialization overflow passed");
         return 0;
     }
