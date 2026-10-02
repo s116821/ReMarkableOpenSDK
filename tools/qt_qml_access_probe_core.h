@@ -33,7 +33,14 @@ inline const char *errorStage(const QList<QQmlError> &errors) {
             description.contains(QStringLiteral("\" version ")) &&
             description.endsWith(QStringLiteral(" is not installed"))) current = "module-version";
         else if (description.startsWith(QStringLiteral("module \"")) &&
-                 description.endsWith(QStringLiteral("\" is not installed"))) current = "module-missing";
+                 description.endsWith(QStringLiteral("\" is not installed"))) {
+            if (description == QStringLiteral("module \"QtQml\" is not installed")) current = "missing-qtqml";
+            else if (description == QStringLiteral("module \"QML\" is not installed")) current = "missing-qml";
+            else if (description == QStringLiteral("module \"QtQml.Models\" is not installed")) current = "missing-models";
+            else if (description == QStringLiteral("module \"QtQml.WorkerScript\" is not installed")) current = "missing-worker";
+            else if (description == QStringLiteral("module \"xofm.libs.library\" is not installed")) current = "missing-library";
+            else current = "module-missing";
+        }
         else if (description.size() > 14 && description.endsWith(QStringLiteral(" is not a type"))) current = "type-missing";
         else if (description == QStringLiteral("Invalid property assignment: unsupported type \"QObject*\"")) current = "property-type";
         else return "component-error";

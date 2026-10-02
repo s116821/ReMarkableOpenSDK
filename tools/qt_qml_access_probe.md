@@ -51,6 +51,14 @@ stage. It never emits error descriptions or URLs. These English vendor-Qt
 patterns are categorical hints, not a general parser or root-cause proof. Qt
 still owns/materializes the error list; this limit bounds our inspection only.
 
+Following the distinct 0149b5d/f485 run's `module-missing` refusal, exact missing
+module descriptions for QtQml, QML, QtQml.Models, QtQml.WorkerScript and
+xofm.libs.library map respectively to fixed `missing-qtqml`, `missing-qml`,
+`missing-models`, `missing-worker` and `missing-library` stages. Other module
+names retain `module-missing`; mixed categories still use `component-error`.
+This adds no import or acquisition behavior. The original receipt remains
+unchanged and identifies no module; no root cause is established by this change.
+
 Run `sh tools/qt_qml_access_probe_test.sh` with Qt development/runtime plugins,
 or set QT_PROBE_SDK_ENV to the firmware-matched SDK environment file to compile
 and run owned ARM fixtures under qemu with the SDK offscreen/QML plugins.

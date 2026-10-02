@@ -16,6 +16,20 @@ int main(int argc, char **argv) {
         auto error = [](const QString &description) { QQmlError e; e.setDescription(description); return e; };
         const auto missing = error(QStringLiteral("module \"fixture.absent\" is not installed"));
         assert(std::string(qml_access::errorStage({missing})) == "module-missing");
+        const std::pair<const char *, const char *> knownModules[] = {
+            {"QtQml", "missing-qtqml"}, {"QML", "missing-qml"},
+            {"QtQml.Models", "missing-models"}, {"QtQml.WorkerScript", "missing-worker"},
+            {"xofm.libs.library", "missing-library"}
+        };
+        for (const auto &known : knownModules) {
+            const auto knownError = error(QStringLiteral("module \"") + QString::fromLatin1(known.first) + QStringLiteral("\" is not installed"));
+            assert(std::string(qml_access::errorStage({knownError})) == known.second);
+            assert(std::string(qml_access::errorStage({knownError, knownError})) == known.second);
+            assert(std::string(qml_access::errorStage({knownError, missing})) == "component-error");
+        }
+        assert(std::string(qml_access::errorStage({error(QStringLiteral("module \"qtqml\" is not installed"))})) == "module-missing");
+        assert(std::string(qml_access::errorStage({error(QStringLiteral("module \"QtQml\" version 1.0 is not installed"))})) == "module-version");
+        assert(std::string(qml_access::errorStage({error(QStringLiteral("module \"QtQml\" is not installed")), error(QStringLiteral("module \"QML\" is not installed"))})) == "component-error");
         assert(std::string(qml_access::errorStage({error(QStringLiteral("module \"fixture.versioned\" version 1.0 is not installed"))})) == "module-version");
         assert(std::string(qml_access::errorStage({error(QStringLiteral("UnknownRoot is not a type"))})) == "type-missing");
         assert(std::string(qml_access::errorStage({error(QStringLiteral("Invalid property assignment: unsupported type \"QObject*\""))})) == "property-type");
@@ -142,7 +156,7 @@ int main(int argc, char **argv) {
     else {
         assert(receipts == 1);
         if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version") assert(stage == "resolved");
-        else if (mode == "absent") assert(stage == "module-missing");
+        else if (mode == "absent") assert(stage == "missing-library");
         else if (mode == "conflict") assert(stage == "unavailable" || stage == "create-error");
         else if (mode == "multiple") assert(stage == "multiple-engines");
         else if (mode == "window-cap") assert(stage == "window-cap");
