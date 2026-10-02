@@ -2,6 +2,8 @@
 
 Status: proposal/preparation only. Coordinator review of the frozen source/artifact/operator packet is required before staging or starting anything. Main is the sole operator. This addresses the host's unavailable live systemd manager; it does not relax E1 or qualify xochitl behavior. No wider host container privileges are requested.
 
+Consumer counterpart: [Docs 628af886ec9653185b7b0dfea2c95f279f59d914](https://github.com/s116821/ReMarkableBuddiesDocs/blob/628af886ec9653185b7b0dfea2c95f279f59d914/openspec/changes/native-buddy-page-creation/e0t-consumer-packet.md) was independently read. Its later sections record the actor/resource revisions, bounded read-only transport acceptance and unrun target query; independent review of that Docs checkpoint is pending. Earlier dual-command-slot/helper-limit paragraphs are historical preparation allocations and must be reconciled into one final role/resource table before freeze. This link does not accept them as a simultaneous second command slot or supersede the current SDK limits. Writable transport, cleanup and the complete operator remain unfinished.
+
 ## Scope and ownership
 
 Use the actual tablet manager with original harmless helpers and fake units only. Preserve real xochitl, Reader Buddy, rm-sync, their processes and every vendor/user configuration byte. No XOVI, preload, native payload, document/account access, drawing/input, real failure/reboot handler, firmware/boot settings or global manager-environment changes. The names of real services appear only in the operator's fixed read-only continuity checks, never in dummy unit dependencies, helper action targets or cleanup lists.
