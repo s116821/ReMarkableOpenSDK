@@ -144,6 +144,14 @@ Capability queries SHALL NOT activate runtime injection. A conditional adapter S
 - **WHEN** the runtime/payload fingerprint is unknown or recovery cannot be demonstrated on the target profile
 - **THEN** the affected capability remains unavailable without changing preload/startup state or attempting speculative injection.
 
+#### Scenario: Recovery guard is lost while supervisor survives
+- **WHEN** an armed recovery guard exits or loses protection during activation or Ready while the consumer supervisor remains alive
+- **THEN** Ready is withdrawn, further activation is latched off and the surviving recovery path restores stock; failure remains explicit until independently observed restoration, without treating runner cleanup or a watchdog expiry as success.
+
+#### Scenario: Recovery overlaps a late activation write
+- **WHEN** restoration races an in-flight activation or another restoration actor
+- **THEN** transaction ownership and idempotent restoration prevent stale activation effects from reenabling injection and preserve unrelated configuration; ambiguous or blocked restoration is reported as failed or unknown rather than completed.
+
 ### Requirement: Restart invalidates source authority before continuation
 An activation/recovery restart SHALL invalidate prior runtime and adapter-instance handles, observations and guards. Resuming a retained consumer intent SHALL require a new qualified source observation and execution-time validation under the fresh scope. Stable IDs or historical captures alone SHALL NOT authorize continuation. An operation that may have started before failure SHALL be reconciled without redispatch.
 

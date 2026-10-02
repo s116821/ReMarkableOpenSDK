@@ -1,0 +1,72 @@
+# E1: one load-only activation and stock restoration
+
+Status: reviewable planning contract, **not an executable operator authorization**. Exact stock inventory, artifacts, numeric device bounds and updated consumer counterpart are pending. Missing fields below mean refuse entry, not choose defaults. Main owns implementation/review and all device actions; SDK owns runtime contracts and evidence interpretation. No loader has been selected for production.
+
+## Baseline and counterpart
+
+The consumer [E0 plan at Docs 1b8ea1b](https://github.com/s116821/ReMarkableBuddiesDocs/blob/1b8ea1b7345a2983d72f6b90fa4cb982ff257c26/openspec/changes/native-buddy-page-creation/design.md) and [requirements](https://github.com/s116821/ReMarkableBuddiesDocs/blob/1b8ea1b7345a2983d72f6b90fa4cb982ff257c26/openspec/changes/native-buddy-page-creation/specs/native-buddy-page-creation/spec.md) remain canonical for Buddy orchestration. The [accepted E0 evidence at Docs f5b4de0](https://github.com/s116821/ReMarkableBuddiesDocs/blob/f5b4de052dbdbea7bdfa29af17b61818fc85564a/openspec/changes/native-buddy-page-creation/host-lifecycle-evidence.md) attributes independent acceptance to Buddy `6fe9da35da79cf720511034261b60abf7e776a50`: 21 frozen host tests and a silent-child refusal check. This supersedes the unreviewed initial harness checkpoint, not the open native gates.
+
+E0's real guard-alone death leaves an injected fixture unprotected while the Supervisor lives; its deterministic model restores stock. Runner orphan cleanup is not recovery. Interrupted/blocked restoration remains failed and unqualified. Main must supply a new exact Buddy implementation/review revision and consumer E1 Docs revision before this plan can become an operator packet. Do not equate the existing Docs E0 contract with approval of a device recipe.
+
+## Required host closure
+
+1. Surviving Supervisor observes actual guard exit/loss through an event-driven owned-process channel, withdraws Ready, latches activation disabled and initiates stock restoration. A replacement guard is not a prerequisite to recovery; do not add recursive watchers. A missing lease may use a bounded monotonic deadline, but elapsed time cannot prove successful restoration.
+2. Actual child-process tests cover guard exit after Ready and at activation boundaries, including the race between guard loss and committing injection configuration. No injection commit may proceed after protection is known lost. If activation already started, restore stock. Assert exact baseline/unrelated bytes and actual stock child identity before harness cleanup is allowed to run. Demonstrate injected child termination and no second activation. Independent review must inspect these assertions and the observer's separation from cleanup.
+3. Exercise simultaneous restoration requests from surviving actors using one transaction identity and an idempotent restore operation. An owner lock must not strand recovery when its owner dies. Late writes from a canceled activation must not reinstall injection after restoration. Test partial writes, mismatched transaction ownership and stale process identities.
+4. Blocked/failed restoration must remain RecoveryFailed with evidence retained and no new activation. A watchdog reports failure; it does not make a stuck filesystem or service-manager operation interruptible. Record which operations can remain outstanding and prevent late activation effects. Do not advertise a five-second recovery guarantee or use the outer 30-second harness termination as a stock-restoration receipt.
+
+These close concrete host gaps; they do not simulate away service-manager, kernel-I/O or watchdog failure. If the target recovery path cannot meet the device margin below, reject E1 entry even after host tests pass.
+
+## Minimum read-only device inventory
+
+Main gives advance notice, then records the exact model/firmware, boot identity, xochitl executable/provider hashes and process start identity. Limit inspection to the service/runtime configuration needed for this experiment; do not dump arbitrary process environments, journals, account state or documents.
+
+| Required evidence | Decision it enables |
+| --- | --- |
+| Actual service-manager version, xochitl fragment path and ordered drop-in paths; relevant ExecStart, environment-file references, preload settings and unit contents/hashes | Establish effective stock startup and whether a runtime drop-in can override only the intended settings without masking unrelated configuration |
+| Restart policy/delay, start-limit interval/burst/action, stop/start timeouts, kill mode and dependencies | Bound spontaneous restarts and rollback; identify whether a temporary restart restriction can be applied without resetting unrelated configuration |
+| Service watchdog settings plus any separate watchdog/reboot supervisor and their effective deadlines/actions | Establish the earliest disruptive deadline; absence of a unit WatchdogSec alone does not establish no watchdog |
+| Existing runtime overrides and manager environment limited to relevant loader variables; effective xochitl mappings for preload baseline | Detect conflicts or unrelated injections without exposing secrets; unknown/conflicting state refuses |
+| Runtime filesystem/mount semantics, free capacity, ownership and actual volatile configuration lookup paths | Confirm session files disappear on cold boot and can be changed without persistent startup injection |
+| Independent SSH/control continuity and a stock-process evidence route that does not depend on the injected bridge | Make restoration externally observable; SSH responsiveness alone is not UI readiness |
+
+Keep raw configuration private where it reveals sensitive paths; publish a redacted profile with exact hashes and relevant semantics. Do not read environment-file contents merely because the unit references them. A required unresolved loader setting is an unknown-profile refusal. No service reload/restart, transfer, config write, injection, reboot or deliberate fault follows from this inventory.
+
+## Candidate mechanism, conditional on inventory
+
+If the actual manager supports the required semantics, use one transaction-owned runtime-only drop-in for the exact xochitl unit and one private volatile payload/session directory. Its precise paths and complete contents must be reviewed from the inventory before use. Do not mount over a drop-in directory, edit vendor units, change global manager environment, use persistent preload files, or run the upstream extension setup script. Preserve all unrelated drop-ins and preexisting loader settings; conflicts refuse rather than concatenate an unknown payload set.
+
+The runtime drop-in must bound automatic injected restarts (prefer no automatic restart for this one-shot experiment if effective unit semantics permit it). Review effective configuration before the one explicit activation restart. Removing only the owned drop-in, reloading the manager and restarting stock must restore the original effective configuration, including its original restart policy. A session failure latch survives process replacement until a fresh boot/explicit later reviewed session; restarting the Supervisor cannot clear it. No retries on service reload or start failures that could multiply injected starts.
+
+Arm the independent recovery actor before publishing any injection-enabling configuration. It must possess the baseline identity, owned-path manifest, transaction/generation and finite lease, and acknowledge it can execute the reviewed restoration route without Supervisor or injected UI cooperation. The Supervisor also owns the guard-loss restoration path. Recovery actors must share the same idempotent transaction protocol, not compete through blind file deletion or kill-by-name. If arming, ownership or current process identity is ambiguous, do not activate.
+
+For a systemd candidate, a separately managed recovery process outside the target service's kill domain may be suitable, but systemd availability and failure-domain independence must be demonstrated from the actual units. A transient unit name is not proof. The exact unit/command, stop behavior and expiry source remain unresolved until inventory. Do not silently assume Windows owned-process evidence covers these semantics.
+
+## Payload and frozen manifest
+
+Only one no-override extension is allowed in an isolated loader directory. Compile an original typed Qt queued callback against the exact target headers/providers; no guessed slot-object layout, target property getters, object-tree traversal, native page calls, drawing, input grabs, resource/QML replacement or generic command execution. The callback returns a fresh challenge bound to activation generation, process start identity and manifest digest. A loader-thread message is not GUI readiness. Bound request sizes, pending callbacks and callback lifetime; late responses cannot renew a failed session. Keep native SDK operations Unsupported.
+
+Freeze SHA-256 values for loader, extension, Supervisor/recovery/operator artifacts and every copied dependency, plus upstream commits, original source revision, compiler/sysroot provenance, ELF architecture/float ABI/interpreter/NEEDED/versioned-import checks and license notices. The pinned XOVI source in the comparison is a candidate input, not an artifact hash. No proprietary provider redistribution. Main and independent reviewer must agree on the exact packet; a rebuild requires a new digest/review. All artifact hashes are currently pending; execution must reject a missing value.
+
+## Device timing and finite operator sequence
+
+Derive device bounds from the actual profile; do not transplant E0's 5-second readiness/rollback values. Define readiness deadline A, maximum fault-detection delay D, restoration bound R (including stop, config restoration, manager reload and stock start), verification bound V, explicit uncertainty margin M and earliest relevant watchdog/reboot deadline W. For every relevant watchdog scope, show the conservative worst case fits its remaining budget; when one window covers the whole attempt, require A + D + R + V + M < W. Document the clock origin and reset semantics rather than assuming heartbeats reset every watchdog. Infinite/unknown service jobs or unknown W cannot be made safe by inventing a timeout; refuse until a bounded route is justified. A profile with no disruptive watchdog still needs finite reviewed bounds for every stage.
+
+After host closure, inventory, frozen artifacts, counterpart Docs and independent operator review, request the separate E1 authorization. The finite experiment would then be:
+
+1. Announce the one activation and stock rollback; confirm the user/device is quiescent. Recheck the frozen baseline, no conflicting transaction, process identity, separate recovery connectivity and all profile hashes. Any drift aborts before activation.
+2. Stage only the manifest-owned volatile files, verify hashes and arm recovery. Observe its acknowledgement before enabling injection. Any preparation failure cleans only owned state and proves the unchanged stock baseline.
+3. Commit the reviewed runtime configuration, inspect its effective result, then issue at most one explicit activation restart. Record all process identities and observed starts. No retry, second candidate or live fault injection is included.
+4. Accept identity plus one queued GUI challenge only within A. Whether it succeeds or fails, request stock restoration once through the idempotent recovery transaction. Missing readiness is an activation failure, not permission to wait past the recovery budget.
+5. Prove owned injection config removed, effective baseline restored, injected generation gone and new stock process/provider mappings consistent with baseline. Observe stock health for the specified profile interval. Record each recovery milestone and exact hashes independently from the injected bridge. Missing evidence yields RecoveryFailed/Unknown, never success inferred from service state or timeout.
+6. Verify owned helpers/session artifacts are removed only after preserving outcome evidence and confirming no recovery duty remains. Main separately assesses physical UI responsiveness with the user; service/SSH continuity cannot substitute. Close the one attempt and leave the session disabled.
+
+The final packet must list exact commands, paths, expected outputs, actor ownership, numeric bounds, abort/restore commands and who observes each step. This document deliberately supplies no runnable placeholders. A failed attempt is retained for review; it does not authorize another activation.
+
+## Acceptance scope and later stages
+
+An E1 pass establishes only one exact load/GUI-response/stock-restoration observation on one profile. It does not establish automatic recovery under runtime/Supervisor/guard failure, blocked I/O, simultaneous actor loss, reboot behavior, product installation, source continuity or native semantics. Those require separately proposed finite device fault/cold-boot stages. Host closure is necessary before E1; real service/watchdog behavior, actual restoration duration and UI continuity can only be measured on the device. If a required safety assumption cannot be established before injection, E1 remains blocked rather than treating the first run as an uncontrolled fault test.
+
+No live page mutation/getters, account access, cold reboot or intentional fault injection is included. R2D remains preserved; no further registry traversal is requested. RMPP needs a separate architecture/profile and hardware qualification. Product behavior and Manager lifecycle remain in the exact consumer Docs counterpart, still pending for E1.
+
+Source basis: exact linked consumer contracts and accepted E0 evidence, coordinator's current project direction and pinned source comparison. Recovery design and the timing equation are engineering requirements/proposals, not measured device facts. Stock inventory and E1 artifacts have not yet been verified.

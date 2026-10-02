@@ -26,6 +26,7 @@
 - [ ] 4.6 Sync implemented SDK canonical specs and archive only after all required delivery gates pass; keep product specs in Docs.
 - [ ] 4.7 Verify conditional runtime activation, bounded readiness/heartbeat, crash-loop cutoff, stock rollback after runtime and supervisor failure, UI-independent disable/update/uninstall and clean cold reboot. Coordinate exact Buddy Supervisor/product revisions without duplicating their specifications.
 - [ ] 4.8 Verify first-use restart invalidation and fresh source/action validation before continuation, including changed/unknown source and in-flight indeterminate mutation; no stale-handle replay or repeated conversation restart.
+- [ ] 4.9 Close actual host guard-loss recovery gaps, obtain the minimum read-only stock profile and freeze the separately reviewed E1 packet with exact consumer revision, artifacts, device-derived deadlines and independent stock-restoration evidence as specified in e1-operator-plan.md. Planning or E0 acceptance does not authorize injection.
 
 ## 5. Historical evidence export amendment
 - [x] 5.1 Independently review evidence-export-contract.md with root and consumer against exact source revisions. Both accepted SDK 9b61d7284edabe6a1fea61c3f621049300b3bc32 against consumer Docs fbb2fd4cbf0352eeb71ecb32b2b3a0683a4fabd6.
