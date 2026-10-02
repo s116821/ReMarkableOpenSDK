@@ -10,6 +10,9 @@
 - [ ] 2.3 Qualify mutation-time compare-and-act/serialization, client-selected or durably correlated native-assigned target identity, exact insertion order and durable reconciliation on disposable notebook and annotated PDF fixtures.
 - [ ] 2.4 Record rejected paths, remaining unknowns and recovery constraints; do not select product fallback without REM-25's exhaustive evidence gate.
 
+- [ ] 2.5 Validate the community existing-engine/public-QML singleton access adaptation on RM2 with event-driven readiness; retain exact source/artifact/operator/cleanup evidence and do not treat access alone as native page creation.
+- [ ] 2.6 Validate community-derived active-view document/page identity and index/key round trips before native insertion, refusing pooled-view ambiguity and conversion failures. Then test native insertion/preservation/persistence through the existing 2.3 and 4.2 gates.
+
 ## 3. Implementation
 - [ ] 3.1 Implement versioned capability/profile and identity/evidence types with unsupported results and explicit synthetic origin.
 - [ ] 3.2 Implement deterministic mocks and tests for input/order change between dispatch and execution, two devices sharing UUIDs, recreated adapter handles, stale ownership, capture races, native-assigned ID recovery, cancellation and indeterminate outcomes.
