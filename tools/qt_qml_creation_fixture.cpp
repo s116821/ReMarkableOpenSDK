@@ -82,8 +82,8 @@ QtObject {
         property var id: ({ toString: function() { if (fixtureMode === "id-string-throw") throw new Error("private id string details"); return (fixtureMode === "identity" || fixtureMode === "dev-identity") ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
-        property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : false
-        property var pageCount: fixtureMode === "count" ? 6 : 5
+        property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : fixtureMode === "dev-export-absent" ? undefined : false
+        property var pageCount: (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
         property var ids: )QML") + encodedPages + R"QML(
         function idForPage(i) {
             if (fixtureMode === "getter-throw") throw new Error("private getter details");
@@ -92,12 +92,12 @@ QtObject {
             if (fixtureMode === "reorder" && i === 2) return ids[3];
             return ids[i];
         }
-        function pageForId(key) { if (fixtureMode === "index-getter-throw") throw new Error("private reverse getter details"); if (fixtureMode === "roundtrip") return 4; return ids.indexOf(key); }
+        function pageForId(key) { if (fixtureMode === "index-getter-throw") throw new Error("private reverse getter details"); if ((fixtureMode === "roundtrip" || fixtureMode === "dev-reverse")) return 4; return ids.indexOf(key); }
         function templateForPage(i) {
             if (i !== 0) throw new Error("wrong template page");
-            if (fixtureMode === "preclaim-cancel") fixtureHooks.cancel();
+            if ((fixtureMode === "preclaim-cancel" || fixtureMode === "dev-claim-cancel")) fixtureHooks.cancel();
             if (fixtureMode === "template-throw") throw new Error("private template details");
-            return fixtureMode === "template" ? undefined : fixtureMode === "empty-template" ? "" : "SyntheticBackground";
+            return (fixtureMode === "template" || fixtureMode === "dev-template") ? undefined : fixtureMode === "empty-template" ? "" : "SyntheticBackground";
         }
     }
     function entryForId(key) {
@@ -147,7 +147,7 @@ QtObject {
         return fixtureMode === "false-async" || fixtureMode === "false-no-callback" ? false : fixtureMode === "unknown-return" ? undefined : true;
     }
 })QML");
-    if (mode != "import-missing") qmlRegisterModule("com.remarkable", 1, 0);
+    if (mode != "import-missing" && !mode.startsWith("dev-")) qmlRegisterModule("com.remarkable", 1, 0);
     QObject unavailableEnum;
     if (mode == "entry-absent" || mode == "import-com-owned" || mode.startsWith("dev-")) {}
     else if (mode == "enum") qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "Entry", &unavailableEnum);
@@ -242,7 +242,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     const bool preCall = mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
-        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
+        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent" || mode == "dev-count" || mode == "dev-reverse" || mode == "dev-template" || mode == "dev-claim-cancel" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
     assert(trial.value("mutation_attempted").toBool() == !preCall);
     assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
     assert(!trial.value("durable_success").toBool());
@@ -251,7 +251,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(controller->property("arity").toInt() == 5 && controller->property("callbackArity").toInt() == 0);
         assert(controller->property("argumentsCorrect").toBool());
     }
-    assert(trial.value("com_remarkable_import_selected").toBool());
+    assert(trial.value("com_remarkable_import_selected").toBool() == !mode.startsWith("dev-"));
     assert(trial.value("development_explicit_fixture").toBool() == mode.startsWith("dev-"));
     if (mode == "import-missing") {
         assert(terminal == "module-missing" && !trial.value("exception").toBool() && !trial.value("returned").toBool());
@@ -260,7 +260,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     } else if (mode == "no-callback" || mode == "false-no-callback" || mode == "nested-timeout") {
         assert(terminal == "deadline" && trial.value("phase").toString() == "effect-uncertain");
         assert(trial.value("callback_count").toInt() == 0);
-    } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel") {
+    } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel" || mode == "dev-claim-cancel") {
         assert(terminal == "creation-cancelled" && trial.value("callback_count").toInt() == 0);
     } else if (preCall) {
         assert(terminal == (mode.endsWith("throw") || mode == "entry-absent" || mode == "library-absent" ? "creation-exception" : mode == "bad-config" ? "creation-config" : "creation-refused"));
@@ -273,7 +273,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         if (mode == "unknown-return") assert(!trial.value("returned_bool_known").toBool());
         if (mode == "sync" || mode == "duplicate") assert(trial.value("first_callback_at_ms").toInteger() <= trial.value("returned_at_ms").toInteger());
     }
-    if (mode == "dev-export-true" || mode == "dev-export-type") assert(trial.value("guard_stage").toString() == "exporting-refusal");
+    if (mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent") assert(trial.value("guard_stage").toString() == "exporting-refusal");
     if (trial.value("exception").toBool()) {
         const QString expected = mode == "entry-absent" ? "enum-document" : mode == "library-absent" || mode == "lookup-throw" ? "library-lookup" :
             mode == "id-read-throw" ? "document-id-read" : mode == "id-string-throw" ? "document-id-string" :

@@ -480,7 +480,10 @@ retains the current Entry.Document/Entry.Exporting and native type/status checks
 The reviewed private six-UUID factory may explicitly opt in for development
 feasibility only; this is not a shipping adapter or production source policy.
 The fixed development_explicit_fixture diagnostic identifies that configuration.
-Import selection is unchanged; no further enum/import ownership guess is made.
+The opt-in imports only QtQml and xofm.libs.library; the default retains its
+com.remarkable import. com_remarkable_import_selected records the actual
+selection separately from development_explicit_fixture. No further enum/import
+ownership guess is made.
 
 The opt-in omits enum and native type/status reads and instead reads native
 isExporting exactly once. It requires typeof value===boolean and value===false;
@@ -496,7 +499,9 @@ Fixture identity and capability checks in this controlled experiment do not
 establish a general document type, active user source or worker serialization.
 
 Owned tests keep all default cases, including absent Entry throwing before claim,
-and add opt-in absent Entry success, exporting true/nonboolean/throw refusal,
-identity/page-order refusal, and property tripwires proving native type/status
+and add opt-in success with neither Entry nor com.remarkable registered,
+exporting true/nonboolean/absent/throw refusal,
+identity/count/page-order/reverse/template/claim-cancellation refusal, and
+property tripwires proving native type/status
 are not read in opt-in mode. All opt-in successes still observe only a call and
 callback; durable success requires Main's saved-file and stock-reopen evidence.
