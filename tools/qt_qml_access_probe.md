@@ -472,3 +472,31 @@ conflicting enum exports from both. Collision expectations follow the actual
 owned Qt import resolution, not a claim about the target's registration owner.
 A missing module must fail compilation before claim without fallback imports.
 These fixtures do not qualify the real module URI or actual native creation.
+
+### Private opt-in for the supervised exact-fixture feasibility trial
+
+CreationConfig adds developmentExplicitFixture=false by default. Default mode
+retains the current Entry.Document/Entry.Exporting and native type/status checks.
+The reviewed private six-UUID factory may explicitly opt in for development
+feasibility only; this is not a shipping adapter or production source policy.
+The fixed development_explicit_fixture diagnostic identifies that configuration.
+Import selection is unchanged; no further enum/import ownership guess is made.
+
+The opt-in omits enum and native type/status reads and instead reads native
+isExporting exactly once. It requires typeof value===boolean and value===false;
+true, nonboolean or a throwing getter refuses before mutation claim. No truthy
+coercion or guessed enum number is used. Saved QmlEntryWrapper metadata declares
+isExporting:bool and the already inspected native UI uses that property; the
+actual getter/value is still a runtime guard, not qualified by synthetic tests.
+Exception operation document-exporting-read is an additional fixed allowlist
+value. The exact document/native ID comparison, five-page count, all five keys
+and reverse indices, native template, index 1, paper size, five arguments,
+thread/lifetime/deadline/one-attempt/no-retry/reconciliation policies are unchanged.
+Fixture identity and capability checks in this controlled experiment do not
+establish a general document type, active user source or worker serialization.
+
+Owned tests keep all default cases, including absent Entry throwing before claim,
+and add opt-in absent Entry success, exporting true/nonboolean/throw refusal,
+identity/page-order refusal, and property tripwires proving native type/status
+are not read in opt-in mode. All opt-in successes still observe only a call and
+callback; durable success requires Main's saved-file and stock-reopen evidence.

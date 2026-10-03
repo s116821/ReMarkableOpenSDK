@@ -36,7 +36,7 @@ inline constexpr char helper[] =
 struct CreationConfig {
     QString documentId;
     QStringList pageIds;
-    bool enabled = false;
+    bool enabled = false, developmentExplicitFixture = false;
     bool valid() const {
         static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
         if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != 5) return false;
@@ -64,6 +64,7 @@ QtObject {
     property QtObject bridge: null
     property bool armed: true
     property bool entered: false
+    readonly property bool developmentExplicitFixture: )QML" + QByteArray(config.developmentExplicitFixture ? "true" : "false") + R"QML(
     property int callbackCount: 0
     property bool callbackDuplicate: false
     function createOnce() {
@@ -72,12 +73,15 @@ QtObject {
         let operation = "preflight-check";
         try {
             if (!armed || !bridge || !bridge.preflightAllowed()) return;
-            operation = "enum-document";
-            const docEnum = Entry.Document;
-            operation = "enum-exporting";
-            const exportingEnum = Entry.Exporting;
-            if (typeof docEnum !== "number" || typeof exportingEnum !== "number")
-                return bridge.refuse("enum-unavailable");
+            let docEnum, exportingEnum;
+            if (!developmentExplicitFixture) {
+                operation = "enum-document";
+                docEnum = Entry.Document;
+                operation = "enum-exporting";
+                exportingEnum = Entry.Exporting;
+                if (typeof docEnum !== "number" || typeof exportingEnum !== "number")
+                    return bridge.refuse("enum-unavailable");
+            }
             const expectedDocument = )QML") + document + R"QML([0];
             const expectedPages = )QML" + pages + R"QML(;
             operation = "library-lookup";
@@ -88,12 +92,19 @@ QtObject {
             operation = "document-id-string";
             if (nativeId === undefined || nativeId === null || String(nativeId) !== expectedDocument)
                 return bridge.refuse("identity-mismatch");
-            operation = "document-type-read";
-            if (d.type !== docEnum) return bridge.refuse("not-document");
-            operation = "document-status-read";
-            const status = d.status;
-            if (typeof status !== "number" || status === exportingEnum)
-                return bridge.refuse("status-refusal");
+            if (developmentExplicitFixture) {
+                operation = "document-exporting-read";
+                const exporting = d.isExporting;
+                if (typeof exporting !== "boolean" || exporting !== false)
+                    return bridge.refuse("exporting-refusal");
+            } else {
+                operation = "document-type-read";
+                if (d.type !== docEnum) return bridge.refuse("not-document");
+                operation = "document-status-read";
+                const status = d.status;
+                if (typeof status !== "number" || status === exportingEnum)
+                    return bridge.refuse("status-refusal");
+            }
             operation = "document-count-read";
             if (d.pageCount !== 5) return bridge.refuse("count-mismatch");
             for (let i = 0; i < 5; ++i) {
@@ -133,23 +144,23 @@ QtObject {
 )QML";
 }
 inline const char *creationExceptionOperation(const QString &operation) {
-    static constexpr std::array<const char *, 17> allowed{{"preflight-check", "enum-document", "enum-exporting",
+    static constexpr std::array<const char *, 18> allowed{{"preflight-check", "enum-document", "enum-exporting",
         "library-lookup", "document-id-read", "document-id-string", "document-type-read", "document-status-read",
-        "document-count-read", "page-id-read", "page-index-read", "template-read", "paper-size", "method-read",
+        "document-count-read", "document-exporting-read", "page-id-read", "page-index-read", "template-read", "paper-size", "method-read",
         "mutation-claim", "native-call", "return-observe"}};
     for (const char *fixed : allowed) if (operation == QString::fromLatin1(fixed)) return fixed;
     return "exception-stage-unknown";
 }
 struct CreationObservation {
     bool enabled = false, attempted = false, returned = false, returnedBoolKnown = false, returnedBool = false;
-    bool exception = false, duplicateCallback = false;
+    bool exception = false, duplicateCallback = false, developmentExplicitFixture = false;
     int callbackCount = 0;
     const char *phase = "not-started", *guard = "not-checked", *exceptionOperation = nullptr;
     qint64 attemptedAtMs = -1, returnedAtMs = -1, firstCallbackAtMs = -1;
 };
 inline QJsonObject creationJson(const CreationObservation &c) {
     const auto stamp = [](qint64 n) { return n < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(n); };
-    return {{"enabled", c.enabled}, {"com_remarkable_import_selected", true}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
+    return {{"enabled", c.enabled}, {"com_remarkable_import_selected", true}, {"development_explicit_fixture", c.developmentExplicitFixture}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
         {"returned_bool_known", c.returnedBoolKnown}, {"returned_bool", c.returnedBool},
         {"exception", c.exception}, {"exception_operation", c.exceptionOperation ? QJsonValue(c.exceptionOperation) : QJsonValue(QJsonValue::Null)}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
         {"phase", c.phase}, {"guard_stage", c.guard}, {"attempted_at_ms", stamp(c.attemptedAtMs)},
@@ -589,6 +600,7 @@ public:
     Probe(QGuiApplication *app, Receipt receipt, int readinessMs = 20000, int accessMs = 5000, CreationConfig creation = {})
         : QObject(app), app_(app), receipt_(std::move(receipt)), creationConfig_(std::move(creation)) {
         rootSummary_.creation.enabled = creationConfig_.enabled;
+        rootSummary_.creation.developmentExplicitFixture = creationConfig_.developmentExplicitFixture;
         rootSummary_.readinessBudgetMs = readinessMs;
         rootSummary_.accessBudgetMs = accessMs;
         timer_.setSingleShot(true);
@@ -918,8 +930,8 @@ private:
             bridge->refusal = [self](const QString &stage) {
                 if (!self || self->rootSummary_.creation.attempted) return;
                 // Only allow fixed stages, never arbitrary native/user text.
-                static const std::array<const char *, 9> allowed{{"enum-unavailable", "missing-document", "identity-mismatch",
-                    "not-document", "status-refusal", "count-mismatch", "page-map-mismatch", "template-unavailable", "method-unavailable"}};
+                static const std::array<const char *, 10> allowed{{"enum-unavailable", "missing-document", "identity-mismatch",
+                    "not-document", "status-refusal", "count-mismatch", "page-map-mismatch", "template-unavailable", "method-unavailable", "exporting-refusal"}};
                 const char *fixed = "guard-refusal";
                 for (const char *s : allowed) if (stage == QString::fromLatin1(s)) fixed = s;
                 self->rootSummary_.creation.guard = fixed;

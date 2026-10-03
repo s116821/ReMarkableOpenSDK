@@ -73,21 +73,22 @@ int main(int argc, char **argv) {
     const QString documentId = QStringLiteral("00000000-0000-4000-8000-000000000001");
     QStringList pages;
     for (int i = 0; i < 5; ++i) pages.append(QStringLiteral("00000000-0000-4000-8000-00000000000") + QString::number(i + 2));
-    qml_access::CreationConfig config{documentId, pages, true};
+    qml_access::CreationConfig config{documentId, pages, true, mode.startsWith("dev-")};
     QByteArray encodedPages = QJsonDocument(QJsonArray::fromStringList(pages)).toJson(QJsonDocument::Compact);
     const auto libraryUrl = write("Library.qml", QByteArray(R"QML(pragma Singleton
 import QtQml
 QtObject {
     property QtObject doc: QtObject {
-        property var id: ({ toString: function() { if (fixtureMode === "id-string-throw") throw new Error("private id string details"); return fixtureMode === "identity" ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
+        property var id: ({ toString: function() { if (fixtureMode === "id-string-throw") throw new Error("private id string details"); return (fixtureMode === "identity" || fixtureMode === "dev-identity") ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
+        property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : false
         property var pageCount: fixtureMode === "count" ? 6 : 5
         property var ids: )QML") + encodedPages + R"QML(
         function idForPage(i) {
             if (fixtureMode === "getter-throw") throw new Error("private getter details");
             if (fixtureMode === "page0" && i === 0) return "wrong";
-            if (fixtureMode === "later-page" && i === 4) return ids[3];
+            if ((fixtureMode === "later-page" || fixtureMode === "dev-page-order") && i === 4) return ids[3];
             if (fixtureMode === "reorder" && i === 2) return ids[3];
             return ids[i];
         }
@@ -102,16 +103,16 @@ QtObject {
     function entryForId(key) {
         if (fixtureMode === "lookup-throw") throw new Error("private lookup details");
         if (key !== "00000000-0000-4000-8000-000000000001") throw new Error("wrong lookup");
-        if (fixtureMode.endsWith("read-throw")) {
+        if (fixtureMode.endsWith("read-throw") || fixtureMode === "dev-export-throw" || fixtureMode === "dev-no-enum-reads") {
             const source = doc;
             const proxy = { idForPage: function(i) { return source.idForPage(i); },
                 pageForId: function(key) { return source.pageForId(key); },
                 templateForPage: function(i) { return source.templateForPage(i); } };
             const target = fixtureMode === "id-read-throw" ? "id" : fixtureMode === "type-read-throw" ? "type" :
-                fixtureMode === "status-read-throw" ? "status" : "pageCount";
-            for (const key of ["id", "type", "status", "pageCount"])
+                fixtureMode === "status-read-throw" ? "status" : fixtureMode === "dev-export-throw" ? "isExporting" : "pageCount";
+            for (const key of ["id", "type", "status", "pageCount", "isExporting"])
                 Object.defineProperty(proxy, key, { get: function() {
-                    if (key === target) throw new Error("private property getter details");
+                    if ((fixtureMode === "dev-no-enum-reads" && (key === "type" || key === "status")) || (fixtureMode !== "dev-no-enum-reads" && key === target)) throw new Error("private property getter details");
                     return source[key];
                 } });
             return proxy;
@@ -148,7 +149,7 @@ QtObject {
 })QML");
     if (mode != "import-missing") qmlRegisterModule("com.remarkable", 1, 0);
     QObject unavailableEnum;
-    if (mode == "entry-absent" || mode == "import-com-owned") {}
+    if (mode == "entry-absent" || mode == "import-com-owned" || mode.startsWith("dev-")) {}
     else if (mode == "enum") qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "Entry", &unavailableEnum);
     else qmlRegisterUncreatableType<FixtureEntry>("xofm.libs.library", 1, 0, "Entry", "fixture enum only");
     if (mode == "import-com-owned") qmlRegisterUncreatableType<FixtureEntry>("com.remarkable", 1, 0, "Entry", "synthetic com owner");
@@ -241,7 +242,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     const bool preCall = mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
-        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
+        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
     assert(trial.value("mutation_attempted").toBool() == !preCall);
     assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
     assert(!trial.value("durable_success").toBool());
@@ -251,6 +252,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(controller->property("argumentsCorrect").toBool());
     }
     assert(trial.value("com_remarkable_import_selected").toBool());
+    assert(trial.value("development_explicit_fixture").toBool() == mode.startsWith("dev-"));
     if (mode == "import-missing") {
         assert(terminal == "module-missing" && !trial.value("exception").toBool() && !trial.value("returned").toBool());
     } else if (mode == "native-throw") {
@@ -271,11 +273,12 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         if (mode == "unknown-return") assert(!trial.value("returned_bool_known").toBool());
         if (mode == "sync" || mode == "duplicate") assert(trial.value("first_callback_at_ms").toInteger() <= trial.value("returned_at_ms").toInteger());
     }
+    if (mode == "dev-export-true" || mode == "dev-export-type") assert(trial.value("guard_stage").toString() == "exporting-refusal");
     if (trial.value("exception").toBool()) {
         const QString expected = mode == "entry-absent" ? "enum-document" : mode == "library-absent" || mode == "lookup-throw" ? "library-lookup" :
             mode == "id-read-throw" ? "document-id-read" : mode == "id-string-throw" ? "document-id-string" :
             mode == "type-read-throw" ? "document-type-read" : mode == "status-read-throw" ? "document-status-read" :
-            mode == "count-read-throw" ? "document-count-read" : mode == "getter-throw" ? "page-id-read" :
+            mode == "dev-export-throw" ? "document-exporting-read" : mode == "count-read-throw" ? "document-count-read" : mode == "getter-throw" ? "page-id-read" :
             mode == "index-getter-throw" ? "page-index-read" : mode == "template-throw" ? "template-read" : "native-call";
         assert(trial.value("exception_operation").toString() == expected);
     } else assert(trial.value("exception_operation").isNull());
