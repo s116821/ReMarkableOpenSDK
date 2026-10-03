@@ -35,3 +35,10 @@ remain required before gesture injection or accepting navigation capabilities.
 
 Logical Next/Previous requirements are owned by the shared SDK change, pinned
 in this proposal. This probe does not implement a competing navigation API.
+
+Observed RM1 metadata at the exact 28cfca140b4325999ecea2abce31b612d79fef8a
+source/above ARM candidate: X 0..767, Y 0..1023, slots 0..31; complete ranges and
+operator/cleanup receipt are recorded in the active design. These numbers are
+observations, not maintained profile allowlists. Community placement prior art:
+https://github.com/canselcik/libremarkable/blob/d9125f136ed34926c2528c34722aa3494611d644/src/device/mod.rs
+Native navigation and orientation remain unqualified.
