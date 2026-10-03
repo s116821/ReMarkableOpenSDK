@@ -13,3 +13,10 @@ Future Buddy prerelease promotion is a separate coordinated REM-46/41 decision. 
 First public SDK release remains gated by actual source availability, license/dependency/API policy and independent source/artifact review. SDK main currently lacks Cargo sources; researching/pinning release tools does not supply them. Preserve baseline PR #2 and active native research separately.
 
 User clarification: no project version field or placeholder is maintained in source. Git tags alone mint/maintain project versions. Packaging/runtime version fields are generated only in an isolated build staging area from the checked-out tag; never committed. No version-bump commits. This supersedes earlier manifest-placeholder allowances. Dependency pins are upstream identities, not this project version.
+
+Observed owned-repository lifecycle qualification: upstream prepare runs before
+tag creation; publish sees the exact release tag. Failed publish leaves that tag
+intact, and a plain rerun returns no release without retrying publish. Production
+composition therefore needs a qualified maintained existing-tag publication path.
+A stale local main checkout is refused before tagging, but post-check advancement
+races remain unqualified. These results use no production repository or publisher.

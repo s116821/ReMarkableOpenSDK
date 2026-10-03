@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {execFileSync, execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
-import {mkdtempSync, rmSync, readFileSync} from 'node:fs';
+import {mkdtempSync, rmSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import test from 'node:test';
@@ -27,6 +27,7 @@ async function withRepo(run) {
   const remote = join(root, 'remote.git');
   const cwd = join(root, 'work');
   try {
+    writeFileSync(join(root, '.owned-fixture'), 'REM-50 owned fixture\n');
     git(root, 'init', '--bare', '--initial-branch=main', remote);
     git(root, 'clone', remote, cwd);
     git(cwd, 'commit', '--allow-empty', '-m', 'chore: fixture base');
@@ -34,13 +35,24 @@ async function withRepo(run) {
     git(cwd, 'push', 'origin', 'main', '--tags');
     await run({cwd, remote, git: (...args) => git(cwd, ...args),
       commit(subject) {git(cwd, 'commit', '--allow-empty', '-m', subject); git(cwd, 'push', 'origin', 'main');},
-      async release() {
+      advanceRemote(subject) {
+        const other = join(root, 'other');
+        git(root, 'clone', remote, other);
+        git(other, 'commit', '--allow-empty', '-m', subject);
+        git(other, 'push', 'origin', 'main');
+      },
+      async release(mode = 'dry') {
         const before = git(cwd, 'show-ref', '--tags');
         // Isolate upstream stdout interception from Node's test reporter.
-        const {stdout} = await exec(process.execPath, [runner, cwd, remote], {env, maxBuffer: 1024 * 1024});
-        const result = JSON.parse(stdout);
-        assert.equal(git(cwd, 'show-ref', '--tags'), before, 'dry run must not mint tags');
-        return result;
+        const {stdout} = await exec(process.execPath, [runner, cwd, remote, mode], {env, maxBuffer: 1024 * 1024});
+        const response = JSON.parse(stdout);
+        if (mode === 'dry') {
+          assert.equal(response.error, undefined);
+          assert.equal(git(cwd, 'show-ref', '--tags'), before, 'dry run must not mint tags');
+          return response.result;
+        }
+        rmSync(join(root, 'lifecycle.jsonl'), {force: true});
+        return response;
       }});
   } finally {rmSync(root, {recursive: true, force: true});}
 }
@@ -98,4 +110,46 @@ test('tooling manifests do not maintain a project version', () => {
     assert.equal(Object.hasOwn(manifest, 'version'), false, name);
     if (manifest.packages) assert.equal(Object.hasOwn(manifest.packages[''], 'version'), false, name);
   }
+});
+
+test('actual upstream lifecycle creates tag before publish, after prepare', async () => {
+  await withRepo(async repo => {
+    repo.commit('feat: fixture API');
+    const sha = repo.git('rev-parse', 'HEAD');
+    const observation = await repo.release('observe');
+    assert.equal(observation.error, undefined);
+    assert.deepEqual(observation.events.map(e => e.phase), ['prepare', 'publish']);
+    assert.equal(observation.events[0].tagHead, null);
+    assert.equal(observation.events[1].tagHead, sha);
+    assert.equal(observation.events[1].version, observation.events[1].tag.slice(1));
+    assert.equal(observation.result.nextRelease.gitHead, sha);
+  });
+});
+
+test('actual upstream retry skips already tagged failed publication', async () => {
+  await withRepo(async repo => {
+    repo.commit('fix: fixture API');
+    const failure = await repo.release('fail');
+    assert.equal(failure.error, 'Owned fixture publication failure');
+    assert.equal(failure.events.at(-1).tagHead, repo.git('rev-parse', 'HEAD'));
+    const tags = repo.git('show-ref', '--tags');
+    const retry = await repo.release('observe');
+    assert.equal(retry.error, undefined);
+    assert.equal(retry.result, false);
+    assert.deepEqual(retry.events, []);
+    assert.equal(repo.git('show-ref', '--tags'), tags);
+  });
+});
+
+test('actual upstream refuses stale main checkout before tag/publication', async () => {
+  await withRepo(async repo => {
+    repo.commit('feat: fixture API');
+    repo.advanceRemote('fix: newer main');
+    const tags = repo.git('show-ref', '--tags');
+    const stale = await repo.release('observe');
+    assert.equal(stale.error, undefined);
+    assert.equal(stale.result, false);
+    assert.deepEqual(stale.events, []);
+    assert.equal(repo.git('show-ref', '--tags'), tags);
+  });
 });

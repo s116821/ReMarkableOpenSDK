@@ -5,7 +5,9 @@
 - [x] Pin and locally test actual maintained semantic-release tools on equal-time/feat/fix/docs/breaking histories.
 - [ ] Resolve candidate upstream dependency advisories; hosted qualification/audit must pass before production selection.
 - [ ] Qualify docs-only/mixed classification using upstream Actions; enforce semantic PR titles.
-- [ ] Qualify tag-before-build, concurrency/main advancement and existing-tag publication retry/recovery.
+- [x] Observe actual upstream prepare/tag/publish ordering and stale-main refusal in owned repositories.
+- [x] Reproduce failed post-tag publication and prove a plain rerun does not recover it.
+- [ ] Qualify post-tag build composition, post-check advancement/concurrency races and maintained existing-tag recovery.
 - [ ] Establish actual SDK host/ARMv7/AArch64 CI and provenance/compatibility packaging.
 - [ ] Verify Cargo version/lock identity and local override workflow with consumer owner.
 - [ ] Resolve first SDK version, license/API/dependency and real distribution gates before publication.
