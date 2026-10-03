@@ -2,6 +2,9 @@
 #ifdef QT_PROBE_CREATION_CONFIG
 #include QT_PROBE_CREATION_CONFIG
 #endif
+#ifdef QT_PROBE_PAGE_OPEN_CONFIG
+#include QT_PROBE_PAGE_OPEN_CONFIG
+#endif
 #include <atomic>
 #include <cstdio>
 #include <fcntl.h>
@@ -56,7 +59,12 @@ void startup() {
         if (QThread::currentThread() != app->thread()) { record("application-thread", false, false, false, false); return; }
         auto *gui = qobject_cast<QGuiApplication *>(app);
         if (!gui) { record("no-gui", true, false, false, false); return; }
+#ifdef QT_PROBE_PAGE_OPEN_CONFIG
 #ifdef QT_PROBE_CREATION_CONFIG
+#error Page open and creation configurations are mutually exclusive.
+#endif
+        new qml_access::Probe(gui, record, 20000, 5000, {}, pageOpenConfig());
+#elif defined(QT_PROBE_CREATION_CONFIG)
         new qml_access::Probe(gui, record, 20000, 5000, creationConfig());
 #else
         new qml_access::Probe(gui, record);

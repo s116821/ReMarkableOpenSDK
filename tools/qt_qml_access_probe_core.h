@@ -22,6 +22,7 @@
 #include <QElapsedTimer>
 #include <QThread>
 #include "qt_qml_creation_bridge.h"
+#include "qt_page_open.h"
 #include <functional>
 #include <array>
 #include <cstring>
@@ -638,6 +639,7 @@ struct RootSummary {
     qint64 lastSetDataBeginMs = -1, lastSetDataReturnMs = -1;
     MetadataSummary metadata;
     CreationObservation creation;
+    bool pageOpenEnabled = false, pageOpenAttempted = false, pageOpenReturned = false;
 };
 
 inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, int compiles,
@@ -675,6 +677,11 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
     timestamp("last_setData_return_ms", root.lastSetDataReturnMs);
     summary.insert(QStringLiteral("metadata"), metadataJson(root.metadata));
     if (root.creation.enabled) summary.insert(QStringLiteral("creation_trial"), creationJson(root.creation));
+    if (root.pageOpenEnabled) summary.insert(QStringLiteral("page_open_trial"), QJsonObject{
+        {QStringLiteral("enabled"), true}, {QStringLiteral("native_call_attempted"), root.pageOpenAttempted},
+        {QStringLiteral("native_call_returned"), root.pageOpenReturned},
+        {QStringLiteral("target_observed"), QByteArrayView(stage) == QByteArrayView("open-observed")},
+        {QStringLiteral("render_authority"), false}, {QStringLiteral("native_api_qualified"), false}});
     QByteArray bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
     if (bytes.size() > 8192) {
         summary.insert(QStringLiteral("errors"), QJsonArray{});
@@ -689,10 +696,11 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
 class Probe final : public QObject {
 public:
     using Receipt = std::function<void(const char *, bool, bool, bool, bool, const QByteArray &)>;
-    Probe(QGuiApplication *app, Receipt receipt, int readinessMs = 20000, int accessMs = 5000, CreationConfig creation = {})
-        : QObject(app), app_(app), receipt_(std::move(receipt)), creationConfig_(std::move(creation)) {
+    Probe(QGuiApplication *app, Receipt receipt, int readinessMs = 20000, int accessMs = 5000, CreationConfig creation = {}, PageOpenConfig pageOpen = {})
+        : QObject(app), app_(app), receipt_(std::move(receipt)), creationConfig_(std::move(creation)), pageOpenConfig_(std::move(pageOpen)) {
         rootSummary_.creation.enabled = creationConfig_.enabled;
         rootSummary_.creation.developmentExplicitFixture = creationConfig_.developmentExplicitFixture;
+        rootSummary_.pageOpenEnabled = pageOpenConfig_.enabled;
         rootSummary_.readinessBudgetMs = readinessMs;
         rootSummary_.accessBudgetMs = accessMs;
         timer_.setSingleShot(true);
@@ -995,6 +1003,23 @@ private:
             finish("metadata-controller-type"); return;
         }
         observedController_ = *static_cast<QObject *const *>(controllerValue.constData());
+        if (pageOpenConfig_.enabled) {
+            if (creationConfig_.enabled) { finish("open-creation-conflict"); return; }
+            const QPointer<Probe> self = this;
+            auto *session = new PageOpenSession(this, engine_, pageOpenConfig_,
+                [self] { return self && !self->done_ && !self->cancelPending_ && !self->pendingStage_ &&
+                    self->elapsed_.elapsed() < self->deadlineAtMs(); },
+                [self](const char *stage) { if (self && !self->done_) self->finish(stage); },
+                [self](bool entered) {
+                    if (!self) return;
+                    self->inCall_ = entered;
+                    if (!entered) self->settlePending();
+                });
+            pageOpenSession_ = session;
+            if (!QMetaObject::invokeMethod(session, [session] { session->begin(); }, Qt::QueuedConnection))
+                finish("open-dispatch-unavailable");
+            return;
+        }
         if (creationConfig_.enabled) { queueCreation(); return; }
         const QPointer<QQmlEngine> producer = engine_;
         const unsigned epoch = eventEpoch_;
@@ -1169,6 +1194,7 @@ private:
         if (done_) return;
         if (bridge_) bridge_->disarm();
         if (creationConfig_.enabled && !finishing_) { finish("creation-cancelled"); return; }
+        if (pageOpenConfig_.enabled && !finishing_) { finish("open-cancelled"); return; }
         disconnectRootGate();
         if (inCall_) {
             cancelPending_ = true;
@@ -1210,6 +1236,10 @@ private:
         if (rootSummary_.creation.enabled && rootSummary_.creation.attempted && QByteArrayView(stage) != QByteArrayView("resolved"))
             rootSummary_.creation.phase = "effect-uncertain";
         recordCreationProgress(QStringLiteral("cleanup_enter"));
+        if (pageOpenSession_) {
+            rootSummary_.pageOpenAttempted = pageOpenSession_->attempted();
+            rootSummary_.pageOpenReturned = pageOpenSession_->returned();
+        }
         cancel();
         recordCreationProgress(QStringLiteral("cleanup_return"));
         // Cleanup can reenter Qt. Terminal success follows cleanup and another
@@ -1260,6 +1290,8 @@ private:
     QPointer<QObject> observedController_;
     QByteArray diagnostic_;
     CreationConfig creationConfig_;
+    PageOpenConfig pageOpenConfig_;
+    QPointer<PageOpenSession> pageOpenSession_;
     CreationBridge *bridge_ = nullptr;
     bool libraryContinuationQueued_ = false;
     bool finishing_ = false, creationCompletionQueued_ = false;

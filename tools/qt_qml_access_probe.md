@@ -614,3 +614,46 @@ The existing operator observation/recovery envelope remains unchanged; startup
 or transport time consuming that envelope still requires restoration, never an
 operator extension. These are cooperative GUI-thread budgets, not preemption of
 busy native calls; the outer operator remains responsible for hard recovery.
+
+## Explicit PageKey development open/observe mode
+
+The October 3 [active plan](../openspec/changes/establish-native-platform-contract/page-key-open-plan.md)
+adds an off-by-default `QT_PROBE_PAGE_OPEN_CONFIG` factory, `pageOpenConfig()`.
+It supplies a canonical document/source/target identity and six unique expected
+page IDs. It is mutually exclusive with the creation factory; no private fixture
+UUID is checked into these tools. The successful creation packet is spent and its
+expected-five configuration remains historical.
+
+`qt_page_owner.h` checks one focused active visible QQuickWindow, existing engine,
+bounded item ancestry and source-backed FocusScope/SceneView properties. It requires
+one live visible/enabled focused receiver/scene pair with identical document
+QObject; QML lexical ids are never used as objectName discovery. Missing, ambiguous,
+changed or excessive topology refuses. These necessary conditions are not general
+overlay or input-isolation proof. First native qualification remains limited to
+Main's explicitly opened fixture with no concurrent interaction.
+
+`qt_page_open.h` installs relevant page/document/lifetime and focus/containment
+observations before dispatch. Document/focus/lifetime loss latches refusal. An
+owned QtQml helper verifies document native ID, the full document-owned index/key
+round-trip map and actual source aliases immediately before one queued
+`receiver.openPage(index)` call, omitting the optional position. An already-open
+target produces a verified no-op. Native openPage housekeeping may update
+last-opened state; these tools never directly rewrite native metadata or create
+another page. A native return or notification is not target proof: queued
+observation rechecks the same owner, page aliases and map. Target mismatch stays
+unresolved until the existing access deadline; no sleep or retry is introduced.
+
+The `open-observed` callback stage is distinct from existing access/creation
+`resolved`. Private `page_open_trial` fields report attempted/returned and observed
+target separately, including a no-call no-op. `native_api_qualified` and
+`render_authority` remain false. This is development navigation evidence, not a
+render-ready lease, fresh pixel capture or qualified Rust Platform API. Buddy
+guards and SDK unsupported defaults are unchanged. GUI-thread budgets cannot
+preempt native calls; the accepted operator/recovery envelope remains separate.
+
+Compile/link `qt_page_open.cpp` alongside the existing access and creation bridge
+translation units, generating its moc from `qt_page_open.h`. The independent
+`tools/qt_page_open_test.sh` runner builds the synthetic configured shared object
+and owned ARM/qemu cases; it performs no tablet actions. The existing probe runner
+also links the new translation unit. Native receiver/callable exposure, actual
+opening, fresh capture and preservation remain Main-owned qualification gates.
