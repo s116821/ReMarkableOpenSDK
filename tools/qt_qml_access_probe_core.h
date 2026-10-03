@@ -8,6 +8,10 @@
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlError>
+#include <QQuickWindow>
+#include <QQuickItem>
+#include <QMetaProperty>
+#include <QMetaMethod>
 #include <QByteArrayView>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -18,6 +22,8 @@
 #include <QElapsedTimer>
 #include <QThread>
 #include <functional>
+#include <array>
+#include <cstring>
 
 namespace qml_access {
 inline constexpr char helper[] =
@@ -100,6 +106,211 @@ inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors, int attempt
     return bytes;
 }
 
+struct PropertyMetadata {
+    int present = 0, typeMatch = 0, typeUnknown = 0, readable = 0, notify = 0;
+};
+struct MetadataBucket {
+    int candidates = 0, complete = 0;
+    std::array<PropertyMetadata, 3> properties{};
+};
+struct MetadataSummary {
+    const char *result = "not-checked";
+    int windows = 0, quickWindows = 0, items = 0;
+    MetadataBucket scene, document, selection;
+    bool signatureChecked = false, signaturePresent = false, signatureReturnsBool = false;
+};
+inline QJsonObject propertyMetadataJson(const PropertyMetadata &property, bool exactTypeKnown) {
+    return {{"present", property.present}, {"type_match", property.typeMatch}, {"type_unknown", property.typeUnknown},
+            {"readable", property.readable}, {"notify", property.notify}, {"exact_type_known", exactTypeKnown}};
+}
+inline QJsonObject metadataJson(const MetadataSummary &metadata) {
+    const auto bucket = [](const MetadataBucket &b, const std::array<const char *, 3> &keys,
+                           const std::array<bool, 3> &exact, int count) {
+        QJsonObject properties;
+        for (int i = 0; i < count; ++i) properties.insert(QString::fromLatin1(keys[i]), propertyMetadataJson(b.properties[i], exact[i]));
+        return QJsonObject{{"candidates", b.candidates}, {"all_required_metadata", b.complete}, {"properties", properties}};
+    };
+    return {{"metadata_result", QString::fromLatin1(metadata.result)}, {"source_authority", false},
+        {"owner_relation", "unproven"}, {"windows", metadata.windows}, {"quick_windows", metadata.quickWindows}, {"items", metadata.items},
+        {"scene_view", bucket(metadata.scene, {"page_id", "document", "controller"}, {true, true, true}, 3)},
+        {"document_view", bucket(metadata.document, {"scene_controller", "page_selection", "unused"}, {false, false, false}, 2)},
+        {"selection_handler", bucket(metadata.selection, {"controller", "view_rect", "scene_rect"}, {false, true, true}, 3)},
+        {"creation_signature", QJsonObject{{"checked", metadata.signatureChecked}, {"present", metadata.signaturePresent},
+                                           {"returns_bool", metadata.signatureReturnsBool}}}};
+}
+
+// Existing metadata only; never read a native property or resolve/register a type.
+inline bool observeProperty(const QMetaObject *meta, const char *name, const char *exactType, PropertyMetadata &counts) {
+    const int index = meta->indexOfProperty(name);
+    if (index < 0) return false;
+    const QMetaProperty property = meta->property(index);
+    ++counts.present;
+    bool matches = false;
+    if (exactType) {
+        const char *type = property.typeName();
+        if (!type) ++counts.typeUnknown;
+        else matches = std::strcmp(type, exactType) == 0;
+    } else {
+        const auto type = property.metaType();
+        if (!type.isValid()) ++counts.typeUnknown;
+        else matches = type.flags().testFlag(QMetaType::PointerToQObject);
+    }
+    if (matches) ++counts.typeMatch;
+    const bool readable = property.isReadable();
+    if (readable) ++counts.readable;
+    if (property.hasNotifySignal()) ++counts.notify;
+    return matches && readable;
+}
+inline bool boundedMetaChain(const QMetaObject *meta) {
+    for (int count = 0; meta; meta = meta->superClass()) if (++count > 32) return false;
+    return true;
+}
+
+// One synchronous bounded scan, called only from an app-context queued turn.
+// Public topology accessors may allocate; weak guards are not lifetime pins.
+inline const char *observeMetadata(QGuiApplication *application, QQmlEngine *selectedEngine,
+                                  QObject *resolvedController, const std::function<bool()> &withinBudget,
+                                  MetadataSummary &summary) {
+    const QPointer<QGuiApplication> app = application;
+    const QPointer<QQmlEngine> engine = selectedEngine;
+    const QPointer<QObject> controller = resolvedController;
+    const auto context = [&]() -> const char * {
+        if (!app || !engine) return "metadata-engine-lost";
+        if (QThread::currentThread() != app->thread() || engine->thread() != app->thread()) return "metadata-thread";
+        if (!withinBudget()) return "metadata-deadline";
+        if (!controller) return "metadata-controller-lost";
+        if (controller->thread() != app->thread()) return "metadata-thread";
+        return nullptr;
+    };
+    struct Node { QPointer<QQuickItem> item; int depth = 0; };
+    std::array<Node, 256> nodes{};
+    std::array<QPointer<QWindow>, 16> trackedWindows{};
+    int total = 0, processed = 0, windowCount = 0;
+    const auto tracked = [&]() -> const char * {
+        if (const char *failure = context()) return failure;
+        for (int i = 0; i < windowCount; ++i) {
+            if (!trackedWindows[i]) return "metadata-window-lost";
+            if (trackedWindows[i]->thread() != app->thread()) return "metadata-thread";
+        }
+        for (int i = 0; i < total; ++i) {
+            if (!nodes[i].item) return "metadata-item-lost";
+            if (nodes[i].item->thread() != app->thread()) return "metadata-thread";
+        }
+        return nullptr;
+    };
+    const auto add = [&](QQuickItem *item, int depth) -> const char * {
+        if (!item) return "metadata-item-lost";
+        const QPointer<QQuickItem> weak = item;
+        if (item->thread() != app->thread()) return "metadata-thread";
+        for (int i = 0; i < total; ++i) if (nodes[i].item == weak) return "metadata-duplicate";
+        if (total >= 256) return "metadata-node-cap";
+        nodes[total++] = {weak, depth};
+        summary.items = total;
+        return nullptr;
+    };
+    if (const char *failure = context()) return failure;
+    const auto windows = QGuiApplication::allWindows();
+    if (windows.size() > 16) return "metadata-window-cap";
+    // Capture all weak references before any virtual metadata accessor runs.
+    windowCount = static_cast<int>(windows.size());
+    summary.windows = windowCount;
+    for (int i = 0; i < windowCount; ++i) trackedWindows[i] = windows[i];
+    if (const char *failure = tracked()) return failure;
+    for (int i = 0; i < windowCount; ++i) {
+        if (const char *failure = tracked()) return failure;
+        QWindow *window = trackedWindows[i];
+        const QPointer<QQuickWindow> quick = qobject_cast<QQuickWindow *>(window);
+        if (const char *failure = tracked()) return failure;
+        QQmlEngine *owner = qmlEngine(window);
+        if (const char *failure = tracked()) return failure;
+        if (owner && owner != engine) return "metadata-engine-changed";
+        if (!quick) continue;
+        if (!owner || owner != engine) return "metadata-window-engine";
+        ++summary.quickWindows;
+        const QPointer<QQuickItem> root = quick->contentItem();
+        if (const char *failure = tracked()) return failure;
+        if (const char *failure = add(root, 0)) return failure;
+    }
+    while (processed < total) {
+        if (const char *failure = tracked()) return failure;
+        const Node node = nodes[processed++];
+        const QMetaObject *meta = node.item->metaObject();
+        if (const char *failure = tracked()) return failure;
+        if (!meta) return "metadata-metaobject-missing";
+        if (!boundedMetaChain(meta)) return "metadata-superclass-cap";
+        bool scene = false;
+        for (const QMetaObject *base = meta; base; base = base->superClass())
+            if (std::strcmp(base->className(), "SceneView") == 0) scene = true;
+        const char *name = meta->className();
+        const bool document = std::strstr(name, "DocumentView") && !std::strstr(name, "Shortcuts");
+        const bool selection = std::strstr(name, "SceneSelectionHandler");
+        if (const char *failure = tracked()) return failure;
+        const auto inspect = [&](MetadataBucket &bucket, const std::array<const char *, 3> &names,
+                                 const std::array<const char *, 3> &types, int count) -> const char * {
+            if (bucket.candidates >= 16) return "metadata-candidate-cap";
+            ++bucket.candidates;
+            bool complete = true;
+            for (int property = 0; property < count; ++property) {
+                // Do not short-circuit: retain mismatches from this candidate.
+                const bool matches = observeProperty(meta, names[property], types[property], bucket.properties[property]);
+                complete = matches && complete;
+            }
+            if (complete) ++bucket.complete;
+            return tracked();
+        };
+        if (scene) if (const char *failure = inspect(summary.scene, {"pageId", "document", "controller"},
+                                                     {"QString", "QmlDocumentWrapper*", "SceneController*"}, 3)) return failure;
+        if (document) if (const char *failure = inspect(summary.document, {"sceneController", "pageSelection", "unused"},
+                                                        {nullptr, nullptr, nullptr}, 2)) return failure;
+        if (selection) if (const char *failure = inspect(summary.selection, {"controller", "viewSelectionRect", "sceneSelectionRect"},
+                                                         {nullptr, "QRectF", "QRectF"}, 3)) return failure;
+        if (const char *failure = tracked()) return failure;
+        const auto children = node.item->childItems();
+        if (const char *failure = tracked()) return failure;
+        if (node.depth >= 16 && !children.isEmpty()) return "metadata-depth-cap";
+        if (children.size() > 256 - total) return "metadata-node-cap";
+        // Convert the complete snapshot before inspecting any child metadata.
+        std::array<QPointer<QQuickItem>, 256> weakChildren{};
+        for (qsizetype i = 0; i < children.size(); ++i) weakChildren[i] = children[i];
+        for (qsizetype i = 0; i < children.size(); ++i)
+            if (const char *failure = add(weakChildren[i], node.depth + 1)) return failure;
+    }
+    if (const char *failure = tracked()) return failure;
+    const QMetaObject *controllerMeta = controller->metaObject();
+    if (const char *failure = tracked()) return failure;
+    if (!controllerMeta) return "metadata-metaobject-missing";
+    if (!boundedMetaChain(controllerMeta)) return "metadata-superclass-cap";
+    summary.signatureChecked = true;
+    const int method = controllerMeta->indexOfMethod("addPageWithTemplateAndPageSize(entry::Id,int,QString,QSizeF,QJSValue,QString)");
+    summary.signaturePresent = method >= 0;
+    if (method >= 0) {
+        const char *type = controllerMeta->method(method).typeName();
+        summary.signatureReturnsBool = type && std::strcmp(type, "bool") == 0;
+    }
+    if (const char *failure = tracked()) return failure;
+    // Fresh final snapshot: no atomic topology or current-page claim.
+    const auto finalWindows = QGuiApplication::allWindows();
+    if (const char *failure = tracked()) return failure;
+    if (finalWindows.size() > 16) return "metadata-window-cap";
+    QPointer<QQmlEngine> finalEngine;
+    std::array<QPointer<QWindow>, 16> finalWeak{};
+    for (qsizetype i = 0; i < finalWindows.size(); ++i) finalWeak[i] = finalWindows[i];
+    for (qsizetype i = 0; i < finalWindows.size(); ++i) {
+        const QPointer<QWindow> weak = finalWeak[i];
+        if (!weak) return "metadata-window-lost";
+        if (weak->thread() != app->thread()) return "metadata-thread";
+        QQmlEngine *candidate = qmlEngine(weak);
+        if (candidate && finalEngine && candidate != finalEngine) return "metadata-multiple-engines";
+        if (candidate) finalEngine = candidate;
+        const QPointer<QQuickWindow> quick = qobject_cast<QQuickWindow *>(weak.data());
+        if (const char *failure = tracked()) return failure;
+        if (!weak) return "metadata-window-lost";
+        if (quick && candidate != engine) return "metadata-window-engine";
+    }
+    if (finalEngine != engine) return "metadata-engine-changed";
+    return "metadata-observed";
+}
+
 struct RootSummary {
     int readinessBudgetMs = 20000, accessBudgetMs = 5000, rootCount = 0;
     int retryIntervalMs = 200, retryRechecks = 0;
@@ -107,6 +318,7 @@ struct RootSummary {
     qint64 witnessAtMs = -1, firstSetDataBeginMs = -1, firstSetDataReturnMs = -1, firstErrorHandledMs = -1;
     qint64 componentReadyAtMs = -1;
     qint64 lastSetDataBeginMs = -1, lastSetDataReturnMs = -1;
+    MetadataSummary metadata;
 };
 
 inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, int compiles,
@@ -142,6 +354,7 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
     timestamp("first_error_handled_ms", root.firstErrorHandledMs);
     timestamp("last_setData_begin_ms", root.lastSetDataBeginMs);
     timestamp("last_setData_return_ms", root.lastSetDataReturnMs);
+    summary.insert(QStringLiteral("metadata"), metadataJson(root.metadata));
     QByteArray bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
     if (bytes.size() > 8192) {
         summary.insert(QStringLiteral("errors"), QJsonArray{});
@@ -411,12 +624,40 @@ private:
         if (expired()) return;
         if (!owned_ || component_->isError()) { finish("create-error"); return; }
         helperFound_ = true;
+        inCall_ = true;
         const QVariant available = owned_->property("controllerAvailable");
+        inCall_ = false;
+        if (settlePending()) return;
         if (!engine_) { finish("engine-lost"); return; }
         if (expired()) return;
         if (available.metaType() != QMetaType::fromType<bool>()) { finish("create-error"); return; }
         controller_ = available.toBool();
-        finish(controller_ ? "resolved" : "unavailable");
+        if (!controller_) { finish("unavailable"); return; }
+        // Exactly one read of our helper's typed property. Never read a native
+        // controller/view property or convert an arbitrary QVariant type.
+        inCall_ = true;
+        const QVariant controllerValue = owned_->property("observedController");
+        inCall_ = false;
+        if (settlePending()) return;
+        if (expired() || !engineContext()) return;
+        if (controllerValue.metaType() != QMetaType::fromType<QObject *>()) {
+            finish("metadata-controller-type"); return;
+        }
+        observedController_ = *static_cast<QObject *const *>(controllerValue.constData());
+        const QPointer<QQmlEngine> producer = engine_;
+        const unsigned epoch = eventEpoch_;
+        QMetaObject::invokeMethod(this, [this, producer, epoch] {
+            if (done_ || epoch != eventEpoch_) return;
+            if (!producer || producer != engine_) { finish("metadata-engine-lost"); return; }
+            if (expired() || !engineContext()) return;
+            inCall_ = true;
+            const char *result = observeMetadata(app_, engine_, observedController_,
+                [this] { return !cancelPending_ && !pendingStage_ && elapsed_.elapsed() < deadlineAtMs(); }, rootSummary_.metadata);
+            rootSummary_.metadata.result = result;
+            inCall_ = false;
+            if (settlePending()) return;
+            finish(QByteArrayView(result) == QByteArrayView("metadata-observed") ? "resolved" : result);
+        }, Qt::QueuedConnection);
     }
     void cancel() {
         if (done_) return;
@@ -462,6 +703,8 @@ private:
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
         const qint64 elapsedMs = elapsed_.elapsed();
         if (controller_ && elapsedMs >= deadlineAtMs()) { stage = "deadline"; controller_ = false; }
+        if (QByteArrayView(stage) != QByteArrayView("resolved") && created_)
+            rootSummary_.metadata.result = stage;
         diagnostic_ = runtimeSnapshot(diagnostic_, attempts_, compileAttempts_, admittedPostFailureEvents_, status, stage, elapsedMs, rootSummary_);
         receipt_(stage, appThread_, engineThread_, helperFound_, controller_, diagnostic_);
     }
@@ -492,6 +735,7 @@ private:
     QPointer<QQmlEngine> engine_;
     QQmlComponent *component_ = nullptr;
     QPointer<QObject> owned_;
+    QPointer<QObject> observedController_;
     QByteArray diagnostic_;
 };
 }

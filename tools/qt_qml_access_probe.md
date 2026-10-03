@@ -70,8 +70,9 @@ check pattern as an experiment, not proof that timing caused earlier failures.
 
 The fixed helper imports QtQml and versionless xofm.libs.library, binds a typed QtObject
 reference to DocumentController, and exposes its own availability boolean.
-C++ reads that boolean only. It does not retrieve the controller pointer, read
-native controller properties, call controller/page methods or access documents
+C++ reads that boolean and, once available, the owned typed reference once for
+the bounded M1 metadata observer. It does not read native controller properties,
+call controller/page methods or access documents
 or account files. QML resolution **may invoke the existing registration functor,
 associate the singleton with an engine and set CppOwnership**. Import caches and
 that association are not undone by helper cleanup. This is not a no-factory or
@@ -79,7 +80,7 @@ pure read-only operation. Access proves neither displayed source nor page identi
 
 Only the owned helper/component/filter/timer/probe are cleaned up; weak engine
 guards and post-call checks do not pin native lifetimes. Supported GUI lifecycle
-is assumed. Cancellation during setData/create defers destruction until those
+is assumed. Cancellation during setData/create/property access/metadata observation defers destruction until those
 calls unwind. The DSO must remain loaded until process exit. Qt allocation,
 imports and synchronous calls have no hard execution-time bound; the elapsed
 deadline refuses late completion, while the independently reviewed operator
@@ -205,3 +206,58 @@ to the owned application; the payload has no such registration. These are synthe
 not hardware or production qualification. OpenSpec task 2.5 and native page
 creation/recovery gates remain open pending exact source/artifact/operator
 review and coordinated evidence.
+
+### M1 metadata observer
+
+After helper resolution, one read of the owned helper's typed
+`observedController` property captures the already resolved QObject pointer.
+There is no native property read, coercion or method invocation. One queued
+app-context observation then uses the existing Ready-observation plus five-second
+access budget; it does not reset the clock or emit an earlier access-only receipt.
+Public `resolved` requires that scan to complete. Fixed `metadata-*` refusal
+stages remain non-success even when helper/controller availability is true.
+Cancellation emits no receipt. Terminal cleanup deadline/engine corrections also
+correct the private `metadata_result`.
+
+The observer uses public QtQuick window/content/child topology on the selected
+engine and existing public metaobjects. It inspects only these fixed buckets:
+
+- SceneView superclass: pageId QString, document QmlDocumentWrapper pointer,
+  controller SceneController pointer, with exact source-known type spelling.
+- DocumentView top-class token, excluding Shortcuts: sceneController and
+  pageSelection must have the existing PointerToQObject flag; their exact native
+  types remain unknown.
+- SceneSelectionHandler top-class token: controller PointerToQObject,
+  viewSelectionRect and sceneSelectionRect QRectF.
+- The resolved controller's exact six-argument
+  addPageWithTemplateAndPageSize(entry::Id,int,QString,QSizeF,QJSValue,QString)
+  metadata and bool return type. No invocation or method enumeration occurs.
+
+Private output contains fixed keys, aggregate presence/type/readable/notify
+counts and candidate counts. `all_required_metadata` counts candidates containing
+all required readable, compatible properties together; notify is reported
+separately. Mismatches remain counted, and multiple candidates never select a
+first view. No native values, raw class/type names, signatures or pointers are
+serialized. `source_authority=false` and `owner_relation=unproven` always apply,
+including a single complete candidate. Metadata absence, incompatibility and
+missing creation signatures can be observed successfully without establishing
+a current page, active selection, owner join or permission to create a page.
+
+Caps are 16 windows, 256 distinct Quick items including roots, root depth zero
+through depth 16, 16 candidates per bucket and 32 superclass entries per item or
+controller. Nonempty children at depth 16, oversized child snapshots, repeated
+items and cap violations refuse explicitly. Indeterminate/different Quick-window
+engines refuse. Application-thread affinity, QPointer guards and monotonic
+deadline checks surround topology/metadata groups; final unique-engine
+observation is refreshed. Guards do not pin lifetimes or create an atomic
+snapshot. Public list allocations and native call duration are not bounded by
+these inspection caps. Existing-interface QMetaProperty metaType flags/typeName
+inspection does not call type registration, id/userType/fromName or metatype
+metaobject discovery. Payload code uses no private Qt headers.
+
+The test runner now links public Qt6Quick and uses SDK-host moc only for the owned
+metadata fixtures, never for the payload. Focused fixtures tripwire native getter
+and creation invocation calls, preserve mismatches and multiple candidates, and
+exercise caps, incompatible pointer categories, object/thread/deadline loss and
+the actual queued Probe boundary (no early receipt, cancellation, lost engine or
+controller, expiry and changed engines). These remain synthetic evidence.
