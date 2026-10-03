@@ -25,7 +25,12 @@ CONFIG
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -fsyntax-only -I"$work" \
  '-DQT_FACTS_ENTRY_CONFIG="owned-facts-entry-config.h"' tools/qt_page_facts_startup.cpp \
  $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick)
-for case in good myfiles no-owner-then-ready wrong-document wrong-token oversize symlink-token fifo-token token-mode directory-mode owner-mode stale setup-deadline delayed-dispatch nested-cancel nested-deadline restoring-before restoring-getter directory-replaced late-delivery duplicate-after release config-exceedcap config-mismatch config-no-optin config-provenance setup-before-boundary token-budget token-profile; do
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC tools/qt_page_facts_refusal_fixture.cpp \
+ $(pkg-config --cflags --libs Qt6Core) -o "$work/refusal-fixture"
+if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
+ /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm -L "$SDKTARGETSYSROOT" "$work/refusal-fixture"
+else "$work/refusal-fixture"; fi
+for case in good myfiles no-owner-then-ready wrong-document wrong-token oversize symlink-token fifo-token token-mode directory-mode owner-mode stale setup-deadline delayed-dispatch nested-cancel nested-deadline restoring-before restoring-getter directory-replaced late-delivery duplicate-after release config-exceedcap config-mismatch config-no-optin config-provenance setup-before-boundary token-budget token-profile late-context refusal-existing stale-refusal; do
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
   /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
    -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

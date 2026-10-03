@@ -36,8 +36,8 @@ int main(int argc,char **argv) {
     if (mode=="config-provenance") config.setupSelection=QStringLiteral("unselected");
     for (int i=2;i<=7;++i) config.facts.expectedOrder.append(QStringLiteral("00000000-0000-4000-8000-%1").arg(i,12,16,QLatin1Char('0')));
     document.ids=config.facts.expectedOrder;
-    QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty("ownedDocument",&document);
+    auto engine=std::make_unique<QQmlApplicationEngine>();
+    engine->rootContext()->setContextProperty("ownedDocument",&document);
     const QByteArray goodQml=R"QML(import QtQuick
 import QtQuick.Window
 import OwnedFacts 1.0
@@ -52,29 +52,34 @@ Window { visible:true; width:400; height:400
  }
 })QML";
     const bool myfiles=mode=="myfiles" || mode=="no-owner-then-ready";
-    engine.loadData(myfiles ? QByteArray("import QtQuick\nimport QtQuick.Window\nWindow {visible:true; width:400; height:400}") : goodQml);
-    if (engine.rootObjects().size()!=1) return 4;
-    auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects()[0]);
+    engine->loadData(myfiles ? QByteArray("import QtQuick\nimport QtQuick.Window\nWindow {visible:true; width:400; height:400}") : goodQml);
+    if (engine->rootObjects().size()!=1) return 4;
+    auto *window=qobject_cast<QQuickWindow *>(engine->rootObjects()[0]);
     auto *receiver=window->findChild<OwnedReceiver *>("receiver");
     auto *scene=window->findChild<SceneView *>("scene");
     if (receiver) receiver->evidence=[&]{return scene && scene->hasActiveFocus();};
     window->requestActivate(); if (scene) scene->forceActiveFocus(); QCoreApplication::processEvents();
-    if (mode=="wrong-document") config.facts.documentId=QStringLiteral("00000000-0000-4000-8000-000000000099");
+    if (mode=="wrong-document" || mode=="refusal-existing") config.facts.documentId=QStringLiteral("00000000-0000-4000-8000-000000000099");
     if (mode=="directory-mode") ::chmod(root.toUtf8().constData(),0755);
     if (mode=="owner-mode") ::chmod((root+"/owner").toUtf8().constData(),0644);
     if (mode=="stale") put(root+"/facts-request","stale");
+    if (mode=="stale-refusal") put(root+"/refusal.json","stale");
     qint64 fakeTime=0;
     int requestClockCalls=0,privateClockCalls=0,callbacks=0;
-    bool getterActive=false,held=true;
+    bool getterActive=false,held=true,refusalBeforeCompletion=true;
     FactsEntryResult result;
     std::unique_ptr<FactsEntry> entry;
     entry=std::make_unique<FactsEntry>(&app,config,[&](FactsEntryResult value){
         if (getterActive) held=false;
+        if (value.stage=="facts-entry-read-refused" || value.stage=="facts-entry-delivery-refused")
+            refusalBeforeCompletion=QFileInfo::exists(root+"/refusal.json") || mode=="directory-replaced";
         ++callbacks; result=std::move(value);
         if (mode=="release") entry.reset();
     },[&]{
         if (QFileInfo::exists(root+"/facts-request") && ++requestClockCalls==4 && mode=="delayed-dispatch") fakeTime=5000;
         if (QFileInfo::exists(root+"/diagnostics.json") && ++privateClockCalls==2 && mode=="late-delivery") fakeTime=5000;
+        if (QFileInfo::exists(root+"/diagnostics.json") && privateClockCalls==1 && mode=="late-context")
+            QMetaObject::invokeMethod(&app,[&]{engine.reset();},Qt::QueuedConnection);
         return fakeTime;
     });
     entry->start();
@@ -92,6 +97,7 @@ Window { visible:true; width:400; height:400
         if (mode=="wrong-token") token[0]='f';
         if (mode=="oversize") token.append(QByteArray(129,'x'));
         if (mode=="restoring-before") put(root+"/restore.claim","closed");
+        if (mode=="refusal-existing") put(root+"/refusal.json","owned-existing-record");
         if (mode=="symlink-token") { put(root+"/target",token); ::symlink("target",(root+"/facts-request").toUtf8().constData()); }
         else if (mode=="fifo-token") ::mkfifo((root+"/facts-request").toUtf8().constData(),0600);
         else if (mode=="integration") {
@@ -125,19 +131,19 @@ Window { visible:true; width:400; height:400
         };
         drain();
     }
-    if (mode=="no-owner-then-ready") { engine.loadData(goodQml); drain(); }
+    if (mode=="no-owner-then-ready") { engine->loadData(goodQml); drain(); }
     if (mode=="duplicate-after") { QFile::remove(root+"/facts-request"); put(root+"/facts-request","again"); drain(); }
     const bool expected=mode=="good" || mode=="release" || mode=="duplicate-after" || mode=="integration" || mode=="setup-before-boundary";
     bool boundary=true;
     if (mode=="delayed-dispatch") boundary=result.stage=="facts-entry-dispatch-refused" && document.idReads==1;
-    if (mode=="late-delivery") boundary=result.stage=="facts-entry-delivery-refused";
+    if (mode=="late-delivery" || mode=="late-context") boundary=result.stage=="facts-entry-delivery-refused";
     if (result.observed) {
         QFile privateFile(root+"/diagnostics.json"); QFile callbackFile(root+"/callback.json");
         if (!privateFile.open(QIODevice::ReadOnly) || !callbackFile.open(QIODevice::ReadOnly)) boundary=false;
         else {
             const auto facts=QJsonDocument::fromJson(privateFile.readAll()).object();
             const auto callback=QJsonDocument::fromJson(callbackFile.readAll()).object();
-            boundary=boundary && facts.value("nonce").toString()==nonce &&
+            boundary=boundary && facts.size()==23 && callback.size()==4 && !QFileInfo::exists(root+"/refusal.json") && facts.value("nonce").toString()==nonce &&
                 facts.value("attempt_pid").toString()==QString::number(::getpid()) &&
                 facts.value("document_id").toString()==config.facts.documentId &&
                 facts.value("required_metadata_validated").toBool() && facts.value("required_connections_installed").toBool() &&
@@ -147,7 +153,28 @@ Window { visible:true; width:400; height:400
                 callback.value("stage").toString()==result.stage;
         }
     }
-    const bool passed=callbacks==1 && result.observed==expected && held && boundary;
+    if ((result.stage=="facts-entry-read-refused" || result.stage=="facts-entry-delivery-refused") && mode!="directory-replaced") {
+        QFile refusal(root+"/refusal.json");
+        if (!refusal.open(QIODevice::ReadOnly)) boundary=false;
+        else if (mode=="refusal-existing") boundary=boundary && refusal.readAll()=="owned-existing-record";
+        else {
+            const auto bytes=refusal.readAll(); const auto json=QJsonDocument::fromJson(bytes).object();
+            boundary=boundary && bytes.size()<=2048 && json.size()==27 &&
+                json.value("kind").toString()==QStringLiteral("development-facts-refusal") &&
+                json.value("entry_stage").toString()==result.stage &&
+                json.value("sample_phase").toString()==QStringLiteral("before-refusal-callback") &&
+                json.value("request_accepted_ms").toInteger()>=0 &&
+                !json.value("native_authority").toBool(true) && !json.value("atomic_snapshot").toBool(true) &&
+                !json.value("render_authority").toBool(true);
+            if (mode=="wrong-document") boundary=boundary && json.value("reader_stage").toString()=="facts-values-refused" && json.value("refusal_path").toString()=="reader-result" &&
+                !json.value("reader_result_had_facts").toBool(true) && json.value("entry_context_current").toBool() && json.value("within_accepted_deadline").toBool();
+            if (mode=="late-delivery") boundary=boundary && !json.value("within_accepted_deadline").toBool(true) && json.value("refusal_path").toString()=="entry-completion-boundary" &&
+                json.value("reader_result_had_facts").toBool() && json.value("entry_context_current").toBool();
+            if (mode=="late-context") boundary=boundary && !json.value("entry_context_current").toBool(true) && json.value("refusal_path").toString()=="entry-completion-boundary" &&
+                json.value("reader_result_had_facts").toBool() && json.value("within_accepted_deadline").toBool();
+        }
+    }
+    const bool passed=callbacks==1 && result.observed==expected && held && boundary && refusalBeforeCompletion;
     std::printf("entry-%s: %s (%s; callback=%d; held=%d; boundary=%d; output=%d)\n",argv[1],passed ? "PASS" : "FAIL",qPrintable(result.stage),callbacks,held,boundary,result.outputPublished);
     return passed ? 0 : 1;
 }

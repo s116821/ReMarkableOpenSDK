@@ -1,5 +1,6 @@
 #pragma once
 #include "qt_page_facts.h"
+#include "qt_page_facts_refusal.h"
 #include <QFileSystemWatcher>
 #include <QTimer>
 #include <QEvent>
@@ -55,7 +56,7 @@ public:
             finish("facts-entry-directory-refused"); return;
         }
         if (exists("facts-waiting") || exists("facts-request") || exists("facts-request.tmp") ||
-            exists("callback.json") || exists("diagnostics.json")) { finish("facts-entry-stale-refused"); return; }
+            exists("callback.json") || exists("diagnostics.json") || exists("refusal.json")) { finish("facts-entry-stale-refused"); return; }
         process_=QByteArray::number(::getpid());
         processStart_=processStart();
         if (processStart_.isEmpty() || readFile("attempt.identity",128)!=process_+' '+processStart_+'\n') {
@@ -219,7 +220,10 @@ private:
             [this](PageFactsResult result){
                 const Scope callbackScope(this);
                 reading_=false;
-                if (!result.facts || !readCurrent()) { finish("facts-entry-read-refused"); return; }
+                readerStage_=factsRefusalReaderStage(result.stage); readerHadFacts_=bool(result.facts);
+                if (!result.facts || !readCurrent()) {
+                    refusalPending_=true; finish("facts-entry-read-refused"); return;
+                }
                 const auto &facts=*result.facts;
                 QJsonArray order; for (const auto &id:facts.order) order.append(id);
                 QJsonObject json{{"kind","development-observed-facts"},{"nonce",config_.nonce},
@@ -254,6 +258,23 @@ private:
             // Another queued boundary cannot renew the accepted-request budget.
             if (result_.observed && !deliveryCurrent()) {
                 result_.observed=false; result_.stage=QStringLiteral("facts-entry-delivery-refused");
+                refusalPending_=true; refusalCompletionBoundary_=true;
+            }
+            // Refusal-only evidence, before the public callback. This samples
+            // non-getter entry checks at recording time, not an atomic history
+            // or a reconstruction of the reader's first failure. No retry.
+            if (refusalPending_ && config_.developmentSetup120 && config_.setupValid() && config_.facts.budgetMs==5000) {
+                FactsRefusalSample sample;
+                sample.nonce=config_.nonce; sample.process=QString::fromLatin1(process_);
+                sample.processStart=QString::fromLatin1(processStart_); sample.readerStage=readerStage_;
+                sample.readerHadFacts=readerHadFacts_; sample.completionBoundary=refusalCompletionBoundary_;
+                sample.sampledMs=now(); sample.acceptedMs=acceptedAt_;
+                sample.contextCurrent=context(); sample.rootCurrent=rootCurrent();
+                sample.closureAbsent=!closed_ && !exists("entry.closed") && !exists("restore.claim");
+                sample.identityCurrent=readFile("attempt.identity",128)==process_+' '+processStart_+'\n';
+                sample.withinAcceptedDeadline=acceptedAt_>=0 && sample.sampledMs<acceptedAt_+config_.facts.budgetMs;
+                // Failure/partial I/O stays unknown and cannot promote success.
+                (void)writeFile("refusal.json",factsRefusalBytes(sample));
             }
             QJsonObject callback{{"nonce",config_.nonce},{"stage",result_.stage},
                 {"application_thread",app_ && QThread::currentThread()==app_->thread()},
@@ -283,9 +304,11 @@ private:
     FactsEntryResult result_;
     struct stat rootStat_{};
     QByteArray process_,processStart_;
+    QString readerStage_;
     qint64 origin_=0,acceptedAt_=-1;
     int root_=-1,depth_=0,bootstrapAttempts_=0;
     bool started_=false,closed_=false,done_=false,reading_=false,consumed_=false;
     bool bootstrapQueued_=false,requestQueued_=false,completionQueued_=false;
+    bool refusalPending_=false,refusalCompletionBoundary_=false,readerHadFacts_=false;
 };
 }
