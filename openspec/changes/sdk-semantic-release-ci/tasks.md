@@ -12,7 +12,7 @@
 - [x] Exercise upstream existing-tag draft recovery and explicit-SHA/non-forced tag races in owned local fixtures.
 - [x] Verify exact-tag synthetic build staging and packaged source/manifest/dependency identity.
 - [ ] Qualify the actual post-tag production build/recovery composition, existing-asset byte verification and tag Action container/security.
-- [ ] Establish read-only actual experimental Rust source host/ARMv7/AArch64 checks at exact owner snapshot (local test/cross-build proof obtained; hosted checks pending).
+- [x] Establish read-only actual experimental Rust source host/ARMv7/AArch64 checks at exact owner snapshot and verify declared minimum Rust 1.88.0 in hosted CI (25f75caa/run 37114101928).
 - [ ] Establish integrated shipping SDK CI and provenance/compatibility packaging after source/license/API acceptance.
 - [x] Verify actual Cargo tag/locked-commit identity and reversible local overrides in owned consumer fixtures.
 - [ ] Integrate and verify the real SDK dependency/distribution contract with consumer owner.
