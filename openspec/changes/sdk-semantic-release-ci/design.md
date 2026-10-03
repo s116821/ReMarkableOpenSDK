@@ -32,3 +32,7 @@ Owned fixtures execute the pinned paths-filter distribution against staged local
 Git changes, including mixed changes, hidden files and a documentation-to-code
 rename. Hosted PR checks verify the title Action composition. Required status
 configuration remains a maintainer repository setting, not changed here.
+
+PR classification refuses missing/zero or >=3,000 changed-file counts because
+the upstream GitHub files API caps its observation at 3,000. Both rename
+directions stay application-relevant. Required status settings remain unchanged.

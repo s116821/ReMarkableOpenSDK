@@ -21,6 +21,7 @@ for (const [name, files, expected, rename] of [
   ['unknown path', ['unknown/data'], true],
   ['mixed docs and code', ['README.md', 'src/lib.rs'], true],
   ['documentation renamed into source', ['src/example.rs'], true, 'docs/example.md'],
+  ['source renamed into documentation', ['docs/example.md'], true, 'src/example.rs'],
 ]) {
   test(`actual paths-filter: ${name}`, () => {
     const cwd = mkdtempSync(join(tmpdir(), 'sdk-paths-owned-'));

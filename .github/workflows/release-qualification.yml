@@ -12,6 +12,12 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      # GitHub's PR files API caps results at 3,000 files; never classify a partial list.
+      - name: Require complete PR file observation
+        if: ${{ !(github.event.pull_request.changed_files > 0 && github.event.pull_request.changed_files < 3000) }}
+        run: |
+          echo 'Missing or unsupported changed-file count; split PRs of 3,000 files or more.' >&2
+          exit 1
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: paths
