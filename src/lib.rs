@@ -4,6 +4,7 @@
 
 pub mod capture;
 pub mod evidence;
+pub mod navigation;
 
 #[cfg(any(test, feature = "mock"))]
 pub mod mock;
@@ -225,6 +226,20 @@ pub enum Reconciliation {
 /// First experimental slice. Capture/navigation remain unimplemented capabilities;
 /// they must gain their full provenance/guard contract before becoming callable.
 pub trait Platform {
+    fn navigate(
+        &mut self,
+        _: &navigation::NavigationRequest,
+        _: bool,
+    ) -> navigation::NavigationOutcome {
+        navigation::NavigationOutcome::Unsupported(UnsupportedReason::CapabilityNotImplemented)
+    }
+    fn acquire_after_creation(
+        &mut self,
+        _: &CreationReceipt,
+        _: bool,
+    ) -> navigation::CreationHandoffOutcome {
+        navigation::CreationHandoffOutcome::Unsupported(UnsupportedReason::CapabilityNotImplemented)
+    }
     /// Until acquisition is qualified, the safe default cannot produce a batch.
     fn capture(&mut self, _: &capture::CaptureRequest) -> capture::CaptureOutcome {
         capture::CaptureOutcome::Unsupported(UnsupportedReason::CapabilityNotImplemented)

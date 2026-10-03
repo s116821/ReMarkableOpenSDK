@@ -6,6 +6,14 @@ or write authority. Independent review precedes implementation. Native capabilit
 remain Unsupported; no direct-open method, menu automation, new runtime or timer
 is introduced.
 
+Author implementation now exists in `src/navigation.rs`, default Platform methods
+and the explicitly synthetic MockPlatform, awaiting independent frozen review.
+Author checks: 36 Rust tests, strict Clippy, formatting, no-default-features check
+and strict OpenSpec validation. No native adapter or consumer integration is claimed.
+Acquisition is single-use per locally correlated committed operation: cancellation
+or stale-state refusal consumes that handoff and cannot later refresh its authority.
+Correlation is in-memory mock behavior, not the durable product operation journal.
+
 ## Types and default methods
 
 Add a small `navigation` module with `LogicalDirection::{Next, Previous}` and an
@@ -75,4 +83,5 @@ and exact default Unsupported. No hardware/ARM build or synthetic-to-native prom
 
 Source basis: accepted SDKfb68f56 plan, clarified consumer Docs2693680 contract,
 existing opaque SDK identity/creation types and explicit MockPlatform, and Main's
-current authoring scope. Proposed signatures/outcomes are not yet implemented.
+current authoring scope. Signatures/outcomes are an author-tested source slice
+awaiting independent review.
