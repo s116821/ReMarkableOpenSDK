@@ -165,13 +165,55 @@ loss, deadline/late delivery, restoration closure and malformed private output.
 Source plus those fixtures precede an independently reviewed native artifact and
 literal operator packet. No full guard framework or unrelated OPEN tests are required.
 
-Current missing fields: supported manual timing procedure; entry/publisher/validator
-implementation and independent source tests; fresh private baseline/config; nonce;
+Current missing fields: supported manual timing procedure; independent review and
+reproduction of the source checkpoint below; fresh private baseline/config; nonce;
 native ELF/dependency/source hashes and independent rebuild; exact refreshed baseline
 identity; complete literal operator/effect/recovery packet. Their absence means
 **not ready**, not permission to substitute historical hashes or execute placeholders.
 Native creation correlation, gesture/input/render authority and production runtime
 qualification remain separate work.
+
+## Source implementation checkpoint
+
+Main and Astra accepted the proposal at `2f6218b` before source work. The separate
+`qt_page_facts_entry.h/.cpp` implements pinned directory/attempt identity, finite
+engine bootstrap, one waiting/request admission, a single retained reader and
+private/public output. It enforces acceptedRequestAt plus the five-second budget
+through queued dispatch, reader progress, delivery and serialization; queued delay
+cannot restart that clock. The startup translation unit requires a separately
+reviewed private native config and fixed 20-second/six-page/five-second settings.
+Only owned-config syntax checking was performed; no native SO was built.
+
+The caller keeps entry and reader parentless through native getter/outer stack
+unwind. Closed/restoring state, generation, directory inode, weak engine, affinity
+and deadline loss refuse. Private results bind nonce and attempted PID/start plus
+the exact facts tuple and metadata/connection validation; authority remains false.
+Exclusive bounded output does not qualify a hard syscall limit. A late/unknown
+success write is withdrawn as an unusable final callback, never retried; the later
+live operator must independently apply its generation/time admission and retain
+unknown I/O outcomes rather than infer a completed transaction.
+
+The fixed publisher/validator are Buddy source
+`1b9e1930cf03b254a9d9302a932969101846f04a`, under tools/native_page_facts_probe.
+The publisher uses one nonblocking descriptor lock and no-follow pinned files,
+live process/ELF/payload/proc evidence, exclusive temporary creation and no-clobber
+link publication. It spawns no child and performs no arbitrary command/UI/service
+effect. Token publication itself is not native facts success. The validator checks
+fixed public/private shape, fresh nonce/process/document/order/interval/epoch and
+false authority flags; live generation and stock restoration remain separate.
+
+Author checks: 22 owned Qt entry/protocol cases plus one original-QML cross-repo
+publisher-to-entry integration pass; startup source passes owned-config syntax
+checking. Buddy's 19 publisher mechanics cases and 86 strict PowerShell proof
+checks pass; publisher CLI passes syntax checking. Qt checks use pinned image
+416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618,
+network disabled, both sources read-only, vendor SDK ARM compiler with warnings
+as errors and qemu/offscreen fixtures. Publisher/integration data named payload.so
+is non-ELF and mapped read-only; ignored-loader warnings are expected, not proof
+of a loaded extension. No native preload extension/helper artifact, literal device
+packet or device action was selected. Accepted reader source `6875514` is unchanged.
+Independent source review/reproduction remains pending. Manual timing feasibility
+remains unproved, so this checkpoint does not make a native candidate ready.
 
 Source basis: Main's current selection of fresh manual setup and unchanged bounds;
 accepted facts source and Astra full/repair review; current repository startup and
