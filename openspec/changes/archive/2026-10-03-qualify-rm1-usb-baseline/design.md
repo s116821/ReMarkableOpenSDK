@@ -16,3 +16,10 @@ and exact source mounted read-only. It was recorded as a COMMENTED review, not
 formal other-account approval. Closeout adds an identical canonical requirement
 copy and host-only Python CI. These deltas require review; archive occurs after
 closeout acceptance. CI uses owned synthetic observations and never contacts RM1.
+
+Independent review accepted the four-file spec/CI closeout delta at
+969a8e6689d530c01cfdb79dfe724ffb8a50793b with no actionable findings; collector
+source and tests stayed unchanged. Hosted owned-fixture CI passed at that head
+(run 37108316194). The final delta only archives this completed change and
+records closeout receipts. Squash integration waits for compact final-delta
+verification. Native qualification and REM-50 remain outside this archive.
