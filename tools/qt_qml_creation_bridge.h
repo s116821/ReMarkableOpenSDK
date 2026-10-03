@@ -14,6 +14,8 @@ public:
     std::function<void(const QString &)> refusal;
     std::function<void(bool, bool)> returned;
     std::function<void(const QString &)> exception;
+    std::function<void(const QString &, const QString &, const QString &, const QString &)> privateException;
+    std::function<void()> libraryContinuation;
     std::function<void()> callback;
     void disarm() { armed_ = false; }
 public slots:
@@ -23,8 +25,17 @@ public slots:
     void refuse(const QString &stage) { if (allowed() && refusal) refusal(stage); }
     void observeReturn(bool known, bool value) { if (allowed() && returned) returned(known, value); }
     void observeException(const QString &operation) { if (allowed() && exception) exception(operation); }
+    void observePrivateException(const QString &operation, const QString &category, const QString &name, const QString &message) {
+        if (allowed() && privateException) privateException(operation, category, boundedError(name), boundedError(message));
+    }
+    void queueLibraryContinuation() { if (allowed() && libraryContinuation) libraryContinuation(); }
     void observeCallback() { if (allowed() && callback) callback(); }
 private:
+    static QString boundedError(const QString &text) {
+        QString bounded = text.left(256);
+        if (!bounded.isEmpty() && bounded.back().isHighSurrogate()) bounded.chop(1);
+        return bounded;
+    }
     bool allowed() const { return QThread::currentThread() == guiThread_ && armed_; }
     QThread *const guiThread_;
     bool armed_ = true;

@@ -62,12 +62,66 @@ QtObject {
     property QtObject bridge: null
     property bool armed: true
     property bool entered: false
+    property QtObject observedLibrary: null
+    property bool waitingForLibrary: false
+    property bool creationStarted: false
+    property Connections libraryConnection: Connections {
+        target: ownedHelper.waitingForLibrary && ownedHelper.armed ? ownedHelper.observedLibrary : null
+        function onReadyChanged(ready) {
+            if (!ownedHelper.armed || !ownedHelper.waitingForLibrary || !ownedHelper.bridge || !ownedHelper.bridge.callbackAllowed()) return;
+            ownedHelper.waitingForLibrary = false;
+            ownedHelper.bridge.queueLibraryContinuation();
+        }
+    }
     readonly property bool developmentExplicitFixture: )QML" + QByteArray(config.developmentExplicitFixture ? "true" : "false") + R"QML(
     property int callbackCount: 0
     property bool callbackDuplicate: false
+    function boundedError(text) {
+        let value = text.slice(0,256);
+        const last = value.charCodeAt(value.length-1);
+        if (last >= 0xD800 && last <= 0xDBFF) value = value.slice(0,-1);
+        return value;
+    }
+    function captureException(operation, e) {
+        if (!armed || !bridge) return;
+        if (!developmentExplicitFixture) return bridge.observeException(operation);
+        let name = "", message = "", category = "unknown";
+        try { const n = e.name; if (typeof n === "string") name = boundedError(n); } catch (ignored) {}
+        try { const m = e.message; if (typeof m === "string") message = boundedError(m); } catch (ignored) {}
+        if (name === "TypeError" || name === "ReferenceError" || name === "RangeError" || name === "SyntaxError" || name === "Error") category = name;
+        bridge.observePrivateException(operation, category, name, message);
+    }
     function createOnce() {
         if (entered) return;
         entered = true;
+        if (!developmentExplicitFixture) return performCreation();
+        let operation = "library-resolve";
+        try {
+            if (!armed || !bridge || !bridge.preflightAllowed()) return;
+            observedLibrary = Library;
+            if (!observedLibrary) return bridge.refuse("library-unavailable");
+            operation = "library-method";
+            if (typeof observedLibrary.entryForId !== "function") return bridge.refuse("library-method-unavailable");
+            operation = "library-ready";
+            const ready = observedLibrary.isReady;
+            if (typeof ready !== "boolean") return bridge.refuse("library-readiness-invalid");
+            if (!ready) { waitingForLibrary = true; return; }
+            performCreation();
+        } catch (e) { captureException(operation, e); }
+    }
+    function resumeLibrary() {
+        let operation = "library-ready";
+        try {
+            if (!armed || !bridge || !bridge.preflightAllowed() || creationStarted) return;
+            const ready = observedLibrary ? observedLibrary.isReady : undefined;
+            if (typeof ready !== "boolean") return bridge.refuse("library-readiness-invalid");
+            if (!ready) return bridge.refuse("library-not-ready");
+            performCreation();
+        } catch (e) { captureException(operation, e); }
+    }
+    function performCreation() {
+        if (creationStarted) return;
+        creationStarted = true;
         let operation = "preflight-check";
         try {
             if (!armed || !bridge || !bridge.preflightAllowed()) return;
@@ -83,7 +137,7 @@ QtObject {
             const expectedDocument = )QML") + document + R"QML([0];
             const expectedPages = )QML" + pages + R"QML(;
             operation = "library-lookup";
-            const d = Library.entryForId(expectedDocument);
+            const d = developmentExplicitFixture ? observedLibrary.entryForId(expectedDocument) : Library.entryForId(expectedDocument);
             if (!d) return bridge.refuse("missing-document");
             operation = "document-id-read";
             const nativeId = d.id;
@@ -135,14 +189,14 @@ QtObject {
             operation = "return-observe";
             if (armed && bridge) bridge.observeReturn(typeof result === "boolean",result === true);
         } catch(e) {
-            if (armed && bridge) bridge.observeException(operation);
+            captureException(operation, e);
         }
     }
 }
 )QML";
 }
 inline const char *creationExceptionOperation(const QString &operation) {
-    static constexpr std::array<const char *, 18> allowed{{"preflight-check", "enum-document", "enum-exporting",
+    static constexpr std::array<const char *, 21> allowed{{"library-resolve", "library-method", "library-ready", "preflight-check", "enum-document", "enum-exporting",
         "library-lookup", "document-id-read", "document-id-string", "document-type-read", "document-status-read",
         "document-count-read", "document-exporting-read", "page-id-read", "page-index-read", "template-read", "paper-size", "method-read",
         "mutation-claim", "native-call", "return-observe"}};
@@ -154,13 +208,17 @@ struct CreationObservation {
     bool exception = false, duplicateCallback = false, developmentExplicitFixture = false;
     int callbackCount = 0;
     const char *phase = "not-started", *guard = "not-checked", *exceptionOperation = nullptr;
+    QString privateErrorName, privateErrorMessage;
+    const char *exceptionCategory = "unknown";
     qint64 attemptedAtMs = -1, returnedAtMs = -1, firstCallbackAtMs = -1;
 };
 inline QJsonObject creationJson(const CreationObservation &c) {
     const auto stamp = [](qint64 n) { return n < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(n); };
     return {{"enabled", c.enabled}, {"com_remarkable_import_selected", !c.developmentExplicitFixture}, {"development_explicit_fixture", c.developmentExplicitFixture}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
         {"returned_bool_known", c.returnedBoolKnown}, {"returned_bool", c.returnedBool},
-        {"exception", c.exception}, {"exception_operation", c.exceptionOperation ? QJsonValue(c.exceptionOperation) : QJsonValue(QJsonValue::Null)}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
+        {"exception", c.exception}, {"exception_operation", c.exceptionOperation ? QJsonValue(c.exceptionOperation) : QJsonValue(QJsonValue::Null)},
+        {"exception_category", c.exception ? QJsonValue(c.exceptionCategory) : QJsonValue(QJsonValue::Null)},
+        {"private_error_name", c.privateErrorName}, {"private_error_message", c.privateErrorMessage}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
         {"phase", c.phase}, {"guard_stage", c.guard}, {"attempted_at_ms", stamp(c.attemptedAtMs)},
         {"returned_at_ms", stamp(c.returnedAtMs)}, {"first_callback_at_ms", stamp(c.firstCallbackAtMs)},
         {"durable_success", false}, {"effect_requires_reconciliation", c.attempted}};
@@ -928,7 +986,7 @@ private:
             bridge->refusal = [self](const QString &stage) {
                 if (!self || self->rootSummary_.creation.attempted) return;
                 // Only allow fixed stages, never arbitrary native/user text.
-                static const std::array<const char *, 10> allowed{{"enum-unavailable", "missing-document", "identity-mismatch",
+                static const std::array<const char *, 14> allowed{{"library-unavailable", "library-method-unavailable", "library-readiness-invalid", "library-not-ready", "enum-unavailable", "missing-document", "identity-mismatch",
                     "not-document", "status-refusal", "count-mismatch", "page-map-mismatch", "template-unavailable", "method-unavailable", "exporting-refusal"}};
                 const char *fixed = "guard-refusal";
                 for (const char *s : allowed) if (stage == QString::fromLatin1(s)) fixed = s;
@@ -949,6 +1007,32 @@ private:
                 trial.exceptionOperation = creationExceptionOperation(operation);
                 trial.phase = trial.attempted ? "effect-uncertain" : "pre-call-exception";
                 self->finish("creation-exception");
+            };
+            bridge->privateException = [self](const QString &operation, const QString &category, const QString &name, const QString &message) {
+                if (!self || !self->creationConfig_.developmentExplicitFixture) return;
+                auto &trial = self->rootSummary_.creation;
+                static const std::array<const char *, 5> categories{{"TypeError", "ReferenceError", "RangeError", "SyntaxError", "Error"}};
+                for (const char *fixed : categories) if (category == QString::fromLatin1(fixed)) trial.exceptionCategory = fixed;
+                trial.privateErrorName = name.left(256); trial.privateErrorMessage = message.left(256);
+                trial.exception = true;
+                trial.exceptionOperation = creationExceptionOperation(operation);
+                trial.phase = trial.attempted ? "effect-uncertain" : "pre-call-exception";
+                self->finish("creation-exception");
+            };
+            bridge->libraryContinuation = [self] {
+                if (!self || self->done_ || self->libraryContinuationQueued_) return;
+                self->libraryContinuationQueued_ = true;
+                const unsigned epoch = self->eventEpoch_;
+                QMetaObject::invokeMethod(self, [self, epoch] {
+                    if (!self || self->done_ || epoch != self->eventEpoch_) return;
+                    if (!self->creationContext(false)) return;
+                    self->inCall_ = true;
+                    const bool invoked = QMetaObject::invokeMethod(self->owned_, "resumeLibrary", Qt::DirectConnection);
+                    self->inCall_ = false;
+                    if (self->settlePending()) return;
+                    if (!invoked) { self->finish("creation-dispatch"); return; }
+                    self->completeCreation();
+                }, Qt::QueuedConnection);
             };
             bridge->callback = [self] {
                 if (!self || !self->rootSummary_.creation.attempted) return;
@@ -1083,6 +1167,7 @@ private:
     QByteArray diagnostic_;
     CreationConfig creationConfig_;
     CreationBridge *bridge_ = nullptr;
+    bool libraryContinuationQueued_ = false;
     bool finishing_ = false, creationCompletionQueued_ = false;
 };
 }

@@ -25,6 +25,19 @@ public:
     using QObject::QObject;
     int calls = 0;
 public slots:
+    void scheduleReady(QObject *library) {
+        const QString mode = library->property("fixtureCase").toString();
+        const QPointer<QObject> target(library);
+        if (mode == "dev-ready-cancel") QTimer::singleShot(20, library, [this] { cancel(); });
+        QTimer::singleShot(mode == "dev-ready-late" ? 450 : 40, library, [this, target, mode] {
+            if (!target) return;
+            if (mode != "dev-ready-still-false") target->setProperty("isReady", true);
+            assert(QMetaObject::invokeMethod(target, "readyChanged", Qt::DirectConnection, Q_ARG(bool, true)));
+            assert(QMetaObject::invokeMethod(target, "readyChanged", Qt::DirectConnection, Q_ARG(bool, true)));
+            if (mode == "dev-ready-queued-cancel") cancel();
+            if (mode == "dev-ready-queued-deadline") QThread::msleep(450);
+        });
+    }
     void cancel() {
         auto *bridge = QCoreApplication::instance()->findChild<qml_access::CreationBridge *>();
         assert(bridge);
@@ -39,6 +52,8 @@ public slots:
             assert(!bridge->callbackAllowed() && !bridge->preflightAllowed() && !bridge->claimMutation());
             bridge->observeCallback(); bridge->observeReturn(true, true);
             bridge->observeException(QStringLiteral("native-call")); bridge->refuse(QStringLiteral("identity-mismatch"));
+            bridge->observePrivateException(QStringLiteral("native-call"), QStringLiteral("Error"), QStringLiteral("synthetic"), QStringLiteral("synthetic"));
+            bridge->queueLibraryContinuation();
         });
         worker->start(); assert(worker->wait(1000)); delete worker;
     }
@@ -58,7 +73,7 @@ int main(int argc, char **argv) {
         trial.enabled = true; trial.exception = true;
         trial.exceptionOperation = qml_access::creationExceptionOperation(QStringLiteral("private attacker marker /home/name/template"));
         const auto bytes = QJsonDocument(qml_access::creationJson(trial)).toJson(QJsonDocument::Compact);
-        assert(bytes.contains("exception-stage-unknown") && !bytes.contains("private") && !bytes.contains("/home/") && !bytes.contains("template"));
+        assert(bytes.contains("exception-stage-unknown") && !bytes.contains("private attacker marker") && !bytes.contains("/home/") && !bytes.contains("template"));
         puts("creation-marker-privacy: unknown exception marker maps to fixed literal, no raw input retained");
         return 0;
     }
@@ -78,6 +93,13 @@ int main(int argc, char **argv) {
     const auto libraryUrl = write("Library.qml", QByteArray(R"QML(pragma Singleton
 import QtQml
 QtObject {
+    property string fixtureCase: fixtureMode
+    property var isReady: fixtureMode === "dev-ready-absent" ? undefined : fixtureMode === "dev-ready-type" ? "true" : fixtureMode.startsWith("dev-ready-") && fixtureMode !== "dev-ready-success" ? false : true
+    signal readyChanged(bool ready)
+    property int lookups: 0
+    Component.onCompleted: {
+        if (["dev-ready-transition", "dev-ready-duplicate", "dev-ready-late", "dev-ready-cancel", "dev-ready-queued-cancel", "dev-ready-queued-deadline", "dev-ready-still-false"].indexOf(fixtureMode) >= 0) fixtureHooks.scheduleReady(this);
+    }
     property QtObject doc: QtObject {
         property var id: ({ toString: function() { if (fixtureMode === "id-string-throw") throw new Error("private id string details"); return (fixtureMode === "identity" || fixtureMode === "dev-identity") ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
         property var type: fixtureMode === "type" ? 2 : 1
@@ -101,6 +123,12 @@ QtObject {
         }
     }
     function entryForId(key) {
+        lookups += 1;
+        if (fixtureMode === "dev-lookup-error") throw new TypeError("synthetic private conversion detail");
+        if (fixtureMode === "dev-error-long") throw { name: "N".repeat(400), message: "M".repeat(400) };
+        if (fixtureMode === "dev-error-surrogate") throw { name: "N".repeat(255)+"\uD83D\uDE00", message: "M".repeat(255)+"\uD83D\uDE00" };
+        if (fixtureMode === "dev-error-escaped") throw { name: "\u0001".repeat(400), message: "\u0002".repeat(400) };
+        if (fixtureMode === "dev-error-properties") { const e = {}; Object.defineProperty(e,"name",{get:function(){throw 1;}}); Object.defineProperty(e,"message",{get:function(){throw 2;}}); throw e; }
         if (fixtureMode === "lookup-throw") throw new Error("private lookup details");
         if (key !== "00000000-0000-4000-8000-000000000001") throw new Error("wrong lookup");
         if (fixtureMode.endsWith("read-throw") || fixtureMode === "dev-export-throw" || fixtureMode === "dev-no-enum-reads") {
@@ -154,7 +182,10 @@ QtObject {
     else qmlRegisterUncreatableType<FixtureEntry>("xofm.libs.library", 1, 0, "Entry", "fixture enum only");
     if (mode == "import-com-owned") qmlRegisterUncreatableType<FixtureEntry>("com.remarkable", 1, 0, "Entry", "synthetic com owner");
     if (mode == "import-collision") qmlRegisterUncreatableType<CollisionEntry>("com.remarkable", 1, 0, "Entry", "synthetic conflicting enum");
-    if (mode != "library-absent") qmlRegisterSingletonType(libraryUrl, "xofm.libs.library", 1, 0, "Library");
+    int libraryType = -1;
+    const auto noMethodUrl = write("NoMethodLibrary.qml", "pragma Singleton\nimport QtQml\nQtObject { property bool isReady: true }");
+    if (mode == "dev-library-provider") libraryType = qmlRegisterSingletonType<QObject>("xofm.libs.library", 1, 0, "Library", [](QQmlEngine *, QJSEngine *) -> QObject * { return nullptr; });
+    else if (mode != "library-absent" && mode != "dev-library-absent") libraryType = qmlRegisterSingletonType(mode == "dev-library-method" ? noMethodUrl : libraryUrl, "xofm.libs.library", 1, 0, "Library");
     const auto missingMethodUrl = write("MissingController.qml", R"QML(pragma Singleton
 import QtQml
 QtObject { property int calls: 0; property var retainedCallback: null })QML");
@@ -213,11 +244,15 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     probe = new qml_access::Probe(&app, [&](const char *stage, bool a, bool e, bool h, bool c, const QByteArray &bytes) {
         ++receipts; terminal = QString::fromLatin1(stage);
         summary = QJsonDocument::fromJson(bytes).object();
+        assert(!summary.isEmpty());
         assert(a && e && bytes.size() <= 8192);
         if (mode == "import-missing") assert(!h && !c);
         else assert(h && (c || terminal == "deadline"));
         assert(!bytes.contains(documentId.toUtf8()) && !bytes.contains(pages[0].toUtf8()));
-        assert(!bytes.contains("private") && !bytes.contains("SyntheticBackground"));
+        auto publicTrial = summary.value("creation_trial").toObject();
+        publicTrial.remove("private_error_name"); publicTrial.remove("private_error_message");
+        assert(!QJsonDocument(publicTrial).toJson().contains("synthetic private"));
+        assert(!bytes.contains("SyntheticBackground"));
         assert(summary.value("metadata").toObject().value("items").toInt() == 0);
         if (mode == "import-missing") assert(summary.value("component_ready_at_ms").isNull());
         else assert(summary.value("component_ready_at_ms").isDouble() && summary.value("component_ready_at_ms").toInteger() >= 0);
@@ -239,7 +274,8 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     assert(receipts == 1);
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
-    const bool preCall = mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
+    const bool libraryBoundaryRefusal = mode == "dev-library-absent" || mode == "dev-library-provider" || mode == "dev-library-method" || mode == "dev-ready-absent" || mode == "dev-ready-type" || mode == "dev-ready-late" || mode == "dev-ready-queued-deadline" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel" || mode == "dev-ready-still-false" || mode == "dev-lookup-error" || mode.startsWith("dev-error-");
+    const bool preCall = libraryBoundaryRefusal || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
         mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent" || mode == "dev-count" || mode == "dev-reverse" || mode == "dev-template" || mode == "dev-claim-cancel" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
@@ -253,17 +289,21 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     }
     assert(trial.value("com_remarkable_import_selected").toBool() == !mode.startsWith("dev-"));
     assert(trial.value("development_explicit_fixture").toBool() == mode.startsWith("dev-"));
-    if (mode == "import-missing") {
+    if (mode == "dev-ready-late" || mode == "dev-ready-queued-deadline") {
+        assert(terminal == "deadline" && trial.value("callback_count").toInt() == 0);
+    } else if (mode == "dev-library-provider") {
+        assert(terminal == "creation-exception" || (terminal == "creation-refused" && trial.value("guard_stage").toString() == "library-unavailable"));
+    } else if (mode == "import-missing") {
         assert(terminal == "module-missing" && !trial.value("exception").toBool() && !trial.value("returned").toBool());
     } else if (mode == "native-throw") {
         assert(terminal == "creation-exception" && trial.value("exception").toBool() && !trial.value("returned").toBool());
     } else if (mode == "no-callback" || mode == "false-no-callback" || mode == "nested-timeout") {
         assert(terminal == "deadline" && trial.value("phase").toString() == "effect-uncertain");
         assert(trial.value("callback_count").toInt() == 0);
-    } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel" || mode == "dev-claim-cancel") {
+    } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel" || mode == "dev-claim-cancel" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel") {
         assert(terminal == "creation-cancelled" && trial.value("callback_count").toInt() == 0);
     } else if (preCall) {
-        assert(terminal == (mode.endsWith("throw") || mode == "entry-absent" || mode == "library-absent" ? "creation-exception" : mode == "bad-config" ? "creation-config" : "creation-refused"));
+        assert(terminal == (mode.endsWith("throw") || mode == "entry-absent" || mode == "library-absent" || mode == "dev-library-absent" || mode == "dev-lookup-error" || mode.startsWith("dev-error-") ? "creation-exception" : mode == "bad-config" ? "creation-config" : "creation-refused"));
     } else {
         assert(terminal == "resolved" && trial.value("phase").toString() == "call-observed");
         assert(trial.value("returned").toBool());
@@ -274,14 +314,31 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         if (mode == "sync" || mode == "duplicate") assert(trial.value("first_callback_at_ms").toInteger() <= trial.value("returned_at_ms").toInteger());
     }
     if (mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent") assert(trial.value("guard_stage").toString() == "exporting-refusal");
+    if (mode == "dev-library-method") assert(trial.value("guard_stage").toString() == "library-method-unavailable");
+    if (mode == "dev-ready-absent" || mode == "dev-ready-type") assert(trial.value("guard_stage").toString() == "library-readiness-invalid");
+    if (mode == "dev-ready-still-false") assert(trial.value("guard_stage").toString() == "library-not-ready");
     if (trial.value("exception").toBool()) {
-        const QString expected = mode == "entry-absent" ? "enum-document" : mode == "library-absent" || mode == "lookup-throw" ? "library-lookup" :
+        const QString expected = mode == "dev-library-absent" || mode == "dev-library-provider" ? "library-resolve" : mode == "entry-absent" ? "enum-document" : mode == "library-absent" || mode == "lookup-throw" || mode == "dev-lookup-error" || mode.startsWith("dev-error-") ? "library-lookup" :
             mode == "id-read-throw" ? "document-id-read" : mode == "id-string-throw" ? "document-id-string" :
             mode == "type-read-throw" ? "document-type-read" : mode == "status-read-throw" ? "document-status-read" :
             mode == "dev-export-throw" ? "document-exporting-read" : mode == "count-read-throw" ? "document-count-read" : mode == "getter-throw" ? "page-id-read" :
             mode == "index-getter-throw" ? "page-index-read" : mode == "template-throw" ? "template-read" : "native-call";
         assert(trial.value("exception_operation").toString() == expected);
     } else assert(trial.value("exception_operation").isNull());
+    if (libraryType >= 0 && mode != "dev-library-provider" && mode != "dev-library-method") {
+        auto *lib = engine.singletonInstance<QObject *>(libraryType);
+        assert(lib && lib->property("lookups").toInt() <= 1);
+        if (mode.startsWith("dev-ready-")) assert(lib->property("lookups").toInt() == (preCall ? 0 : 1));
+    }
+    if (mode == "dev-lookup-error") {
+        assert(trial.value("exception_category").toString() == "TypeError");
+        assert(trial.value("private_error_name").toString() == "TypeError");
+        assert(trial.value("private_error_message").toString() == "synthetic private conversion detail");
+    }
+    if (mode == "dev-error-long") assert(trial.value("private_error_name").toString().size() == 256 && trial.value("private_error_message").toString().size() == 256 && trial.value("exception_category").toString() == "unknown");
+    if (mode == "dev-error-surrogate") assert(trial.value("private_error_name").toString() == QString(255,'N') && trial.value("private_error_message").toString() == QString(255,'M'));
+    if (mode == "dev-error-escaped") assert(trial.value("private_error_name").toString() == QString(256,QChar(1)) && trial.value("private_error_message").toString() == QString(256,QChar(2)));
+    if (mode == "dev-error-properties") assert(trial.value("private_error_name").toString().isEmpty() && trial.value("private_error_message").toString().isEmpty() && trial.value("exception_category").toString() == "unknown");
     printf("creation-%s: stage=%s calls=%d callback=%d, guarded one-call and late cleanup passed\n", argv[1], qPrintable(terminal), controller->property("calls").toInt(), trial.value("callback_count").toInt());
 }
 #include "qt_qml_creation_fixture.moc"

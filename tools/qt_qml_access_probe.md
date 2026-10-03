@@ -505,3 +505,42 @@ identity/count/page-order/reverse/template/claim-cancellation refusal, and
 property tripwires proving native type/status
 are not read in opt-in mode. All opt-in successes still observe only a call and
 callback; durable success requires Main's saved-file and stock-reopen evidence.
+
+### Development Library readiness and private exception evidence
+
+The private opt-in now resolves Library once under library-resolve, retains its
+QObject reference on the owned helper, checks entryForId under library-method,
+and reads isReady under library-ready. Missing Library or method and nonboolean
+readiness refuse before lookup. A true boolean proceeds to the same fixed UUID
+lookup, native ID and five-page guards, template and one creation call.
+
+A false boolean enables one owned Connections target for readyChanged. The first
+signal disables that target and queues one C++ continuation; duplicate signals
+cannot queue another. The continuation checks the existing engine, ownership,
+cancellation and first-component-Ready plus five-second deadline before entering
+resumeLibrary under the same inCall/settlePending protection as createOnce. It
+re-reads readiness and requires boolean true. There is no polling, budget
+extension, creation replay or repeated lookup. Completion/cancellation disarms
+the bridge and destroys the owned helper/connection. Signal delivery does not
+perform creation or tear down the helper on the native signal stack.
+
+Only the opt-in catch additionally extracts error name and message with separate
+nested try blocks, retaining string values only, at most 256 UTF-16 units each.
+A truncation boundary never retains a dangling high surrogate. The C++ slot
+independently caps the values. No stack or string coercion is used. The fixed
+category allowlist is Error, TypeError, ReferenceError, RangeError and SyntaxError;
+other names or extraction failures retain unknown. Raw values exist only in the
+private bounded diagnostics as private_error_name/private_error_message, never
+the public callback or logs; actual error text must not be copied to Git, Mem,
+Drive or chat. The existing 8192-byte diagnostic limit remains enforced.
+Default mode retains its previous lookup and exception observation behavior.
+
+Owned tests cover absent/null-provider Library, missing method, absent/nonboolean
+readiness, ready success, false-to-true and duplicate signals, signal after the
+deadline, cancellation before signal and between signal/continuation, deadline
+between signal/continuation, still-false readiness, lookup error capture, throwing
+error property getters, long values, escaped control units and a surrogate pair
+cut at the cap. They check zero lookup/calls on readiness failures, one lookup
+and native call on successful continuation, bounded parseable JSON, fixed public
+markers and inert late callbacks. These synthetic cases do not qualify native
+Library timing, UUID conversion, creation effects or stock-reopen durability.
