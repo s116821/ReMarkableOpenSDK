@@ -1,6 +1,8 @@
 # Finite observation-only facts slice
 
-This is a source/fixture proposal for independent review before implementation.
+The source/fixture proposal was independently accepted at SDK `b6f5244` before
+implementation. The development implementation checkpoint below remains subject
+to independent source review and fixture reproduction.
 It supports the selected logical navigation route; direct native opening remains
 deferred to the post-1.0 REM-51 work. It neither constructs Rust PageObservation
 nor qualifies native creation, input continuity, rendered pixels or write authority.
@@ -30,11 +32,13 @@ Install narrow owner/document/scene/lifetime observers before the first baseline
 read. A no-argument dirty handler increments a local epoch; structural signals are
 invalidation, never success. Require compatible runtime typed metadata and successful
 connections. Missing or incompatible required signals/properties/methods refuses.
-Use wrapper pageCountChanged(int,int), pageMapChanged(), pageAdded(int), pagesAdded,
+Use wrapper pageCountChanged(int,int), pageMapChanged(), pageAdded(int), pagesAdded(QList<int>),
 pageMoved(int,int), pagesMoved(), pagesRemoved(), redirectionPageMapChanged(), plus
 conservative pageUpdated/documentMetadataChanged/orientationChanged. Use scene
 pageIdChanged/documentWrapperChanged/workerChanged/viewportChanged and existing
 owner/focus/lifetime notifications. Do not decode worker job/PageMap custom types.
+Topology discovery may read getters before connections; the accepted baseline is
+taken only after all required connections and retained owner/context revalidation.
 
 One bounded read snapshots local epoch, document ID via the tested String(document.id)
 conversion, receiver current index/currentPageId, scene pageId and document pageCount.
@@ -83,6 +87,43 @@ facts limitation; it must never be promoted to atomic or native authority.
 Independent semantic review and owned fixture checks precede any exact native
 artifact/access/recovery proposal. No new daemon, direct-open/setup guard, page
 insertion or actual tablet operation is part of this implementation scope.
+
+## Development implementation checkpoint
+
+`tools/qt_page_facts.h/.cpp` implements the separate, single-use reader. Its only
+output is local `ObservedFacts`; atomic/native/render authority flags remain false.
+The helper never requires or calls openPage and has no mutation entry. Required
+runtime signals use the exact signatures above, including no-argument pagesMoved()
+and pagesRemoved(). Connections precede the accepted baseline. Every getter and
+conversion is followed by owner/context, cancellation and deadline checks. One
+bounded full mapping read plus final identity/count/index/alias rereads either
+produces limited facts or refuses; failure is never retried for a favorable scan.
+
+Completion is queued only after the outermost native/getter/read stack unwinds.
+The queued delivery checks local epoch, weak lifetime, thread affinity, progress
+and budget again without obtaining fresh native values. Reentry or late invalidation
+discards facts. The caller retains this parentless session until completion; the
+callback/result are moved to local storage so the callback may release the session.
+
+`tools/qt_page_facts_fixture.cpp` and `tools/qt_page_facts_test.sh` contain original
+owned Qt fixtures and a fixture-only build/run recipe. No startup/native probe SO,
+device payload or access/recovery recipe is produced. Fixtures cover finite varied
+orders, malformed configuration, missing/incompatible metadata, owner ambiguity and
+context mismatch, exact dirty signals, mapping/value disagreements, getter expiry/
+cancellation, nested reentry/teardown and delivery-boundary loss. The silent A-B-A
+fixture intentionally passes only as limited, non-atomic facts, demonstrating the
+unobserved mutation limitation rather than qualifying a native snapshot.
+
+Author validation: all 63 owned fixtures pass using pinned image
+`sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618`,
+network disabled, source mounted read-only, vendor Qt SDK 5.8.203, ARM compiler
+with `-Wall -Wextra -Werror` and qemu/offscreen execution. Final cases assert both
+getter-side effects and the specific queued-delivery refusal boundary so an earlier
+failure cannot masquerade as that test. Strict validation of this OpenSpec change
+also passes. These are owned fixture/source checks, not actual native/model proof.
+Independent review and reproduction remain pending against the frozen revision.
+The wider native platform change remains unfinished; no
+canonical spec sync, archive, integration or product authority follows from this slice.
 
 Source basis: accepted SDKf6b7dc8/consumer Docs9c5f302 selected route, existing
 owner/open observation source, Main's current scope, and Astra's bounded saved-
