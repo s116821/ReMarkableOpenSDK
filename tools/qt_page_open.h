@@ -12,6 +12,8 @@ struct PageOpenConfig {
     QString documentId, sourcePageId, targetPageId;
     QStringList pageIds;
     bool enabled = false;
+    bool developmentSetupGate = false;
+    QString setupNonce{}, setupDirectory{};
     bool valid() const {
         static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
         const QString nil = QStringLiteral("00000000-0000-0000-0000-000000000000");

@@ -88,7 +88,10 @@ word. Initial stale files, invalid tokens, ownership/type/mode mismatches and
 partial data refuse. Main's operator validates that same live attempted process
 and no restoration/closed claim before one atomic publication after verified UI
 setup. The token grants setup permission only; all live PageKey/owner/map checks
-remain mandatory. Keep marker/token evidence and remove only exact owned paths.
+remain mandatory. SDK independently checks entry.closed/restore.claim absence
+through the retained validated directory before token acceptance, queued owner
+qualification and later operation guards. Atomic publication cannot replace an
+existing token. Keep marker/temp/token evidence and remove only exact owned paths.
 
 The absolute Probe20-second readiness budget continues until a valid token is
 accepted before its cutoff after fresh context checks. That first accepted

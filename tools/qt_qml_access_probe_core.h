@@ -23,6 +23,7 @@
 #include <QThread>
 #include "qt_qml_creation_bridge.h"
 #include "qt_page_open.h"
+#include "qt_page_open_arm.h"
 #include <functional>
 #include <array>
 #include <cstring>
@@ -640,6 +641,8 @@ struct RootSummary {
     MetadataSummary metadata;
     CreationObservation creation;
     bool pageOpenEnabled = false, pageOpenAttempted = false, pageOpenReturned = false;
+    bool pageOpenSetupGate = false;
+    qint64 pageOpenArmAcceptedAtMs = -1;
 };
 
 inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, int compiles,
@@ -662,7 +665,8 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
     summary.insert(QStringLiteral("root_gate"), QString::fromLatin1(root.gate));
     summary.insert(QStringLiteral("root_witness_kind"), QString::fromLatin1(root.witnessKind));
     summary.insert(QStringLiteral("root_count"), root.rootCount);
-    summary.insert(QStringLiteral("access_anchor"), root.creation.developmentExplicitFixture ? QStringLiteral("library-ready-observation") : QStringLiteral("component-ready-observation"));
+    summary.insert(QStringLiteral("access_anchor"), root.pageOpenSetupGate ? QStringLiteral("setup-arm-observation") :
+        root.creation.developmentExplicitFixture ? QStringLiteral("library-ready-observation") : QStringLiteral("component-ready-observation"));
     summary.insert(QStringLiteral("retry_interval_ms"), root.retryIntervalMs);
     summary.insert(QStringLiteral("timer_rechecks_admitted"), root.retryRechecks);
     const auto timestamp = [&](const char *key, qint64 value) {
@@ -681,6 +685,8 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
         {QStringLiteral("enabled"), true}, {QStringLiteral("native_call_attempted"), root.pageOpenAttempted},
         {QStringLiteral("native_call_returned"), root.pageOpenReturned},
         {QStringLiteral("target_observed"), QByteArrayView(stage) == QByteArrayView("open-observed")},
+        {QStringLiteral("setup_gate_enabled"), root.pageOpenSetupGate},
+        {QStringLiteral("arm_accepted_at_ms"), root.pageOpenArmAcceptedAtMs < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(root.pageOpenArmAcceptedAtMs)},
         {QStringLiteral("render_authority"), false}, {QStringLiteral("native_api_qualified"), false}});
     QByteArray bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
     if (bytes.size() > 8192) {
@@ -701,6 +707,7 @@ public:
         rootSummary_.creation.enabled = creationConfig_.enabled;
         rootSummary_.creation.developmentExplicitFixture = creationConfig_.developmentExplicitFixture;
         rootSummary_.pageOpenEnabled = pageOpenConfig_.enabled;
+        rootSummary_.pageOpenSetupGate = pageOpenConfig_.developmentSetupGate;
         rootSummary_.readinessBudgetMs = readinessMs;
         rootSummary_.accessBudgetMs = accessMs;
         timer_.setSingleShot(true);
@@ -748,6 +755,9 @@ private:
         }
     }
     qint64 deadlineAtMs() const {
+        if (pageOpenConfig_.enabled && pageOpenConfig_.developmentSetupGate)
+            return rootSummary_.pageOpenArmAcceptedAtMs < 0 ? rootSummary_.readinessBudgetMs :
+                rootSummary_.pageOpenArmAcceptedAtMs + rootSummary_.accessBudgetMs;
         if (creationConfig_.developmentExplicitFixture)
             return rootSummary_.creation.libraryReadyAcceptedAtMs < 0 ? rootSummary_.readinessBudgetMs :
                 rootSummary_.creation.libraryReadyAcceptedAtMs + rootSummary_.accessBudgetMs;
@@ -1005,24 +1015,27 @@ private:
         observedController_ = *static_cast<QObject *const *>(controllerValue.constData());
         if (pageOpenConfig_.enabled) {
             if (creationConfig_.enabled) { finish("open-creation-conflict"); return; }
-            const QPointer<Probe> self = this;
-            auto *session = new PageOpenSession(this, engine_, pageOpenConfig_,
-                [self] { return self && !self->done_ && !self->cancelPending_ && !self->pendingStage_ &&
-                    self->elapsed_.elapsed() < self->deadlineAtMs(); },
-                [self](const char *stage) { if (self && !self->done_) self->finish(stage); },
-                [self](bool entered) {
-                    if (!self) return;
-                    if (entered) {
-                        ++self->pageOpenCallDepth_;
-                        self->inCall_ = true;
-                    } else if (self->pageOpenCallDepth_ > 0 && --self->pageOpenCallDepth_ == 0) {
-                        self->inCall_ = false;
-                        self->settlePending();
-                    }
-                });
-            pageOpenSession_ = session;
-            if (!QMetaObject::invokeMethod(session, [session] { session->begin(); }, Qt::QueuedConnection))
-                finish("open-dispatch-unavailable");
+            if (!pageOpenConfig_.valid()) { finish("open-config-refused"); return; }
+            if (pageOpenConfig_.developmentSetupGate) {
+                const QPointer<Probe> self = this;
+                pageOpenArmGate_ = new PageOpenArmGate(this, pageOpenConfig_.setupDirectory, pageOpenConfig_.setupNonce,
+                    [self] { return self && !self->done_ && !self->cancelPending_ && !self->pendingStage_ && self->engine_ &&
+                        self->elapsed_.elapsed() < self->deadlineAtMs(); },
+                    [self](const char *stage) {
+                        if (!self || self->done_) return;
+                        if (QByteArrayView(stage) != QByteArrayView("open-arm-accepted")) { self->finish(stage); return; }
+                        if (!self->engineContext() || !self->pageOpenArmGate_ || !self->pageOpenArmGate_->releaseAllowed()) {
+                            if (!self->done_) self->finish("open-arm-context-refused");
+                            return;
+                        }
+                        const qint64 acceptedAt = self->elapsed_.elapsed();
+                        if (acceptedAt >= self->rootSummary_.readinessBudgetMs) { self->finish("open-arm-readiness-deadline"); return; }
+                        self->rootSummary_.pageOpenArmAcceptedAtMs = acceptedAt;
+                        self->timer_.start(self->rootSummary_.accessBudgetMs);
+                        self->queuePageOpen();
+                    });
+                pageOpenArmGate_->begin();
+            } else queuePageOpen();
             return;
         }
         if (creationConfig_.enabled) { queueCreation(); return; }
@@ -1040,6 +1053,32 @@ private:
             if (settlePending()) return;
             finish(QByteArrayView(result) == QByteArrayView("metadata-observed") ? "resolved" : result);
         }, Qt::QueuedConnection);
+    }
+
+    void queuePageOpen() {
+        const QPointer<Probe> self = this;
+        auto *session = new PageOpenSession(this, engine_, pageOpenConfig_,
+            [self] { return self && !self->done_ && !self->cancelPending_ && !self->pendingStage_ &&
+                self->elapsed_.elapsed() < self->deadlineAtMs() && (!self->pageOpenConfig_.developmentSetupGate ||
+                    (self->pageOpenArmGate_ && self->pageOpenArmGate_->releaseAllowed())); },
+            [self](const char *stage) { if (self && !self->done_) self->finish(stage); },
+            [self](bool entered) {
+                if (!self) return;
+                if (entered) { ++self->pageOpenCallDepth_; self->inCall_ = true; }
+                else if (self->pageOpenCallDepth_ > 0 && --self->pageOpenCallDepth_ == 0) {
+                    self->inCall_ = false;
+                    self->settlePending();
+                }
+            });
+        pageOpenSession_ = session;
+        if (!QMetaObject::invokeMethod(session, [self, session] {
+            if (!self || self->done_) return;
+            if (self->pageOpenConfig_.developmentSetupGate &&
+                (!self->pageOpenArmGate_ || !self->pageOpenArmGate_->releaseAllowed())) {
+                self->finish("open-arm-context-refused"); return;
+            }
+            session->begin();
+        }, Qt::QueuedConnection)) finish("open-dispatch-unavailable");
     }
 
     bool creationContext(bool claim) {
@@ -1198,6 +1237,7 @@ private:
     void cancel() {
         if (done_) return;
         if (bridge_) bridge_->disarm();
+        if (pageOpenArmGate_) pageOpenArmGate_->disarm();
         if (creationConfig_.enabled && !finishing_) { finish("creation-cancelled"); return; }
         if (pageOpenConfig_.enabled && !finishing_) { finish("open-cancelled"); return; }
         disconnectRootGate();
@@ -1297,6 +1337,7 @@ private:
     CreationConfig creationConfig_;
     PageOpenConfig pageOpenConfig_;
     QPointer<PageOpenSession> pageOpenSession_;
+    QPointer<PageOpenArmGate> pageOpenArmGate_;
     unsigned pageOpenCallDepth_ = 0;
     CreationBridge *bridge_ = nullptr;
     bool libraryContinuationQueued_ = false;

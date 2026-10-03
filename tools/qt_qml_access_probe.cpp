@@ -63,7 +63,12 @@ void startup() {
 #ifdef QT_PROBE_CREATION_CONFIG
 #error Page open and creation configurations are mutually exclusive.
 #endif
-        new qml_access::Probe(gui, record, 20000, 5000, {}, pageOpenConfig());
+        auto openConfig = pageOpenConfig();
+        if (openConfig.developmentSetupGate) {
+            openConfig.setupNonce = QString::fromLatin1(nonce);
+            openConfig.setupDirectory = QStringLiteral("/run/rmb-qt-probe-") + openConfig.setupNonce;
+        }
+        new qml_access::Probe(gui, record, 20000, 5000, {}, openConfig);
 #elif defined(QT_PROBE_CREATION_CONFIG)
         new qml_access::Probe(gui, record, 20000, 5000, creationConfig());
 #else

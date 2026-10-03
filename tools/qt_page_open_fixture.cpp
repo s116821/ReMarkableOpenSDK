@@ -5,6 +5,7 @@
 #include <memory>
 #include <QEventLoop>
 #include <cassert>
+#include <QTemporaryDir>
 using namespace qml_access;
 class DocumentFixture final : public QObject {
     Q_OBJECT
@@ -54,6 +55,9 @@ int main(int argc, char **argv) {
     const QByteArray requested(argv[1]);
     const bool integrated = requested.startsWith("probe-");
     const QByteArray mode = integrated ? requested.mid(6) : requested;
+    const bool setupGate = integrated && mode.startsWith("arm-");
+    QTemporaryDir setupRoot;
+    ::chmod(QFile::encodeName(setupRoot.path()).constData(), 0700);
     QObject controller;
     qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &controller);
     qmlRegisterType<SceneView>("OwnedFixture", 1, 0, "SceneView");
@@ -67,6 +71,11 @@ int main(int argc, char **argv) {
     config.documentId = document.id();
     for (int i = 2; i <= 7; ++i) config.pageIds << QStringLiteral("00000000-0000-4000-8000-00000000000%1").arg(i);
     config.sourcePageId = config.pageIds[0]; config.targetPageId = config.pageIds[1];
+    if (setupGate) {
+        config.developmentSetupGate = true;
+        config.setupNonce = QStringLiteral("0123456789abcdef0123456789abcdef");
+        config.setupDirectory = setupRoot.path();
+    }
     document.ids = config.pageIds;
     engine.rootContext()->setContextProperty("ownedDocument", &document);
     engine.rootContext()->setContextProperty("ambiguousFixture", mode == "ambiguous");
@@ -110,7 +119,7 @@ Window { visible: true; width: 400; height: 400
     window->requestActivate(); scene->forceActiveFocus();
     QCoreApplication::processEvents();
     bool progress = true;
-    if (mode == "already") receiver->setProperty("currentPage", 1);
+    if (mode == "already" || mode == "arm-already") receiver->setProperty("currentPage", 1);
     if (mode == "hidden") receiver->setVisible(false);
     if (mode == "disabled") receiver->setEnabled(false);
     if (mode == "no-window") window->hide();
@@ -136,6 +145,34 @@ Window { visible: true; width: 400; height: 400
     QString result;
     QPointer<Probe> probe;
     bool pumping = false, nestedHeld = false;
+    QFileSystemWatcher setupObserver;
+    bool setupPublished = false;
+    if (setupGate) {
+        if (mode == "arm-stale") { QFile stale(setupRoot.filePath("open-arm")); if (!stale.open(QIODevice::WriteOnly | QIODevice::NewOnly)) return 5; stale.write("stale"); }
+        QObject::connect(&setupObserver, &QFileSystemWatcher::directoryChanged, &app, [&](const QString &) {
+            if (setupPublished || mode == "arm-none") return;
+            QFile marker(setupRoot.filePath("open-waiting"));
+            if (!marker.open(QIODevice::ReadOnly)) return;
+            QByteArray token = marker.read(129);
+            if (!token.endsWith(" waiting\n") || token.size() > 128) return;
+            setupPublished = true;
+            token.replace(" waiting\n", " open\n");
+            if (mode == "arm-wrong") token[0] = 'f';
+            const auto publish = [&, token] {
+                QFile pending(setupRoot.filePath("open-arm.tmp"));
+                if (!pending.open(QIODevice::WriteOnly | QIODevice::NewOnly) || pending.write(token) != token.size()) return;
+                pending.close(); ::chmod(QFile::encodeName(pending.fileName()).constData(), 0600);
+                if (::link(QFile::encodeName(pending.fileName()).constData(), QFile::encodeName(setupRoot.filePath("open-arm")).constData()) != 0) return;
+                QFile::remove(pending.fileName());
+                if (mode == "arm-late-delivery") QThread::msleep(600);
+            };
+            if (mode == "arm-cancel") QMetaObject::invokeMethod(&app, "aboutToQuit", Qt::DirectConnection);
+            if (mode == "arm-engine-loss") { receiver=nullptr; scene=nullptr; ownedEngine.reset(); }
+            if (mode == "arm-delayed") QTimer::singleShot(150, &app, publish);
+            else publish();
+        });
+        if (!setupObserver.addPath(setupRoot.path())) return 6;
+    }
     if (mode == "nested-cancel" || mode == "nested-deadline") {
         receiver->setProperty("pumpNative", true);
         nativePump.run = [&] {
@@ -187,10 +224,15 @@ Window { visible: true; width: 400; height: 400
             assert(!pumping);
             result = QString::fromLatin1(stage);
             const auto trial = QJsonDocument::fromJson(diagnostic).object().value("page_open_trial").toObject();
-            if (!a || !e || !h || (!c && mode != "timeout" && !mode.contains("expiry") && mode != "nested-deadline") || trial.value("native_api_qualified").toBool() || trial.value("render_authority").toBool()) result = "bad-integrated-receipt";
+            if (!a || !e || !h || (!c && mode != "timeout" && !mode.contains("expiry") && mode != "nested-deadline" && mode != "arm-none" && mode != "arm-engine-loss" && mode != "arm-late-delivery") || trial.value("native_api_qualified").toBool() || trial.value("render_authority").toBool()) result = "bad-integrated-receipt";
             if (mode == "already" && (trial.value("native_call_attempted").toBool() || trial.value("native_call_returned").toBool())) result = "bad-noop-receipt";
+            if (setupGate && (mode == "arm-good" || mode == "arm-already" || mode == "arm-delayed")) {
+                const auto accepted = trial.value("arm_accepted_at_ms").toInteger(-1);
+                if (accepted < 0 || accepted >= 500 || !trial.value("setup_gate_enabled").toBool()) result="bad-gate-receipt";
+                if (mode == "arm-delayed" && accepted < QJsonDocument::fromJson(diagnostic).object().value("component_ready_at_ms").toInteger() + 100) result="bad-anchor";
+            }
             app.quit();
-        }, 3000, mode == "nested-deadline" ? 100 : 500, {}, config);
+        }, setupGate ? 500 : 3000, setupGate || mode == "nested-deadline" ? 100 : 500, {}, config);
     } else QTimer::singleShot(0, &session, [&] {
         session.begin();
         if (mode == "destroy") delete scene;
@@ -207,8 +249,8 @@ Window { visible: true; width: 400; height: 400
     QTimer::singleShot(integrated ? 5000 : 200, &app, [&] { if (result.isEmpty()) result = "unresolved"; app.quit(); });
     app.exec();
     const int calls = receiver ? receiver->property("calls").toInt() : 0;
-    const bool good = mode == "good" || mode == "already" || mode == "notifications";
-    const bool ok = good ? result == "open-observed" && calls == (mode == "already" ? 0 : 1) :
+    const bool good = mode == "good" || mode == "already" || mode == "notifications" || mode == "arm-good" || mode == "arm-already" || mode == "arm-delayed";
+    const bool ok = good ? result == "open-observed" && calls == (mode == "already" || mode == "arm-already" ? 0 : 1) :
         mode.startsWith("getter-target-") ? targetHookUsed && result != "open-observed" && calls == 1 :
         mode.startsWith("getter-") ? enteredReads >= 17 && result != "open-observed" && calls == 0 :
         mode == "timeout" ? result == (integrated ? "deadline" : "unresolved") && calls == 1 :

@@ -665,3 +665,34 @@ Owned integrated regressions pump nested native-open event loops through
 cancellation and deadline, proving that terminal cleanup waits for the outer
 return. Final-claim getter expiry and focus/document away-and-back refuse before
 any native call; post-call getter expiry/invalidation cannot report target success.
+
+### Optional one-time development setup arm gate
+
+An OPEN factory can additionally set developmentSetupGate. Startup derives its
+directory and nonce from the compiled packet identity. The owned QFileSystemWatcher
+observes that directory before an exclusive open-waiting marker, then immediately
+checks the fixed open-arm filename. Marker/token bytes bind nonce, actual process
+PID and /proc/self start time, with waiting/open words and one newline. Files are
+bounded no-follow regular mode0600 artifacts under a retained owner-mode0700
+directory identity. Wrong/stale/partial/duplicate or replaced contexts refuse;
+unrelated directory notifications never arm or reset the budget.
+
+The token is consumed once and watcher delivery is disconnected before one queued
+owner qualification. It grants development setup permission only. SDK checks
+entry.closed/restore.claim absence before acceptance, before queued Session.begin
+and through subsequent operation guards. Cancellation disarms acceptance so later
+callbacks cannot begin. An accepted token is sampled after fresh context validation
+before the original absolute20-second readiness cutoff and anchors one5-second
+access phase on the same elapsed clock. No polling, menu automation, sleep, retry
+or observation/recovery extension is introduced; non-gated behavior is unchanged.
+Private access_anchor identifies setup-arm-observation and page_open_trial records
+the accepted timestamp separately from actual target observation and false render/
+API authority. No tablet result is implied by owned token or integration tests.
+
+Main separately announces one verified source-page setup/capture and executes the
+exact independently reviewed arming helper under the existing live-generation and
+restoration guards. Atomic no-clobber publication, marker/token collection and exact
+temporary-file cleanup are operator responsibilities. The original spent creation
+packet/five-page factory must not be reused. tools/qt_page_open_arm_test.sh covers
+owned filesystem/token cases; the open runner includes gated clock/loss cases
+alongside the accepted ownership/reentrancy regressions.
