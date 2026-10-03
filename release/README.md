@@ -67,7 +67,7 @@ root with these environment inputs (the hosted packaging job installs them):
 - `SDK_FIXTURE_CARGO`: Rust 1.98.1 Cargo with host, ARMv7 GNU and AArch64 GNU
   standard libraries installed.
 
-The 25 Python tests cover upstream alternative calculation, non-forced tag
+The 34 Python tests cover upstream alternative calculation, non-forced tag
 races, exact-tag build staging, actual synthetic compiler/source-crate builds,
 packaged source/manifest/lock verification, Cargo Git tag/commit pinning and
 reversible local patches. The 37 JavaScript tests include the actual upstream
@@ -92,7 +92,7 @@ limits; functional success never silently clears a security gate.
 ## Actual experimental SDK compiler checks
 
 PR application changes also compile the owner research snapshot
-`f8e729cbdaa1f2776b482e6d12eccf45457aa305` with Rust 1.98.1. The host lane runs
+`f6b7dc8954ba9f5a284d56568765e05c38483924` with Rust 1.98.1. The host lane runs
 fmt, all-feature tests and clippy with warnings denied; the three lanes compile
 the actual Rust library for host/ARMv7 GNU/AArch64 GNU using its unchanged lock.
 This is an exact-source compiler check, not synthetic fixture evidence. It does
@@ -115,3 +115,14 @@ the fixture's version and uses rerun-if-env-changed; actual execution proves
 both official identity and cache invalidation back to development. This is
 build identity preparation, not a implemented SDK/Buddy runtime API.
 [Cargo build-script guidance](https://doc.rust-lang.org/cargo/reference/build-scripts.html).
+
+
+`verify_assets.py` compares previously downloaded SDK assets with an independently
+generated verified-build manifest. It checks exact declared names, regular-file
+bounds, byte hashes and complete manifest identity; duplicate JSON fields, stale
+source, symlinks, FIFOs, unexpected assets and missing final distributions refuse.
+Partial mode only verifies a retained subset, never declares it ready to publish.
+It does not download, delete, tag, publish or manage release state. Upstream
+download/recovery/finalization and remote immutability/concurrency remain separate
+production qualification. Caller-provided expected metadata must come from the
+verified build, never from the downloaded release's self-reported manifest.

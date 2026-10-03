@@ -72,6 +72,15 @@ class CargoConsumerIdentity(unittest.TestCase):
         (config_dir/'config.toml').write_text('# untracked developer configuration')
         with self.assertRaises(Refusal):sdk_build_environment(data,'owned_sdk',self.url,self.tag,self.sha)
 
+    def test_runtime_identity_refuses_maintained_source_versions(self):
+        data=self.metadata();sdk=next(p for p in data['packages'] if p['name']=='owned_sdk')
+        manifest=Path(sdk['manifest_path']);before=manifest.read_text()
+        manifest.write_text(before.replace('[package]','[package]\nversion="0.3.7"'))
+        with self.assertRaises(Refusal):sdk_build_environment(data,'owned_sdk',self.url,self.tag,self.sha)
+        manifest.write_text(before)
+        (manifest.parent/'Cargo.lock').write_text('version=4\n[[package]]\nname="owned_sdk"\nversion="0.3.7"\n')
+        with self.assertRaises(Refusal):sdk_build_environment(data,'owned_sdk',self.url,self.tag,self.sha)
+
     def test_wrong_commit_or_ambiguous_sdk_refuses(self):
         data=self.metadata()
         with self.assertRaises(Refusal):verify_sdk_dependency(data,'owned_sdk',self.url,self.tag,'b'*40)

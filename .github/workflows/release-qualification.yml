@@ -121,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
-          ref: f8e729cbdaa1f2776b482e6d12eccf45457aa305
+          ref: f6b7dc8954ba9f5a284d56568765e05c38483924
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
@@ -129,7 +129,7 @@ jobs:
           targets: ${{ matrix.target }}
           components: rustfmt,clippy
       - name: Verify exact source snapshot
-        run: test "$(git rev-parse HEAD)" = f8e729cbdaa1f2776b482e6d12eccf45457aa305
+        run: test "$(git rev-parse HEAD)" = f6b7dc8954ba9f5a284d56568765e05c38483924
       - name: Host formatting, tests and warnings
         if: matrix.target == 'x86_64-unknown-linux-gnu' && matrix.toolchain == '1.98.1'
         run: |

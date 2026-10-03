@@ -103,3 +103,22 @@ version, bump algorithm or release coordinator is introduced. Development
 identity is explicitly non-release; real SDK runtime/API integration remains
 coordinated with the source/consumer owner. Cargo's implicit package default is
 not evidence of the SDK release version.
+
+Exact-source CI now advances to owner logical-navigation implementation
+f6b7dc8954ba9f5a284d56568765e05c38483924. This is a new source revision, so the
+host/minimum/cross matrix must verify it separately rather than reusing older
+f8e729c compiler evidence. Its SyntheticVerified/SyntheticUnchanged outcomes and
+default Unsupported native methods remain synthetic; compilation will not create
+native PageObservation, gesture/completion or device authority.
+
+Existing-tag recovery needs artifact-byte identity, not publisher asset-name
+matching alone. A build/identity-only verifier consumes an independently generated
+expected manifest and files already downloaded by maintained upstream tooling.
+It validates exact tag/SHA/version identity and declared file names/sizes/hashes,
+refuses symlinks/unknown or malformed assets, and can verify a partial draft's
+retained subset without claiming completeness. Final completeness requires every
+declared distribution plus matching manifest. It neither downloads nor calls
+release APIs, coordinates retries, computes versions, tags nor publishes.
+Production composition/concurrency must separately ensure the verified remote
+assets stay unchanged before upstream finalization; this local check is not
+remote immutability or production acceptance.
