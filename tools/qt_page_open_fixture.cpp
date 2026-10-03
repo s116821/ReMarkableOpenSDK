@@ -163,6 +163,7 @@ Window { visible: true; width: 400; height: 400
             else { scene->setVisible(false); scene->setVisible(true); scene->forceActiveFocus(); }
             return;
         }
+        if (mode.startsWith("getter-target-")) return;
         // The two six-page observe passes exercise sixteen native owner reads;
         // the seventeenth is the final bridge claim's getter-bearing admission.
         if (!activeSession || activeSession->attempted()) return;
