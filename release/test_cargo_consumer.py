@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-from stage_source import verify_sdk_dependency,Refusal
+from stage_source import verify_sdk_dependency,sdk_build_environment,Refusal
 
 class CargoConsumerIdentity(unittest.TestCase):
     def setUp(self):
@@ -17,7 +17,8 @@ class CargoConsumerIdentity(unittest.TestCase):
                   'GIT_AUTHOR_EMAIL':'fixture@example.invalid','GIT_COMMITTER_EMAIL':'fixture@example.invalid'}
         self.sdk=self.root/'sdk';self.sdk.mkdir();(self.sdk/'src').mkdir()
         (self.sdk/'Cargo.toml').write_text('[package]\nname="owned_sdk"\nedition="2024"\n')
-        (self.sdk/'src/lib.rs').write_text('pub fn answer() -> u8 {5}\n')
+        (self.sdk/'src/lib.rs').write_text('pub fn answer() -> u8 {5}\npub fn package_version() -> &\'static str {env!("CARGO_PKG_VERSION")}\npub fn build_version() -> &\'static str {env!("SDK_BUILD_VERSION")}\n')
+        (self.sdk/'build.rs').write_text('fn main() {println!("cargo:rerun-if-env-changed=SDK_BUILD_VERSION"); println!("cargo:rustc-env=SDK_BUILD_VERSION={}", std::env::var("SDK_BUILD_VERSION").unwrap_or_else(|_| "development".into()));}\n')
         self.git('init','--initial-branch=main');self.git('add','.');self.git('commit','-m','feat: owned SDK fixture')
         self.sha=self.git('rev-parse','HEAD');self.tag='v0.3.7';self.git('tag',self.tag);self.url=self.sdk.as_uri()
         self.consumer=self.root/'consumer';(self.consumer/'src').mkdir(parents=True)
@@ -46,8 +47,30 @@ class CargoConsumerIdentity(unittest.TestCase):
         self.run_cargo('generate-lockfile','--offline')
         self.assertEqual(self.run_cargo('run','--quiet','--locked','--offline').strip(),'6')
         with self.assertRaises(Refusal):self.verify(self.metadata())
+        with self.assertRaises(Refusal):sdk_build_environment(self.metadata(),'owned_sdk',self.url,self.tag,self.sha)
         config.unlink();self.run_cargo('generate-lockfile','--offline')
         self.verify(self.metadata());self.assertEqual(self.run_cargo('run','--quiet','--locked','--offline').strip(),'5')
+
+    def test_tag_pin_requires_separate_build_time_runtime_identity(self):
+        data=self.metadata()
+        sdk=next(p for p in data['packages'] if p['name']=='owned_sdk')
+        self.assertEqual(sdk['version'],'0.0.0','Cargo does not infer package version from tag')
+        (self.consumer/'src/main.rs').write_text('fn main() {println!("{} {}",owned_sdk::package_version(),owned_sdk::build_version());}\n')
+        self.assertEqual(self.run_cargo('run','--quiet','--locked','--offline').strip(),'0.0.0 development')
+        build_env=sdk_build_environment(data,'owned_sdk',self.url,self.tag,self.sha)
+        self.assertEqual(build_env,{'SDK_BUILD_TAG':self.tag,'SDK_BUILD_SHA':self.sha,'SDK_BUILD_VERSION':'0.3.7'})
+        self.env.update(build_env)
+        self.assertEqual(self.run_cargo('run','--quiet','--locked','--offline').strip(),'0.0.0 0.3.7')
+        self.env.pop('SDK_BUILD_VERSION')
+        self.assertEqual(self.run_cargo('run','--quiet','--locked','--offline').strip(),'0.0.0 development','Cargo must invalidate build identity cache')
+        cached=Path(sdk['manifest_path'])
+        before=cached.read_text()
+        with cached.open('a') as f:f.write('\n# changed cached source\n')
+        with self.assertRaises(Refusal):sdk_build_environment(data,'owned_sdk',self.url,self.tag,self.sha)
+        cached.write_text(before)
+        config_dir=cached.parent/'.cargo';config_dir.mkdir()
+        (config_dir/'config.toml').write_text('# untracked developer configuration')
+        with self.assertRaises(Refusal):sdk_build_environment(data,'owned_sdk',self.url,self.tag,self.sha)
 
     def test_wrong_commit_or_ambiguous_sdk_refuses(self):
         data=self.metadata()

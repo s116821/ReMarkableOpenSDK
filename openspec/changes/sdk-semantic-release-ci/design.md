@@ -92,3 +92,14 @@ The declared Rust minimum is independently checked with Rust 1.88.0 host tests
 and a library build; maintained-toolchain host linting and all three architecture
 builds use Rust 1.98.1. Passing one compiler is not substituted for proof of the
 declared minimum. Neither lane creates official versions or distributable assets.
+
+Git-tag dependencies with no source package version do not automatically inherit
+the tag as CARGO_PKG_VERSION. Qualify that gap with actual Cargo, then pass
+validated tag/SHA-derived build environment to the SDK's ordinary Cargo build
+script for artifact/runtime metadata. The build helper must reject source own
+version fields, wrong or dirty cached checkout identity and local overrides.
+SDK build scripts use standard Cargo rustc-env/rerun-if-env-changed; no maintained
+version, bump algorithm or release coordinator is introduced. Development
+identity is explicitly non-release; real SDK runtime/API integration remains
+coordinated with the source/consumer owner. Cargo's implicit package default is
+not evidence of the SDK release version.

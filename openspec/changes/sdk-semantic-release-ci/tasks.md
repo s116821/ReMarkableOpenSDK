@@ -15,6 +15,7 @@
 - [x] Establish read-only actual experimental Rust source host/ARMv7/AArch64 checks at exact owner snapshot and verify declared minimum Rust 1.88.0 in hosted CI (25f75caa/run 37114101928).
 - [ ] Establish integrated shipping SDK CI and provenance/compatibility packaging after source/license/API acceptance.
 - [x] Verify actual Cargo tag/locked-commit identity and reversible local overrides in owned consumer fixtures.
+- [x] Reproduce missing tag-to-package-version inference and qualify separate build-time runtime identity/cache invalidation in actual Cargo fixtures.
 - [ ] Integrate and verify the real SDK dependency/distribution contract with consumer owner.
 - [ ] Resolve first SDK version, license/API/dependency and real distribution gates before publication.
 - [ ] Obtain independent review and required hosted CI; sync/archive only completed delivery.

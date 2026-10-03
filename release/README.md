@@ -67,7 +67,7 @@ root with these environment inputs (the hosted packaging job installs them):
 - `SDK_FIXTURE_CARGO`: Rust 1.98.1 Cargo with host, ARMv7 GNU and AArch64 GNU
   standard libraries installed.
 
-The 24 Python tests cover upstream alternative calculation, non-forced tag
+The 25 Python tests cover upstream alternative calculation, non-forced tag
 races, exact-tag build staging, actual synthetic compiler/source-crate builds,
 packaged source/manifest/lock verification, Cargo Git tag/commit pinning and
 reversible local patches. The 37 JavaScript tests include the actual upstream
@@ -101,3 +101,17 @@ publish artifacts or integrate source into main. A separate host lane tests
 the declared minimum Rust 1.88.0; cross-target checks use Rust 1.98.1. The prototype's existing own version placeholder must be removed by its
 owner before strict tag-derived official staging can accept that source.
 Research snapshot builds do not run on main merges, including docs-only merges.
+
+
+The Git consumer fixture also verifies a concrete version gap: omitting the SDK
+source package version does not make Cargo infer it from the Git tag. Its
+implicit package metadata remains a default, so runtime/artifact identity must
+be supplied at build time after verifying pinned source. `sdk_build_environment`
+checks root single-package cached source HEAD/cleanliness, own-version absence
+and Cargo-reported Git identity, then returns exact tag-derived build variables.
+Only Cargo's observed empty cache-completion marker is tolerated; developer
+configuration/source drift is refused. An ordinary Cargo build script embeds
+the fixture's version and uses rerun-if-env-changed; actual execution proves
+both official identity and cache invalidation back to development. This is
+build identity preparation, not a implemented SDK/Buddy runtime API.
+[Cargo build-script guidance](https://doc.rust-lang.org/cargo/reference/build-scripts.html).

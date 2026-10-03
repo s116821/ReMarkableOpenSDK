@@ -112,3 +112,34 @@ def distribution_manifest(destination, artifact):
                               'sha256':hashlib.sha256(artifact.read_bytes()).hexdigest(),'size':artifact.stat().st_size}],
             'compatibility':{'rm1':'unqualified','rm2':'unqualified','paper-pro':'unqualified'},
             'native_operations':'unsupported'}
+
+def sdk_build_environment(metadata, package_name, repository_url, tag, source_sha):
+    """Build-time runtime identity for an already pinned Git dependency."""
+    identity=verify_sdk_dependency(metadata,package_name,repository_url,tag,source_sha)
+    if not re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)',tag):
+        raise Refusal('Build identity requires an exact stable SemVer tag')
+    if not re.fullmatch(r'[a-f0-9]{40}',source_sha):raise Refusal('Build identity requires exact source SHA')
+    package=next(p for p in metadata['packages'] if p['name']==package_name)
+    manifest=Path(package['manifest_path'])
+    if manifest.is_symlink():raise Refusal('Consumed package manifest must be a regular source file')
+    parsed=tomllib.loads(manifest.read_text())
+    source_lock=manifest.parent/'Cargo.lock'
+    if source_lock.exists() and any(p.get('name')==package_name and 'version' in p for p in tomllib.loads(source_lock.read_text()).get('package',[])):
+        raise Refusal('Consumed source lock must not maintain the project version')
+    if parsed.get('package',{}).get('name')!=package_name:
+        raise Refusal('Consumed package manifest identity differs')
+    if 'version' in parsed.get('package',{}) or 'version' in parsed.get('workspace',{}).get('package',{}):
+        raise Refusal('Consumed source must not maintain its own project version')
+    try:
+        root=subprocess.check_output(['git','rev-parse','--show-toplevel'],cwd=manifest.parent,stderr=subprocess.PIPE,text=True,timeout=15).strip()
+        if Path(root).resolve()!=manifest.parent.resolve():raise Refusal('Only a root single-package checkout is qualified')
+        actual=subprocess.check_output(['git','rev-parse','HEAD'],cwd=manifest.parent,stderr=subprocess.PIPE,text=True,timeout=15).strip()
+        dirty=subprocess.check_output(['git','status','--porcelain','--untracked-files=all','--ignored'],cwd=manifest.parent,stderr=subprocess.PIPE,text=True,timeout=15).strip()
+    except (OSError,subprocess.SubprocessError):raise Refusal('Consumed source checkout cannot be verified') from None
+    # Cargo 1.98 creates an empty cache-completion marker outside the tagged tree.
+    # It is the only generated cache file accepted; ignored developer config is refused.
+    marker=manifest.parent/'.cargo-ok'
+    if dirty=='?? .cargo-ok' and marker.is_file() and not marker.is_symlink() and marker.stat().st_size==0:
+        dirty=''
+    if actual!=identity['source_sha'] or dirty:raise Refusal('Consumed cached source differs or changed')
+    return {'SDK_BUILD_TAG':tag,'SDK_BUILD_SHA':source_sha,'SDK_BUILD_VERSION':tag[1:]}
