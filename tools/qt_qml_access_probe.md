@@ -425,3 +425,30 @@ saved metadata), Main's accepted all-five guard refinement, and pinned public
 [RM2 size patch](https://github.com/rmitchellscott/xovi-qmd-extensions/blob/67d39e943d8fda30936ad7f51a30f59f0292a9f8/3.28/createPagesRM2Size.qmd#L14-L23).
 This is original experimental glue, not copied proprietary source or a shipping
 capability. Review/native gates and the full OpenSpec delivery remain open.
+
+### Fixed exception-operation diagnostics after the first failed trial
+
+The spent first creation trial reported a pre-call exception with no mutation
+claim; its generic receipt cannot identify the throwing operation. Saved fixture
+hashes remained unchanged. That negative result does not qualify an enum's QML
+registration URI or justify adding an import or guessed enum value.
+
+The helper now owns a local fixed-string operation marker, initialized before
+try and assigned immediately before each potentially throwing expression.
+Document/Exporting enum accesses, native ID read/String conversion and forward/
+reverse page lookups are separate markers. There are no per-step bridge calls.
+Only catch passes the marker to the thread-guarded observeException slot. C++
+maps seventeen explicit allowed strings to static literals; all other inputs
+become exception-stage-unknown. The private exception_operation field is null
+unless an exception was observed. guard_stage keeps its refusal/accepted meaning.
+No raw exception, ID, page key, template, native value or path is retained.
+The native-call marker is set after successful mutation claim and before native
+entry; post-claim exceptions still require effect reconciliation without replay.
+Imports, getters, call arguments, cancellation and budgets remain unchanged.
+The QML module owning Entry is still unqualified: the fixture registration under
+xofm.libs.library is synthetic, not target evidence. New fixtures genuinely omit
+Entry or Library registration and verify actual unknown-identifier exceptions,
+throwing native-like ID conversion/property and page-index getters, and unknown
+marker privacy. Existing native-throw verifies operation=native-call with one
+sticky attempted call; existing refusal/completion/cancel cases retain their
+previous meanings.

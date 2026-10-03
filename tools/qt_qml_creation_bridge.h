@@ -13,7 +13,8 @@ public:
     std::function<bool(bool)> check;
     std::function<void(const QString &)> refusal;
     std::function<void(bool, bool)> returned;
-    std::function<void()> exception, callback;
+    std::function<void(const QString &)> exception;
+    std::function<void()> callback;
     void disarm() { armed_ = false; }
 public slots:
     bool callbackAllowed() const { return allowed(); }
@@ -21,7 +22,7 @@ public slots:
     bool claimMutation() { return allowed() && check && check(true); }
     void refuse(const QString &stage) { if (allowed() && refusal) refusal(stage); }
     void observeReturn(bool known, bool value) { if (allowed() && returned) returned(known, value); }
-    void observeException() { if (allowed() && exception) exception(); }
+    void observeException(const QString &operation) { if (allowed() && exception) exception(operation); }
     void observeCallback() { if (allowed() && callback) callback(); }
 private:
     bool allowed() const { return QThread::currentThread() == guiThread_ && armed_; }

@@ -68,30 +68,45 @@ QtObject {
     function createOnce() {
         if (entered) return;
         entered = true;
+        let operation = "preflight-check";
         try {
             if (!armed || !bridge || !bridge.preflightAllowed()) return;
-            const docEnum = Entry.Document, exportingEnum = Entry.Exporting;
+            operation = "enum-document";
+            const docEnum = Entry.Document;
+            operation = "enum-exporting";
+            const exportingEnum = Entry.Exporting;
             if (typeof docEnum !== "number" || typeof exportingEnum !== "number")
                 return bridge.refuse("enum-unavailable");
             const expectedDocument = )QML") + document + R"QML([0];
             const expectedPages = )QML" + pages + R"QML(;
+            operation = "library-lookup";
             const d = Library.entryForId(expectedDocument);
             if (!d) return bridge.refuse("missing-document");
+            operation = "document-id-read";
             const nativeId = d.id;
+            operation = "document-id-string";
             if (nativeId === undefined || nativeId === null || String(nativeId) !== expectedDocument)
                 return bridge.refuse("identity-mismatch");
+            operation = "document-type-read";
             if (d.type !== docEnum) return bridge.refuse("not-document");
+            operation = "document-status-read";
             const status = d.status;
             if (typeof status !== "number" || status === exportingEnum)
                 return bridge.refuse("status-refusal");
+            operation = "document-count-read";
             if (d.pageCount !== 5) return bridge.refuse("count-mismatch");
             for (let i = 0; i < 5; ++i) {
+                operation = "page-id-read";
                 const key = d.idForPage(i);
-                if (typeof key !== "string" || key !== expectedPages[i] || d.pageForId(key) !== i)
+                if (typeof key !== "string" || key !== expectedPages[i])
                     return bridge.refuse("page-map-mismatch");
+                operation = "page-index-read";
+                if (d.pageForId(key) !== i) return bridge.refuse("page-map-mismatch");
             }
+            operation = "template-read";
             const template = d.templateForPage(0);
             if (typeof template !== "string") return bridge.refuse("template-unavailable");
+            operation = "paper-size";
             const paper = Qt.size(1404,1872);
             const self = ownedHelper;
             const callback = function() {
@@ -100,30 +115,42 @@ QtObject {
                 if (self.callbackCount > 1) self.callbackDuplicate = true;
                 self.bridge.observeCallback();
             };
+            operation = "method-read";
             if (typeof observedController.addPageWithTemplateAndPageSize !== "function")
                 return bridge.refuse("method-unavailable");
+            operation = "mutation-claim";
             if (!armed || !bridge || !bridge.claimMutation()) return;
+            operation = "native-call";
             const result = observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback);
+            operation = "return-observe";
             if (armed && bridge) bridge.observeReturn(typeof result === "boolean",result === true);
         } catch(e) {
-            if (armed && bridge) bridge.observeException();
+            if (armed && bridge) bridge.observeException(operation);
         }
     }
 }
 )QML";
 }
+inline const char *creationExceptionOperation(const QString &operation) {
+    static constexpr std::array<const char *, 17> allowed{{"preflight-check", "enum-document", "enum-exporting",
+        "library-lookup", "document-id-read", "document-id-string", "document-type-read", "document-status-read",
+        "document-count-read", "page-id-read", "page-index-read", "template-read", "paper-size", "method-read",
+        "mutation-claim", "native-call", "return-observe"}};
+    for (const char *fixed : allowed) if (operation == QString::fromLatin1(fixed)) return fixed;
+    return "exception-stage-unknown";
+}
 struct CreationObservation {
     bool enabled = false, attempted = false, returned = false, returnedBoolKnown = false, returnedBool = false;
     bool exception = false, duplicateCallback = false;
     int callbackCount = 0;
-    const char *phase = "not-started", *guard = "not-checked";
+    const char *phase = "not-started", *guard = "not-checked", *exceptionOperation = nullptr;
     qint64 attemptedAtMs = -1, returnedAtMs = -1, firstCallbackAtMs = -1;
 };
 inline QJsonObject creationJson(const CreationObservation &c) {
     const auto stamp = [](qint64 n) { return n < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(n); };
     return {{"enabled", c.enabled}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
         {"returned_bool_known", c.returnedBoolKnown}, {"returned_bool", c.returnedBool},
-        {"exception", c.exception}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
+        {"exception", c.exception}, {"exception_operation", c.exceptionOperation ? QJsonValue(c.exceptionOperation) : QJsonValue(QJsonValue::Null)}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
         {"phase", c.phase}, {"guard_stage", c.guard}, {"attempted_at_ms", stamp(c.attemptedAtMs)},
         {"returned_at_ms", stamp(c.returnedAtMs)}, {"first_callback_at_ms", stamp(c.firstCallbackAtMs)},
         {"durable_success", false}, {"effect_requires_reconciliation", c.attempted}};
@@ -904,10 +931,11 @@ private:
                 trial.returned = true; trial.returnedBoolKnown = known; trial.returnedBool = known && value;
                 trial.returnedAtMs = self->elapsed_.elapsed();
             };
-            bridge->exception = [self] {
+            bridge->exception = [self](const QString &operation) {
                 if (!self) return;
                 auto &trial = self->rootSummary_.creation;
                 trial.exception = true;
+                trial.exceptionOperation = creationExceptionOperation(operation);
                 trial.phase = trial.attempted ? "effect-uncertain" : "pre-call-exception";
                 self->finish("creation-exception");
             };

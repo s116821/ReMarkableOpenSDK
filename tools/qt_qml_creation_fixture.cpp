@@ -32,7 +32,7 @@ public slots:
         auto *worker = QThread::create([bridge] {
             assert(!bridge->callbackAllowed() && !bridge->preflightAllowed() && !bridge->claimMutation());
             bridge->observeCallback(); bridge->observeReturn(true, true);
-            bridge->observeException(); bridge->refuse(QStringLiteral("identity-mismatch"));
+            bridge->observeException(QStringLiteral("native-call")); bridge->refuse(QStringLiteral("identity-mismatch"));
         });
         worker->start(); assert(worker->wait(1000)); delete worker;
     }
@@ -47,6 +47,15 @@ int main(int argc, char **argv) {
     assert(argc == 2);
     const QString mode = QString::fromLatin1(argv[1]);
     QGuiApplication app(argc, argv);
+    if (mode == "marker-privacy") {
+        qml_access::CreationObservation trial;
+        trial.enabled = true; trial.exception = true;
+        trial.exceptionOperation = qml_access::creationExceptionOperation(QStringLiteral("private attacker marker /home/name/template"));
+        const auto bytes = QJsonDocument(qml_access::creationJson(trial)).toJson(QJsonDocument::Compact);
+        assert(bytes.contains("exception-stage-unknown") && !bytes.contains("private") && !bytes.contains("/home/") && !bytes.contains("template"));
+        puts("creation-marker-privacy: unknown exception marker maps to fixed literal, no raw input retained");
+        return 0;
+    }
     QTemporaryDir dir;
     assert(dir.isValid());
     auto write = [&](const char *name, const QByteArray &source) {
@@ -64,7 +73,7 @@ int main(int argc, char **argv) {
 import QtQml
 QtObject {
     property QtObject doc: QtObject {
-        property var id: ({ toString: function() { return fixtureMode === "identity" ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
+        property var id: ({ toString: function() { if (fixtureMode === "id-string-throw") throw new Error("private id string details"); return fixtureMode === "identity" ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
         property var pageCount: fixtureMode === "count" ? 6 : 5
@@ -76,7 +85,7 @@ QtObject {
             if (fixtureMode === "reorder" && i === 2) return ids[3];
             return ids[i];
         }
-        function pageForId(key) { if (fixtureMode === "roundtrip") return 4; return ids.indexOf(key); }
+        function pageForId(key) { if (fixtureMode === "index-getter-throw") throw new Error("private reverse getter details"); if (fixtureMode === "roundtrip") return 4; return ids.indexOf(key); }
         function templateForPage(i) {
             if (i !== 0) throw new Error("wrong template page");
             if (fixtureMode === "preclaim-cancel") fixtureHooks.cancel();
@@ -87,6 +96,20 @@ QtObject {
     function entryForId(key) {
         if (fixtureMode === "lookup-throw") throw new Error("private lookup details");
         if (key !== "00000000-0000-4000-8000-000000000001") throw new Error("wrong lookup");
+        if (fixtureMode.endsWith("read-throw")) {
+            const source = doc;
+            const proxy = { idForPage: function(i) { return source.idForPage(i); },
+                pageForId: function(key) { return source.pageForId(key); },
+                templateForPage: function(i) { return source.templateForPage(i); } };
+            const target = fixtureMode === "id-read-throw" ? "id" : fixtureMode === "type-read-throw" ? "type" :
+                fixtureMode === "status-read-throw" ? "status" : "pageCount";
+            for (const key of ["id", "type", "status", "pageCount"])
+                Object.defineProperty(proxy, key, { get: function() {
+                    if (key === target) throw new Error("private property getter details");
+                    return source[key];
+                } });
+            return proxy;
+        }
         return fixtureMode === "missing" ? null : doc;
     }
 })QML");
@@ -118,9 +141,10 @@ QtObject {
     }
 })QML");
     QObject unavailableEnum;
-    if (mode == "enum") qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "Entry", &unavailableEnum);
+    if (mode == "entry-absent") {}
+    else if (mode == "enum") qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "Entry", &unavailableEnum);
     else qmlRegisterUncreatableType<FixtureEntry>("xofm.libs.library", 1, 0, "Entry", "fixture enum only");
-    qmlRegisterSingletonType(libraryUrl, "xofm.libs.library", 1, 0, "Library");
+    if (mode != "library-absent") qmlRegisterSingletonType(libraryUrl, "xofm.libs.library", 1, 0, "Library");
     const auto missingMethodUrl = write("MissingController.qml", R"QML(pragma Singleton
 import QtQml
 QtObject { property int calls: 0; property var retainedCallback: null })QML");
@@ -142,7 +166,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         int claims = 0, callbacks = 0, returns = 0;
         bridge.check = [&](bool claim) { if (claim) return ++claims == 1; return true; };
         bridge.refusal = [](const QString &) { assert(false && "unexpected repeat guard refusal"); };
-        bridge.exception = [] { assert(false && "unexpected repeat exception"); };
+        bridge.exception = [](const QString &) { assert(false && "unexpected repeat exception"); };
         bridge.returned = [&](bool known, bool value) { assert(known && value); ++returns; };
         bridge.callback = [&] { ++callbacks; };
         assert(helper->setProperty("bridge", QVariant::fromValue<QObject *>(&bridge)));
@@ -194,7 +218,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     const bool preCall = mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
-        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing";
+        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw");
     assert(trial.value("mutation_attempted").toBool() == !preCall);
     assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
     assert(!trial.value("durable_success").toBool());
@@ -211,7 +235,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel") {
         assert(terminal == "creation-cancelled" && trial.value("callback_count").toInt() == 0);
     } else if (preCall) {
-        assert(terminal == (mode.endsWith("throw") ? "creation-exception" : mode == "bad-config" ? "creation-config" : "creation-refused"));
+        assert(terminal == (mode.endsWith("throw") || mode == "entry-absent" || mode == "library-absent" ? "creation-exception" : mode == "bad-config" ? "creation-config" : "creation-refused"));
     } else {
         assert(terminal == "resolved" && trial.value("phase").toString() == "call-observed");
         assert(trial.value("returned").toBool());
@@ -221,6 +245,14 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         if (mode == "unknown-return") assert(!trial.value("returned_bool_known").toBool());
         if (mode == "sync" || mode == "duplicate") assert(trial.value("first_callback_at_ms").toInteger() <= trial.value("returned_at_ms").toInteger());
     }
+    if (trial.value("exception").toBool()) {
+        const QString expected = mode == "entry-absent" ? "enum-document" : mode == "library-absent" || mode == "lookup-throw" ? "library-lookup" :
+            mode == "id-read-throw" ? "document-id-read" : mode == "id-string-throw" ? "document-id-string" :
+            mode == "type-read-throw" ? "document-type-read" : mode == "status-read-throw" ? "document-status-read" :
+            mode == "count-read-throw" ? "document-count-read" : mode == "getter-throw" ? "page-id-read" :
+            mode == "index-getter-throw" ? "page-index-read" : mode == "template-throw" ? "template-read" : "native-call";
+        assert(trial.value("exception_operation").toString() == expected);
+    } else assert(trial.value("exception_operation").isNull());
     printf("creation-%s: stage=%s calls=%d callback=%d, guarded one-call and late cleanup passed\n", argv[1], qPrintable(terminal), controller->property("calls").toInt(), trial.value("callback_count").toInt());
 }
 #include "qt_qml_creation_fixture.moc"
