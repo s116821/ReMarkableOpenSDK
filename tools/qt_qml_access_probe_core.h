@@ -1,4 +1,4 @@
-/* Development experiment: no controller methods or page operations.
+/* Development experiment: metadata mode or explicitly configured one-call trial.
  * QML singleton resolution may invoke registration and change engine ownership.
  * Supported GUI lifecycle is assumed; weak guards do not pin native lifetimes. */
 #pragma once
@@ -21,6 +21,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QThread>
+#include "qt_qml_creation_bridge.h"
 #include <functional>
 #include <array>
 #include <cstring>
@@ -30,6 +31,101 @@ inline constexpr char helper[] =
     "import QtQml\nimport xofm.libs.library\n"
     "QtObject { property QtObject observedController: DocumentController; "
     "readonly property bool controllerAvailable: observedController !== null }";
+
+
+struct CreationConfig {
+    QString documentId;
+    QStringList pageIds;
+    bool enabled = false;
+    bool valid() const {
+        static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
+        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != 5) return false;
+        for (int i = 0; i < 5; ++i) {
+            if (!uuid.match(pageIds[i]).hasMatch()) return false;
+            for (int j = 0; j < i; ++j) if (pageIds[i] == pageIds[j]) return false;
+        }
+        return true;
+    }
+};
+inline QByteArray creationHelper(const CreationConfig &config) {
+    QJsonArray ids;
+    for (const auto &id : config.pageIds) ids.append(id);
+    const QByteArray document = QJsonDocument(QJsonArray{config.documentId}).toJson(QJsonDocument::Compact);
+    const QByteArray pages = QJsonDocument(ids).toJson(QJsonDocument::Compact);
+    return QByteArray(R"QML(import QtQml
+import xofm.libs.library
+QtObject {
+    id: ownedHelper
+    property QtObject observedController: DocumentController
+    readonly property bool controllerAvailable: observedController !== null
+    property QtObject bridge: null
+    property bool armed: true
+    property bool entered: false
+    property int callbackCount: 0
+    property bool callbackDuplicate: false
+    function createOnce() {
+        if (entered) return;
+        entered = true;
+        try {
+            if (!armed || !bridge || !bridge.preflightAllowed()) return;
+            const docEnum = Entry.Document, exportingEnum = Entry.Exporting;
+            if (typeof docEnum !== "number" || typeof exportingEnum !== "number")
+                return bridge.refuse("enum-unavailable");
+            const expectedDocument = )QML") + document + R"QML([0];
+            const expectedPages = )QML" + pages + R"QML(;
+            const d = Library.entryForId(expectedDocument);
+            if (!d) return bridge.refuse("missing-document");
+            const nativeId = d.id;
+            if (nativeId === undefined || nativeId === null || String(nativeId) !== expectedDocument)
+                return bridge.refuse("identity-mismatch");
+            if (d.type !== docEnum) return bridge.refuse("not-document");
+            const status = d.status;
+            if (typeof status !== "number" || status === exportingEnum)
+                return bridge.refuse("status-refusal");
+            if (d.pageCount !== 5) return bridge.refuse("count-mismatch");
+            for (let i = 0; i < 5; ++i) {
+                const key = d.idForPage(i);
+                if (typeof key !== "string" || key !== expectedPages[i] || d.pageForId(key) !== i)
+                    return bridge.refuse("page-map-mismatch");
+            }
+            const template = d.templateForPage(0);
+            if (typeof template !== "string") return bridge.refuse("template-unavailable");
+            const paper = Qt.size(1404,1872);
+            const self = ownedHelper;
+            const callback = function() {
+                if (!self || !self.armed || !self.bridge || !self.bridge.callbackAllowed()) return;
+                if (self.callbackCount < 2) self.callbackCount += 1;
+                if (self.callbackCount > 1) self.callbackDuplicate = true;
+                self.bridge.observeCallback();
+            };
+            if (typeof observedController.addPageWithTemplateAndPageSize !== "function")
+                return bridge.refuse("method-unavailable");
+            if (!armed || !bridge || !bridge.claimMutation()) return;
+            const result = observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback);
+            if (armed && bridge) bridge.observeReturn(typeof result === "boolean",result === true);
+        } catch(e) {
+            if (armed && bridge) bridge.observeException();
+        }
+    }
+}
+)QML";
+}
+struct CreationObservation {
+    bool enabled = false, attempted = false, returned = false, returnedBoolKnown = false, returnedBool = false;
+    bool exception = false, duplicateCallback = false;
+    int callbackCount = 0;
+    const char *phase = "not-started", *guard = "not-checked";
+    qint64 attemptedAtMs = -1, returnedAtMs = -1, firstCallbackAtMs = -1;
+};
+inline QJsonObject creationJson(const CreationObservation &c) {
+    const auto stamp = [](qint64 n) { return n < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(n); };
+    return {{"enabled", c.enabled}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
+        {"returned_bool_known", c.returnedBoolKnown}, {"returned_bool", c.returnedBool},
+        {"exception", c.exception}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
+        {"phase", c.phase}, {"guard_stage", c.guard}, {"attempted_at_ms", stamp(c.attemptedAtMs)},
+        {"returned_at_ms", stamp(c.returnedAtMs)}, {"first_callback_at_ms", stamp(c.firstCallbackAtMs)},
+        {"durable_success", false}, {"effect_requires_reconciliation", c.attempted}};
+}
 
 // English vendor-Qt diagnostics are hints, not a general parser or root cause.
 // Qt owns/materializes the error list; these limits bound our inspection only.
@@ -408,6 +504,7 @@ struct RootSummary {
     qint64 componentReadyAtMs = -1;
     qint64 lastSetDataBeginMs = -1, lastSetDataReturnMs = -1;
     MetadataSummary metadata;
+    CreationObservation creation;
 };
 
 inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, int compiles,
@@ -444,6 +541,7 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
     timestamp("last_setData_begin_ms", root.lastSetDataBeginMs);
     timestamp("last_setData_return_ms", root.lastSetDataReturnMs);
     summary.insert(QStringLiteral("metadata"), metadataJson(root.metadata));
+    if (root.creation.enabled) summary.insert(QStringLiteral("creation_trial"), creationJson(root.creation));
     QByteArray bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
     if (bytes.size() > 8192) {
         summary.insert(QStringLiteral("errors"), QJsonArray{});
@@ -458,8 +556,9 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
 class Probe final : public QObject {
 public:
     using Receipt = std::function<void(const char *, bool, bool, bool, bool, const QByteArray &)>;
-    Probe(QGuiApplication *app, Receipt receipt, int readinessMs = 20000, int accessMs = 5000)
-        : QObject(app), app_(app), receipt_(std::move(receipt)) {
+    Probe(QGuiApplication *app, Receipt receipt, int readinessMs = 20000, int accessMs = 5000, CreationConfig creation = {})
+        : QObject(app), app_(app), receipt_(std::move(receipt)), creationConfig_(std::move(creation)) {
+        rootSummary_.creation.enabled = creationConfig_.enabled;
         rootSummary_.readinessBudgetMs = readinessMs;
         rootSummary_.accessBudgetMs = accessMs;
         timer_.setSingleShot(true);
@@ -472,6 +571,7 @@ public:
         queueAttempt();
     }
     ~Probe() override {
+        if (bridge_) bridge_->disarm();
         if (app_) app_->removeEventFilter(this);
         delete owned_.data();
     }
@@ -656,7 +756,7 @@ private:
         rootSummary_.lastSetDataBeginMs = elapsed_.elapsed();
         if (rootSummary_.firstSetDataBeginMs < 0) rootSummary_.firstSetDataBeginMs = rootSummary_.lastSetDataBeginMs;
         ++compileAttempts_;
-        component_->setData(helper, QUrl());
+        component_->setData(creationConfig_.enabled ? creationHelper(creationConfig_) : QByteArray(helper), QUrl());
         rootSummary_.lastSetDataReturnMs = elapsed_.elapsed();
         if (rootSummary_.firstSetDataReturnMs < 0) rootSummary_.firstSetDataReturnMs = rootSummary_.lastSetDataReturnMs;
         inCall_ = false;
@@ -671,7 +771,8 @@ private:
         if (component_->status() != QQmlComponent::Ready) {
             if (rootSummary_.firstErrorHandledMs < 0) rootSummary_.firstErrorHandledMs = elapsed_.elapsed();
             const auto errors = component_->errors();
-            diagnostic_ = diagnosticSnapshot(errors, attempts_);
+            // Creation source embeds private IDs: never retain compiler text.
+            diagnostic_ = diagnosticSnapshot(creationConfig_.enabled ? QList<QQmlError>{} : errors, attempts_);
             const char *stage = errorStage(errors);
             if (QByteArrayView(stage) == QByteArrayView("missing-library")) {
                 // This failed component owns no helper. Remove it before any
@@ -733,6 +834,7 @@ private:
             finish("metadata-controller-type"); return;
         }
         observedController_ = *static_cast<QObject *const *>(controllerValue.constData());
+        if (creationConfig_.enabled) { queueCreation(); return; }
         const QPointer<QQmlEngine> producer = engine_;
         const unsigned epoch = eventEpoch_;
         QMetaObject::invokeMethod(this, [this, producer, epoch] {
@@ -748,8 +850,111 @@ private:
             finish(QByteArrayView(result) == QByteArrayView("metadata-observed") ? "resolved" : result);
         }, Qt::QueuedConnection);
     }
+
+    bool creationContext(bool claim) {
+        auto &trial = rootSummary_.creation;
+        if (done_ || cancelPending_ || pendingStage_ || !bridge_ || !creationConfig_.valid()) {
+            if (!done_ && !pendingStage_) finish("creation-context");
+            return false;
+        }
+        if (!engineContext() || expired()) return false;
+        if (!owned_ || !observedController_) { finish("creation-object-lost"); return false; }
+        if (owned_->thread() != app_->thread() || observedController_->thread() != app_->thread() ||
+            qmlEngine(owned_) != engine_) { finish("creation-affinity"); return false; }
+        QPointer<QQmlEngine> fresh;
+        if (!windowEngine(fresh)) return false;
+        if (!fresh || fresh != engine_) { finish("engine-changed"); return false; }
+        if (done_ || cancelPending_ || pendingStage_ || expired() || !owned_ || !observedController_) return false;
+        if (claim) {
+            if (trial.attempted) return false;
+            trial.attempted = true;
+            trial.attemptedAtMs = elapsed_.elapsed();
+            trial.phase = "effect-uncertain";
+            trial.guard = "accepted";
+        }
+        return true;
+    }
+    void queueCreation() {
+        const QPointer<Probe> self(this);
+        const QPointer<QQmlEngine> producer = engine_;
+        const unsigned epoch = eventEpoch_;
+        QMetaObject::invokeMethod(this, [self, producer, epoch] {
+            if (!self || self->done_ || epoch != self->eventEpoch_) return;
+            if (!producer || producer != self->engine_) { self->finish("engine-lost"); return; }
+            if (!self->creationConfig_.valid()) { self->finish("creation-config"); return; }
+            self->bridge_ = new CreationBridge(self);
+            auto *bridge = self->bridge_;
+            bridge->check = [self](bool claim) { return self && self->creationContext(claim); };
+            bridge->refusal = [self](const QString &stage) {
+                if (!self || self->rootSummary_.creation.attempted) return;
+                // Only allow fixed stages, never arbitrary native/user text.
+                static const std::array<const char *, 9> allowed{{"enum-unavailable", "missing-document", "identity-mismatch",
+                    "not-document", "status-refusal", "count-mismatch", "page-map-mismatch", "template-unavailable", "method-unavailable"}};
+                const char *fixed = "guard-refusal";
+                for (const char *s : allowed) if (stage == QString::fromLatin1(s)) fixed = s;
+                self->rootSummary_.creation.guard = fixed;
+                self->rootSummary_.creation.phase = "pre-call-refusal";
+                self->finish("creation-refused");
+            };
+            bridge->returned = [self](bool known, bool value) {
+                if (!self || !self->rootSummary_.creation.attempted) return;
+                auto &trial = self->rootSummary_.creation;
+                trial.returned = true; trial.returnedBoolKnown = known; trial.returnedBool = known && value;
+                trial.returnedAtMs = self->elapsed_.elapsed();
+            };
+            bridge->exception = [self] {
+                if (!self) return;
+                auto &trial = self->rootSummary_.creation;
+                trial.exception = true;
+                trial.phase = trial.attempted ? "effect-uncertain" : "pre-call-exception";
+                self->finish("creation-exception");
+            };
+            bridge->callback = [self] {
+                if (!self || !self->rootSummary_.creation.attempted) return;
+                auto &trial = self->rootSummary_.creation;
+                if (trial.callbackCount < 2) ++trial.callbackCount;
+                trial.duplicateCallback = trial.callbackCount > 1;
+                if (trial.firstCallbackAtMs < 0) trial.firstCallbackAtMs = self->elapsed_.elapsed();
+                // Terminal processing is queued: never tear down on native stack.
+                if (!self->creationCompletionQueued_) {
+                    self->creationCompletionQueued_ = true;
+                    if (!QMetaObject::invokeMethod(self, [self] {
+                        if (!self || self->done_) return;
+                        self->creationCompletionQueued_ = false;
+                        self->completeCreation();
+                    }, Qt::QueuedConnection)) self->creationCompletionQueued_ = false;
+                }
+            };
+            QQmlEngine::setObjectOwnership(bridge, QQmlEngine::CppOwnership);
+            if (!self->engineContext() || self->expired() || !self->owned_) return;
+            self->inCall_ = true;
+            const bool wired = self->owned_->setProperty("bridge", QVariant::fromValue<QObject *>(bridge));
+            self->inCall_ = false;
+            if (self->settlePending()) return;
+            if (!wired || !self->creationContext(false)) { if (!self->done_) self->finish("creation-context"); return; }
+            self->inCall_ = true;
+            const bool invoked = QMetaObject::invokeMethod(self->owned_, "createOnce", Qt::DirectConnection);
+            self->inCall_ = false;
+            if (self->settlePending()) return;
+            if (!invoked) { self->finish("creation-dispatch"); return; }
+            self->completeCreation();
+        }, Qt::QueuedConnection);
+    }
+    void completeCreation() {
+        if (done_ || inCall_ || expired()) return;
+        if (!creationContext(false)) return;
+        auto &trial = rootSummary_.creation;
+        if (trial.callbackCount > 0 && trial.returned) {
+            trial.phase = "call-observed";
+            finish("resolved");
+        }
+        // Return without callback, including false, waits for the same deadline.
+    }
+
     void cancel() {
         if (done_) return;
+        if (bridge_) bridge_->disarm();
+        if (creationConfig_.enabled && !finishing_) { finish("creation-cancelled"); return; }
         disconnectRootGate();
         if (inCall_) {
             cancelPending_ = true;
@@ -771,8 +976,9 @@ private:
     }
     void finish(const char *stage) {
         if (done_) return;
+        if (bridge_) bridge_->disarm();
         if (inCall_) {
-            pendingStage_ = stage;
+            if (!pendingStage_) pendingStage_ = stage;
             timer_.stop();
             if (app_) app_->removeEventFilter(this);
             return;
@@ -786,12 +992,17 @@ private:
             case QQmlComponent::Error: status = "error"; break;
             }
         }
+        finishing_ = true;
+        if (rootSummary_.creation.enabled && rootSummary_.creation.attempted && QByteArrayView(stage) != QByteArrayView("resolved"))
+            rootSummary_.creation.phase = "effect-uncertain";
         cancel();
         // Cleanup can reenter Qt. Terminal success follows cleanup and another
         // weak guard/deadline check; neither check is a lifetime pin.
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
         const qint64 elapsedMs = elapsed_.elapsed();
         if (controller_ && elapsedMs >= deadlineAtMs()) { stage = "deadline"; controller_ = false; }
+        if (rootSummary_.creation.enabled && rootSummary_.creation.attempted && QByteArrayView(stage) != QByteArrayView("resolved"))
+            rootSummary_.creation.phase = "effect-uncertain";
         if (QByteArrayView(stage) != QByteArrayView("resolved")) {
             rootSummary_.metadata.result = stage;
             rootSummary_.metadata.navigation.location = "not-checked";
@@ -829,5 +1040,8 @@ private:
     QPointer<QObject> owned_;
     QPointer<QObject> observedController_;
     QByteArray diagnostic_;
+    CreationConfig creationConfig_;
+    CreationBridge *bridge_ = nullptr;
+    bool finishing_ = false, creationCompletionQueued_ = false;
 };
 }

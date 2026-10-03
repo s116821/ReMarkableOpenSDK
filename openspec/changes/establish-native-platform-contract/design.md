@@ -94,3 +94,20 @@ Which native service/mechanism can satisfy creation and durable reconciliation w
 ### Historical evidence export
 
 The proposed additive contract in [evidence-export-contract.md](evidence-export-contract.md) defines bounded, versioned, lossless facts for observations, creation receipts and capture batches. Export is one-way and separate from operational guards. Native qualification/profile and clock facts absent from the synthetic model remain explicitly unavailable; persistence cannot supply them. Exact review and consumer agreement precede implementation.
+
+### Explicit fixture insertion feasibility trial, October 2
+
+For the supervised disposable-fixture research trial only, active-view metadata
+or M3 discovery is not a prerequisite. The configured existing-engine helper may
+resolve a backed-up exact document through Library.entryForId and fail closed on
+native identity/type/non-exporting status, page count, all five configured page
+IDs and index round trips, and native page-zero template. Retain native document
+ID and invoke one five-argument insertion at index 1 with inherited template,
+RM2 trial size and an observation-only callback, omitting pageUuid. One-shot claim
+precedes native entry; no return/exception/cancel/deadline permits resend.
+Synchronous/reentrant/late callbacks must preserve owned-lifetime and deadline
+guards. Receipt observations are not durable success: Main verifies files,
+original relative order/content and one new ID after stock restart/reopen.
+This research exception does not qualify source continuity, worker serialization,
+consumer binding or the production creation capability. See
+[trial implementation](../../../tools/qt_qml_access_probe.md#explicit-disposable-fixture-one-call-mode-october-2-unqualified-trial).

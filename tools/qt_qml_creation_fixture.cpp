@@ -1,0 +1,226 @@
+/* All documents, native-like IDs and callbacks are owned synthetic QML. */
+#include "qt_qml_access_probe_core.h"
+#include <QQmlContext>
+#include <QTemporaryDir>
+#include <QFile>
+#include <QEventLoop>
+#include <cassert>
+#include <cstdio>
+
+class FixtureEntry final : public QObject {
+    Q_OBJECT
+public:
+    enum Values { Document = 1, Exporting = 9 };
+    Q_ENUM(Values)
+};
+class FixtureHooks final : public QObject {
+    Q_OBJECT
+public:
+    using QObject::QObject;
+    int calls = 0;
+public slots:
+    void cancel() {
+        auto *bridge = QCoreApplication::instance()->findChild<qml_access::CreationBridge *>();
+        assert(bridge);
+        QPointer<qml_access::CreationBridge> guard(bridge);
+        assert(QMetaObject::invokeMethod(QCoreApplication::instance(), "aboutToQuit", Qt::DirectConnection));
+        assert(guard); // No owned teardown inside the native/getter stack.
+    }
+    void foreign() {
+        auto *bridge = QCoreApplication::instance()->findChild<qml_access::CreationBridge *>();
+        assert(bridge);
+        auto *worker = QThread::create([bridge] {
+            assert(!bridge->callbackAllowed() && !bridge->preflightAllowed() && !bridge->claimMutation());
+            bridge->observeCallback(); bridge->observeReturn(true, true);
+            bridge->observeException(); bridge->refuse(QStringLiteral("identity-mismatch"));
+        });
+        worker->start(); assert(worker->wait(1000)); delete worker;
+    }
+    void nested() {
+        ++calls;
+        QEventLoop loop;
+        QTimer::singleShot(300, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+};
+int main(int argc, char **argv) {
+    assert(argc == 2);
+    const QString mode = QString::fromLatin1(argv[1]);
+    QGuiApplication app(argc, argv);
+    QTemporaryDir dir;
+    assert(dir.isValid());
+    auto write = [&](const char *name, const QByteArray &source) {
+        QFile file(dir.filePath(QString::fromLatin1(name)));
+        assert(file.open(QIODevice::WriteOnly));
+        assert(file.write(source) == source.size()); file.close();
+        return QUrl::fromLocalFile(file.fileName());
+    };
+    const QString documentId = QStringLiteral("00000000-0000-4000-8000-000000000001");
+    QStringList pages;
+    for (int i = 0; i < 5; ++i) pages.append(QStringLiteral("00000000-0000-4000-8000-00000000000") + QString::number(i + 2));
+    qml_access::CreationConfig config{documentId, pages, true};
+    QByteArray encodedPages = QJsonDocument(QJsonArray::fromStringList(pages)).toJson(QJsonDocument::Compact);
+    const auto libraryUrl = write("Library.qml", QByteArray(R"QML(pragma Singleton
+import QtQml
+QtObject {
+    property QtObject doc: QtObject {
+        property var id: ({ toString: function() { return fixtureMode === "identity" ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
+        property var type: fixtureMode === "type" ? 2 : 1
+        property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
+        property var pageCount: fixtureMode === "count" ? 6 : 5
+        property var ids: )QML") + encodedPages + R"QML(
+        function idForPage(i) {
+            if (fixtureMode === "getter-throw") throw new Error("private getter details");
+            if (fixtureMode === "page0" && i === 0) return "wrong";
+            if (fixtureMode === "later-page" && i === 4) return ids[3];
+            if (fixtureMode === "reorder" && i === 2) return ids[3];
+            return ids[i];
+        }
+        function pageForId(key) { if (fixtureMode === "roundtrip") return 4; return ids.indexOf(key); }
+        function templateForPage(i) {
+            if (i !== 0) throw new Error("wrong template page");
+            if (fixtureMode === "preclaim-cancel") fixtureHooks.cancel();
+            if (fixtureMode === "template-throw") throw new Error("private template details");
+            return fixtureMode === "template" ? undefined : fixtureMode === "empty-template" ? "" : "SyntheticBackground";
+        }
+    }
+    function entryForId(key) {
+        if (fixtureMode === "lookup-throw") throw new Error("private lookup details");
+        if (key !== "00000000-0000-4000-8000-000000000001") throw new Error("wrong lookup");
+        return fixtureMode === "missing" ? null : doc;
+    }
+})QML");
+    const auto controllerUrl = write("DocumentController.qml", R"QML(pragma Singleton
+import QtQml
+import xofm.libs.library
+QtObject {
+    property int calls: 0
+    property int arity: 0
+    property int callbackArity: -1
+    property bool argumentsCorrect: false
+    property var retainedCallback: null
+    property Timer delayed: Timer { interval: 10; onTriggered: retainedCallback() }
+    function addPageWithTemplateAndPageSize(nativeId,index,template,paper,callback) {
+        calls += 1; arity = arguments.length; callbackArity = callback.length;
+        argumentsCorrect = nativeId === Library.doc.id && typeof nativeId === "object" && index === 1 &&
+            template === (fixtureMode === "empty-template" ? "" : "SyntheticBackground") &&
+            paper.width === 1404 && paper.height === 1872;
+        retainedCallback = callback;
+        if (fixtureMode === "foreign-bridge") fixtureHooks.foreign();
+        if (fixtureMode === "native-throw") throw new Error("private native details");
+        if (fixtureMode === "reentrant-cancel") { fixtureHooks.cancel(); callback(); return true; }
+        if (fixtureMode === "nested-timeout") { fixtureHooks.nested(); callback(); return true; }
+        if (fixtureMode === "sync" || fixtureMode === "duplicate") callback();
+        if (fixtureMode === "duplicate") { callback(); callback(); }
+        if (fixtureMode === "burst") for (let i = 0; i < 128; ++i) callback();
+        if (fixtureMode !== "sync" && fixtureMode !== "duplicate" && fixtureMode !== "no-callback" && fixtureMode !== "false-no-callback") delayed.start();
+        return fixtureMode === "false-async" || fixtureMode === "false-no-callback" ? false : fixtureMode === "unknown-return" ? undefined : true;
+    }
+})QML");
+    QObject unavailableEnum;
+    if (mode == "enum") qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "Entry", &unavailableEnum);
+    else qmlRegisterUncreatableType<FixtureEntry>("xofm.libs.library", 1, 0, "Entry", "fixture enum only");
+    qmlRegisterSingletonType(libraryUrl, "xofm.libs.library", 1, 0, "Library");
+    const auto missingMethodUrl = write("MissingController.qml", R"QML(pragma Singleton
+import QtQml
+QtObject { property int calls: 0; property var retainedCallback: null })QML");
+    const int controllerType = qmlRegisterSingletonType(mode == "method-missing" ? missingMethodUrl : controllerUrl, "xofm.libs.library", 1, 0, "DocumentController");
+    FixtureHooks hooks;
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("fixtureMode", mode);
+    engine.rootContext()->setContextProperty("fixtureHooks", &hooks);
+    engine.loadData("import QtQml\nQtObject {}", QUrl());
+    QWindow window;
+    QQmlEngine::setContextForObject(&window, engine.rootContext());
+    if (mode == "repeat") {
+        QQmlComponent component(&engine);
+        component.setData(qml_access::creationHelper(config), QUrl());
+        assert(component.isReady());
+        QPointer<QObject> helper = component.create();
+        assert(helper);
+        qml_access::CreationBridge bridge(&app);
+        int claims = 0, callbacks = 0, returns = 0;
+        bridge.check = [&](bool claim) { if (claim) return ++claims == 1; return true; };
+        bridge.refusal = [](const QString &) { assert(false && "unexpected repeat guard refusal"); };
+        bridge.exception = [] { assert(false && "unexpected repeat exception"); };
+        bridge.returned = [&](bool known, bool value) { assert(known && value); ++returns; };
+        bridge.callback = [&] { ++callbacks; };
+        assert(helper->setProperty("bridge", QVariant::fromValue<QObject *>(&bridge)));
+        for (int i = 0; i < 3; ++i) assert(QMetaObject::invokeMethod(helper, "createOnce", Qt::DirectConnection));
+        QEventLoop loop; QTimer::singleShot(50, &loop, &QEventLoop::quit); loop.exec();
+        auto *controller = engine.singletonInstance<QObject *>(controllerType);
+        assert(claims == 1 && returns == 1 && callbacks == 1 && controller->property("calls").toInt() == 1);
+        auto late = controller->property("retainedCallback").value<QJSValue>();
+        assert(helper->property("callbackCount").toInt() == 1);
+        bridge.disarm();
+        assert(!late.call().isError() && helper->property("callbackCount").toInt() == 1 && callbacks == 1);
+        delete helper.data(); assert(!helper);
+        assert(!late.call().isError() && callbacks == 1);
+        puts("creation-repeat: three actual createOnce entries, exactly one claim/native call, late callback inert");
+        return 0;
+    }
+    QPointer<qml_access::Probe> probe;
+    int receipts = 0;
+    QJsonObject summary;
+    QString terminal;
+    if (mode == "bad-config") config.pageIds.removeLast();
+    probe = new qml_access::Probe(&app, [&](const char *stage, bool a, bool e, bool h, bool c, const QByteArray &bytes) {
+        ++receipts; terminal = QString::fromLatin1(stage);
+        summary = QJsonDocument::fromJson(bytes).object();
+        assert(a && e && bytes.size() <= 8192);
+        assert(h && (c || terminal == "deadline"));
+        assert(!bytes.contains(documentId.toUtf8()) && !bytes.contains(pages[0].toUtf8()));
+        assert(!bytes.contains("private") && !bytes.contains("SyntheticBackground"));
+        assert(summary.value("metadata").toObject().value("items").toInt() == 0);
+        assert(summary.value("component_ready_at_ms").toInteger() >= 0);
+        QTimer::singleShot(50, &app, [&] {
+            assert(!probe);
+            auto *controller = engine.singletonInstance<QObject *>(controllerType);
+            assert(controller);
+            // An external/native holder invokes the old QML callback after cleanup.
+            const QJSValue callback = controller->property("retainedCallback").value<QJSValue>();
+            if (callback.isCallable()) {
+                auto late = callback;
+                assert(!late.call().isError()); assert(!late.call().isError());
+            }
+            QTimer::singleShot(20, &app, &QCoreApplication::quit);
+        });
+    }, 3000, mode == "nested-timeout" ? 150 : 400, config);
+    QTimer::singleShot(5000, &app, [] { assert(false && "creation fixture timeout"); });
+    assert(app.exec() == 0);
+    assert(receipts == 1);
+    auto *controller = engine.singletonInstance<QObject *>(controllerType);
+    const auto trial = summary.value("creation_trial").toObject();
+    const bool preCall = mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
+        mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
+        mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
+        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing";
+    assert(trial.value("mutation_attempted").toBool() == !preCall);
+    assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
+    assert(!trial.value("durable_success").toBool());
+    assert(trial.value("effect_requires_reconciliation").toBool() == !preCall);
+    if (!preCall) {
+        assert(controller->property("arity").toInt() == 5 && controller->property("callbackArity").toInt() == 0);
+        assert(controller->property("argumentsCorrect").toBool());
+    }
+    if (mode == "native-throw") {
+        assert(terminal == "creation-exception" && trial.value("exception").toBool() && !trial.value("returned").toBool());
+    } else if (mode == "no-callback" || mode == "false-no-callback" || mode == "nested-timeout") {
+        assert(terminal == "deadline" && trial.value("phase").toString() == "effect-uncertain");
+        assert(trial.value("callback_count").toInt() == 0);
+    } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel") {
+        assert(terminal == "creation-cancelled" && trial.value("callback_count").toInt() == 0);
+    } else if (preCall) {
+        assert(terminal == (mode.endsWith("throw") ? "creation-exception" : mode == "bad-config" ? "creation-config" : "creation-refused"));
+    } else {
+        assert(terminal == "resolved" && trial.value("phase").toString() == "call-observed");
+        assert(trial.value("returned").toBool());
+        assert(trial.value("callback_count").toInt() == (mode == "duplicate" || mode == "burst" ? 2 : 1));
+        assert(trial.value("duplicate_callback").toBool() == (mode == "duplicate" || mode == "burst"));
+        if (mode == "false-async") assert(trial.value("returned_bool_known").toBool() && !trial.value("returned_bool").toBool());
+        if (mode == "unknown-return") assert(!trial.value("returned_bool_known").toBool());
+        if (mode == "sync" || mode == "duplicate") assert(trial.value("first_callback_at_ms").toInteger() <= trial.value("returned_at_ms").toInteger());
+    }
+    printf("creation-%s: stage=%s calls=%d callback=%d, guarded one-call and late cleanup passed\n", argv[1], qPrintable(terminal), controller->property("calls").toInt(), trial.value("callback_count").toInt());
+}
+#include "qt_qml_creation_fixture.moc"

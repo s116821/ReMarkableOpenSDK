@@ -37,3 +37,5 @@
 - [ ] 5.3 Verify complete lossless round trips, limits and inability to restore authority; coordinate exact consumer mappings before Reader integration.
 - [ ] 5.4 Implement and independently review the shared pure derive_geometry helper and consumer exact-bit composition validation described in evidence-export-contract.md; reject inconsistent restored affine/valid regions without creating live authority, preserve current arithmetic and pin exact SDK/consumer revisions.
 - [ ] 5.5 Coordinate the explicit Buddy-only unbound legacy-history exception in capture-contract.md with the exact consumer seam; verify no failed SDK acquisition downgrades into legacy, no invented source/geometry and no restored native authority. Consumer implementation/review remains separate.
+
+- [ ] 2.7 Independently review the guarded explicit disposable-fixture one-call mode and synthetic lifecycle cases, then qualify one native insertion/preservation/persistence under Main-owned recovery. M3 is preserved and is not a prerequisite; production gates 2.3/4.2/4.7/4.8 remain open.

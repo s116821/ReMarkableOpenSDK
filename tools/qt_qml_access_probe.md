@@ -331,3 +331,86 @@ it is fixture-only, with no payload moc or native getter. Actual Probe fixtures
 verify no early receipt, completed absent/incompatible/ambiguous public resolved,
 refusals, cancellation, engine/controller loss and deadline handling. None of this
 synthetic evidence qualifies the tablet's active owner, receiver or dispatch.
+
+## Explicit disposable-fixture one-call mode (October 2, unqualified trial)
+
+M3 topology observation is held and is not a prerequisite. The optional
+CreationConfig mode reuses M2 existing-engine/root readiness, the owned singleton
+helper and twenty-second readiness / first queued Ready plus five-second budget.
+It replaces metadata traversal with one explicitly configured insertion trial.
+There is no active-view discovery, source authority, navigation or production API.
+
+The private generated header selected by QT_PROBE_CREATION_CONFIG supplies the
+inline global creationConfig() factory returning qml_access::CreationConfig:
+enabled=true, one canonical lower-case document UUID and five distinct canonical
+page UUIDs in baseline order. Keep that header outside Git, under .private/, or
+in a separate private build directory. Its values must come from the reviewed
+backup; no personal fixture literal appears in this source or documentation.
+The source remains metadata-only when this build macro is absent. The test runner
+also compiles the configured entry point with generated synthetic values.
+
+The QML helper sets entered before preflight. It checks Entry.Document and
+Entry.Exporting are available numeric values, resolves Library.entryForId, retains
+native wrapper.id and compares String(nativeId) with the configured UUID. It
+requires document type, numeric non-exporting status, count five, and all five
+idForPage(i) strings matching configuration with pageForId(key)===i. It accepts
+only a native string from templateForPage(0), including an actually returned empty
+string; there is no fallback. A missing creation method refuses before claim.
+The sole invocation has five arguments: retained native ID, index 1, inherited
+template, Qt.size(1404,1872), and a zero-parameter observation callback. pageUuid
+is omitted. Paper size is a community-supported trial parameter, not a verified
+DeviceScreenInfo value. Inherited background is not necessarily blank.
+
+The owned QObject bridge checks GUI thread FIRST before touching its state or
+weak Probe callbacks. Preflight and mutation claim revalidate active context,
+selected engine/generation, helper/controller lifetime and thread affinity,
+current window-engine selection, cancellation and the unchanged deadline. Claim
+sets mutation_attempted before native entry. No false return, throw, cancellation,
+missing callback or timeout permits replay. The QML callback captures only its
+owned helper, checks armed/helper/bridge, updates fixed owned callback counters,
+and observes completion. No native pointer or raw Probe is in that callback.
+First callback time is fixed; count saturates at two with a duplicate flag.
+The callback checks bridge arming before updating helper counters; at most one
+queued completion is pending, including a synchronous callback burst.
+Synchronous callbacks never tear down inside native invocation. inCall and
+settlePending defer terminal teardown; disarming precedes owned cleanup. A native
+holder's later callback is inert after cleanup. Cooperative deadlines cannot
+preempt a blocked native call; externally armed recovery remains necessary.
+
+Private creation_trial diagnostics contain attempted, returned, boolean-known
+and boolean value, exception, callback count/duplicate, fixed guard/phase and
+relative timestamps. They expose no IDs, template, pointer, exception text or
+paths. Creation-mode compiler descriptions are suppressed because generated QML
+contains private configuration. Public resolved means call/return/callback
+observation only. It does not establish durable creation even for false return
+plus callback; durable_success is always false. Every attempted call requires
+filesystem reconciliation. False/throw/deadline/cancellation after claim remains
+effect-uncertain; a pre-call guard failure or exception records attempted=false.
+Creation-mode cancellation emits a bounded diagnostic receipt; metadata-mode
+cancellation retains its prior silent behavior. Operator collection and stock
+restoration remain mandatory even after diagnostic refusal.
+
+Builds now need vendor moc for tools/qt_qml_creation_bridge.h, writing
+qt_qml_creation_bridge.moc into the private build include directory, and compile
+both tools/qt_qml_access_probe.cpp and tools/qt_qml_creation_bridge.cpp with that
+include directory. The generated configuration header is also supplied through
+a private include directory; define QT_PROBE_CREATION_CONFIG to its quoted
+filename. Do not generate or activate a real trial artifact until exact source,
+independent tests, semantic review and operator/recovery review are accepted.
+
+Owned synthetic fixtures cover asynchronous and synchronous callback, duplicate
+and retained late callback, repeated entry, all five-page guard failures,
+unknown enums/missing wrapper/method, getter exceptions, native throw, false
+return with/without callback, unknown return, reentrant cancellation, nested
+deadline and foreign-thread bridge entry. Existing M1/M2 tripwires remain zero.
+Synthetic evidence does not qualify real wrapper loadedness, worker semantics,
+PDF/ink preservation, native-assigned ID or persistence. Main alone verifies one
+new ID at index 1, five originals in relative order with their content unchanged,
+and durability after stock restoration/restart/reopen.
+
+Source basis: current-project frozen interoperability handoff
+https://mem.ai/ac4bdd09-f843-5dec-85ca-2722e16fecc5 (private native call-site and
+saved metadata), Main's accepted all-five guard refinement, and pinned public
+[RM2 size patch](https://github.com/rmitchellscott/xovi-qmd-extensions/blob/67d39e943d8fda30936ad7f51a30f59f0292a9f8/3.28/createPagesRM2Size.qmd#L14-L23).
+This is original experimental glue, not copied proprietary source or a shipping
+capability. Review/native gates and the full OpenSpec delivery remain open.

@@ -1,4 +1,7 @@
 #include "qt_qml_access_probe_core.h"
+#ifdef QT_PROBE_CREATION_CONFIG
+#include QT_PROBE_CREATION_CONFIG
+#endif
 #include <atomic>
 #include <cstdio>
 #include <fcntl.h>
@@ -53,7 +56,11 @@ void startup() {
         if (QThread::currentThread() != app->thread()) { record("application-thread", false, false, false, false); return; }
         auto *gui = qobject_cast<QGuiApplication *>(app);
         if (!gui) { record("no-gui", true, false, false, false); return; }
+#ifdef QT_PROBE_CREATION_CONFIG
+        new qml_access::Probe(gui, record, 20000, 5000, creationConfig());
+#else
         new qml_access::Probe(gui, record);
+#endif
     }, Qt::QueuedConnection);
 }
 }
