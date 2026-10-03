@@ -452,3 +452,23 @@ throwing native-like ID conversion/property and page-index getters, and unknown
 marker privacy. Existing native-throw verifies operation=native-call with one
 sticky attempted call; existing refusal/completion/cancel cases retain their
 previous meanings.
+
+### Source-plausible creation import trial
+
+After the spent instrumented trial localized its pre-call exception to
+Entry.Document access (enum-document), Main selected one unaliased
+import com.remarkable in the creation helper, matching the already inspected
+native view's unaliased import pattern. This is a source-plausible trial choice,
+not a qualified Entry registration URI, proven root cause or demonstrated fix.
+The metadata-only helper remains unchanged. The fixed diagnostic
+com_remarkable_import_selected=true identifies this creation-helper version;
+it proves only configuration, not availability or enum ownership. Existing
+numeric enum guards, native getters, typed ID, five arguments, fixed markers,
+no retry, reconciliation, callback and deadline policies are unchanged.
+
+Owned fixtures register a synthetic com.remarkable module and exercise Entry
+exported only by library, only by com.remarkable, absent in both, and with
+conflicting enum exports from both. Collision expectations follow the actual
+owned Qt import resolution, not a claim about the target's registration owner.
+A missing module must fail compilation before claim without fallback imports.
+These fixtures do not qualify the real module URI or actual native creation.

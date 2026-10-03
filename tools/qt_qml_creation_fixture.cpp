@@ -13,6 +13,12 @@ public:
     enum Values { Document = 1, Exporting = 9 };
     Q_ENUM(Values)
 };
+class CollisionEntry final : public QObject {
+    Q_OBJECT
+public:
+    enum Values { Document = 2, Exporting = 10 };
+    Q_ENUM(Values)
+};
 class FixtureHooks final : public QObject {
     Q_OBJECT
 public:
@@ -140,10 +146,13 @@ QtObject {
         return fixtureMode === "false-async" || fixtureMode === "false-no-callback" ? false : fixtureMode === "unknown-return" ? undefined : true;
     }
 })QML");
+    if (mode != "import-missing") qmlRegisterModule("com.remarkable", 1, 0);
     QObject unavailableEnum;
-    if (mode == "entry-absent") {}
+    if (mode == "entry-absent" || mode == "import-com-owned") {}
     else if (mode == "enum") qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "Entry", &unavailableEnum);
     else qmlRegisterUncreatableType<FixtureEntry>("xofm.libs.library", 1, 0, "Entry", "fixture enum only");
+    if (mode == "import-com-owned") qmlRegisterUncreatableType<FixtureEntry>("com.remarkable", 1, 0, "Entry", "synthetic com owner");
+    if (mode == "import-collision") qmlRegisterUncreatableType<CollisionEntry>("com.remarkable", 1, 0, "Entry", "synthetic conflicting enum");
     if (mode != "library-absent") qmlRegisterSingletonType(libraryUrl, "xofm.libs.library", 1, 0, "Library");
     const auto missingMethodUrl = write("MissingController.qml", R"QML(pragma Singleton
 import QtQml
@@ -154,6 +163,18 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     engine.rootContext()->setContextProperty("fixtureMode", mode);
     engine.rootContext()->setContextProperty("fixtureHooks", &hooks);
     engine.loadData("import QtQml\nQtObject {}", QUrl());
+    int collisionSelected = 1;
+    if (mode == "import-collision") {
+        QQmlComponent selection(&engine);
+        selection.setData("import QtQml\nimport com.remarkable\nimport xofm.libs.library\nQtObject { property var selected: Entry.Document }", QUrl());
+        assert(selection.isReady());
+        std::unique_ptr<QObject> observed(selection.create());
+        assert(observed);
+        bool numeric = false;
+        collisionSelected = observed->property("selected").toInt(&numeric);
+        assert(numeric && (collisionSelected == 1 || collisionSelected == 2));
+        // Test expectation follows actual owned Qt import resolution, never a guessed native owner.
+    }
     QWindow window;
     QQmlEngine::setContextForObject(&window, engine.rootContext());
     if (mode == "repeat") {
@@ -192,7 +213,8 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         ++receipts; terminal = QString::fromLatin1(stage);
         summary = QJsonDocument::fromJson(bytes).object();
         assert(a && e && bytes.size() <= 8192);
-        assert(h && (c || terminal == "deadline"));
+        if (mode == "import-missing") assert(!h && !c);
+        else assert(h && (c || terminal == "deadline"));
         assert(!bytes.contains(documentId.toUtf8()) && !bytes.contains(pages[0].toUtf8()));
         assert(!bytes.contains("private") && !bytes.contains("SyntheticBackground"));
         assert(summary.value("metadata").toObject().value("items").toInt() == 0);
@@ -218,7 +240,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     const bool preCall = mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
-        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw");
+        mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
     assert(trial.value("mutation_attempted").toBool() == !preCall);
     assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
     assert(!trial.value("durable_success").toBool());
@@ -227,7 +249,10 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(controller->property("arity").toInt() == 5 && controller->property("callbackArity").toInt() == 0);
         assert(controller->property("argumentsCorrect").toBool());
     }
-    if (mode == "native-throw") {
+    assert(trial.value("com_remarkable_import_selected").toBool());
+    if (mode == "import-missing") {
+        assert(terminal == "module-missing" && !trial.value("exception").toBool() && !trial.value("returned").toBool());
+    } else if (mode == "native-throw") {
         assert(terminal == "creation-exception" && trial.value("exception").toBool() && !trial.value("returned").toBool());
     } else if (mode == "no-callback" || mode == "false-no-callback" || mode == "nested-timeout") {
         assert(terminal == "deadline" && trial.value("phase").toString() == "effect-uncertain");

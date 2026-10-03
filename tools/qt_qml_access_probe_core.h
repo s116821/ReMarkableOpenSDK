@@ -55,6 +55,7 @@ inline QByteArray creationHelper(const CreationConfig &config) {
     const QByteArray document = QJsonDocument(QJsonArray{config.documentId}).toJson(QJsonDocument::Compact);
     const QByteArray pages = QJsonDocument(ids).toJson(QJsonDocument::Compact);
     return QByteArray(R"QML(import QtQml
+import com.remarkable
 import xofm.libs.library
 QtObject {
     id: ownedHelper
@@ -148,7 +149,7 @@ struct CreationObservation {
 };
 inline QJsonObject creationJson(const CreationObservation &c) {
     const auto stamp = [](qint64 n) { return n < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(n); };
-    return {{"enabled", c.enabled}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
+    return {{"enabled", c.enabled}, {"com_remarkable_import_selected", true}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
         {"returned_bool_known", c.returnedBoolKnown}, {"returned_bool", c.returnedBool},
         {"exception", c.exception}, {"exception_operation", c.exceptionOperation ? QJsonValue(c.exceptionOperation) : QJsonValue(QJsonValue::Null)}, {"callback_count", c.callbackCount}, {"duplicate_callback", c.duplicateCallback},
         {"phase", c.phase}, {"guard_stage", c.guard}, {"attempted_at_ms", stamp(c.attemptedAtMs)},

@@ -57,7 +57,7 @@ for case in diagnostics classifier compiler-errors live major-version existing l
   fi
 done
 
-for case in async sync duplicate burst repeat enum missing identity type exporting status count page0 later-page reorder roundtrip template empty-template getter-throw template-throw lookup-throw native-throw false-async false-no-callback no-callback unknown-return preclaim-cancel reentrant-cancel nested-timeout bad-config method-missing foreign-bridge entry-absent library-absent id-read-throw id-string-throw type-read-throw status-read-throw count-read-throw index-getter-throw marker-privacy; do
+for case in async sync duplicate burst repeat enum missing identity type exporting status count page0 later-page reorder roundtrip template empty-template getter-throw template-throw lookup-throw native-throw false-async false-no-callback no-callback unknown-return preclaim-cancel reentrant-cancel nested-timeout bad-config method-missing foreign-bridge entry-absent library-absent id-read-throw id-string-throw type-read-throw status-read-throw count-read-throw index-getter-throw marker-privacy import-library-owned import-com-owned import-collision import-missing; do
   if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
       -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \
