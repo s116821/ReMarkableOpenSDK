@@ -51,11 +51,54 @@ jobs:
           repository: amannn/action-semantic-pull-request
           ref: 48f256284bd46cdaab1048c3721360e808335d50
           path: .upstream/semantic-pr
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: softprops/action-gh-release
+          ref: efb35369e0ad2afab669f228072c1b0d510eae64
+          path: .upstream/gh-release
       - run: npm test
         env:
           PATHS_FILTER_ACTION: ${{ github.workspace }}/.upstream/paths-filter/dist/index.js
           SEMANTIC_PR_ACTION: ${{ github.workspace }}/.upstream/semantic-pr/dist/index.js
+          GH_RELEASE_ACTION: ${{ github.workspace }}/.upstream/gh-release/dist/index.js
         working-directory: release
       - name: Require resolved production-tool advisories
         run: npm audit --audit-level=high
         working-directory: release
+  packaging-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: '1.98.1'
+          targets: armv7-unknown-linux-gnueabihf,aarch64-unknown-linux-gnu
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: orhun/git-cliff-action
+          ref: a9a95522b26fe6403f7bb24031f21fb573d0f5ff
+          path: .upstream/git-cliff-action
+      - name: Install exact upstream calculator for candidate tests
+        run: bash .upstream/git-cliff-action/install.sh
+        env:
+          VERSION: v2.14.2
+          GITHUB_API_TOKEN: ${{ github.token }}
+      - name: Verify pinned calculator archive
+        run: echo '24f397c733add5390fdceee3a2088588ab0d5f944ce00d34cb7029b888cf2db4  ${{ runner.temp }}/git-cliff/git-cliff-2.14.2-x86_64-unknown-linux-gnu.tar.gz' | sha256sum --check
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: rickstaa/action-create-tag
+          ref: a1c7777fcb2fee4f19b0f283ba888afa11678b72
+          path: .upstream/create-tag
+      - name: Verify owned build, Cargo consumer and upstream tag-race fixtures
+        run: python -m unittest discover -s release -p 'test_*.py' -v
+        env:
+          SDK_FIXTURE_CARGO: cargo
+          GIT_CLIFF_BINARY: ${{ runner.temp }}/git-cliff/bin/git-cliff
+          CREATE_TAG_ENTRYPOINT: ${{ github.workspace }}/.upstream/create-tag/entrypoint.sh
+          PYTHONDONTWRITEBYTECODE: '1'

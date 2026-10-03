@@ -36,3 +36,43 @@ configuration remains a maintainer repository setting, not changed here.
 PR classification refuses missing/zero or >=3,000 changed-file counts because
 the upstream GitHub files API caps its observation at 3,000. Both rename
 directions stay application-relevant. Required status settings remain unchanged.
+
+Audit recheck: semantic-release 25.0.9 and commit-analyzer 13.0.1 remain latest
+supported registry releases. Normal dependency refresh leaves 30 high/1 moderate
+package findings. The braces <=3.0.3 and http-cache-semantics <=4.2.0 advisories
+report no patched versions; forced old-major downgrades or waived gates are not
+accepted. Evaluate git-cliff 2.14.2 as another maintained semantic calculator,
+using its upstream configuration and exact verified release binary in owned Git
+fixtures. This is not a selected production tool or a replacement private bump
+algorithm. Test graph/equal-time ancestry, docs suppression and explicit pre-1.0
+breaking policy; do not store initial/project version constants in its config.
+
+Recovery qualification uses an actual pinned softprops/action-gh-release v3
+bundle with a localhost-only GitHub API fixture and non-credential token. Observe
+partial upload failure, draft preservation, existing-tag recovery, duplicate asset
+behavior and finalization ordering without production publication. This tests
+upstream functionality, not selection/security approval. The released git-cliff
+Cargo lockfile had seven RustSec findings at database revision
+83278802b2c75399c153d84a6de246503b62966a; the inspected publisher also has audit
+findings. No candidate is accepted merely for passing functional tests. Existing
+assets require direct identity verification before publication; skipping by name
+alone cannot establish byte identity.
+
+Independent packaging preparation will use owned source fixtures with no version
+field and immutable fixture tags. A build-only staging helper verifies exact
+HEAD/tag/SHA and a clean source checkout, exports the tagged tree into a new
+staging directory, and injects the official package version there only. It
+refuses maintained source version fields and mismatched/missing tags. This is
+build/version identity verification, not semantic or release orchestration.
+Generated provenance marks all native device qualifications unsupported. Real
+SDK builds/releases still require actual reviewed tag/source and license policy.
+Compiler qualification can use a tiny explicitly synthetic library for host,
+ARMv7 and AArch64; it does not claim full experimental SDK or native adapter CI.
+
+Packaged source-crate verification checks the normalized Cargo package identity,
+Cargo.toml.orig and each staged source input, plus the packaged external lock
+inventory. Mutated source, a different package version and altered dependencies
+are refused. This is a package identity check; the helper does not orchestrate
+release publication. Trust in generated staging metadata still depends on a
+trusted CI job and the exact-tag staging invocation. No arbitrary artifact is
+accepted as a tagged crate just because it has a filename and hash.
