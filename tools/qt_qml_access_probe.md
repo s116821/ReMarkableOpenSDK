@@ -19,13 +19,17 @@ Root list copying/allocation is owned by Qt; the cap bounds our inspection.
 Window events cannot bypass the pending root gate. No root properties or URLs
 are inspected or serialized, and no load, navigation or new engine is requested.
 
-Root readiness has twenty seconds from Probe construction. The first accepted
-root witness must precede that deadline and starts one five-second access budget
-at its observation timestamp. A preexisting root's timestamp is when observed,
-not its historical completion time. Neither queued processing, duplicate signals
-nor retries reset this absolute access deadline. Readiness expiry refuses as
-`root-readiness-deadline`; access expiry retains `deadline`. The nominal combined
-budget is at most twenty-five seconds; timers only refuse and prove no readiness.
+Root and successful helper compilation share twenty seconds from Probe
+construction. A preexisting root's timestamp is when observed, not its historical
+completion time, and does not start the access budget. Only the first `Ready`
+status accepted by queued `componentReady` processing before the absolute
+readiness deadline starts one five-second create/access budget at that observation
+time. It is not the historical status-signal emission time. Neither queued
+processing, duplicate signals nor retries reset either deadline. Expiry before a
+root witness refuses as `root-readiness-deadline`; subsequent compilation readiness
+expiry uses `readiness-deadline`, and access expiry retains `deadline`. The nominal
+combined budget is at most twenty-five seconds. The refusal timer is not a
+readiness witness or a hard bound on native work.
 The explicitly direct signal handler first compares the current thread with the
 thread captured at subscription. Unexpected foreign-thread emission queues only
 a fixed refusal without reading root pointers or GUI-owned state. On the app
@@ -43,17 +47,26 @@ precede other unfinished loads. Queued delivery also does not guarantee native
 load() has unwound when native handlers enter nested event loops.
 
 Public component Ready/Error status transitions queue processing; Loading waits
-within the same access deadline. There is one create.
+within the absolute compilation readiness deadline. There is one create.
 Only an exact `missing-library` compilation failure may delete the failed owned
-component and wait for a new Show/Expose/focus event after cleanup. Each new event
-can permit one fresh compile on the same guarded app-thread engine, after a
-new unique-window-engine check. Eight total acquisition/compile attempts and
-the original access deadline remain fixed. Changed, absent or ambiguous engines refuse.
+component and arm one context-bound 200 ms single-shot recheck after cleanup.
+The timer admits one fresh check on the same guarded app-thread engine, with
+fresh deadline/thread and unique-window-engine checks. It proves no availability.
+There are at most eight total acquisition/compile admissions and seven timer
+rechecks; the eighth exact failure terminates `readiness-cap` without a ninth
+timer, admission or compile. Initial discovery admissions also consume that cap.
+There is no elapsed-time catch-up burst. The original readiness deadline remains
+fixed. Changed, absent or ambiguous engines refuse. Window events are used only
+for initial engine discovery and cannot authorize post-failure work.
 Queued attempts from before cleanup are invalidated; component callbacks capture
 weak guards for both their producer and the queued completion. Events during
-compilation or teardown cannot authorize another attempt. Other compiler failures
-are terminal. The event only triggers a test; Ready plus own availability bool
-proves access. There is no retry timer or cache clearing.
+compilation or teardown cannot authorize another attempt. Queued retry callbacks
+capture the guarded producer and cleanup epoch; cancellation/terminal completion
+invalidate them, and queued `Ready` processing consumes the single create.
+Other compiler failures are terminal. Accepted Ready permits one create; the
+helper's availability bool proves access. There is no cache clearing, new engine,
+registration shim or URI change. This finite retry follows the pinned community
+check pattern as an experiment, not proof that timing caused earlier failures.
 
 The fixed helper imports QtQml and versionless xofm.libs.library, binds a typed QtObject
 reference to DocumentController, and exposes its own availability boolean.
@@ -128,8 +141,10 @@ is historical failure evidence rather than the final availability result.
 The same private diagnostic also contains a bounded runtime summary at terminal
 receipt emission: `attempts` counts acquisition admissions (0..8, excluding
 the ninth cap-triggering internal call), `compile_attempts` counts setData entries
-(0..8), and `admitted_post_failure_events` counts only new coalesced queue
-admissions after failed-component cleanup (0..8, including the final cap trigger).
+(0..8). The historical window-only `admitted_post_failure_events` field is zero
+for this candidate: no post-failure window event authorizes work.
+`timer_rechecks_admitted` counts only fresh timer recheck admissions (0..7), and
+`retry_interval_ms` is the fixed 200 ms interval. Neither is a raw event count.
 `component_status` is absent/null/loading/ready/error, sampled before final owned
 cleanup. `terminal_stage` matches the corrected callback stage and `elapsed_ms`
 uses the same single monotonic sample taken after cleanup for deadline correction.
@@ -142,9 +157,13 @@ explicit overflow/truncation flags. The root-gate refinement also retains fixed
 `readiness_budget_ms`, `access_budget_ms`, `gate_engine_kind`
 (unselected/application/unsupported), `root_gate` (waiting/accepted/consumed/failed),
 `root_witness_kind` (none/preexisting/signal), and capped `root_count`.
+`access_anchor` is `component-ready-observation`. `component_ready_at_ms` is null
+until Ready is first accepted in queued processing, and anchors the access budget.
 `root_witness_at_ms`, `first_setData_begin_ms`, `first_setData_return_ms` and
 `first_error_handled_ms` are monotonic observations from Probe birth, null until
-observed and sampled only once. Error-handled time is sampled after the expiry
+observed and sampled only once. `last_setData_begin_ms` and
+`last_setData_return_ms` retain the latest compile's observed span, null before
+any compile. Error-handled time is sampled after the expiry
 check and before diagnostic materialization. These spans do not identify causes
 or bound native Qt work. The same 8192-byte cap is applied after all metadata.
 Cancellation still emits no callback/diagnostic.
@@ -158,17 +177,29 @@ and run owned ARM fixtures under qemu with the SDK offscreen/QML plugins.
 Fixtures cover fixed-category/unknown/mixed/count/description boundaries, actual
 owned compiler errors, versionless major-version selection,
 immediate/same-engine/late readiness, absent registration,
-delayed registration with a new event on the same engine, no-event deadline,
-stale/reentrant events, changed/ambiguous engines, compile-attempt cap and terminal
+delayed registration without a window event on the same engine,
+stale/reentrant window events, changed/ambiguous engines, finite timer/compile
+cap and terminal
 wrong-module failures,
 conflicting and multiple engines, window cap, engine teardown, event cap,
 deadline refusal (including a deliberately nested owned singleton callback) and
 application cancellation. Focused application-engine fixtures cover preexisting
 and delayed roots, duplicate signals, pending-window activity, failed root loads,
 root cap, unsupported engines, lost roots/engines, changed/ambiguous engines,
-queued admission after the witness access deadline, and cancellation while waiting.
+queued admission after the absolute readiness deadline, and cancellation while waiting.
 They also cover foreign-thread signal refusal, a root witness observed too late,
 a failure signal after an accepted root, and cancellation before queued admission.
+The phase/retry refinement also covers GUI delay past the former root-based
+access window while readiness remains open, late Ready observation refusing before
+create, accepted Ready permitting create across the readiness boundary within
+its independent access budget, cancellation with an armed retry and engine loss
+during the retry wait. Phase budgets are scaled in owned fixtures; production
+defaults remain twenty seconds plus five seconds.
+Queued Ready acceptance also refreshes application/engine thread affinity and
+rechecks the same unique window engine immediately before create, without a new
+admission. That safety snapshot consumes the already anchored access budget.
+Owned fixtures change or add a competing window engine before queued Ready and
+verify refusal with zero registration-factory/helper creations.
 The nested fixture registration factory is confined
 to the owned application; the payload has no such registration. These are synthetic fixtures,
 not hardware or production qualification. OpenSpec task 2.5 and native page

@@ -116,9 +116,90 @@ int main(int argc, char **argv) {
         puts("compiler-errors: actual owned Qt categories and versionless major passed");
         return 0;
     }
+    if (mode.rfind("phase-", 0) == 0) {
+        const int readinessBudget = mode == "phase-late-ready" ? 500 : 2000;
+        const int accessBudget = mode == "phase-boundary" ? 1500 : 500;
+        QObject singleton;
+        QPointer<qml_access::Probe> guard;
+        int receipts = 0;
+        int creates = 0;
+        if (mode == "phase-boundary") qmlRegisterSingletonType<QObject>("xofm.libs.library", 1, 0, "DocumentController",
+            [&](QQmlEngine *, QJSEngine *) -> QObject * {
+                ++creates;
+                QEventLoop nested;
+                QTimer::singleShot(900, &nested, &QEventLoop::quit);
+                nested.exec();
+                assert(guard && receipts == 0);
+                QQmlEngine::setObjectOwnership(&singleton, QQmlEngine::CppOwnership);
+                return &singleton;
+            });
+        else if (mode == "phase-ready-changed" || mode == "phase-ready-ambiguous")
+            qmlRegisterSingletonType<QObject>("xofm.libs.library", 1, 0, "DocumentController",
+                [&](QQmlEngine *, QJSEngine *) -> QObject * {
+                    ++creates; QQmlEngine::setObjectOwnership(&singleton, QQmlEngine::CppOwnership); return &singleton;
+                });
+        else qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &singleton);
+        QQmlApplicationEngine engine;
+        engine.loadData("import QtQml\nQtObject {}", QUrl());
+        QWindow window;
+        std::unique_ptr<QQmlContext> initialContext;
+        if (mode == "phase-ready-changed") initialContext = std::make_unique<QQmlContext>(&engine);
+        QQmlEngine::setContextForObject(&window, initialContext ? initialContext.get() : engine.rootContext());
+        QQmlEngine otherEngine;
+        std::unique_ptr<QWindow> otherWindow;
+        QJsonObject summary;
+        std::string stage;
+        guard = new qml_access::Probe(&app,
+            [&](const char *s, bool a, bool e, bool h, bool c, const QByteArray &bytes) {
+                ++receipts; stage = s; summary = QJsonDocument::fromJson(bytes).object();
+                fprintf(stderr, "phase-stage=%s root_ms=%lld ready_ms=%lld elapsed_ms=%lld compiles=%d rechecks=%d\n", s,
+                    static_cast<long long>(summary.value("root_witness_at_ms").toInteger(-1)),
+                    static_cast<long long>(summary.value("component_ready_at_ms").toInteger(-1)),
+                    static_cast<long long>(summary.value("elapsed_ms").toInteger(-1)),
+                    summary.value("compile_attempts").toInt(), summary.value("timer_rechecks_admitted").toInt());
+                assert(a && e && bytes.size() <= 8192);
+                assert(summary.value("access_anchor").toString() == QStringLiteral("component-ready-observation"));
+                assert(summary.value("compile_attempts").toInt() == 1 && summary.value("timer_rechecks_admitted").toInt() == 0);
+                if (mode == "phase-late-ready") assert(!h && !c && summary.value("component_ready_at_ms").isNull());
+                else if (mode == "phase-ready-changed" || mode == "phase-ready-ambiguous")
+                    assert(!h && !c && creates == 0 && !summary.value("component_ready_at_ms").isNull());
+                else {
+                    assert(h && c);
+                    const auto ready = summary.value("component_ready_at_ms").toInteger();
+                    const auto total = summary.value("elapsed_ms").toInteger();
+                    assert(ready < readinessBudget && ready >= summary.value("root_witness_at_ms").toInteger() + 500);
+                    assert(total < ready + accessBudget);
+                    if (mode == "phase-boundary") assert(total >= readinessBudget && creates == 1);
+                }
+                QTimer::singleShot(0, &app, &QCoreApplication::quit);
+            }, readinessBudget, accessBudget);
+        // The first queued callback follows acquisition; its child callback
+        // follows root continuation but precedes queued Ready processing.
+        QMetaObject::invokeMethod(&app, [&] {
+            QMetaObject::invokeMethod(&app, [&] {
+                auto *component = guard ? guard->findChild<QQmlComponent *>() : nullptr;
+                assert(component && component->isReady());
+                if (mode == "phase-ready-changed" || mode == "phase-ready-ambiguous") {
+                    if (mode == "phase-ready-changed") initialContext.reset();
+                    otherWindow = std::make_unique<QWindow>();
+                    QQmlEngine::setContextForObject(otherWindow.get(), otherEngine.rootContext());
+                    return;
+                }
+                QThread::msleep(mode == "phase-boundary" ? 1300 : 600);
+            }, Qt::QueuedConnection);
+        }, Qt::QueuedConnection);
+        QTimer::singleShot(8000, &app, [&] { assert(false && "phase fixture timeout"); });
+        assert(app.exec() == 0);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        assert(!guard && receipts == 1);
+        assert(stage == (mode == "phase-late-ready" ? "readiness-deadline" :
+            mode == "phase-ready-changed" ? "engine-changed" : mode == "phase-ready-ambiguous" ? "multiple-engines" : "resolved"));
+        printf("%s: %s, observed Ready phase passed\n", argv[1], stage.c_str());
+        return 0;
+    }
     if (mode.rfind("root-", 0) == 0) {
-        const int readinessBudget = mode == "root-wait" || mode == "root-late-witness" ? 200 : 3000;
-        const int accessBudget = mode == "root-wait" || mode == "root-late-witness" || mode == "root-queued-deadline" ? 100 : 3000;
+        const int readinessBudget = mode == "root-queued-readiness-deadline" ? 100 : mode == "root-wait" || mode == "root-late-witness" ? 200 : 3000;
+        const int accessBudget = mode == "root-wait" || mode == "root-late-witness" || mode == "root-queued-readiness-deadline" ? 100 : 3000;
         QObject singleton;
         qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &singleton);
         auto engine = std::make_unique<QQmlApplicationEngine>();
@@ -129,6 +210,7 @@ int main(int argc, char **argv) {
         if (mode == "root-changed") initialContext = std::make_unique<QQmlContext>(engine.get());
         QQmlEngine::setContextForObject(&window, mode == "root-unsupported" ? unsupported.rootContext() : initialContext ? initialContext.get() : engine->rootContext());
         const auto loadRoot = [&] { engine->loadData("import QtQml\nQtObject {}", QUrl()); };
+        if (mode == "root-queued-readiness-deadline") { loadRoot(); delete engine->rootObjects().first(); }
         if (mode == "root-preexisting") loadRoot();
         if (mode == "root-cap") for (int i = 0; i < 17; ++i) loadRoot();
         // These handlers run before the probe's signal handler, but defer the
@@ -138,7 +220,7 @@ int main(int argc, char **argv) {
                 const QPointer<QObject> weak = root;
                 QMetaObject::invokeMethod(&app, [weak] { delete weak.data(); }, Qt::QueuedConnection);
             });
-        if (mode == "root-queued-deadline") QObject::connect(engine.get(), &QQmlApplicationEngine::objectCreated, &app,
+        if (mode == "root-queued-readiness-deadline") QObject::connect(engine.get(), &QQmlApplicationEngine::objectCreated, &app,
             [&](QObject *, const QUrl &) {
                 QMetaObject::invokeMethod(&app, [] { QThread::msleep(150); }, Qt::QueuedConnection);
             });
@@ -219,9 +301,9 @@ int main(int argc, char **argv) {
                 else if (mode == "root-ambiguous") assert(stage == "multiple-engines");
                 else if (mode == "root-wrong-thread") assert(stage == "engine-thread" && summary.value("root_witness_at_ms").isNull());
                 else if (mode == "root-late-witness") assert(stage == "root-readiness-deadline" && summary.value("root_witness_at_ms").isNull());
-                else if (mode == "root-queued-deadline") {
-                    assert(stage == "deadline" && summary.value("root_witness_at_ms").toInteger() < readinessBudget);
-                    assert(summary.value("elapsed_ms").toInteger() >= summary.value("root_witness_at_ms").toInteger() + accessBudget);
+                else if (mode == "root-queued-readiness-deadline") {
+                    assert(stage == "readiness-deadline" && summary.value("root_witness_at_ms").toInteger() < readinessBudget);
+                    assert(summary.value("component_ready_at_ms").isNull() && summary.value("elapsed_ms").toInteger() >= readinessBudget);
                 } else assert(false && "unknown root case");
             }
         }
@@ -274,14 +356,14 @@ int main(int argc, char **argv) {
         std::unique_ptr<QObject> object(prepare.create());
         assert(object && object->property("controllerAvailable").toBool());
     }
-    if (mode != "deadline" && mode != "late" && mode != "cap" && mode != "cancel" && mode != "engine-lost")
+    if (mode != "deadline" && mode != "late" && mode != "cap" && mode != "cancel" && mode != "engine-lost" && mode != "retry-engine-lost")
         QQmlEngine::setContextForObject(&window, fixtureContext ? fixtureContext.get() : engine.rootContext());
     if (mode == "multiple") {
         other = std::make_unique<QQmlEngine>();
         otherWindow = std::make_unique<QWindow>();
         QQmlEngine::setContextForObject(otherWindow.get(), other->rootContext());
     }
-    if (mode == "engine-lost") {
+    if (mode == "engine-lost" || mode == "retry-engine-lost") {
         auto application = std::make_unique<QQmlApplicationEngine>();
         application->loadData("import QtQml\nQtObject {}", QUrl());
         other = std::move(application);
@@ -299,18 +381,33 @@ int main(int argc, char **argv) {
         const int attempts = summary.value("attempts").toInt();
         const int compiles = summary.value("compile_attempts").toInt();
         const int admittedEvents = summary.value("admitted_post_failure_events").toInt();
-        assert(attempts >= 0 && attempts <= 8 && compiles >= 0 && compiles <= attempts && admittedEvents >= 0 && admittedEvents <= 8);
+        const int rechecks = summary.value("timer_rechecks_admitted").toInt();
+        fprintf(stderr, "attempts=%d compiles=%d rechecks=%d ready_ms=%lld elapsed_ms=%lld\n", attempts, compiles, rechecks,
+            static_cast<long long>(summary.value("component_ready_at_ms").toInteger(-1)),
+            static_cast<long long>(summary.value("elapsed_ms").toInteger(-1)));
+        assert(attempts >= 0 && attempts <= 8 && compiles >= 0 && compiles <= attempts && admittedEvents == 0 && rechecks >= 0 && rechecks <= 7);
+        assert(summary.value("access_anchor").toString() == QStringLiteral("component-ready-observation"));
+        assert(summary.value("retry_interval_ms").toInt() == 200);
+        if (compiles) {
+            assert(summary.value("last_setData_begin_ms").toInteger() >= summary.value("first_setData_begin_ms").toInteger());
+            assert(summary.value("last_setData_return_ms").toInteger() >= summary.value("last_setData_begin_ms").toInteger());
+            if (compiles == 1) assert(summary.value("last_setData_begin_ms") == summary.value("first_setData_begin_ms") &&
+                summary.value("last_setData_return_ms") == summary.value("first_setData_return_ms"));
+        } else assert(summary.value("last_setData_begin_ms").isNull() && summary.value("last_setData_return_ms").isNull());
         const qint64 terminalElapsed = summary.value("elapsed_ms").toInteger();
         assert(terminalElapsed >= 0);
-        if (mode == "retry-late") {
-            assert(attempts == 2 && compiles == 2 && admittedEvents == 1);
+        if (mode == "retry-late" || mode == "retry-no-event" || mode == "retry-stale" || mode == "retry-delayed") {
+            assert(attempts == 2 && compiles == 2 && rechecks == 1);
             assert(summary.value("component_status").toString() == QStringLiteral("ready"));
+            assert(summary.value("component_ready_at_ms").toInteger() >= summary.value("first_error_handled_ms").toInteger() + 200);
+            if (mode == "retry-delayed") assert(summary.value("component_ready_at_ms").toInteger() >= summary.value("root_witness_at_ms").toInteger() + 500);
         }
-        if (mode == "retry-no-event" || mode == "retry-stale" || mode == "absent") {
-            assert(attempts == 1 && compiles == 1 && admittedEvents == 0 && terminalElapsed >= 2000);
+        if (mode == "absent") {
+            assert(compiles >= 1 && compiles < 8 && rechecks == compiles - 1 && terminalElapsed >= 500);
             assert(summary.value("component_status").toString() == QStringLiteral("absent"));
+            assert(summary.value("component_ready_at_ms").isNull());
         }
-        if (mode == "retry-cap") assert(attempts == 8 && compiles == 8 && admittedEvents == 8);
+        if (mode == "retry-cap") assert(attempts == 8 && compiles == 8 && rechecks == 7);
         if (mode == "nested-deadline") {
             assert(attempts == 1 && compiles == 1 && admittedEvents == 0 && terminalElapsed >= 1000);
             assert(summary.value("component_status").toString() == QStringLiteral("ready"));
@@ -321,17 +418,17 @@ int main(int argc, char **argv) {
             assert(parsed.value("context").toString() == QStringLiteral("last-compile-failure"));
             assert(parsed.value("reported_error_count").toInt() > 0);
             assert(parsed.value("errors").toArray().first().toObject().value("description").toString() == QStringLiteral("module \"xofm.libs.library\" is not installed"));
-            assert(parsed.value("failed_attempt").toInt() == (mode == "retry-cap" ? 8 : 1));
+            assert(parsed.value("failed_attempt").toInt() == (mode == "retry-cap" || mode == "absent" ? compiles : 1));
         } else if (mode == "wrong-error") assert(summary.value("context").toString() == QStringLiteral("last-compile-failure"));
         else {
             assert(summary.value("context").toString() == QStringLiteral("runtime-only"));
             assert(summary.value("failed_attempt").toInt() == 0 && summary.value("errors").toArray().isEmpty());
         }
-        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late") assert(e && h && c);
+        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late" || mode == "retry-no-event" || mode == "retry-stale" || mode == "retry-delayed") assert(e && h && c);
         if (mode == "conflict") assert(!c);
         QTimer::singleShot(0, &app, &QCoreApplication::quit);
-    }, mode == "deadline" || mode == "cap" ? 150 : 3000,
-       mode == "nested-deadline" ? 1000 : retry || mode == "absent" ? 2000 : 3000);
+    }, mode == "deadline" || mode == "cap" ? 150 : mode == "absent" ? 500 : 3000,
+       mode == "nested-deadline" ? 1000 : mode == "retry-delayed" ? 500 : 3000);
     guard = probe;
     int failedCleanups = 0;
     std::function<void()> observeComponent;
@@ -346,18 +443,29 @@ int main(int argc, char **argv) {
                 QCoreApplication::sendEvent(&window, &stale); // During cleanup: ignored.
             }
             QMetaObject::invokeMethod(&app, [&] {
-                if (mode == "retry-late" || mode == "retry-no-event" || mode == "retry-stale")
+                if (mode == "retry-delayed") QThread::msleep(600);
+                if (mode == "retry-late" || mode == "retry-no-event" || mode == "retry-stale" || mode == "retry-delayed")
                     qmlRegisterSingletonInstance("xofm.libs.library", 1, 0, "DocumentController", &singleton);
+                if (mode == "retry-cancel") {
+                    assert(QMetaObject::invokeMethod(&app, "aboutToQuit", Qt::DirectConnection));
+                    QEventLoop staleTimer;
+                    QTimer::singleShot(250, &staleTimer, &QEventLoop::quit);
+                    staleTimer.exec();
+                    assert(receipts == 0); // Stale retry cannot emit after cancellation.
+                    if (guard) assert(!guard->findChild<QQmlComponent *>());
+                    app.quit();
+                    return;
+                }
+                if (mode == "retry-engine-lost") { other.reset(); return; }
                 if (mode == "retry-changed" || mode == "retry-ambiguous") {
                     if (mode == "retry-changed") fixtureContext.reset();
                     other = std::make_unique<QQmlEngine>();
                     otherWindow = std::make_unique<QWindow>();
                     QQmlEngine::setContextForObject(otherWindow.get(), other->rootContext());
                 }
-                if (mode != "retry-no-event" && mode != "retry-stale") {
+                if (mode != "retry-no-event" && mode != "retry-stale" && mode != "retry-delayed") {
                     QEvent fresh(QEvent::Show);
                     QCoreApplication::sendEvent(otherWindow ? otherWindow.get() : &window, &fresh);
-                    if (mode == "retry-cap") QMetaObject::invokeMethod(&app, observeComponent, Qt::QueuedConnection);
                 }
             }, Qt::QueuedConnection);
         });
@@ -388,11 +496,11 @@ int main(int argc, char **argv) {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     assert(!guard);
     assert(deaths == 0); // Helper cleanup never owns/deletes the singleton.
-    if (mode == "cancel") assert(receipts == 0);
+    if (mode == "cancel" || mode == "retry-cancel") assert(receipts == 0);
     else {
         assert(receipts == 1);
-        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late") assert(stage == "resolved");
-        else if (mode == "absent" || mode == "retry-no-event" || mode == "retry-stale") assert(stage == "deadline");
+        if (mode == "live" || mode == "late" || mode == "existing" || mode == "major-version" || mode == "retry-late" || mode == "retry-no-event" || mode == "retry-stale" || mode == "retry-delayed") assert(stage == "resolved");
+        else if (mode == "absent") assert(stage == "readiness-deadline");
         else if (mode == "retry-changed") assert(stage == "engine-changed");
         else if (mode == "retry-ambiguous") assert(stage == "multiple-engines");
         else if (mode == "retry-cap") assert(stage == "readiness-cap");
@@ -402,12 +510,13 @@ int main(int argc, char **argv) {
         else if (mode == "multiple") assert(stage == "multiple-engines");
         else if (mode == "window-cap") assert(stage == "window-cap");
         else if (mode == "engine-lost") assert(stage == "engine-lost");
+        else if (mode == "retry-engine-lost") assert(stage == "engine-lost");
         else if (mode == "cap") assert(stage == "readiness-cap");
         else if (mode == "deadline") assert(stage == "root-readiness-deadline");
         else if (mode == "nested-deadline") assert(stage == "deadline");
         else assert(false && "unknown case");
     }
     if (mode == "nested-deadline") assert(nestedEntered);
-    if (retry) assert(failedCleanups == (mode == "retry-cap" ? 8 : 1));
+    if (retry) assert(failedCleanups == 1); // First component observed; counters cover all rechecks.
     printf("%s: %s, receipts=%d, owned teardown passed\n", argv[1], stage.c_str(), receipts);
 }

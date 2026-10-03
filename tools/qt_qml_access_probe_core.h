@@ -102,8 +102,11 @@ inline QByteArray diagnosticSnapshot(const QList<QQmlError> &errors, int attempt
 
 struct RootSummary {
     int readinessBudgetMs = 20000, accessBudgetMs = 5000, rootCount = 0;
+    int retryIntervalMs = 200, retryRechecks = 0;
     const char *engineKind = "unselected", *gate = "waiting", *witnessKind = "none";
     qint64 witnessAtMs = -1, firstSetDataBeginMs = -1, firstSetDataReturnMs = -1, firstErrorHandledMs = -1;
+    qint64 componentReadyAtMs = -1;
+    qint64 lastSetDataBeginMs = -1, lastSetDataReturnMs = -1;
 };
 
 inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, int compiles,
@@ -126,13 +129,19 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
     summary.insert(QStringLiteral("root_gate"), QString::fromLatin1(root.gate));
     summary.insert(QStringLiteral("root_witness_kind"), QString::fromLatin1(root.witnessKind));
     summary.insert(QStringLiteral("root_count"), root.rootCount);
+    summary.insert(QStringLiteral("access_anchor"), QStringLiteral("component-ready-observation"));
+    summary.insert(QStringLiteral("retry_interval_ms"), root.retryIntervalMs);
+    summary.insert(QStringLiteral("timer_rechecks_admitted"), root.retryRechecks);
     const auto timestamp = [&](const char *key, qint64 value) {
         summary.insert(QString::fromLatin1(key), value < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(value));
     };
     timestamp("root_witness_at_ms", root.witnessAtMs);
+    timestamp("component_ready_at_ms", root.componentReadyAtMs);
     timestamp("first_setData_begin_ms", root.firstSetDataBeginMs);
     timestamp("first_setData_return_ms", root.firstSetDataReturnMs);
     timestamp("first_error_handled_ms", root.firstErrorHandledMs);
+    timestamp("last_setData_begin_ms", root.lastSetDataBeginMs);
+    timestamp("last_setData_return_ms", root.lastSetDataReturnMs);
     QByteArray bytes = QJsonDocument(summary).toJson(QJsonDocument::Compact) + '\n';
     if (bytes.size() > 8192) {
         summary.insert(QStringLiteral("errors"), QJsonArray{});
@@ -166,20 +175,21 @@ public:
     }
 protected:
     bool eventFilter(QObject *object, QEvent *event) override {
-        if (!done_ && !component_ && (!engineSelected_ || gateConsumed_) && qobject_cast<QWindow *>(object) &&
+        if (!done_ && !component_ && !engineSelected_ && qobject_cast<QWindow *>(object) &&
             (event->type() == QEvent::Show || event->type() == QEvent::Expose ||
              event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut))
-            queueAttempt(waitingAfterFailure_);
+            queueAttempt();
         return false;
     }
 private:
     qint64 deadlineAtMs() const {
-        return rootSummary_.witnessAtMs < 0 ? rootSummary_.readinessBudgetMs :
-            rootSummary_.witnessAtMs + rootSummary_.accessBudgetMs;
+        return rootSummary_.componentReadyAtMs < 0 ? rootSummary_.readinessBudgetMs :
+            rootSummary_.componentReadyAtMs + rootSummary_.accessBudgetMs;
     }
     bool expired() {
         if (elapsed_.elapsed() < deadlineAtMs()) return false;
-        finish(rootSummary_.witnessAtMs < 0 ? "root-readiness-deadline" : "deadline");
+        finish(rootSummary_.componentReadyAtMs >= 0 ? "deadline" :
+            rootSummary_.witnessAtMs < 0 ? "root-readiness-deadline" : "readiness-deadline");
         return true;
     }
     void disconnectRootGate() {
@@ -222,13 +232,10 @@ private:
         rootSummary_.witnessKind = kind;
         rootSummary_.witnessAtMs = witnessedAt;
         rootSummary_.gate = "accepted";
-        const qint64 remaining = deadlineAtMs() - elapsed_.elapsed();
-        timer_.start(static_cast<int>(qMax<qint64>(remaining, 0)));
         queueRootTransition();
     }
-    void queueAttempt(bool postFailureEvent = false) {
+    void queueAttempt() {
         if (queued_ || done_) return;
-        if (postFailureEvent) ++admittedPostFailureEvents_;
         queued_ = true;
         const unsigned epoch = eventEpoch_;
         QMetaObject::invokeMethod(this, [this, epoch] {
@@ -237,26 +244,54 @@ private:
             attempt();
         }, Qt::QueuedConnection);
     }
+    void armRetry() {
+        if (done_ || expired()) return;
+        if (attempts_ >= 8 || compileAttempts_ >= 8) { finish("readiness-cap"); return; }
+        if (retryArmed_) return;
+        retryArmed_ = true;
+        const unsigned epoch = eventEpoch_;
+        const QPointer<QQmlEngine> producer = engine_;
+        QTimer::singleShot(rootSummary_.retryIntervalMs, Qt::PreciseTimer, this, [this, epoch, producer] {
+            if (done_ || epoch != eventEpoch_ || !retryArmed_) return;
+            retryArmed_ = false;
+            if (component_ || inCall_ || !waitingAfterFailure_ || expired()) return;
+            if (!producer || producer != engine_) { finish("engine-lost"); return; }
+            ++rootSummary_.retryRechecks;
+            attempt(); // One fresh admission; no elapsed-time catch-up burst.
+        });
+    }
     void queueComponentReady() {
         const QPointer<QQmlComponent> current = component_;
         QMetaObject::invokeMethod(this, [this, current] {
             if (current && component_ == current) componentReady();
         }, Qt::QueuedConnection);
     }
+    bool windowEngine(QPointer<QQmlEngine> &selected) {
+        const auto windows = QGuiApplication::allWindows();
+        if (windows.size() > 16) { finish("window-cap"); return false; }
+        for (QWindow *window : windows) {
+            QQmlEngine *candidate = qmlEngine(window);
+            if (!candidate) continue;
+            if (selected && selected != candidate) { finish("multiple-engines"); return false; }
+            selected = candidate;
+        }
+        return true;
+    }
+    bool engineContext() {
+        appThread_ = app_ && QThread::currentThread() == app_->thread();
+        if (!appThread_) { finish("application-thread"); return false; }
+        if (!engine_) { finish("engine-lost"); return false; }
+        engineThread_ = engine_->thread() == app_->thread();
+        if (!engineThread_) { finish("engine-thread"); return false; }
+        return true;
+    }
     void attempt(bool rootContinuation = false) {
         if (done_ || component_ || expired()) return;
         appThread_ = app_ && QThread::currentThread() == app_->thread();
         if (!appThread_) { finish("application-thread"); return; }
         if (!rootContinuation && ++attempts_ > 8) { finish("readiness-cap"); return; }
-        const auto windows = QGuiApplication::allWindows();
-        if (windows.size() > 16) { finish("window-cap"); return; }
         QPointer<QQmlEngine> selected;
-        for (QWindow *window : windows) {
-            QQmlEngine *candidate = qmlEngine(window);
-            if (!candidate) continue;
-            if (selected && selected != candidate) { finish("multiple-engines"); return; }
-            selected = candidate;
-        }
+        if (!windowEngine(selected)) return;
         if (engineSelected_ && (!engine_ || !selected || selected != engine_)) { finish("engine-changed"); return; }
         if (!selected) return; // Only readiness events or the refusal deadline follow.
         const bool firstEngine = !engineSelected_;
@@ -316,10 +351,12 @@ private:
         });
         if (expired()) return; // Allocation/connection do not reset the budget.
         inCall_ = true;
-        if (rootSummary_.firstSetDataBeginMs < 0) rootSummary_.firstSetDataBeginMs = elapsed_.elapsed();
+        rootSummary_.lastSetDataBeginMs = elapsed_.elapsed();
+        if (rootSummary_.firstSetDataBeginMs < 0) rootSummary_.firstSetDataBeginMs = rootSummary_.lastSetDataBeginMs;
         ++compileAttempts_;
         component_->setData(helper, QUrl());
-        if (rootSummary_.firstSetDataReturnMs < 0) rootSummary_.firstSetDataReturnMs = elapsed_.elapsed();
+        rootSummary_.lastSetDataReturnMs = elapsed_.elapsed();
+        if (rootSummary_.firstSetDataReturnMs < 0) rootSummary_.firstSetDataReturnMs = rootSummary_.lastSetDataReturnMs;
         inCall_ = false;
         if (settlePending()) return;
         // Never create/delete inside setData or its synchronous status callback.
@@ -327,7 +364,7 @@ private:
     }
     void componentReady() {
         if (done_ || !component_ || inCall_ || expired() || created_) return;
-        if (!engine_) { finish("engine-lost"); return; }
+        if (!engineContext()) return;
         if (component_->status() == QQmlComponent::Loading) return;
         if (component_->status() != QQmlComponent::Ready) {
             if (rootSummary_.firstErrorHandledMs < 0) rootSummary_.firstErrorHandledMs = elapsed_.elapsed();
@@ -336,7 +373,7 @@ private:
             const char *stage = errorStage(errors);
             if (QByteArrayView(stage) == QByteArrayView("missing-library")) {
                 // This failed component owns no helper. Remove it before any
-                // later readiness event can schedule a fresh compilation.
+                // one context-bound recheck timer can admit a fresh compilation.
                 QQmlComponent *failed = component_;
                 // Keep the pointer nonnull during deletion to ignore reentrant
                 // window events; weak callback guards invalidate on deletion.
@@ -349,10 +386,22 @@ private:
                 waitingAfterFailure_ = true;
                 if (settlePending()) return;
                 if (!engine_) { finish("engine-lost"); return; }
-                (void)expired(); // Existing deadline stays fixed; no retry timer.
+                armRetry(); // Absolute readiness deadline remains fixed.
             } else finish(stage);
             return;
         }
+        // Accept Ready only when observed here, before the absolute readiness
+        // deadline. This is not the earlier status-signal emission timestamp.
+        const qint64 readyAt = elapsed_.elapsed();
+        if (readyAt >= rootSummary_.readinessBudgetMs) { finish("readiness-deadline"); return; }
+        rootSummary_.componentReadyAtMs = readyAt;
+        timer_.start(static_cast<int>(qMax<qint64>(deadlineAtMs() - elapsed_.elapsed(), 0)));
+        // Delayed queued Ready must still belong to the current window engine.
+        // This is a safety snapshot within the same admission/access budget.
+        QPointer<QQmlEngine> selected;
+        if (!windowEngine(selected) || !engineContext()) return;
+        if (!selected || selected != engine_) { finish("engine-changed"); return; }
+        if (expired()) return;
         created_ = true;
         inCall_ = true;
         owned_ = component_->create();
@@ -379,6 +428,7 @@ private:
             return; // No deferred deletion can run inside a nested Qt loop.
         }
         done_ = true;
+        retryArmed_ = false;
         ++eventEpoch_;
         timer_.stop();
         if (app_) app_->removeEventFilter(this);
@@ -431,7 +481,7 @@ private:
     QPointer<QQmlApplicationEngine> applicationEngine_;
     QPointer<QObject> rootWitness_;
     int compileAttempts_ = 0, admittedPostFailureEvents_ = 0;
-    bool waitingAfterFailure_ = false;
+    bool waitingAfterFailure_ = false, retryArmed_ = false;
     unsigned eventEpoch_ = 0;
     bool engineSelected_ = false;
     bool queued_ = false, done_ = false, created_ = false, inCall_ = false;
