@@ -25,3 +25,13 @@ Each SDK release SHALL include all declared implemented distributions with sourc
 #### Scenario: Unqualified target
 - **WHEN** a built target lacks model/runtime evidence
 - **THEN** its manifest reports that native support is unqualified and installation cannot infer compatibility merely from CPU architecture.
+
+### Requirement: Actual source compiler checks retain qualification boundaries
+CI SHALL check exact identified experimental SDK source on host/ARMv7/AArch64
+without treating compilation as native model support or distribution readiness.
+Read-only research snapshots SHALL retain source identity and owner source bytes;
+shipping builds SHALL separately require integrated source and tag-derived staging.
+
+#### Scenario: Experimental source check
+- **WHEN** CI compiles an exact experimental source snapshot
+- **THEN** it records source/toolchain/target identity, runs applicable host checks, and makes no native capability, official version or release claim.

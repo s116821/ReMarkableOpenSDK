@@ -76,3 +76,14 @@ are refused. This is a package identity check; the helper does not orchestrate
 release publication. Trust in generated staging metadata still depends on a
 trusted CI job and the exact-tag staging invocation. No arbitrary artifact is
 accepted as a tagged crate just because it has a filename and hash.
+
+Actual experimental Rust crate CI is independent of native/release qualification.
+A read-only checkout of an exact owner research SHA runs its declared host fmt,
+test and clippy checks and locked library builds for host/ARMv7/AArch64. It does
+not edit the owner manifest, tag/release, compile private Qt artifacts or qualify
+a native adapter. The existing prototype version placeholder is an explicit
+production blocker under the user's tags-only rule; it is not a maintained
+version introduced by release CI. CI snapshot pins identify source commits, not
+project versions. PR builds use upstream application path classification; main
+merges do not compile this separate research snapshot. Shipping CI will need
+actual integrated sources and the strict build staging contract.

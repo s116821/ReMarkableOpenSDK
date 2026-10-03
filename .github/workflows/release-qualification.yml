@@ -9,6 +9,8 @@ permissions:
   pull-requests: read
 jobs:
   title-and-paths:
+    outputs:
+      application: ${{ steps.paths.outputs.application }}
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -102,3 +104,35 @@ jobs:
           GIT_CLIFF_BINARY: ${{ runner.temp }}/git-cliff/bin/git-cliff
           CREATE_TAG_ENTRYPOINT: ${{ github.workspace }}/.upstream/create-tag/entrypoint.sh
           PYTHONDONTWRITEBYTECODE: '1'
+
+  actual-sdk-research:
+    name: Actual experimental SDK / ${{ matrix.target }}
+    needs: title-and-paths
+    if: github.event_name == 'pull_request' && needs.title-and-paths.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu, armv7-unknown-linux-gnueabihf, aarch64-unknown-linux-gnu]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: f8e729cbdaa1f2776b482e6d12eccf45457aa305
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: '1.98.1'
+          targets: ${{ matrix.target }}
+          components: rustfmt,clippy
+      - name: Verify exact source snapshot
+        run: test "$(git rev-parse HEAD)" = f8e729cbdaa1f2776b482e6d12eccf45457aa305
+      - name: Host formatting, tests and warnings
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          cargo fmt --all -- --check
+          cargo test --locked --all-features
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Compile actual experimental Rust library
+        run: cargo build --locked --all-features --lib --target ${{ matrix.target }}
+      - name: Keep research source unchanged
+        run: test -z "$(git status --porcelain)"
