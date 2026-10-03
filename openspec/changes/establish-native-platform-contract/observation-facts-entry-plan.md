@@ -215,6 +215,42 @@ packet or device action was selected. Accepted reader source `6875514` is unchan
 Independent source review/reproduction remains pending. Manual timing feasibility
 remains unproved, so this checkpoint does not make a native candidate ready.
 
+## Accepted source and operator timing handoff
+
+Main independently passed the 22 entry cases, cross-repo integration, 19 publisher
+cases, 86 proof checks, startup syntax and strict OpenSpec validation. Astra's full
+cross-repository review accepts SDK `127b332fdea561692908f1c9bf6207981d50a89e`
+and Buddy `1b9e1930cf03b254a9d9302a932969101846f04a` as the source/owned-fixture
+checkpoint with no blocking findings. This supersedes the pending review status
+above, not the unproved timing/native readiness status.
+
+Main accepted a source-independent timing assessment and handed actor choice to
+the parent. Physical user availability beside tablet/local console is unconfirmed.
+Before any activation, prebrief one intended fixture opening, any active page,
+local cues and the exact prepared stage-check/publisher invocations. During a later
+selected attempt: one positive waiting/current-generation check, one fresh manual
+fixture opening, then one fixed publisher invocation. An absent/stale/late check
+ends setup and restores; no polling, second check, chat acknowledgement, page round
+trip, blind coordinates or deadline extension. Physical verification can avoid
+image transfer only if that physical actor/cue procedure is explicitly selected.
+
+For a separately selected stock-only rehearsal, start a monotonic host setup clock
+before the activation/setup action, not after its transport returns. Record stock
+startup (or label warm-start-only), one stock generation exchange, local cue/manual
+opening/render confirmation, all human/image interpretation gaps and one read-only
+transport exchange standing in for publication. This is a measured stock surrogate,
+not a positive facts stage or exact new publisher/watcher timing. No native build,
+injection, request root or packet is needed for that rehearsal. Native cold-start,
+publication/admission processing and uncertainty require supported allowance.
+
+Eligibility remains a conservative total below 20 seconds: startup/stage proof,
+manual opening/render/review, transport/publication/admission allowance and explicit
+margin. Unknown intervals or a failed bound mean not ready. Main's tool route must
+include screenshot retrieval, image review and dispatch latency; installed helper
+hashes are observed but source-unqualified, never rebranded as reviewed. Parent must
+choose an available physical setup or a supported measured Main-tool procedure.
+No rehearsal/device action or timing pass was performed by this worker.
+
 Source basis: Main's current selection of fresh manual setup and unchanged bounds;
 accepted facts source and Astra full/repair review; current repository startup and
 Buddy launcher/operator/restore source; current Project's recorded spent-604d negative
