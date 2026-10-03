@@ -218,7 +218,8 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(!bytes.contains(documentId.toUtf8()) && !bytes.contains(pages[0].toUtf8()));
         assert(!bytes.contains("private") && !bytes.contains("SyntheticBackground"));
         assert(summary.value("metadata").toObject().value("items").toInt() == 0);
-        assert(summary.value("component_ready_at_ms").toInteger() >= 0);
+        if (mode == "import-missing") assert(summary.value("component_ready_at_ms").isNull());
+        else assert(summary.value("component_ready_at_ms").isDouble() && summary.value("component_ready_at_ms").toInteger() >= 0);
         QTimer::singleShot(50, &app, [&] {
             assert(!probe);
             auto *controller = engine.singletonInstance<QObject *>(controllerType);
