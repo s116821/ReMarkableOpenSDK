@@ -17,6 +17,7 @@ inline qml_access::FactsEntryConfig pageFactsEntryConfig() {
     config.directory=QStringLiteral("/run/rmb-qt-probe-")+config.nonce;
     config.facts.documentId=QStringLiteral("00000000-0000-4000-8000-000000000001");
     config.facts.pageCap=6; config.facts.budgetMs=5000;
+    config.setupBudgetMs=120000; config.developmentSetup120=true; config.setupSelection=QStringLiteral("main-dev-facts-120s");
     for (int i=2;i<=7;++i) config.facts.expectedOrder.append(QStringLiteral("00000000-0000-4000-8000-%1").arg(i,12,16,QLatin1Char('0')));
     return config;
 }
@@ -24,7 +25,7 @@ CONFIG
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -fsyntax-only -I"$work" \
  '-DQT_FACTS_ENTRY_CONFIG="owned-facts-entry-config.h"' tools/qt_page_facts_startup.cpp \
  $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick)
-for case in good myfiles no-owner-then-ready wrong-document wrong-token oversize symlink-token fifo-token token-mode directory-mode owner-mode stale setup-deadline delayed-dispatch nested-cancel nested-deadline restoring-before restoring-getter directory-replaced late-delivery duplicate-after release; do
+for case in good myfiles no-owner-then-ready wrong-document wrong-token oversize symlink-token fifo-token token-mode directory-mode owner-mode stale setup-deadline delayed-dispatch nested-cancel nested-deadline restoring-before restoring-getter directory-replaced late-delivery duplicate-after release config-exceedcap config-mismatch config-no-optin config-provenance setup-before-boundary token-budget token-profile; do
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
   /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
    -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

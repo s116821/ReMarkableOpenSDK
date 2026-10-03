@@ -17,7 +17,7 @@ void startFactsEntry() {
         if (!gui || QThread::currentThread()!=gui->thread() || ::geteuid()!=0) return;
         auto config=pageFactsEntryConfig();
         if (config.directory!=QStringLiteral("/run/rmb-qt-probe-")+config.nonce ||
-            config.setupBudgetMs!=20000 || config.facts.budgetMs!=5000 ||
+            !config.developmentSetup120 || !config.setupValid() || config.facts.budgetMs!=5000 ||
             config.facts.pageCap!=6 || config.facts.expectedOrder.size()!=6) return;
         // No parent/lifetime signal deletes the entry during a getter. Only its
         // deferred completion schedules teardown; the extension remains loaded.

@@ -27,7 +27,13 @@ int main(int argc,char **argv) {
     QDir().mkdir(root); ::chmod(root.toUtf8().constData(),0700);
     if (!put(root+"/owner",nonce.toLatin1()) || !put(root+"/attempt.identity",QByteArray::number(::getpid())+' '+FactsEntry::processStart()+'\n')) return 3;
     DocumentFixture document;
-    FactsEntryConfig config{nonce,root,{document.id(),{},6,5000},20000};
+    FactsEntryConfig config;
+    config.nonce=nonce; config.directory=root; config.facts={document.id(),{},6,5000};
+    config.setupBudgetMs=120000; config.developmentSetup120=true; config.setupSelection=QStringLiteral("main-dev-facts-120s");
+    if (mode=="config-exceedcap") config.setupBudgetMs=120001;
+    if (mode=="config-mismatch") config.setupBudgetMs=119999;
+    if (mode=="config-no-optin") { config.developmentSetup120=false; config.setupSelection.clear(); }
+    if (mode=="config-provenance") config.setupSelection=QStringLiteral("unselected");
     for (int i=2;i<=7;++i) config.facts.expectedOrder.append(QStringLiteral("00000000-0000-4000-8000-%1").arg(i,12,16,QLatin1Char('0')));
     document.ids=config.facts.expectedOrder;
     QQmlApplicationEngine engine;
@@ -74,12 +80,15 @@ Window { visible:true; width:400; height:400
     entry->start();
     const auto drain=[&]{for (int i=0;i<20;++i) {QCoreApplication::processEvents(); QThread::msleep(2);}};
     drain();
-    if (mode=="setup-deadline" || mode=="myfiles") { fakeTime=20000; entry->checkDeadline(); drain(); }
+    if (mode=="setup-deadline" || mode=="myfiles") { fakeTime=120000; entry->checkDeadline(); drain(); }
     else if (callbacks==0) {
         QFile waiting(root+"/facts-waiting"); if (!waiting.open(QIODevice::ReadOnly)) return 5;
         const auto fields=waiting.readAll().trimmed().split(' ');
-        if (fields.size()!=8 || fields[5]!="waiting-facts") return 6;
-        QByteArray token=fields.mid(0,5).join(' ')+" read-facts\n";
+        if (fields.size()!=9 || fields[5]!="waiting-facts") return 6;
+        QByteArray token=fields.mid(0,5).join(' ')+" read-facts "+fields[7]+' '+fields[8]+'\n';
+        if (mode=="setup-before-boundary") fakeTime=119999;
+        if (mode=="token-budget") token.replace("120000","20000");
+        if (mode=="token-profile") token.replace("main-dev-facts-120s","default-dev-20s");
         if (mode=="wrong-token") token[0]='f';
         if (mode=="oversize") token.append(QByteArray(129,'x'));
         if (mode=="restoring-before") put(root+"/restore.claim","closed");
@@ -118,7 +127,7 @@ Window { visible:true; width:400; height:400
     }
     if (mode=="no-owner-then-ready") { engine.loadData(goodQml); drain(); }
     if (mode=="duplicate-after") { QFile::remove(root+"/facts-request"); put(root+"/facts-request","again"); drain(); }
-    const bool expected=mode=="good" || mode=="release" || mode=="duplicate-after" || mode=="integration";
+    const bool expected=mode=="good" || mode=="release" || mode=="duplicate-after" || mode=="integration" || mode=="setup-before-boundary";
     bool boundary=true;
     if (mode=="delayed-dispatch") boundary=result.stage=="facts-entry-dispatch-refused" && document.idReads==1;
     if (mode=="late-delivery") boundary=result.stage=="facts-entry-delivery-refused";
@@ -132,6 +141,8 @@ Window { visible:true; width:400; height:400
                 facts.value("attempt_pid").toString()==QString::number(::getpid()) &&
                 facts.value("document_id").toString()==config.facts.documentId &&
                 facts.value("required_metadata_validated").toBool() && facts.value("required_connections_installed").toBool() &&
+                facts.value("development_setup_opt_in").toBool() && facts.value("setup_budget_ms").toInt()==120000 &&
+                facts.value("setup_selection").toString()==QStringLiteral("main-dev-facts-120s") &&
                 !facts.value("native_authority").toBool(true) && !facts.value("atomic_snapshot").toBool(true) &&
                 callback.value("stage").toString()==result.stage;
         }

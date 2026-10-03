@@ -13,6 +13,15 @@ struct FactsEntryConfig {
     QString nonce, directory;
     PageFactsConfig facts;
     int setupBudgetMs=20000;
+    bool developmentSetup120=false;
+    QString setupSelection;
+    bool setupValid() const {
+        return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==QStringLiteral("main-dev-facts-120s") :
+            setupBudgetMs>=1 && setupBudgetMs<=20000 && setupSelection.isEmpty();
+    }
+    QByteArray setupProfile() const {
+        return developmentSetup120 ? QByteArray("main-dev-facts-120s") : QByteArray("default-dev-20s");
+    }
 };
 struct FactsEntryResult {
     QString stage;
@@ -38,7 +47,7 @@ public:
         started_=true; elapsed_.start(); origin_=clock_ ? clock_() : 0;
         if (!app_ || app_->thread()!=thread() || QThread::currentThread()!=thread() ||
             !QRegularExpression(QStringLiteral("^[0-9a-f]{32}$")).match(config_.nonce).hasMatch() ||
-            !config_.facts.valid() || config_.setupBudgetMs<1 || config_.setupBudgetMs>20000 || !completed_) {
+            !config_.facts.valid() || !config_.setupValid() || !completed_) {
             finish("facts-entry-config-refused"); return;
         }
         root_=::open(config_.directory.toUtf8().constData(),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
@@ -177,7 +186,7 @@ private:
             if (!context()) { finish("facts-entry-engine-refused"); return; }
             connect(engine_,&QObject::destroyed,this,&FactsEntry::cancel);
             const QByteArray waiting=identity("waiting-facts")+' '+QByteArray::number(now())+' '+
-                QByteArray::number(config_.setupBudgetMs)+'\n';
+                QByteArray::number(config_.setupBudgetMs)+' '+config_.setupProfile()+'\n';
             if (!live() || now()>=config_.setupBudgetMs || !writeFile("facts-waiting",waiting)) {
                 finish("facts-entry-waiting-refused"); return;
             }
@@ -193,7 +202,8 @@ private:
             if (!context() || !live() || now()>=config_.setupBudgetMs) { finish("facts-entry-request-context-refused"); return; }
             if (!exists("facts-request")) return;
             consumed_=true; // every existing token consumes the one admission
-            if (readFile("facts-request",128)!=identity("read-facts")+'\n' || !context() || !live() || now()>=config_.setupBudgetMs) {
+            if (readFile("facts-request",128)!=identity("read-facts")+' '+QByteArray::number(config_.setupBudgetMs)+' '+
+                config_.setupProfile()+'\n' || !context() || !live() || now()>=config_.setupBudgetMs) {
                 finish("facts-entry-request-refused"); return;
             }
             acceptedAt_=now();
@@ -215,6 +225,8 @@ private:
                 QJsonObject json{{"kind","development-observed-facts"},{"nonce",config_.nonce},
                     {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
                     {"required_metadata_validated",true},{"required_connections_installed",true},{"document_id",facts.documentId},
+                    {"development_setup_opt_in",config_.developmentSetup120},{"setup_budget_ms",config_.setupBudgetMs},
+                    {"setup_selection",QString::fromLatin1(config_.setupProfile())},
                     {"current_page_id",facts.currentPageId},{"current_index",facts.currentIndex},{"order",order},
                     {"instance",QString::number(facts.localInstance)},{"begin_epoch",QString::number(facts.beginEpoch)},
                     {"end_epoch",QString::number(facts.endEpoch)},{"begin_ms",facts.beginMs},{"end_ms",facts.endMs},

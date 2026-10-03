@@ -5,7 +5,20 @@ transfer or device trial**. Main selects one development startup/preload followe
 by fresh Main-manual selection of the existing six-page fixture. Preserving the
 pre-restart process or selection is not required for this read-only experiment.
 Main is the sole tablet operator. The accepted facts source stays at
-`6875514bc498d25457a835accfc7e96e4b28447f`; this proposal changes no implementation.
+`6875514bc498d25457a835accfc7e96e4b28447f`; the selected entry adjustment leaves
+that facts reader implementation unchanged.
+
+Current Main/parent selection supersedes the earlier inherited 20/35/45 defaults:
+explicit opt-in DEV setup=120000 ms, live observation=150000 ms from the original
+host clock before arming, and independent rollback initiation=180 s from timer
+arming. Facts remain acceptedRequestAt+5000 ms; restoration TimeoutStartSec=240 s
+and ordinary product timeouts are unchanged. The selected actor is unattended
+Main-controlled one fixture opening/capture, with fresh positive generation checks;
+physical-user handoff is not required. The historical timing assessment below is
+retained as history, not a firmware/user constraint or a current actor prerequisite.
+See the [selected finite DEV budget](development-facts-budget.md) for the current
+profile, provenance, source tests and live operator recipe consistency. No native
+build, packet or device action follows before this source adjustment is reviewed.
 
 ## Entry constraint and smallest candidate
 
@@ -71,15 +84,17 @@ at Myfiles, on an incidental focus event, or on the first convenient matching pa
 
 | Bound | Clock origin and meaning |
 | --- | --- |
-| 20 seconds | Absolute startup-entry setup admission budget; fresh selection and token acceptance must finish before expiry. No renewal from a waiting marker or UI action. |
+| 120 seconds, explicit DEV opt-in | Absolute startup-entry setup admission budget; fresh selection and token acceptance must finish before expiry. No renewal from a waiting marker or UI action. |
 | 5 seconds | One facts reader's monotonic logical budget starting at the accepted request. Includes discovery, getters and queued delivery; it does not preempt a hung getter. |
-| 35 seconds | Existing host live-callback observation admission, from its reviewed operator clock origin. Late collection is historical and cannot retrofit live proof. |
-| 45 seconds | Existing independently armed systemd rollback timer's initiation, from timer arming before activation. This is not a 45-second completed-restoration guarantee. |
+| 150 seconds | Host live-callback observation admission, preserving the original before-arming clock origin. Late collection is historical and cannot retrofit live proof. |
+| 180 seconds | Independently armed systemd rollback timer's initiation, from timer arming before activation. This is not a completed-restoration guarantee. |
 
 Preserve the accepted operator's restoration unit bounds and verification procedure
 separately, including its 240-second TimeoutStartSec. Do not relabel a transport
 timeout, timer expiry or active service as proof of completed stock restoration.
-No changes to any of these bounds are proposed.
+These finite development settings are selected explicitly; no product timeout changes.
+
+### Historical assessment of the inherited 20-second setup
 
 The spent 604d OPEN experiment reached the setup deadline without an accepted token
 or native open. It restored stock; this is negative timing evidence, not proof that
@@ -88,7 +103,7 @@ not the earlier blank-target/source-page round trip. It accepts whichever page i
 freshly active in that exact document; there is no required source/target page pair.
 That reduces proposed steps but does not measure their duration.
 
-Before selecting a native build/packet, Main must supply a concrete timed procedure
+The earlier plan required Main to supply a concrete timed procedure
 supported by existing or separately authorized stock-only evidence: how the live
 waiting stage is observed, one fresh fixture opening is completed, and the fixed
 request is published within the same 20-second admission. Include transport and
@@ -165,8 +180,8 @@ loss, deadline/late delivery, restoration closure and malformed private output.
 Source plus those fixtures precede an independently reviewed native artifact and
 literal operator packet. No full guard framework or unrelated OPEN tests are required.
 
-Current missing fields: supported manual timing procedure; independent review and
-reproduction of the source checkpoint below; fresh private baseline/config; nonce;
+Current missing fields: review/reproduction of the selected DEV budget adjustment;
+fresh private baseline/config; nonce;
 native ELF/dependency/source hashes and independent rebuild; exact refreshed baseline
 identity; complete literal operator/effect/recovery packet. Their absence means
 **not ready**, not permission to substitute historical hashes or execute placeholders.
