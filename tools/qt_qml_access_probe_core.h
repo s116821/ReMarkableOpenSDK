@@ -1012,8 +1012,13 @@ private:
                 [self](const char *stage) { if (self && !self->done_) self->finish(stage); },
                 [self](bool entered) {
                     if (!self) return;
-                    self->inCall_ = entered;
-                    if (!entered) self->settlePending();
+                    if (entered) {
+                        ++self->pageOpenCallDepth_;
+                        self->inCall_ = true;
+                    } else if (self->pageOpenCallDepth_ > 0 && --self->pageOpenCallDepth_ == 0) {
+                        self->inCall_ = false;
+                        self->settlePending();
+                    }
                 });
             pageOpenSession_ = session;
             if (!QMetaObject::invokeMethod(session, [session] { session->begin(); }, Qt::QueuedConnection))
@@ -1292,6 +1297,7 @@ private:
     CreationConfig creationConfig_;
     PageOpenConfig pageOpenConfig_;
     QPointer<PageOpenSession> pageOpenSession_;
+    unsigned pageOpenCallDepth_ = 0;
     CreationBridge *bridge_ = nullptr;
     bool libraryContinuationQueued_ = false;
     bool finishing_ = false, creationCompletionQueued_ = false;

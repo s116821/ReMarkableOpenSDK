@@ -657,3 +657,11 @@ translation units, generating its moc from `qt_page_open.h`. The independent
 and owned ARM/qemu cases; it performs no tablet actions. The existing probe runner
 also links the new translation unit. Native receiver/callable exposure, actual
 opening, fresh capture and preservation remain Main-owned qualification gates.
+
+The open-session call envelope counts nested scopes and only releases the outer
+Probe teardown guard at the outermost return. Native owner getters are followed
+by fresh sticky/weak/thread/deadline checks without repeating getter evaluation.
+Owned integrated regressions pump nested native-open event loops through
+cancellation and deadline, proving that terminal cleanup waits for the outer
+return. Final-claim getter expiry and focus/document away-and-back refuse before
+any native call; post-call getter expiry/invalidation cannot report target success.

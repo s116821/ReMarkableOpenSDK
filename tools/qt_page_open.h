@@ -127,6 +127,7 @@ public:
         helper_ = component_->create();
         if (!allowed() || !helper_) { finish("open-helper-unavailable"); return; }
         QQmlEngine::setObjectOwnership(helper_, QQmlEngine::CppOwnership);
+        helper_->setParent(this);
         for (const auto &value : {qMakePair("receiver", static_cast<QObject *>(owner_.receiver)),
                                  qMakePair("scene", static_cast<QObject *>(owner_.scene)),
                                  qMakePair("document", owner_.document.data()), qMakePair("bridge", static_cast<QObject *>(this))}) {
@@ -155,8 +156,16 @@ public:
     }
 public slots:
     bool allowed() const {
-        return !done_ && !invalid_ && engine_ && QThread::currentThread() == thread() &&
-            progress_() && activeOwner(owner_, engine_);
+        const auto current = [this] {
+            if (done_ || invalid_ || !engine_ || QThread::currentThread() != thread() || !progress_()) return false;
+            return !done_ && !invalid_ && engine_ && engine_->thread() == thread();
+        };
+        if (!current() || !activeOwner(owner_, engine_)) return false;
+        // Native getters above may pump events or consume the deadline. Do not
+        // evaluate them again; recheck the sticky/weak/budget evidence afterward.
+        return current() && owner_.window && owner_.receiver && owner_.scene && owner_.document &&
+            owner_.window->thread() == thread() && owner_.receiver->thread() == thread() &&
+            owner_.scene->thread() == thread() && owner_.document->thread() == thread();
     }
     bool claim() { if (claimed_ || !allowed()) return false; claimed_ = true; return true; }
     void invalidate() { invalid_ = true; changed(); }

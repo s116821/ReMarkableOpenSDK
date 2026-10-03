@@ -24,7 +24,7 @@ ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" -shared -fvisib
   '-DQT_PROBE_NONCE="0123456789abcdef0123456789abcdef"' '-DQT_PROBE_PAGE_OPEN_CONFIG="page_open_config.h"' \
   tools/qt_qml_access_probe.cpp tools/qt_qml_creation_bridge.cpp tools/qt_page_open.cpp \
   $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/open-probe.so"
-for case in good already hidden disabled alias mapping missing duplicate config stale-source node-bound depth-bound cancel timeout wrong-page destroy cancel-queued cancel-after remap-queued page-change-queued notifications ambiguous no-window document-mismatch focus-loss document-change window-destroy engine-destroy document-destroy probe-good probe-already probe-alias probe-mapping probe-hidden probe-ambiguous probe-timeout probe-cancel-after; do
+for case in good already hidden disabled alias mapping missing duplicate config stale-source node-bound depth-bound cancel timeout wrong-page destroy cancel-queued cancel-after remap-queued page-change-queued notifications ambiguous no-window document-mismatch focus-loss document-change window-destroy engine-destroy document-destroy probe-good probe-already probe-alias probe-mapping probe-hidden probe-ambiguous probe-timeout probe-cancel-after probe-nested-cancel probe-nested-deadline probe-getter-expiry probe-getter-sticky probe-getter-document probe-getter-target-expiry probe-getter-target-sticky; do
   if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
       -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \
