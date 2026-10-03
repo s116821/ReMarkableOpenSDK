@@ -28,6 +28,8 @@ public slots:
     void progressNoise() {
         auto *bridge = QCoreApplication::instance()->findChild<qml_access::CreationBridge *>();
         assert(bridge);
+        QThread::msleep(20);
+        assert(bridge->admitLibraryReady() && bridge->admitLibraryReady());
         bridge->observeProgress(QStringLiteral("private attacker progress"), QStringLiteral("private attacker readiness"));
         bridge->observeProgress(QStringLiteral("library_ready_initial_return"), QStringLiteral("private attacker readiness"));
     }
@@ -35,13 +37,13 @@ public slots:
         const QString mode = library->property("fixtureCase").toString();
         const QPointer<QObject> target(library);
         if (mode == "dev-ready-cancel") QTimer::singleShot(20, library, [this] { cancel(); });
-        QTimer::singleShot(mode == "dev-ready-late" ? 450 : 40, library, [this, target, mode] {
+        QTimer::singleShot(mode == "dev-ready-late" ? 3040 : mode == "dev-ready-delayed" ? 650 : 40, library, [this, target, mode] {
             if (!target) return;
             if (mode != "dev-ready-still-false") target->setProperty("isReady", true);
             assert(QMetaObject::invokeMethod(target, "readyChanged", Qt::DirectConnection, Q_ARG(bool, true)));
             assert(QMetaObject::invokeMethod(target, "readyChanged", Qt::DirectConnection, Q_ARG(bool, true)));
             if (mode == "dev-ready-queued-cancel") cancel();
-            if (mode == "dev-ready-queued-deadline") QThread::msleep(450);
+            if (mode == "dev-ready-queued-deadline") QThread::msleep(3000);
         });
     }
     void cancel() {
@@ -61,6 +63,7 @@ public slots:
             bridge->observePrivateException(QStringLiteral("native-call"), QStringLiteral("Error"), QStringLiteral("synthetic"), QStringLiteral("synthetic"));
             bridge->queueLibraryContinuation();
             bridge->observeProgress(QStringLiteral("private attacker progress"), QStringLiteral("private attacker readiness"));
+            assert(!bridge->admitLibraryReady());
         });
         worker->start(); assert(worker->wait(1000)); delete worker;
     }
@@ -70,6 +73,7 @@ public slots:
         QTimer::singleShot(300, &loop, &QEventLoop::quit);
         loop.exec();
     }
+    void stall() { QThread::msleep(450); }
 };
 int main(int argc, char **argv) {
     assert(argc == 2);
@@ -105,7 +109,7 @@ QtObject {
     signal readyChanged(bool ready)
     property int lookups: 0
     Component.onCompleted: {
-        if (["dev-ready-transition", "dev-ready-duplicate", "dev-ready-late", "dev-ready-cancel", "dev-ready-queued-cancel", "dev-ready-queued-deadline", "dev-ready-still-false"].indexOf(fixtureMode) >= 0) fixtureHooks.scheduleReady(this);
+        if (["dev-ready-transition", "dev-ready-duplicate", "dev-ready-delayed", "dev-ready-late", "dev-ready-cancel", "dev-ready-queued-cancel", "dev-ready-queued-deadline", "dev-ready-still-false"].indexOf(fixtureMode) >= 0) fixtureHooks.scheduleReady(this);
     }
     property QtObject doc: QtObject {
         property var id: ({ toString: function() { if (fixtureMode === "id-string-throw") throw new Error("private id string details"); return (fixtureMode === "identity" || fixtureMode === "dev-identity") ? "bad" : "00000000-0000-4000-8000-000000000001"; } })
@@ -123,6 +127,7 @@ QtObject {
         }
         function pageForId(key) { if (fixtureMode === "index-getter-throw") throw new Error("private reverse getter details"); if ((fixtureMode === "roundtrip" || fixtureMode === "dev-reverse")) return 4; return ids.indexOf(key); }
         function templateForPage(i) {
+            if (fixtureMode === "dev-claim-expiry") fixtureHooks.stall();
             if (i !== 0) throw new Error("wrong template page");
             if ((fixtureMode === "preclaim-cancel" || fixtureMode === "dev-claim-cancel")) fixtureHooks.cancel();
             if (fixtureMode === "template-throw") throw new Error("private template details");
@@ -175,7 +180,7 @@ QtObject {
         if (fixtureMode === "foreign-bridge") fixtureHooks.foreign();
         if (fixtureMode === "native-throw") throw new Error("private native details");
         if (fixtureMode === "reentrant-cancel") { fixtureHooks.cancel(); callback(); return true; }
-        if (fixtureMode === "nested-timeout") { fixtureHooks.nested(); callback(); return true; }
+        if (fixtureMode === "nested-timeout" || fixtureMode === "dev-native-expiry") { fixtureHooks.nested(); callback(); return true; }
         if (fixtureMode === "sync" || fixtureMode === "duplicate") callback();
         if (fixtureMode === "duplicate") { callback(); callback(); }
         if (fixtureMode === "burst") for (let i = 0; i < 128; ++i) callback();
@@ -279,13 +284,14 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
             }
             QTimer::singleShot(20, &app, &QCoreApplication::quit);
         });
-    }, 3000, mode == "nested-timeout" ? 150 : 400, config);
+    }, 3000, mode == "nested-timeout" || mode == "dev-native-expiry" ? 150 : 400, config);
     QTimer::singleShot(5000, &app, [] { assert(false && "creation fixture timeout"); });
     assert(app.exec() == 0);
     assert(receipts == 1);
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
     if (mode.startsWith("dev-")) {
+        assert(summary.value("access_anchor").toString() == "library-ready-observation");
         const auto stamp = [&](const char *stage) { return trial.value(QString::fromLatin1(stage) + "_ms"); };
         const auto observed = [&](const char *stage) { assert(stamp(stage).isDouble() && stamp(stage).toInteger() >= 0); };
         const auto absent = [&](const char *stage) { assert(stamp(stage).isNull()); };
@@ -301,7 +307,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
             observed("library_ready_initial_enter"); observed("library_ready_initial_return");
             const QString initial = mode == "dev-ready-absent" || mode == "dev-ready-type" ? "nonboolean" : mode == "dev-ready-success" ? "true" : "false";
             assert(trial.value("initial_readiness_observation").toString() == initial);
-            if (mode == "dev-ready-transition" || mode == "dev-ready-duplicate" || mode == "dev-ready-still-false") {
+            if (mode == "dev-ready-transition" || mode == "dev-ready-duplicate" || mode == "dev-ready-delayed" || mode == "dev-ready-still-false") {
                 observed("ready_signal"); observed("continuation_queued"); observed("continuation_enter");
                 observed("library_ready_resume_enter"); observed("library_ready_resume_return");
                 assert(stamp("ready_signal").toInteger() <= stamp("continuation_queued").toInteger());
@@ -313,20 +319,31 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
                 else { observed("continuation_enter"); observed("deadline_observed"); assert(stamp("continuation_enter").toInteger() <= stamp("deadline_observed").toInteger()); }
             } else { absent("ready_signal"); absent("continuation_queued"); absent("continuation_enter"); }
             if (mode == "dev-ready-late" || mode == "dev-ready-queued-deadline") { observed("deadline_observed"); assert(stamp("deadline_observed").toInteger() <= stamp("cleanup_enter").toInteger()); }
-            if (mode == "dev-ready-success" || mode == "dev-ready-transition" || mode == "dev-ready-duplicate") { observed("library_lookup_enter"); observed("library_lookup_return"); observed("mutation_claim_enter"); }
+            if (mode == "dev-ready-success" || mode == "dev-ready-transition" || mode == "dev-ready-duplicate" || mode == "dev-ready-delayed") {
+                observed("library_lookup_enter"); observed("library_lookup_return"); observed("mutation_claim_enter"); observed("library_ready_accepted_at");
+                if (mode == "dev-ready-delayed") assert(stamp("library_ready_accepted_at").toInteger() > summary.value("component_ready_at_ms").toInteger() + 400);
+            }
             else { absent("library_lookup_enter"); absent("mutation_claim_enter"); }
+            if (mode == "dev-ready-success") assert(stamp("library_ready_accepted_at").toInteger() <= stamp("library_lookup_enter").toInteger());
         }
         if (mode == "dev-lookup-error" || mode.startsWith("dev-error-")) { observed("library_lookup_enter"); absent("library_lookup_return"); absent("mutation_claim_enter"); }
         assert(!QJsonDocument(trial).toJson().contains("private attacker"));
     } else assert(!trial.contains("create_once_enter_ms") && !trial.contains("initial_readiness_observation"));
     const bool libraryBoundaryRefusal = mode == "dev-library-absent" || mode == "dev-library-provider" || mode == "dev-library-method" || mode == "dev-ready-absent" || mode == "dev-ready-type" || mode == "dev-ready-late" || mode == "dev-ready-queued-deadline" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel" || mode == "dev-ready-still-false" || mode == "dev-lookup-error" || mode.startsWith("dev-error-");
-    const bool preCall = libraryBoundaryRefusal || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
+    const bool preCall = libraryBoundaryRefusal || mode == "dev-claim-expiry" || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
         mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent" || mode == "dev-count" || mode == "dev-reverse" || mode == "dev-template" || mode == "dev-claim-cancel" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
     assert(trial.value("mutation_attempted").toBool() == !preCall);
     assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
     assert(!trial.value("durable_success").toBool());
+    if (mode.startsWith("dev-") && trial.value("library_ready_accepted_at_ms").isDouble()) {
+        const qint64 anchor = trial.value("library_ready_accepted_at_ms").toInteger();
+        assert(anchor >= 0 && anchor < summary.value("readiness_budget_ms").toInteger());
+        if (!preCall) assert(trial.value("attempted_at_ms").toInteger() < anchor + summary.value("access_budget_ms").toInteger());
+        if (mode == "dev-claim-expiry" || mode == "dev-native-expiry") assert(summary.value("elapsed_ms").toInteger() >= anchor + summary.value("access_budget_ms").toInteger());
+    } else if (mode.startsWith("dev-ready-") && preCall) assert(trial.value("library_ready_accepted_at_ms").isNull());
+    if (!mode.startsWith("dev-")) assert(summary.value("access_anchor").toString() == "component-ready-observation");
     assert(trial.value("effect_requires_reconciliation").toBool() == !preCall);
     if (!preCall) {
         assert(controller->property("arity").toInt() == 5 && controller->property("callbackArity").toInt() == 0);
@@ -334,7 +351,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     }
     assert(trial.value("com_remarkable_import_selected").toBool() == !mode.startsWith("dev-"));
     assert(trial.value("development_explicit_fixture").toBool() == mode.startsWith("dev-"));
-    if (mode == "dev-ready-late" || mode == "dev-ready-queued-deadline") {
+    if (mode == "dev-ready-late" || mode == "dev-ready-queued-deadline" || mode == "dev-claim-expiry") {
         assert(terminal == "deadline" && trial.value("callback_count").toInt() == 0);
     } else if (mode == "dev-library-provider") {
         assert(terminal == "creation-exception" || (terminal == "creation-refused" && trial.value("guard_stage").toString() == "library-unavailable"));
@@ -342,7 +359,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(terminal == "module-missing" && !trial.value("exception").toBool() && !trial.value("returned").toBool());
     } else if (mode == "native-throw") {
         assert(terminal == "creation-exception" && trial.value("exception").toBool() && !trial.value("returned").toBool());
-    } else if (mode == "no-callback" || mode == "false-no-callback" || mode == "nested-timeout") {
+    } else if (mode == "no-callback" || mode == "false-no-callback" || mode == "nested-timeout" || mode == "dev-native-expiry") {
         assert(terminal == "deadline" && trial.value("phase").toString() == "effect-uncertain");
         assert(trial.value("callback_count").toInt() == 0);
     } else if (mode == "reentrant-cancel" || mode == "preclaim-cancel" || mode == "dev-claim-cancel" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel") {

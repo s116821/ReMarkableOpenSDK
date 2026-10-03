@@ -517,7 +517,7 @@ lookup, native ID and five-page guards, template and one creation call.
 A false boolean enables one owned Connections target for readyChanged. The first
 signal disables that target and queues one C++ continuation; duplicate signals
 cannot queue another. The continuation checks the existing engine, ownership,
-cancellation and first-component-Ready plus five-second deadline before entering
+cancellation and the development readiness/access deadline before entering
 resumeLibrary under the same inCall/settlePending protection as createOnce. It
 re-reads readiness and requires boolean true. There is no polling, budget
 extension, creation replay or repeated lookup. Completion/cancellation disarms
@@ -576,6 +576,41 @@ Internal cleanup/deadline recording can occur after bridge disarm and never
 re-enables it. Existing attempted_at_ms is successful mutation-claim evidence;
 returned_at_ms and first_callback_at_ms remain the native return/callback
 observations, and component_ready_at_ms still means compiled component Ready.
-The deadline and public callback format are unchanged. Missing markers do not
+Progress recording does not change deadlines or the public callback. Missing markers do not
 establish why a boundary was not observed. These fields are private diagnostics,
 with the existing 8192-byte limit, not creation or durability proof.
+### Development readiness and access budget partition
+
+For the explicitly enabled development fixture only, compiled component Ready
+no longer starts the access budget. The existing absolute readiness deadline
+remains 20000 ms from Probe start until the already-evaluated initial or resumed
+Library.isReady local value is strictly boolean true. The existing resumed
+context check must admit work before that cutoff; a separate armed/thread-guarded
+admitLibraryReady step rechecks the live context and cutoff after the read.
+At or after cutoff it refuses admission. It reads no Library property itself.
+
+The first admitted true observation records library_ready_accepted_at_ms and
+rearms the same timer once for the existing 5000-ms access budget. Repeated
+admission cannot reset that anchor or timer. The absolute access deadline is
+anchor plus 5000 ms, so the maximum logical lifetime is less than 25000 ms from
+Probe start. The private access_anchor value is library-ready-observation;
+component_ready_at_ms remains the independent compile-Ready timestamp. Default
+mode still uses component-ready-observation plus 5000 ms. The fixed progress
+observer, readiness signal, queue entry and unrelated events cannot set an anchor.
+There is no polling, sleep, inline creation, replay, repeated lookup or retry.
+
+Continuation posting checks invokeMethod's boolean result. Failure records fixed
+library-dispatch-unavailable, disarms the bridge and schedules terminal-only
+refusal after signal-stack unwind; it never attempts another creation dispatch.
+The zero-delay terminal deferral is not a readiness or access budget timer.
+
+Owned tests retain default deadline cases and add readiness arriving after the
+former access cutoff but before the absolute readiness deadline, one-way anchor
+retention under repeated admission, expiry before the mutation claim, and expiry
+during native completion. Readiness-late and queued-deadline cases now exercise
+the absolute readiness cutoff. Successful claims must occur before the anchored
+access deadline; expiry never qualifies durability. No actual trial is implied.
+The existing operator observation/recovery envelope remains unchanged; startup
+or transport time consuming that envelope still requires restoration, never an
+operator extension. These are cooperative GUI-thread budgets, not preemption of
+busy native calls; the outer operator remains responsible for hard recovery.

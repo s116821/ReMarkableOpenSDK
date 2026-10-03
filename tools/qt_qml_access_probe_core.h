@@ -116,6 +116,7 @@ QtObject {
             bridge.observeProgress("library_ready_initial_return", typeof ready !== "boolean" ? "nonboolean" : ready ? "true" : "false");
             if (typeof ready !== "boolean") return bridge.refuse("library-readiness-invalid");
             if (!ready) { waitingForLibrary = true; return; }
+            if (!bridge.admitLibraryReady()) return;
             performCreation();
         } catch (e) { captureException(operation, e); }
     }
@@ -128,6 +129,7 @@ QtObject {
             bridge.observeProgress("library_ready_resume_return", typeof ready !== "boolean" ? "nonboolean" : ready ? "true" : "false");
             if (typeof ready !== "boolean") return bridge.refuse("library-readiness-invalid");
             if (!ready) return bridge.refuse("library-not-ready");
+            if (!bridge.admitLibraryReady()) return;
             performCreation();
         } catch (e) { captureException(operation, e); }
     }
@@ -229,6 +231,7 @@ struct CreationObservation {
     const char *initialReadiness = "unobserved", *resumeReadiness = "unobserved", *currentReadiness = "unobserved";
     const char *lastEnteredStage = "unobserved", *lastCompletedStage = "unobserved";
     qint64 attemptedAtMs = -1, returnedAtMs = -1, firstCallbackAtMs = -1;
+    qint64 libraryReadyAcceptedAtMs = -1;
 };
 inline constexpr std::array<const char *, 20> creationProgressStages{{"create_once_enter", "library_resolve_enter", "library_resolve_return",
     "library_method_enter", "library_method_return", "library_ready_initial_enter", "library_ready_initial_return", "ready_signal",
@@ -245,6 +248,7 @@ inline QJsonObject creationJson(const CreationObservation &c) {
         {"returned_at_ms", stamp(c.returnedAtMs)}, {"first_callback_at_ms", stamp(c.firstCallbackAtMs)},
         {"durable_success", false}, {"effect_requires_reconciliation", c.attempted}};
     if (c.developmentExplicitFixture) {
+        result.insert("library_ready_accepted_at_ms", stamp(c.libraryReadyAcceptedAtMs));
         for (size_t i = 0; i < creationProgressStages.size(); ++i)
             result.insert(QString::fromLatin1(creationProgressStages[i]) + QStringLiteral("_ms"), stamp(c.progressAtMs[i]));
         result.insert("initial_readiness_observation", c.initialReadiness);
@@ -656,7 +660,7 @@ inline QByteArray runtimeSnapshot(const QByteArray &priorFailure, int attempts, 
     summary.insert(QStringLiteral("root_gate"), QString::fromLatin1(root.gate));
     summary.insert(QStringLiteral("root_witness_kind"), QString::fromLatin1(root.witnessKind));
     summary.insert(QStringLiteral("root_count"), root.rootCount);
-    summary.insert(QStringLiteral("access_anchor"), QStringLiteral("component-ready-observation"));
+    summary.insert(QStringLiteral("access_anchor"), root.creation.developmentExplicitFixture ? QStringLiteral("library-ready-observation") : QStringLiteral("component-ready-observation"));
     summary.insert(QStringLiteral("retry_interval_ms"), root.retryIntervalMs);
     summary.insert(QStringLiteral("timer_rechecks_admitted"), root.retryRechecks);
     const auto timestamp = [&](const char *key, qint64 value) {
@@ -736,6 +740,9 @@ private:
         }
     }
     qint64 deadlineAtMs() const {
+        if (creationConfig_.developmentExplicitFixture)
+            return rootSummary_.creation.libraryReadyAcceptedAtMs < 0 ? rootSummary_.readinessBudgetMs :
+                rootSummary_.creation.libraryReadyAcceptedAtMs + rootSummary_.accessBudgetMs;
         return rootSummary_.componentReadyAtMs < 0 ? rootSummary_.readinessBudgetMs :
             rootSummary_.componentReadyAtMs + rootSummary_.accessBudgetMs;
     }
@@ -1039,6 +1046,16 @@ private:
             self->bridge_ = new CreationBridge(self);
             auto *bridge = self->bridge_;
             bridge->check = [self](bool claim) { return self && self->creationContext(claim); };
+            bridge->libraryAdmission = [self] {
+                if (!self || !self->creationConfig_.developmentExplicitFixture || !self->creationContext(false)) return false;
+                auto &trial = self->rootSummary_.creation;
+                if (trial.libraryReadyAcceptedAtMs >= 0) return true;
+                const qint64 acceptedAt = self->elapsed_.elapsed();
+                if (acceptedAt >= self->rootSummary_.readinessBudgetMs) { self->expired(); return false; }
+                trial.libraryReadyAcceptedAtMs = acceptedAt;
+                self->timer_.start(self->rootSummary_.accessBudgetMs);
+                return true;
+            };
             bridge->progress = [self](const QString &stage, const QString &readiness) {
                 if (self) self->recordCreationProgress(stage, readiness);
             };
@@ -1083,7 +1100,7 @@ private:
                 self->libraryContinuationQueued_ = true;
                 self->recordCreationProgress(QStringLiteral("continuation_queued"));
                 const unsigned epoch = self->eventEpoch_;
-                QMetaObject::invokeMethod(self, [self, epoch] {
+                const bool posted = QMetaObject::invokeMethod(self, [self, epoch] {
                     if (!self || self->done_ || epoch != self->eventEpoch_) return;
                     self->recordCreationProgress(QStringLiteral("continuation_enter"));
                     if (!self->creationContext(false)) return;
@@ -1094,6 +1111,17 @@ private:
                     if (!invoked) { self->finish("creation-dispatch"); return; }
                     self->completeCreation();
                 }, Qt::QueuedConnection);
+                if (!posted) {
+                    self->bridge_->disarm();
+                    if (!self->pendingStage_ && !self->cancelPending_) {
+                        self->rootSummary_.creation.guard = "library-dispatch-unavailable";
+                        self->rootSummary_.creation.phase = "pre-call-refusal";
+                        self->pendingStage_ = "creation-refused";
+                    }
+                    self->timer_.stop();
+                    // Terminal-only defer: never destroy a helper on its native signal stack.
+                    QTimer::singleShot(0, self, [self] { if (self && !self->done_) self->settlePending(); });
+                }
             };
             bridge->callback = [self] {
                 if (!self || !self->rootSummary_.creation.attempted) return;
