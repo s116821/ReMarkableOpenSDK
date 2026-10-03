@@ -72,6 +72,38 @@ The SDK SHALL return immutable capture content with digest, dimensions/transform
 ### Requirement: Guarded native navigation
 The SDK SHALL navigate only from a valid expected observation through a qualified semantic operation and SHALL enforce its ownership preconditions when execution occurs, not only before dispatch. It SHALL report observed target completion separately from command dispatch. It SHALL NOT use autonomous menu automation or a per-request UI restart to satisfy navigation.
 
+The SDK SHALL expose logical Next and Previous independently of physical swipe
+direction through qualified per-tablet and orientation-aware implementations.
+A supported gesture implementation SHALL NOT require a direct native page-opening
+method. Each request SHALL dispatch at most one gesture and SHALL determine its
+intended adjacent PageKey from fresh ordered native identity. Dispatch success
+SHALL NOT imply destination or rendering readiness. Unknown model/orientation
+profiles SHALL remain explicitly unsupported rather than borrowing coordinates.
+
+#### Scenario: Device-specific gesture mapping
+- **WHEN** a qualified device/orientation profile receives logical Next or Previous
+- **THEN** its adapter selects the qualified physical gesture while preserving the same logical adjacent-page contract, without exposing physical left/right as the semantic direction
+
+#### Scenario: Unsupported device or orientation
+- **WHEN** the adapter lacks qualification for the requested device/orientation profile
+- **THEN** navigation returns Unsupported without dispatching input
+
+#### Scenario: Intended inserted target is already active
+- **WHEN** fresh qualified observation identifies the exact inserted target in the expected after-order
+- **THEN** the consumer can skip navigation, but still requires fresh capture ownership and binding/write guards before output
+
+#### Scenario: Inserted target requires one adjacent transition
+- **WHEN** fresh observation still identifies the expected source and the exact intended inserted target is its next neighbor in the verified after-order
+- **THEN** the SDK may dispatch one qualified logical Next and reports completion only after fresh native target identity, expected order and qualified visual readiness agree
+
+#### Scenario: Acquisition after legitimate insertion
+- **WHEN** insertion changes the expected order or active visit before navigation
+- **THEN** a qualified acquisition/handoff preserves observer/input-epoch and runtime/session continuity, validates correlated creation and the exact permitted after-order, and never silently repins an invalid old guard or clears sticky input/ownership loss
+
+#### Scenario: Wrong or unverified destination
+- **WHEN** the gesture reaches another page, order or ownership changes, or pixels cannot be freshly attributed to the intended target
+- **THEN** navigation reports refusal or uncertainty as appropriate, does not dispatch another gesture, and grants no permission to write
+
 #### Scenario: Source ownership lost
 - **WHEN** external input or runtime state invalidates the source guard before dispatch
 - **THEN** navigation stops without issuing the operation

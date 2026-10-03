@@ -8,6 +8,7 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 - Establish SDK-owned OpenSpec and a narrow, versioned semantic contract for device capabilities, page identity, guarded capture/navigation and creation receipts.
 - Keep persistent page identity distinct from current runtime/visit ownership and capture evidence.
+- Prioritize logical Next/Previous with qualified per-tablet, orientation-aware gestures and verified intended destination. Direct native PageKey opening is deferred, not an MVP prerequisite; preserve its unfinished research and setup findings in [the active navigation plan](logical-navigation-plan.md).
 - Require explicit unsupported, stale, canceled and indeterminate outcomes; never equate command acceptance with durable native creation.
 - Compare robust direct/native IPC/services with a narrowly supervised XOVI candidate, including actual failure modes inside each abstraction. Qualify the selected mechanism on RM2, with independent Paper Pro qualification; never silently fall back to metadata mutation.
 - Keep one mockable contract across RM2/ARMv7 and future Paper Pro/AArch64 adapters; expose per-capability qualification rather than universal support flags.
@@ -25,6 +26,6 @@ None. This empty repository has no implemented canonical baseline.
 
 ## Impact
 
-SDK repository gains its own contract and eventual implementation/tests/release artifacts. ReMarkableBuddiesDocs owns the coordinated product delta; ReMarkableBuddies adapts its DeviceBackend boundary and owns any separate Supervisor process within the same Buddy artifact. Manager continues one compatible Buddy installation, not a second SDK runtime or user-managed XOVI prerequisite. SDK owns adapter activation/readiness/invalidation/recovery semantics, not Buddy gestures or supervisor scheduling. No cloud sync, firmware update, personal pairing, automatic cold-boot injection, public Buddy admin API or all-at-once platform extraction is included.
+SDK repository gains its own contract and eventual implementation/tests/release artifacts. ReMarkableBuddiesDocs owns the coordinated product delta; ReMarkableBuddies adapts its DeviceBackend boundary and owns any separate Supervisor process within the same Buddy artifact. Manager continues one compatible Buddy installation, not a second SDK runtime or user-managed XOVI prerequisite. SDK owns adapter activation/readiness/invalidation/recovery and logical navigation/device gesture semantics; Buddy owns product trigger interpretation and supervisor scheduling. No cloud sync, firmware update, personal pairing, automatic cold-boot injection, public Buddy admin API or all-at-once platform extraction is included.
 
 Native page creation remains an unpassed research gate. A product-level manual blank-successor fallback is permitted only after the exhaustive investigation required by REM-25; SDK `Unsupported` alone does not satisfy that product gate.

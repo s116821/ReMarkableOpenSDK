@@ -1,7 +1,11 @@
 # Explicit PageKey development open/observe slice
 
-Status: Main-selected source preparation, October 3. No native opening API is
-qualified. The successful explicit insertion fixture now contains six pages;
+Status: DEFERRED by user direction, October 3. Direct native opening is not an
+MVP prerequisite. Preserve the source, spent trial and unresolved setup-guard
+findings; do not continue experiments or expand its helper framework. The active
+route is [logical Next/Previous and verified identity](logical-navigation-plan.md).
+The remainder records the historical development plan, not current authorization.
+No native opening API is qualified. The successful explicit insertion fixture now contains six pages;
 its expected-five creation configuration and spent packet remain historical.
 Task2.7 is achieved at that narrow scope; tasks2.6/2.3/4.2 remain open.
 

@@ -85,6 +85,34 @@ Target toolchain qualification includes ELF class/machine, ARM floating-point AB
 
 ## Migration Plan
 
+### October 3 navigation priority correction
+
+User direction selects SDK logical Next/Previous with qualified per-tablet
+gesture implementations; logical direction is distinct from physical swipe and
+orientation. Direct native PageKey opening is deferred and is not an MVP gate.
+The smallest route is native insertion, fresh active-page/order observation,
+zero gestures when already on the intended target or one logical Next from the
+verified source when that exact target is adjacent, then fresh target/pixel
+verification before consumer binding and guarded output. Native insertion's
+automatic selection behavior has not been observed and must not be assumed.
+
+Reuse finite owner topology and native document/index/key checks independently
+of invoking openPage. Existing PageOpenSession cannot be reused unchanged: its
+helper requires openPage even during observation, begin queues openOnce, and
+pre-claim page notifications invalidate its state. An observation/navigation
+contract must permit exactly the expected source-to-target transition while
+retaining sticky invalidation for unrelated owner/input/order changes. No helper
+result, metadata alias or screenshot alone creates a production PageObservation.
+See [active route and preserved research](logical-navigation-plan.md).
+
+The SDK owns semantic direction, device/orientation mapping and qualified
+navigation observations. Buddy retains product intent, conversation binding and
+write policy. Main coordinates integration/device work; ordinary implementation
+remains Sol and RM1 qualification remains with its independent owner. No deferred
+direct-open setup harness, timer enlargement or injected runtime is a prerequisite
+for implementing the gesture abstraction. Native identity and insertion runtime
+qualification obligations remain open rather than being waived.
+
 Bootstrap this active SDK plan, agree receipt/identity semantics with REM-37, narrow native research, implement the smallest tested contract/mocks, qualify RM2 mechanism, then move only current Reader/native creation seams behind it. Pair exact SDK and Buddy revisions with the Docs product delta. Old synthetic XOVI experiments remain research evidence only; the new candidate permission does not promote them to native qualification. Sync/archive only after implementation and required native/consumer gates pass.
 
 ## Open Questions
