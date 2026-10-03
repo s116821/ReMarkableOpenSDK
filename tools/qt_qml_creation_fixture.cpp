@@ -25,6 +25,12 @@ public:
     using QObject::QObject;
     int calls = 0;
 public slots:
+    void progressNoise() {
+        auto *bridge = QCoreApplication::instance()->findChild<qml_access::CreationBridge *>();
+        assert(bridge);
+        bridge->observeProgress(QStringLiteral("private attacker progress"), QStringLiteral("private attacker readiness"));
+        bridge->observeProgress(QStringLiteral("library_ready_initial_return"), QStringLiteral("private attacker readiness"));
+    }
     void scheduleReady(QObject *library) {
         const QString mode = library->property("fixtureCase").toString();
         const QPointer<QObject> target(library);
@@ -54,6 +60,7 @@ public slots:
             bridge->observeException(QStringLiteral("native-call")); bridge->refuse(QStringLiteral("identity-mismatch"));
             bridge->observePrivateException(QStringLiteral("native-call"), QStringLiteral("Error"), QStringLiteral("synthetic"), QStringLiteral("synthetic"));
             bridge->queueLibraryContinuation();
+            bridge->observeProgress(QStringLiteral("private attacker progress"), QStringLiteral("private attacker readiness"));
         });
         worker->start(); assert(worker->wait(1000)); delete worker;
     }
@@ -164,6 +171,7 @@ QtObject {
             template === (fixtureMode === "empty-template" ? "" : "SyntheticBackground") &&
             paper.width === 1404 && paper.height === 1872;
         retainedCallback = callback;
+        if (fixtureMode === "dev-ready-success") fixtureHooks.progressNoise();
         if (fixtureMode === "foreign-bridge") fixtureHooks.foreign();
         if (fixtureMode === "native-throw") throw new Error("private native details");
         if (fixtureMode === "reentrant-cancel") { fixtureHooks.cancel(); callback(); return true; }
@@ -216,7 +224,8 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         QPointer<QObject> helper = component.create();
         assert(helper);
         qml_access::CreationBridge bridge(&app);
-        int claims = 0, callbacks = 0, returns = 0;
+        int claims = 0, callbacks = 0, returns = 0, observations = 0;
+        bridge.progress = [&](const QString &, const QString &) { ++observations; };
         bridge.check = [&](bool claim) { if (claim) return ++claims == 1; return true; };
         bridge.refusal = [](const QString &) { assert(false && "unexpected repeat guard refusal"); };
         bridge.exception = [](const QString &) { assert(false && "unexpected repeat exception"); };
@@ -230,6 +239,8 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         auto late = controller->property("retainedCallback").value<QJSValue>();
         assert(helper->property("callbackCount").toInt() == 1);
         bridge.disarm();
+        bridge.observeProgress(QStringLiteral("ready_signal"), QStringLiteral("true"));
+        assert(observations == 0);
         assert(!late.call().isError() && helper->property("callbackCount").toInt() == 1 && callbacks == 1);
         delete helper.data(); assert(!helper);
         assert(!late.call().isError() && callbacks == 1);
@@ -274,6 +285,40 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     assert(receipts == 1);
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
+    if (mode.startsWith("dev-")) {
+        const auto stamp = [&](const char *stage) { return trial.value(QString::fromLatin1(stage) + "_ms"); };
+        const auto observed = [&](const char *stage) { assert(stamp(stage).isDouble() && stamp(stage).toInteger() >= 0); };
+        const auto absent = [&](const char *stage) { assert(stamp(stage).isNull()); };
+        observed("helper_create_enter"); observed("helper_create_return"); observed("create_once_enter");
+        observed("cleanup_enter"); observed("cleanup_return");
+        assert(stamp("helper_create_enter").toInteger() <= stamp("helper_create_return").toInteger());
+        assert(stamp("helper_create_return").toInteger() <= stamp("create_once_enter").toInteger());
+        assert(stamp("cleanup_enter").toInteger() <= stamp("cleanup_return").toInteger());
+        assert(trial.value("last_entered_stage").toString() == "cleanup_enter" && trial.value("last_completed_stage").toString() == "cleanup_return");
+        if (mode == "dev-library-absent") { observed("library_resolve_enter"); absent("library_resolve_return"); }
+        else { observed("library_resolve_enter"); observed("library_resolve_return"); }
+        if (mode.startsWith("dev-ready-")) {
+            observed("library_ready_initial_enter"); observed("library_ready_initial_return");
+            const QString initial = mode == "dev-ready-absent" || mode == "dev-ready-type" ? "nonboolean" : mode == "dev-ready-success" ? "true" : "false";
+            assert(trial.value("initial_readiness_observation").toString() == initial);
+            if (mode == "dev-ready-transition" || mode == "dev-ready-duplicate" || mode == "dev-ready-still-false") {
+                observed("ready_signal"); observed("continuation_queued"); observed("continuation_enter");
+                observed("library_ready_resume_enter"); observed("library_ready_resume_return");
+                assert(stamp("ready_signal").toInteger() <= stamp("continuation_queued").toInteger());
+                assert(stamp("continuation_queued").toInteger() <= stamp("continuation_enter").toInteger());
+                assert(trial.value("resume_readiness_observation").toString() == (mode == "dev-ready-still-false" ? "false" : "true"));
+            } else if (mode == "dev-ready-queued-cancel" || mode == "dev-ready-queued-deadline") {
+                observed("ready_signal"); observed("continuation_queued"); absent("library_ready_resume_enter");
+                if (mode == "dev-ready-queued-cancel") absent("continuation_enter");
+                else { observed("continuation_enter"); observed("deadline_observed"); assert(stamp("continuation_enter").toInteger() <= stamp("deadline_observed").toInteger()); }
+            } else { absent("ready_signal"); absent("continuation_queued"); absent("continuation_enter"); }
+            if (mode == "dev-ready-late" || mode == "dev-ready-queued-deadline") { observed("deadline_observed"); assert(stamp("deadline_observed").toInteger() <= stamp("cleanup_enter").toInteger()); }
+            if (mode == "dev-ready-success" || mode == "dev-ready-transition" || mode == "dev-ready-duplicate") { observed("library_lookup_enter"); observed("library_lookup_return"); observed("mutation_claim_enter"); }
+            else { absent("library_lookup_enter"); absent("mutation_claim_enter"); }
+        }
+        if (mode == "dev-lookup-error" || mode.startsWith("dev-error-")) { observed("library_lookup_enter"); absent("library_lookup_return"); absent("mutation_claim_enter"); }
+        assert(!QJsonDocument(trial).toJson().contains("private attacker"));
+    } else assert(!trial.contains("create_once_enter_ms") && !trial.contains("initial_readiness_observation"));
     const bool libraryBoundaryRefusal = mode == "dev-library-absent" || mode == "dev-library-provider" || mode == "dev-library-method" || mode == "dev-ready-absent" || mode == "dev-ready-type" || mode == "dev-ready-late" || mode == "dev-ready-queued-deadline" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel" || mode == "dev-ready-still-false" || mode == "dev-lookup-error" || mode.startsWith("dev-error-");
     const bool preCall = libraryBoundaryRefusal || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||

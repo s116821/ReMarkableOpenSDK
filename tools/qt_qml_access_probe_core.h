@@ -69,6 +69,7 @@ QtObject {
         target: ownedHelper.waitingForLibrary && ownedHelper.armed ? ownedHelper.observedLibrary : null
         function onReadyChanged(ready) {
             if (!ownedHelper.armed || !ownedHelper.waitingForLibrary || !ownedHelper.bridge || !ownedHelper.bridge.callbackAllowed()) return;
+            ownedHelper.bridge.observeProgress("ready_signal", "unobserved");
             ownedHelper.waitingForLibrary = false;
             ownedHelper.bridge.queueLibraryContinuation();
         }
@@ -95,15 +96,24 @@ QtObject {
         if (entered) return;
         entered = true;
         if (!developmentExplicitFixture) return performCreation();
+        if (armed && bridge) bridge.observeProgress("create_once_enter", "unobserved");
         let operation = "library-resolve";
         try {
             if (!armed || !bridge || !bridge.preflightAllowed()) return;
-            observedLibrary = Library;
+            bridge.observeProgress("library_resolve_enter", "unobserved");
+            const lib = Library;
+            bridge.observeProgress("library_resolve_return", "unobserved");
+            observedLibrary = lib;
             if (!observedLibrary) return bridge.refuse("library-unavailable");
             operation = "library-method";
-            if (typeof observedLibrary.entryForId !== "function") return bridge.refuse("library-method-unavailable");
+            bridge.observeProgress("library_method_enter", "unobserved");
+            const method = observedLibrary.entryForId;
+            bridge.observeProgress("library_method_return", "unobserved");
+            if (typeof method !== "function") return bridge.refuse("library-method-unavailable");
             operation = "library-ready";
+            bridge.observeProgress("library_ready_initial_enter", "unobserved");
             const ready = observedLibrary.isReady;
+            bridge.observeProgress("library_ready_initial_return", typeof ready !== "boolean" ? "nonboolean" : ready ? "true" : "false");
             if (typeof ready !== "boolean") return bridge.refuse("library-readiness-invalid");
             if (!ready) { waitingForLibrary = true; return; }
             performCreation();
@@ -113,7 +123,9 @@ QtObject {
         let operation = "library-ready";
         try {
             if (!armed || !bridge || !bridge.preflightAllowed() || creationStarted) return;
+            bridge.observeProgress("library_ready_resume_enter", "unobserved");
             const ready = observedLibrary ? observedLibrary.isReady : undefined;
+            bridge.observeProgress("library_ready_resume_return", typeof ready !== "boolean" ? "nonboolean" : ready ? "true" : "false");
             if (typeof ready !== "boolean") return bridge.refuse("library-readiness-invalid");
             if (!ready) return bridge.refuse("library-not-ready");
             performCreation();
@@ -137,7 +149,9 @@ QtObject {
             const expectedDocument = )QML") + document + R"QML([0];
             const expectedPages = )QML" + pages + R"QML(;
             operation = "library-lookup";
+            if (developmentExplicitFixture) bridge.observeProgress("library_lookup_enter", "unobserved");
             const d = developmentExplicitFixture ? observedLibrary.entryForId(expectedDocument) : Library.entryForId(expectedDocument);
+            if (developmentExplicitFixture) bridge.observeProgress("library_lookup_return", "unobserved");
             if (!d) return bridge.refuse("missing-document");
             operation = "document-id-read";
             const nativeId = d.id;
@@ -183,6 +197,7 @@ QtObject {
             if (typeof observedController.addPageWithTemplateAndPageSize !== "function")
                 return bridge.refuse("method-unavailable");
             operation = "mutation-claim";
+            if (developmentExplicitFixture) bridge.observeProgress("mutation_claim_enter", "unobserved");
             if (!armed || !bridge || !bridge.claimMutation()) return;
             operation = "native-call";
             const result = observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback);
@@ -210,11 +225,18 @@ struct CreationObservation {
     const char *phase = "not-started", *guard = "not-checked", *exceptionOperation = nullptr;
     QString privateErrorName, privateErrorMessage;
     const char *exceptionCategory = "unknown";
+    std::array<qint64, 20> progressAtMs{{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}};
+    const char *initialReadiness = "unobserved", *resumeReadiness = "unobserved", *currentReadiness = "unobserved";
+    const char *lastEnteredStage = "unobserved", *lastCompletedStage = "unobserved";
     qint64 attemptedAtMs = -1, returnedAtMs = -1, firstCallbackAtMs = -1;
 };
+inline constexpr std::array<const char *, 20> creationProgressStages{{"create_once_enter", "library_resolve_enter", "library_resolve_return",
+    "library_method_enter", "library_method_return", "library_ready_initial_enter", "library_ready_initial_return", "ready_signal",
+    "continuation_queued", "continuation_enter", "library_ready_resume_enter", "library_ready_resume_return", "library_lookup_enter", "library_lookup_return",
+    "helper_create_enter", "helper_create_return", "mutation_claim_enter", "deadline_observed", "cleanup_enter", "cleanup_return"}};
 inline QJsonObject creationJson(const CreationObservation &c) {
     const auto stamp = [](qint64 n) { return n < 0 ? QJsonValue(QJsonValue::Null) : QJsonValue(n); };
-    return {{"enabled", c.enabled}, {"com_remarkable_import_selected", !c.developmentExplicitFixture}, {"development_explicit_fixture", c.developmentExplicitFixture}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
+    QJsonObject result{{"enabled", c.enabled}, {"com_remarkable_import_selected", !c.developmentExplicitFixture}, {"development_explicit_fixture", c.developmentExplicitFixture}, {"mutation_attempted", c.attempted}, {"returned", c.returned},
         {"returned_bool_known", c.returnedBoolKnown}, {"returned_bool", c.returnedBool},
         {"exception", c.exception}, {"exception_operation", c.exceptionOperation ? QJsonValue(c.exceptionOperation) : QJsonValue(QJsonValue::Null)},
         {"exception_category", c.exception ? QJsonValue(c.exceptionCategory) : QJsonValue(QJsonValue::Null)},
@@ -222,6 +244,16 @@ inline QJsonObject creationJson(const CreationObservation &c) {
         {"phase", c.phase}, {"guard_stage", c.guard}, {"attempted_at_ms", stamp(c.attemptedAtMs)},
         {"returned_at_ms", stamp(c.returnedAtMs)}, {"first_callback_at_ms", stamp(c.firstCallbackAtMs)},
         {"durable_success", false}, {"effect_requires_reconciliation", c.attempted}};
+    if (c.developmentExplicitFixture) {
+        for (size_t i = 0; i < creationProgressStages.size(); ++i)
+            result.insert(QString::fromLatin1(creationProgressStages[i]) + QStringLiteral("_ms"), stamp(c.progressAtMs[i]));
+        result.insert("initial_readiness_observation", c.initialReadiness);
+        result.insert("resume_readiness_observation", c.resumeReadiness);
+        result.insert("current_readiness_observation", c.currentReadiness);
+        result.insert("last_entered_stage", c.lastEnteredStage);
+        result.insert("last_completed_stage", c.lastCompletedStage);
+    }
+    return result;
 }
 
 // English vendor-Qt diagnostics are hints, not a general parser or root cause.
@@ -682,12 +714,34 @@ protected:
         return false;
     }
 private:
+    void recordCreationProgress(const QString &stage, const QString &readiness = QStringLiteral("unobserved")) {
+        if (!creationConfig_.developmentExplicitFixture || QThread::currentThread() != thread()) return;
+        auto &trial = rootSummary_.creation;
+        for (size_t i = 0; i < creationProgressStages.size(); ++i) {
+            const char *fixed = creationProgressStages[i];
+            if (stage != QString::fromLatin1(fixed)) continue;
+            if (trial.progressAtMs[i] >= 0) return;
+            trial.progressAtMs[i] = elapsed_.elapsed();
+            if (stage.endsWith(QStringLiteral("_enter"))) trial.lastEnteredStage = fixed;
+            if (stage.endsWith(QStringLiteral("_return"))) trial.lastCompletedStage = fixed;
+            if (i == 6 || i == 11) {
+                const char *value = "unobserved";
+                for (const char *candidate : {"nonboolean", "false", "true"})
+                    if (readiness == QString::fromLatin1(candidate)) value = candidate;
+                if (i == 6) trial.initialReadiness = value;
+                else trial.resumeReadiness = value;
+                trial.currentReadiness = value;
+            }
+            return;
+        }
+    }
     qint64 deadlineAtMs() const {
         return rootSummary_.componentReadyAtMs < 0 ? rootSummary_.readinessBudgetMs :
             rootSummary_.componentReadyAtMs + rootSummary_.accessBudgetMs;
     }
     bool expired() {
         if (elapsed_.elapsed() < deadlineAtMs()) return false;
+        recordCreationProgress(QStringLiteral("deadline_observed"));
         finish(rootSummary_.componentReadyAtMs >= 0 ? "deadline" :
             rootSummary_.witnessAtMs < 0 ? "root-readiness-deadline" : "readiness-deadline");
         return true;
@@ -905,7 +959,9 @@ private:
         if (expired()) return;
         created_ = true;
         inCall_ = true;
+        recordCreationProgress(QStringLiteral("helper_create_enter"));
         owned_ = component_->create();
+        recordCreationProgress(QStringLiteral("helper_create_return"));
         inCall_ = false;
         if (settlePending()) return;
         if (!engine_) { finish("engine-lost"); return; }
@@ -983,6 +1039,9 @@ private:
             self->bridge_ = new CreationBridge(self);
             auto *bridge = self->bridge_;
             bridge->check = [self](bool claim) { return self && self->creationContext(claim); };
+            bridge->progress = [self](const QString &stage, const QString &readiness) {
+                if (self) self->recordCreationProgress(stage, readiness);
+            };
             bridge->refusal = [self](const QString &stage) {
                 if (!self || self->rootSummary_.creation.attempted) return;
                 // Only allow fixed stages, never arbitrary native/user text.
@@ -1022,9 +1081,11 @@ private:
             bridge->libraryContinuation = [self] {
                 if (!self || self->done_ || self->libraryContinuationQueued_) return;
                 self->libraryContinuationQueued_ = true;
+                self->recordCreationProgress(QStringLiteral("continuation_queued"));
                 const unsigned epoch = self->eventEpoch_;
                 QMetaObject::invokeMethod(self, [self, epoch] {
                     if (!self || self->done_ || epoch != self->eventEpoch_) return;
+                    self->recordCreationProgress(QStringLiteral("continuation_enter"));
                     if (!self->creationContext(false)) return;
                     self->inCall_ = true;
                     const bool invoked = QMetaObject::invokeMethod(self->owned_, "resumeLibrary", Qt::DirectConnection);
@@ -1120,12 +1181,17 @@ private:
         finishing_ = true;
         if (rootSummary_.creation.enabled && rootSummary_.creation.attempted && QByteArrayView(stage) != QByteArrayView("resolved"))
             rootSummary_.creation.phase = "effect-uncertain";
+        recordCreationProgress(QStringLiteral("cleanup_enter"));
         cancel();
+        recordCreationProgress(QStringLiteral("cleanup_return"));
         // Cleanup can reenter Qt. Terminal success follows cleanup and another
         // weak guard/deadline check; neither check is a lifetime pin.
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
         const qint64 elapsedMs = elapsed_.elapsed();
-        if (controller_ && elapsedMs >= deadlineAtMs()) { stage = "deadline"; controller_ = false; }
+        if (controller_ && elapsedMs >= deadlineAtMs()) {
+            recordCreationProgress(QStringLiteral("deadline_observed"));
+            stage = "deadline"; controller_ = false;
+        }
         if (rootSummary_.creation.enabled && rootSummary_.creation.attempted && QByteArrayView(stage) != QByteArrayView("resolved"))
             rootSummary_.creation.phase = "effect-uncertain";
         if (QByteArrayView(stage) != QByteArrayView("resolved")) {

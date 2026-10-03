@@ -544,3 +544,38 @@ cut at the cap. They check zero lookup/calls on readiness failures, one lookup
 and native call on successful continuation, bounded parseable JSON, fixed public
 markers and inert late callbacks. These synthetic cases do not qualify native
 Library timing, UUID conversion, creation effects or stock-reopen durability.
+### Private first-observation progress markers
+
+The opt-in diagnostic adds twenty fixed first-observation timestamps, using the
+existing Probe elapsed clock and null for an unobserved boundary:
+create_once_enter, library_resolve_enter/return, library_method_enter/return,
+library_ready_initial_enter/return, ready_signal, continuation_queued/enter,
+library_ready_resume_enter/return, library_lookup_enter/return,
+helper_create_enter/return, mutation_claim_enter, deadline_observed,
+cleanup_enter/return (each key has suffix _ms). There is no event list.
+Initial, resumed and current readiness retain only the fixed values unobserved,
+nonboolean, false or true; they derive from the already-read local value.
+last_entered_stage and last_completed_stage use the same fixed stage names.
+Cleanup can be their final values; the individual timestamps preserve earlier
+phase evidence. A return marker means control returned, not a valid result.
+
+One armed, GUI-thread-guarded bridge slot records QML observations. Unknown stage
+names are ignored and repeated stages cannot overwrite the first timestamp or
+readiness result. Observation does not call a getter, check admission, finish,
+queue work or change creation state. Signal entry is stamped before disconnect;
+queue entry uses the existing one-queue latch. Continuation entry is stamped
+after weak/epoch checks and before the existing context/deadline check. Every
+existing native property is evaluated once at its prior boundary into a local;
+markers bracket that evaluation. The native call and its guards remain enabled.
+
+Internal C++ timestamps bracket actual component helper creation and eventual
+non-inCall terminal cleanup. Helper-create return does not imply nonnull success.
+The first actual deadline observation is recorded in expired() or the existing
+post-cleanup deadline check, including when inCall defers terminal processing.
+Internal cleanup/deadline recording can occur after bridge disarm and never
+re-enables it. Existing attempted_at_ms is successful mutation-claim evidence;
+returned_at_ms and first_callback_at_ms remain the native return/callback
+observations, and component_ready_at_ms still means compiled component Ready.
+The deadline and public callback format are unchanged. Missing markers do not
+establish why a boundary was not observed. These fields are private diagnostics,
+with the existing 8192-byte limit, not creation or durability proof.

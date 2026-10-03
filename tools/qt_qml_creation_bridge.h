@@ -16,6 +16,7 @@ public:
     std::function<void(const QString &)> exception;
     std::function<void(const QString &, const QString &, const QString &, const QString &)> privateException;
     std::function<void()> libraryContinuation;
+    std::function<void(const QString &, const QString &)> progress;
     std::function<void()> callback;
     void disarm() { armed_ = false; }
 public slots:
@@ -29,6 +30,7 @@ public slots:
         if (allowed() && privateException) privateException(operation, category, boundedError(name), boundedError(message));
     }
     void queueLibraryContinuation() { if (allowed() && libraryContinuation) libraryContinuation(); }
+    void observeProgress(const QString &stage, const QString &readiness) { if (allowed() && progress) progress(stage, readiness); }
     void observeCallback() { if (allowed() && callback) callback(); }
 private:
     static QString boundedError(const QString &text) {
