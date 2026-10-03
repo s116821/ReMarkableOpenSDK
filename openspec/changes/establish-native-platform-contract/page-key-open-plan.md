@@ -64,6 +64,47 @@ cannot permit rendering merely because navigation evidence was reported.
 
 ## Source and test gates before a Main-only native candidate
 
+### Optional development setup arm gate
+
+The accepted startup operator restarts to My files; a finite owner scan at helper
+readiness cannot assume the fixture is already visible. Main selected an optional,
+off-by-default OPEN-only gate for one verified development UI setup. It never
+opens a document itself and is not a product menu or source-intent mechanism.
+
+Use only the compiled nonce-owned existing /run directory. A QFileSystemWatcher
+observer is installed before an exclusive fixed open-waiting marker, then the arm
+file is checked immediately to close the notification race. Observe the fixed
+open-arm filename via that directory's notifications; unrelated files do not arm
+or extend the budget. A token is accepted only once in memory; disconnect and
+queue the existing Session.begin exactly once. No polling, sleep, generic server,
+UI automation or native cross-document guess is added.
+
+The root must be a no-follow directory owned by the effective user with mode0700.
+Retain its descriptor/device/inode and refuse replacement. Waiting/arm files must
+be new, no-follow regular files of mode0600, bounded size and exact compiled nonce
+plus candidate process PID/start identity. Marker bytes are the nonce, PID, start
+and waiting word separated by spaces with one newline; arm bytes use the open
+word. Initial stale files, invalid tokens, ownership/type/mode mismatches and
+partial data refuse. Main's operator validates that same live attempted process
+and no restoration/closed claim before one atomic publication after verified UI
+setup. The token grants setup permission only; all live PageKey/owner/map checks
+remain mandatory. Keep marker/token evidence and remove only exact owned paths.
+
+The absolute Probe20-second readiness budget continues until a valid token is
+accepted before its cutoff after fresh context checks. That first accepted
+observation anchors one5-second access timer using the same elapsed clock, with
+no reset and nominal total below25 seconds. Default non-gated behavior stays
+unchanged. Cancellation, engine loss, deadline or invalid token disarms the gate;
+later callbacks cannot begin a session. Operator35-second observation and
+45-second recovery initiation remain unchanged and armed during UI setup. If
+setup consumes admission, restore and retain the refusal; never extend or retry.
+
+Owned tests cover absent/wrong/stale/partial/mode/symlink tokens, observer/marker
+races, unrelated/duplicate notifications, directory replacement, cutoff,
+cancellation/loss and single consumption, alongside the relevant existing44
+owner/lifetime regressions. Exact final source/artifact/operator/baseline gates
+remain prerequisites to a separately selected Main-only native attempt.
+
 Owned synthetic fixtures must cover missing/ambiguous/hidden/foreign owners,
 alias/document/mapping mismatch, stale source/order, index remap, duplicate
 notifications, receiver/document/window/engine destruction, cancellation before
