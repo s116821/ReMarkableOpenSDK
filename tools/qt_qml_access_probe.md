@@ -369,6 +369,10 @@ sets mutation_attempted before native entry. No false return, throw, cancellatio
 missing callback or timeout permits replay. The QML callback captures only its
 owned helper, checks armed/helper/bridge, updates fixed owned callback counters,
 and observes completion. No native pointer or raw Probe is in that callback.
+QML callback execution assumes delivery on its originating engine thread; the
+native UI call-site callback suggests that intended route but does not prove
+actual callback routing or worker semantics. The C++ bridge thread guard cannot
+make a foreign-thread QJSValue invocation or prior QML helper reads safe.
 First callback time is fixed; count saturates at two with a duplicate flag.
 The callback checks bridge arming before updating helper counters; at most one
 queued completion is pending, including a synchronous callback burst.
@@ -384,11 +388,16 @@ paths. Creation-mode compiler descriptions are suppressed because generated QML
 contains private configuration. Public resolved means call/return/callback
 observation only. It does not establish durable creation even for false return
 plus callback; durable_success is always false. Every attempted call requires
-filesystem reconciliation. False/throw/deadline/cancellation after claim remains
-effect-uncertain; a pre-call guard failure or exception records attempted=false.
+filesystem reconciliation. Throw/deadline/cancellation or a false return without
+completion observation remains effect-uncertain after claim. False return plus
+callback can have phase=call-observed while still requiring reconciliation with
+durable_success=false; this phase records observations, not the mutation result.
+A pre-call guard failure or exception records attempted=false.
 Creation-mode cancellation emits a bounded diagnostic receipt; metadata-mode
 cancellation retains its prior silent behavior. Operator collection and stock
-restoration remain mandatory even after diagnostic refusal.
+restoration remain mandatory even after diagnostic refusal. After disarm,
+returned=false or exception=false means that event was not observed before
+disarm; it does not prove the native invocation never returned or threw.
 
 Builds now need vendor moc for tools/qt_qml_creation_bridge.h, writing
 qt_qml_creation_bridge.moc into the private build include directory, and compile
@@ -402,7 +411,9 @@ Owned synthetic fixtures cover asynchronous and synchronous callback, duplicate
 and retained late callback, repeated entry, all five-page guard failures,
 unknown enums/missing wrapper/method, getter exceptions, native throw, false
 return with/without callback, unknown return, reentrant cancellation, nested
-deadline and foreign-thread bridge entry. Existing M1/M2 tripwires remain zero.
+deadline and foreign-thread bridge entry. The latter tests only C++ slot admission
+on a live bridge, not foreign-thread QML/JS safety or actual callback routing.
+Existing M1/M2 tripwires remain zero.
 Synthetic evidence does not qualify real wrapper loadedness, worker semantics,
 PDF/ink preservation, native-assigned ID or persistence. Main alone verifies one
 new ID at index 1, five originals in relative order with their content unchanged,

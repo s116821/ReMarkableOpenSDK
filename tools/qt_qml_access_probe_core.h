@@ -47,6 +47,8 @@ struct CreationConfig {
         return true;
     }
 };
+// Native QJSValue callbacks must be delivered on the originating engine thread.
+// The C++ bridge guard cannot make foreign-thread QML/JS execution safe.
 inline QByteArray creationHelper(const CreationConfig &config) {
     QJsonArray ids;
     for (const auto &id : config.pageIds) ids.append(id);
