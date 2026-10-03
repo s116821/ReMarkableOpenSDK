@@ -6,6 +6,9 @@
 - [x] Verify refusal/privacy behavior with owned fixtures.
 - [x] Run collector on authorized RM1 and compare repeated observations.
 - [x] Record fingerprint/storage evidence and remaining native capability gaps.
-- [ ] Review exact source/evidence, sync canonical specification and complete archive.
-- [ ] Open scoped SDK PR with exact base; obtain independent review/CI before merge.
-- [ ] Record consumer impact (none) and next RM1 scope in Linear/Mem.
+- [x] Obtain scoped independent source review at ef41e025524ca634ba6437e6397d9277c8a155f0 (COMMENTED; not formal other-account approval).
+- [x] Prepare matching canonical specification and host-only fixture CI.
+- [ ] Verify hosted CI, review the closeout deltas, and archive the accepted completed scope.
+- [x] Open scoped SDK PR with exact independent main base.
+- [ ] Verify latest reviews/bot feedback and required checks, then coordinated squash merge.
+- [x] Record consumer impact (none) and next RM1 scope in Linear/Mem.
