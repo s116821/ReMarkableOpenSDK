@@ -1,11 +1,29 @@
 name: Release tool qualification
 on:
   pull_request:
+    types: [opened, reopened, synchronize, edited]
   push:
     branches: [main, ci/rem-50-sdk-releases]
 permissions:
   contents: read
+  pull-requests: read
 jobs:
+  title-and-paths:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: paths
+        with:
+          filters: .github/release-paths.yml
+          predicate-quantifier: every
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
+        with:
+          requireScope: true
+          types: ${{ steps.paths.outputs.application == 'true' && 'feat|fix|perf|build|ci|chore|refactor|test|revert' || 'feat|fix|perf|build|ci|chore|refactor|test|revert|docs' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
   upstream-fixtures:
     runs-on: ubuntu-latest
     steps:
@@ -17,7 +35,20 @@ jobs:
           cache-dependency-path: release/package-lock.json
       - run: npm ci --ignore-scripts
         working-directory: release
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: dorny/paths-filter
+          ref: ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+          path: .upstream/paths-filter
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: amannn/action-semantic-pull-request
+          ref: 48f256284bd46cdaab1048c3721360e808335d50
+          path: .upstream/semantic-pr
       - run: npm test
+        env:
+          PATHS_FILTER_ACTION: ${{ github.workspace }}/.upstream/paths-filter/dist/index.js
+          SEMANTIC_PR_ACTION: ${{ github.workspace }}/.upstream/semantic-pr/dist/index.js
         working-directory: release
       - name: Require resolved production-tool advisories
         run: npm audit --audit-level=high

@@ -20,3 +20,15 @@ intact, and a plain rerun returns no release without retrying publish. Productio
 composition therefore needs a qualified maintained existing-tag publication path.
 A stale local main checkout is refused before tagging, but post-check advancement
 races remain unqualified. These results use no production repository or publisher.
+
+PR classification composition: pinned dorny/paths-filter v4 classifies changes
+using a fail-closed application filter: all paths except root Markdown, docs,
+and OpenSpec Markdown. Exclusion uses the upstream every quantifier. Pinned
+amannn/action-semantic-pull-request v6 receives allowed types from the upstream
+path result: docs is allowed only for documentation-only changes. No private
+path/title parser is introduced. The job runs on pull_request, including title
+edits, with read-only permissions and no pull_request_target code execution.
+Owned fixtures execute the pinned paths-filter distribution against staged local
+Git changes, including mixed changes, hidden files and a documentation-to-code
+rename. Hosted PR checks verify the title Action composition. Required status
+configuration remains a maintainer repository setting, not changed here.

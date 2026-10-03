@@ -5,8 +5,13 @@ semantic-release/commit-analyzer tools against temporary owned repositories.
 The runner refuses repositories outside its marked temporary fixture root and has no external publisher. It cannot publish production releases. SDK target builds and publication remain
 unimplemented and gated by the active OpenSpec tasks.
 
-Use Node 24 (at least 24.10), then `npm ci --ignore-scripts` and `npm test` in this
-directory. No own project version is maintained in either manifest. Upstream
+Use Node 24 (at least 24.10), then `npm ci --ignore-scripts` in this directory. For the complete test run,
+set `PATHS_FILTER_ACTION` to the `dist/index.js` from dorny/paths-filter exact
+commit `ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d`, then run `npm test`.
+Also set `SEMANTIC_PR_ACTION` to `dist/index.js` from
+amannn/action-semantic-pull-request exact commit
+`48f256284bd46cdaab1048c3721360e808335d50`. Hosted CI checks out both
+upstream revisions automatically. No own project version is maintained in either manifest. Upstream
 dependency pins retain their upstream versions. Actual release artifacts must
 obtain their version only from an immutable Git tag during a build.
 
@@ -32,3 +37,18 @@ semantic-release rerun alone does not satisfy recovery requirements. A maintaine
 upstream existing-tag publication path must be qualified before activation.
 A checkout behind remote main is refused before tagging; this does not yet prove
 safety for a race occurring after the freshness check.
+
+PR paths/title checks compose pinned dorny/paths-filter v4 and
+amannn/action-semantic-pull-request v6. Unknown paths, dependency files, workflows,
+hidden build configuration and Markdown under source/build directories remain
+application-relevant. Documentation-to-source renames and mixed changes cannot
+qualify as docs-only. The upstream title Action excludes docs from allowed types
+when the path Action reports application changes. No private classifier is used.
+The checked-in workflow is read-only; maintainers must make its status required
+before it can guarantee enforcement for merging. No repository settings changed.
+
+Title fixtures execute the actual upstream bundle against a local read-only API
+server with a non-credential fixture token. They cover accepted/rejected docs,
+breaking titles, missing scope and invalid headers, and verify that the Action
+fetches the current title rather than trusting a stale event. No GitHub API write
+or production token is used.

@@ -7,7 +7,7 @@
     "node": ">=24.10.0"
   },
   "scripts": {
-    "test": "node --test --test-reporter=tap semantic.test.mjs"
+    "test": "node --test --test-reporter=tap *.test.mjs"
   },
   "devDependencies": {
     "@semantic-release/commit-analyzer": "13.0.1",

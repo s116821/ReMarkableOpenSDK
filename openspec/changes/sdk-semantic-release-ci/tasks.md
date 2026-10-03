@@ -4,7 +4,8 @@
 - [x] Create SDK-owned proposal/design/tasks/delta before implementation.
 - [x] Pin and locally test actual maintained semantic-release tools on equal-time/feat/fix/docs/breaking histories.
 - [ ] Resolve candidate upstream dependency advisories; hosted qualification/audit must pass before production selection.
-- [ ] Qualify docs-only/mixed classification using upstream Actions; enforce semantic PR titles.
+- [x] Qualify docs/mixed/rename/unknown-path classification and title validation using actual pinned upstream Action bundles in owned fixtures.
+- [ ] Verify hosted title/path composition; maintainer must configure required status enforcement before merges.
 - [x] Observe actual upstream prepare/tag/publish ordering and stale-main refusal in owned repositories.
 - [x] Reproduce failed post-tag publication and prove a plain rerun does not recover it.
 - [ ] Qualify post-tag build composition, post-check advancement/concurrency races and maintained existing-tag recovery.
