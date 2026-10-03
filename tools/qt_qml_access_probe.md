@@ -261,3 +261,73 @@ and creation invocation calls, preserve mismatches and multiple candidates, and
 exercise caps, incompatible pointer categories, object/thread/deadline loss and
 the actual queued Probe boundary (no early receipt, cancellation, lost engine or
 controller, expiry and changed engines). These remain synthetic evidence.
+
+### M2 navigation candidate metadata
+
+The same single queued scan adds `navigation_candidate`; no new engine, context,
+native property access, signal emission, method invocation or timer is introduced.
+One exact `indexOfSignal("requestOpenDocumentOnPage(QVariant,QVariant)")` lookup
+per visited item checks the source-backed signal shape. There is no fallback
+name search or member enumeration. The returned method must be valid, a Signal,
+have two parameters and expose two stored QVariant parameter type names.
+
+The public metaobject superclass chain must contain exact `QQuickFocusScope`.
+Qt's pinned [FocusScope declaration](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/items/qquickfocusscope_p.h)
+maps that QML element to this private C++ implementation class. The payload
+compares existing names through public metaobject APIs; it never includes,
+casts to or calls the private class. Qt's pinned
+[compiler type mapping](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/qml/compiler/qqmlirbuilder.cpp)
+and [property-cache mapping](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/qml/qml/qqmlpropertycachecreator_p.h)
+map explicitly var signal parameters to QVariant. Real owned QML fixtures verify
+the actual exact signature and ancestry rather than assuming a lookup succeeds.
+
+Every exact signal hit counts as a raw candidate even when other metadata fails.
+On that same object, `windowNavigator` must be present, readable and have an
+existing PointerToQObject flag. Missing properties contribute presence zero and
+incompleteness without invented type classifications. A present property with
+an invalid interface contributes `type_unknown`; a valid non-QObject interface
+contributes `type_incompatible`. Notify is informational. No cross-object join
+or first-match fallback is performed.
+
+Property type spelling is unknown (`exact_type_known=false`). A separate lexical
+diagnostic accepts canonical ASCII identifier chains separated by `::`, ending
+in the identifier WindowNavigator and one `*`, up to 128 bytes excluding NUL.
+No leading global `::`, whitespace normalization, const/reference/template
+syntax or other grammar is accepted. Null, empty, unsupported, differently named
+or oversized spelling contributes `type_name_unknown`. This spelling check never
+rejects an otherwise readable existing QObject pointer; no raw spelling is saved.
+
+After a complete scan, zero raw candidates gives private `location_result=absent`;
+one incomplete candidate gives `incompatible`; more than one gives `ambiguous`,
+even if exactly one is complete. Only one raw candidate with all required metadata
+gives `located` and `located=true`. This locates metadata only: source authority
+is always false, and owner and receiver relations are always unproven. No selected
+native pointer is retained as callable state. All completed statuses retain public
+`resolved`, meaning completed metadata observation and helper availability, never
+navigation success or acquisition. Actual context/lifetime/thread/cap/deadline
+failures remain public refusals. Terminal corrections align `metadata_result`
+with the final stage and invalidate location to `not-checked`/false; prior counts
+can remain historical. Cancellation still emits no receipt.
+
+Fixed counts are lookups, candidates, focus_scope, signal_kind, arity_two,
+variant_pair and all_required_metadata. The window_navigator subobject contains
+presence/readability/notify, pointer category, unknown/incompatible interface and
+compatible/unknown lexical counts, plus exact_type_known=false. The scan allows
+at most 256 exact signal lookups, 16 raw candidates and same-object property
+lookups, and 32 parameter type-name reads. The seventeenth raw candidate refuses
+as `metadata-navigation-candidate-cap` before detailed inspection. Existing
+16-window/256-item/depth-16/32-superclass guards and the 8192-byte diagnostic cap
+remain in force. Public lookup/list allocation duration is not bounded by these
+inspection counts; the existing twenty-second readiness and Ready-plus-five-second
+access clocks remain unchanged.
+
+Owned fixtures cover real QML signals, namespace aliases, alternate valid QObject
+pointer names, wrong function/slot/arity/types, bare fake FocusScope, split objects,
+two raw candidates with one complete, inclusive/overflow caps, and historical
+complete counts followed by loss/deadline invalidation. Native getter, invocation
+and signal-emission tripwires remain zero. The write-only owned negative property
+deliberately produces a moc warning while retaining isReadable=false metadata;
+it is fixture-only, with no payload moc or native getter. Actual Probe fixtures
+verify no early receipt, completed absent/incompatible/ambiguous public resolved,
+refusals, cancellation, engine/controller loss and deadline handling. None of this
+synthetic evidence qualifies the tablet's active owner, receiver or dispatch.

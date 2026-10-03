@@ -113,10 +113,18 @@ struct MetadataBucket {
     int candidates = 0, complete = 0;
     std::array<PropertyMetadata, 3> properties{};
 };
+struct NavigationMetadata {
+    int lookups = 0, candidates = 0, focusScope = 0, signalKind = 0, arityTwo = 0, variantPair = 0, complete = 0;
+    int present = 0, readable = 0, notify = 0, pointer = 0, typeUnknown = 0, typeIncompatible = 0;
+    int nameCompatible = 0, nameUnknown = 0;
+    const char *location = "not-checked";
+    bool located = false;
+};
 struct MetadataSummary {
     const char *result = "not-checked";
     int windows = 0, quickWindows = 0, items = 0;
     MetadataBucket scene, document, selection;
+    NavigationMetadata navigation;
     bool signatureChecked = false, signaturePresent = false, signatureReturnsBool = false;
 };
 inline QJsonObject propertyMetadataJson(const PropertyMetadata &property, bool exactTypeKnown) {
@@ -130,7 +138,15 @@ inline QJsonObject metadataJson(const MetadataSummary &metadata) {
         for (int i = 0; i < count; ++i) properties.insert(QString::fromLatin1(keys[i]), propertyMetadataJson(b.properties[i], exact[i]));
         return QJsonObject{{"candidates", b.candidates}, {"all_required_metadata", b.complete}, {"properties", properties}};
     };
+    const auto &n = metadata.navigation;
+    const QJsonObject navigation{{"lookups", n.lookups}, {"candidates", n.candidates}, {"focus_scope", n.focusScope},
+        {"signal_kind", n.signalKind}, {"arity_two", n.arityTwo}, {"variant_pair", n.variantPair},
+        {"all_required_metadata", n.complete}, {"location_result", QString::fromLatin1(n.location)}, {"located", n.located},
+        {"window_navigator", QJsonObject{{"present", n.present}, {"readable", n.readable}, {"notify", n.notify},
+            {"pointer_to_qobject", n.pointer}, {"type_unknown", n.typeUnknown}, {"type_incompatible", n.typeIncompatible},
+            {"type_name_compatible", n.nameCompatible}, {"type_name_unknown", n.nameUnknown}, {"exact_type_known", false}}}};
     return {{"metadata_result", QString::fromLatin1(metadata.result)}, {"source_authority", false},
+        {"receiver_relation", "unproven"}, {"navigation_candidate", navigation},
         {"owner_relation", "unproven"}, {"windows", metadata.windows}, {"quick_windows", metadata.quickWindows}, {"items", metadata.items},
         {"scene_view", bucket(metadata.scene, {"page_id", "document", "controller"}, {true, true, true}, 3)},
         {"document_view", bucket(metadata.document, {"scene_controller", "page_selection", "unused"}, {false, false, false}, 2)},
@@ -164,6 +180,70 @@ inline bool observeProperty(const QMetaObject *meta, const char *name, const cha
 inline bool boundedMetaChain(const QMetaObject *meta) {
     for (int count = 0; meta; meta = meta->superClass()) if (++count > 32) return false;
     return true;
+}
+
+// Bounded canonical ASCII identifier chain only. This is a lexical diagnostic,
+// not C++ type proof; a readable QObject pointer remains compatible independently.
+inline bool navigatorTypeNameCompatible(const char *name) {
+    if (!name) return false;
+    int length = 0;
+    while (length <= 128 && name[length]) ++length;
+    if (length == 0 || length > 128 || name[length - 1] != '*') return false;
+    const auto first = [](char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; };
+    const auto next = [&](char c) { return first(c) || (c >= '0' && c <= '9'); };
+    int position = 0, finalStart = 0;
+    while (position < length - 1) {
+        finalStart = position;
+        if (!first(name[position++])) return false;
+        while (position < length - 1 && next(name[position])) ++position;
+        if (position == length - 1) break;
+        if (position + 2 >= length - 1 || name[position] != ':' || name[position + 1] != ':') return false;
+        position += 2;
+    }
+    constexpr char expected[] = "WindowNavigator";
+    return length - 1 - finalStart == static_cast<int>(sizeof(expected) - 1) &&
+        std::memcmp(name + finalStart, expected, sizeof(expected) - 1) == 0;
+}
+
+inline const char *observeNavigation(const QMetaObject *meta, bool focusScope, NavigationMetadata &n) {
+    if (n.lookups >= 256) return "metadata-node-cap";
+    ++n.lookups;
+    const int index = meta->indexOfSignal("requestOpenDocumentOnPage(QVariant,QVariant)");
+    if (index < 0) return nullptr;
+    if (n.candidates >= 16) return "metadata-navigation-candidate-cap";
+    ++n.candidates;
+    if (focusScope) ++n.focusScope;
+    const QMetaMethod signal = meta->method(index);
+    const bool kind = signal.isValid() && signal.methodType() == QMetaMethod::Signal;
+    const bool arity = signal.isValid() && signal.parameterCount() == 2;
+    if (kind) ++n.signalKind;
+    if (arity) ++n.arityTwo;
+    bool variants = false;
+    if (arity) {
+        const QByteArray first = signal.parameterTypeName(0), second = signal.parameterTypeName(1);
+        variants = first == "QVariant" && second == "QVariant";
+    }
+    if (variants) ++n.variantPair;
+    bool propertyCompatible = false;
+    const int propertyIndex = meta->indexOfProperty("windowNavigator");
+    if (propertyIndex >= 0) {
+        ++n.present;
+        const QMetaProperty property = meta->property(propertyIndex);
+        const bool readable = property.isReadable();
+        if (readable) ++n.readable;
+        if (property.hasNotifySignal()) ++n.notify;
+        const auto type = property.metaType();
+        bool pointer = false;
+        if (!type.isValid()) ++n.typeUnknown;
+        else {
+            pointer = type.flags().testFlag(QMetaType::PointerToQObject);
+            if (pointer) ++n.pointer; else ++n.typeIncompatible;
+        }
+        if (navigatorTypeNameCompatible(property.typeName())) ++n.nameCompatible; else ++n.nameUnknown;
+        propertyCompatible = readable && pointer;
+    }
+    if (kind && arity && variants && focusScope && propertyCompatible) ++n.complete;
+    return nullptr;
 }
 
 // One synchronous bounded scan, called only from an app-context queued turn.
@@ -238,12 +318,17 @@ inline const char *observeMetadata(QGuiApplication *application, QQmlEngine *sel
         if (const char *failure = tracked()) return failure;
         if (!meta) return "metadata-metaobject-missing";
         if (!boundedMetaChain(meta)) return "metadata-superclass-cap";
-        bool scene = false;
+        bool scene = false, focusScope = false;
         for (const QMetaObject *base = meta; base; base = base->superClass())
+        {
             if (std::strcmp(base->className(), "SceneView") == 0) scene = true;
+            if (std::strcmp(base->className(), "QQuickFocusScope") == 0) focusScope = true;
+        }
         const char *name = meta->className();
         const bool document = std::strstr(name, "DocumentView") && !std::strstr(name, "Shortcuts");
         const bool selection = std::strstr(name, "SceneSelectionHandler");
+        if (const char *failure = tracked()) return failure;
+        if (const char *failure = observeNavigation(meta, focusScope, summary.navigation)) return failure;
         if (const char *failure = tracked()) return failure;
         const auto inspect = [&](MetadataBucket &bucket, const std::array<const char *, 3> &names,
                                  const std::array<const char *, 3> &types, int count) -> const char * {
@@ -308,6 +393,10 @@ inline const char *observeMetadata(QGuiApplication *application, QQmlEngine *sel
         if (quick && candidate != engine) return "metadata-window-engine";
     }
     if (finalEngine != engine) return "metadata-engine-changed";
+    auto &navigation = summary.navigation;
+    navigation.located = navigation.candidates == 1 && navigation.complete == 1;
+    navigation.location = navigation.candidates == 0 ? "absent" : navigation.candidates > 1 ? "ambiguous" :
+        navigation.located ? "located" : "incompatible";
     return "metadata-observed";
 }
 
@@ -703,8 +792,11 @@ private:
         if (controller_ && !engine_) { stage = "engine-lost"; controller_ = false; }
         const qint64 elapsedMs = elapsed_.elapsed();
         if (controller_ && elapsedMs >= deadlineAtMs()) { stage = "deadline"; controller_ = false; }
-        if (QByteArrayView(stage) != QByteArrayView("resolved") && created_)
+        if (QByteArrayView(stage) != QByteArrayView("resolved")) {
             rootSummary_.metadata.result = stage;
+            rootSummary_.metadata.navigation.location = "not-checked";
+            rootSummary_.metadata.navigation.located = false;
+        }
         diagnostic_ = runtimeSnapshot(diagnostic_, attempts_, compileAttempts_, admittedPostFailureEvents_, status, stage, elapsedMs, rootSummary_);
         receipt_(stage, appThread_, engineThread_, helperFound_, controller_, diagnostic_);
     }

@@ -8,7 +8,14 @@
 #include <string>
 #include <vector>
 
-static int getters = 0, invocations = 0;
+static int getters = 0, invocations = 0, emissions = 0;
+class EmissionTripwire : public QObject {
+    Q_OBJECT
+public:
+    Q_INVOKABLE void invoked() { ++invocations; }
+public slots:
+    void emitted() { ++emissions; }
+};
 namespace entry { struct Id {}; }
 class QmlDocumentWrapper : public QObject { Q_OBJECT };
 class SceneController : public QObject {
@@ -53,6 +60,48 @@ public:
 class ShortcutsDocumentView : public DocumentView { Q_OBJECT };
 struct Opaque {};
 Q_DECLARE_METATYPE(Opaque *)
+namespace owned {
+class WindowNavigator : public QObject { Q_OBJECT };
+}
+class NavigationTypes : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(owned::WindowNavigator* windowNavigator READ navigator NOTIFY changed)
+public:
+    owned::WindowNavigator *navigator() const { ++getters; return nullptr; }
+signals:
+    void changed();
+};
+class FocusScope : public QQuickItem {
+    Q_OBJECT
+    Q_PROPERTY(QObject* windowNavigator READ navigator)
+public:
+    QObject *navigator() const { ++getters; return nullptr; }
+signals:
+    void requestOpenDocumentOnPage(QVariant, QVariant);
+};
+class UnreadableNavigation : public QQuickItem {
+    Q_OBJECT
+    // Deliberate write-only owned metadata: moc warns about lack of READ, but
+    // retains the property with isReadable=false for this negative fixture.
+    Q_PROPERTY(QObject* windowNavigator WRITE setNavigator)
+public:
+    void setNavigator(QObject *) { ++invocations; }
+signals:
+    void requestOpenDocumentOnPage(QVariant, QVariant);
+};
+class SlotsNavigation : public QQuickItem {
+    Q_OBJECT
+public slots:
+    void requestOpenDocumentOnPage(QVariant, QVariant) { ++invocations; }
+};
+class OpaqueNavigation : public QQuickItem {
+    Q_OBJECT
+    Q_PROPERTY(Opaque* windowNavigator READ navigator)
+public:
+    Opaque *navigator() const { ++getters; return nullptr; }
+signals:
+    void requestOpenDocumentOnPage(QVariant, QVariant);
+};
 class OpaqueDocumentView : public DocumentView {
     Q_OBJECT
     Q_PROPERTY(Opaque* pageSelection READ opaque)
@@ -113,12 +162,147 @@ int main(int argc, char **argv) {
     assert(argc == 2);
     QGuiApplication app(argc, argv);
     const std::string mode = argv[1];
-    if (mode.rfind("metadata-probe-", 0) == 0) {
+    if (mode.rfind("navigation-", 0) == 0 && mode.rfind("navigation-probe-", 0) != 0) {
+        QQmlEngine engine;
+        QQuickWindow window;
+        QQmlEngine::setContextForObject(&window, engine.rootContext());
+        SceneController controller;
+        EmissionTripwire recorder;
+        engine.rootContext()->setContextProperty("tripwire", &recorder);
+        qmlRegisterType<NavigationTypes>("fixture.navigation", 1, 0, "NavigationTypes");
+        qmlRegisterUncreatableType<owned::WindowNavigator>("fixture.navigation", 1, 0, "WindowNavigator", "fixture only");
+        const QByteArray signal = "signal requestOpenDocumentOnPage(var entry, var page); ";
+        const QByteArray property = "property QtObject windowNavigator: null; ";
+        const auto create = [&](const QByteArray &body) {
+            QQmlComponent component(&engine);
+            component.setData("import QtQuick\nimport fixture.navigation\n" + body, QUrl());
+            if (!component.isReady()) { for (const auto &e : component.errors()) fprintf(stderr, "%s\n", qPrintable(e.description())); }
+            assert(component.isReady());
+            QObject *object = component.create();
+            assert(object);
+            auto *item = qobject_cast<QQuickItem *>(object);
+            assert(item);
+            item->setParentItem(window.contentItem()); item->setParent(&window);
+            // Fixture-owned signal connection only; never emit or invoke it.
+            const int index = item->metaObject()->indexOfSignal("requestOpenDocumentOnPage(QVariant,QVariant)");
+            if (index >= 0) {
+                assert(item->metaObject()->method(index).methodType() == QMetaMethod::Signal);
+                assert(QObject::connect(item, item->metaObject()->method(index), &recorder,
+                    recorder.metaObject()->method(recorder.metaObject()->indexOfSlot("emitted()"))));
+            }
+            return item;
+        };
+        const char *location = "absent", *result = "metadata-observed";
+        QObject *lossVictim = nullptr;
+        if (mode == "navigation-good" || mode == "navigation-multiple" || mode == "navigation-mixed" || mode == "navigation-namespace" || mode == "navigation-other-pointer") {
+            const QByteArray selectedProperty = mode == "navigation-namespace" ?
+                QByteArray("property alias windowNavigator: typed.windowNavigator; NavigationTypes { id: typed } ") :
+                mode == "navigation-other-pointer" ? QByteArray("property Item windowNavigator: null; ") : property;
+            create("FocusScope { " + signal + selectedProperty + " }");
+            location = "located";
+            if (mode == "navigation-multiple" || mode == "navigation-mixed") {
+                create("FocusScope { " + signal + (mode == "navigation-multiple" ? property : QByteArray()) + " }");
+                location = "ambiguous";
+            }
+        } else if (mode == "navigation-missing" || mode == "navigation-nonpointer") {
+            create("FocusScope { " + signal + (mode == "navigation-nonpointer" ? QByteArray("property int windowNavigator: 0;") : QByteArray()) + " }");
+            location = "incompatible";
+        } else if (mode == "navigation-fake-focus") {
+            auto *item = new FocusScope; item->setParentItem(window.contentItem()); item->setParent(&window);
+            QObject::connect(item, &FocusScope::requestOpenDocumentOnPage, &app, [] { ++emissions; });
+            location = "incompatible";
+        } else if (mode == "navigation-wrong-slot") {
+            auto *item = new SlotsNavigation; item->setParentItem(window.contentItem()); item->setParent(&window);
+        } else if (mode == "navigation-positive-loss" || mode == "navigation-positive-deadline") {
+            create("FocusScope { " + signal + property + " }");
+            location = "not-checked";
+            result = mode == "navigation-positive-loss" ? "metadata-controller-lost" : "metadata-deadline";
+            if (mode == "navigation-positive-loss") {
+                lossVictim = new QObject;
+                auto *item = new LossItem;
+                item->victim = &lossVictim;
+                item->setParentItem(window.contentItem()); item->setParent(&window);
+            }
+        } else if (mode == "navigation-split") {
+            create("FocusScope { " + signal + " }"); create("FocusScope { " + property + " }"); location = "incompatible";
+        } else if (mode == "navigation-wrong-kind") {
+            create("FocusScope { " + property + " function requestOpenDocumentOnPage(entry, page) { tripwire.invoked(); } }");
+        } else if (mode == "navigation-wrong-arity") {
+            create("FocusScope { signal requestOpenDocumentOnPage(var entry); " + property + " }");
+        } else if (mode == "navigation-wrong-parameters") {
+            create("FocusScope { signal requestOpenDocumentOnPage(int entry, int page); " + property + " }");
+        } else if (mode == "navigation-candidate-cap" || mode == "navigation-candidate-boundary") {
+            for (int i = 0; i < (mode == "navigation-candidate-cap" ? 17 : 16); ++i) create("FocusScope { " + signal + property + " }");
+            if (mode == "navigation-candidate-cap") { result = "metadata-navigation-candidate-cap"; location = "not-checked"; }
+            else location = "ambiguous";
+        } else if (mode == "navigation-unreadable" || mode == "navigation-opaque") {
+            // Owned static-property helper tests isolate readability/interface
+            // classification; full topology tests above use actual QML ancestry.
+            UnreadableNavigation unreadable; OpaqueNavigation opaque;
+            qml_access::NavigationMetadata n;
+            assert(!qml_access::observeNavigation(mode == "navigation-unreadable" ? unreadable.metaObject() : opaque.metaObject(), true, n));
+            assert(n.candidates == 1 && n.complete == 0 && n.present == 1);
+            if (mode == "navigation-unreadable") assert(n.readable == 0 && n.pointer == 1);
+            else { assert(n.typeIncompatible == 1 && n.pointer == 0); assert(!QMetaType::fromName("Opaque*").isValid()); }
+            assert(getters == 0 && invocations == 0 && emissions == 0);
+            printf("%s: static interface/readability tripwire passed\n", argv[1]); return 0;
+        } else if (mode == "navigation-lexical") {
+            for (const char *name : {"WindowNavigator*", "owned::WindowNavigator*", "a_1::b2::WindowNavigator*"}) assert(qml_access::navigatorTypeNameCompatible(name));
+            for (const char *name : {"", "::WindowNavigator*", "WindowNavigator**", "Other*", "const WindowNavigator*", "WindowNavigator *", "a::::WindowNavigator*", "a::WindowNavigator&", "9a::WindowNavigator*"}) assert(!qml_access::navigatorTypeNameCompatible(name));
+            assert(!qml_access::navigatorTypeNameCompatible(nullptr));
+            const std::string boundary = std::string(110, 'a') + "::WindowNavigator*";
+            assert(boundary.size() == 128 && qml_access::navigatorTypeNameCompatible(boundary.c_str()));
+            assert(!qml_access::navigatorTypeNameCompatible(("a" + boundary).c_str()));
+            puts("navigation-lexical: exact bounded identifier grammar passed"); return 0;
+        } else if (mode != "navigation-empty") assert(false);
+        assert(!QMetaType::fromName("entry::Id").isValid() && !QMetaType::fromName("Opaque*").isValid());
+        qml_access::MetadataSummary summary;
+        const char *observed = qml_access::observeMetadata(&app, &engine, lossVictim ? lossVictim : &controller,
+            [&] { return mode != "navigation-positive-deadline" || summary.navigation.complete == 0; }, summary);
+        if (std::string(observed) != result) fprintf(stderr, "navigation result=%s expected=%s\n", observed, result);
+        assert(std::string(observed) == result && std::string(summary.navigation.location) == location);
+        assert(!QMetaType::fromName("entry::Id").isValid() && !QMetaType::fromName("Opaque*").isValid());
+        const auto &n = summary.navigation;
+        assert(n.located == (std::string(location) == "located"));
+        assert(n.lookups <= 256 && n.candidates <= 16);
+        if (mode == "navigation-good" || mode == "navigation-other-pointer") assert(n.candidates == 1 && n.complete == 1 && n.focusScope == 1 && n.variantPair == 1 && n.nameUnknown == 1);
+        if (mode == "navigation-namespace") assert(n.complete == 1 && n.nameCompatible == 1);
+        if (mode == "navigation-mixed") assert(n.candidates == 2 && n.complete == 1);
+        if (mode == "navigation-split" || mode == "navigation-fake-focus") assert(n.complete == 0 && n.candidates == 1);
+        if (mode == "navigation-positive-loss" || mode == "navigation-positive-deadline") assert(n.complete == 1 && n.candidates == 1 && !n.located);
+        summary.result = observed;
+        const auto json = qml_access::metadataJson(summary);
+        assert(!json.value("source_authority").toBool() && json.value("owner_relation").toString() == "unproven" && json.value("receiver_relation").toString() == "unproven");
+        const QByteArray bytes = QJsonDocument(json).toJson(QJsonDocument::Compact);
+        assert(bytes.size() <= 8192 && !bytes.contains("requestOpenDocumentOnPage") && !bytes.contains("QQuickFocusScope") && !bytes.contains("owned::"));
+        assert(getters == 0 && invocations == 0 && emissions == 0);
+        printf("%s: %s location=%s raw=%d complete=%d, tripwires=0\n", argv[1], observed, location, n.candidates, n.complete);
+        return 0;
+    }
+    const bool navigationProbe = mode.rfind("navigation-probe-", 0) == 0;
+    const std::string probeMode = navigationProbe ? "metadata-probe-" + mode.substr(17) : mode;
+    if (mode.rfind("metadata-probe-", 0) == 0 || navigationProbe) {
         auto ownedEngine = std::make_unique<QQmlApplicationEngine>();
         QQuickWindow ownedWindow;
         QQmlEngine::setContextForObject(&ownedWindow, ownedEngine->rootContext());
-        ownedEngine->loadData("import QtQml\nQtObject {}");
+        const QByteArray navSignal = "signal requestOpenDocumentOnPage(var entry, var page); ";
+        const QByteArray navProperty = "property QtObject windowNavigator: null; ";
+        QByteArray capChildren;
+        if (probeMode == "metadata-probe-navigation-cap")
+            for (int i = 0; i < 16; ++i) capChildren += "FocusScope { " + navSignal + navProperty + " }";
+        const QByteArray navBody = "FocusScope { " + (probeMode == "metadata-probe-absent" ? QByteArray() : navSignal) +
+            (probeMode == "metadata-probe-incompatible" ? QByteArray() : navProperty) +
+            (probeMode == "metadata-probe-mixed" ? "FocusScope { " + navSignal + " }" : QByteArray()) + capChildren + " }";
+        ownedEngine->loadData(navigationProbe ? "import QtQuick\n" + navBody : QByteArray("import QtQml\nQtObject {}"));
         assert(ownedEngine->rootObjects().size() == 1);
+        EmissionTripwire recorder;
+        if (navigationProbe) {
+            auto *root = qobject_cast<QQuickItem *>(ownedEngine->rootObjects().first());
+            assert(root); root->setParentItem(ownedWindow.contentItem());
+            const int index = root->metaObject()->indexOfSignal("requestOpenDocumentOnPage(QVariant,QVariant)");
+            if (index >= 0) assert(QObject::connect(root, root->metaObject()->method(index), &recorder,
+                recorder.metaObject()->method(recorder.metaObject()->indexOfSlot("emitted()"))));
+        }
         auto *ownedController = new SceneController;
         QPointer<SceneController> controllerGuard = ownedController;
         QPointer<qml_access::Probe> probe;
@@ -131,19 +315,19 @@ int main(int argc, char **argv) {
                 QQmlEngine::setObjectOwnership(ownedController, QQmlEngine::CppOwnership);
                 QTimer::singleShot(0, &app, [&] {
                     assert(probe && receipts == 0); // No access-only early receipt.
-                    if (mode == "metadata-probe-cancel")
+                    if (probeMode == "metadata-probe-cancel")
                         assert(QMetaObject::invokeMethod(&app, "aboutToQuit", Qt::DirectConnection));
-                    if (mode == "metadata-probe-deadline") QThread::msleep(150);
-                    if (mode == "metadata-probe-controller-lost") delete controllerGuard.data();
-                    if (mode == "metadata-probe-engine-lost") ownedEngine.reset();
-                    if (mode == "metadata-probe-ambiguous") {
+                    if (probeMode == "metadata-probe-deadline") QThread::msleep(150);
+                    if (probeMode == "metadata-probe-controller-lost") delete controllerGuard.data();
+                    if (probeMode == "metadata-probe-engine-lost") ownedEngine.reset();
+                    if (probeMode == "metadata-probe-ambiguous") {
                         ambiguousWindow = std::make_unique<QQuickWindow>();
                         QQmlEngine::setContextForObject(ambiguousWindow.get(), ambiguousEngine.rootContext());
                     }
                 });
                 return ownedController;
             });
-        if (mode == "metadata-probe-refusal")
+        if (probeMode == "metadata-probe-refusal")
             for (int i = 0; i < 17; ++i) { auto *item = new SceneView; item->setParentItem(ownedWindow.contentItem()); item->setParent(&ownedWindow); }
         probe = new qml_access::Probe(&app, [&](const char *s, bool a, bool e, bool h, bool c, const QByteArray &bytes) {
             ++receipts; stage = s;
@@ -153,22 +337,32 @@ int main(int argc, char **argv) {
                 qPrintable(metadata.value("metadata_result").toString()), receipts);
             assert(!metadata.value("source_authority").toBool() && metadata.value("owner_relation").toString() == "unproven");
             assert(metadata.value("metadata_result").toString() == (stage == "resolved" ? "metadata-observed" : QString::fromLatin1(s)));
+            const auto navigation = metadata.value("navigation_candidate").toObject();
+            assert(metadata.value("receiver_relation").toString() == "unproven");
+            if (stage != "resolved") assert(!navigation.value("located").toBool() && navigation.value("location_result").toString() == "not-checked");
+            if (navigationProbe && stage == "resolved") {
+                const char *location = probeMode == "metadata-probe-absent" ? "absent" :
+                    probeMode == "metadata-probe-incompatible" ? "incompatible" : probeMode == "metadata-probe-mixed" ? "ambiguous" : "located";
+                assert(navigation.value("location_result").toString() == location);
+                assert(navigation.value("located").toBool() == (std::string(location) == "located"));
+            }
             if (stage == "resolved") assert(c && metadata.value("creation_signature").toObject().value("returns_bool").toBool());
             app.quit();
-        }, 3000, mode == "metadata-probe-deadline" ? 100 : 3000);
+        }, 3000, probeMode == "metadata-probe-deadline" ? 100 : 3000);
         QTimer::singleShot(4000, &app, &QCoreApplication::quit);
-        if (mode == "metadata-probe-cancel") QTimer::singleShot(300, &app, &QCoreApplication::quit);
+        if (probeMode == "metadata-probe-cancel") QTimer::singleShot(300, &app, &QCoreApplication::quit);
         app.exec();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        assert(!probe && getters == 0 && invocations == 0);
-        if (mode == "metadata-probe-cancel") assert(receipts == 0);
+        assert(!probe && getters == 0 && invocations == 0 && emissions == 0);
+        if (probeMode == "metadata-probe-cancel") assert(receipts == 0);
         else {
             assert(receipts == 1);
-            const char *expected = mode == "metadata-probe-refusal" ? "metadata-candidate-cap" :
-                mode == "metadata-probe-deadline" ? "deadline" :
-                mode == "metadata-probe-controller-lost" ? "metadata-controller-lost" :
-                mode == "metadata-probe-engine-lost" ? "engine-lost" :
-                mode == "metadata-probe-ambiguous" ? "metadata-engine-changed" : "resolved";
+            const char *expected = probeMode == "metadata-probe-refusal" ? "metadata-candidate-cap" :
+                probeMode == "metadata-probe-navigation-cap" ? "metadata-navigation-candidate-cap" :
+                probeMode == "metadata-probe-deadline" ? "deadline" :
+                probeMode == "metadata-probe-controller-lost" ? "metadata-controller-lost" :
+                probeMode == "metadata-probe-engine-lost" ? "engine-lost" :
+                probeMode == "metadata-probe-ambiguous" ? "metadata-engine-changed" : "resolved";
             if (stage != expected) fprintf(stderr, "queued fixture stage=%s expected=%s\n", stage.c_str(), expected);
             assert(stage == expected);
         }
