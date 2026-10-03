@@ -87,3 +87,8 @@ version introduced by release CI. CI snapshot pins identify source commits, not
 project versions. PR builds use upstream application path classification; main
 merges do not compile this separate research snapshot. Shipping CI will need
 actual integrated sources and the strict build staging contract.
+
+The declared Rust minimum is independently checked with Rust 1.88.0 host tests
+and a library build; maintained-toolchain host linting and all three architecture
+builds use Rust 1.98.1. Passing one compiler is not substituted for proof of the
+declared minimum. Neither lane creates official versions or distributable assets.

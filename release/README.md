@@ -97,7 +97,7 @@ fmt, all-feature tests and clippy with warnings denied; the three lanes compile
 the actual Rust library for host/ARMv7 GNU/AArch64 GNU using its unchanged lock.
 This is an exact-source compiler check, not synthetic fixture evidence. It does
 not build all experimental Qt helper programs, qualify a model/native adapter,
-publish artifacts, test the declared minimum Rust 1.88 or integrate source into
-main. The prototype's existing own version placeholder must be removed by its
+publish artifacts or integrate source into main. A separate host lane tests
+the declared minimum Rust 1.88.0; cross-target checks use Rust 1.98.1. The prototype's existing own version placeholder must be removed by its
 owner before strict tag-derived official staging can accept that source.
 Research snapshot builds do not run on main merges, including docs-only merges.
