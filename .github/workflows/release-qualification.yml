@@ -1,0 +1,24 @@
+name: Release tool qualification
+on:
+  pull_request:
+  push:
+    branches: [main, ci/rem-50-sdk-releases]
+permissions:
+  contents: read
+jobs:
+  upstream-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: release/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: release
+      - run: npm test
+        working-directory: release
+      - name: Require resolved production-tool advisories
+        run: npm audit --audit-level=high
+        working-directory: release
