@@ -37,8 +37,8 @@ Main's explicitly opened development fixture with no concurrent interaction;
 they do not prove general overlay/input isolation or product source authority.
 
 Read native document identity and SceneView.pageId; crosscheck root.currentPageId,
-Library.idForPage(root.currentPage), caller source PageKey and complete baseline
-order with reverse index/key round trips. Derive target index fresh from its UUID.
+document.idForPage(root.currentPage), caller source PageKey and complete baseline
+order with document.pageForId/document.idForPage reverse index/key round trips. Derive target index fresh from its UUID.
 No metadata-only uniqueness or lastOpenedPage substitutes for the live owner.
 
 ## One open and observed completion
@@ -57,7 +57,7 @@ Notifications queue fresh observation of the same owner. Completion requires
 the native document ID, scene pageId, root alias and both mapping directions to
 match the exact target with unchanged expected order. A signal, JS return or
 elapsed timer is not completion. Missing target match becomes unresolved at a
-finite deadline. Destruction, cancellation, owner/order/input change or duplicate
+finite deadline. Destruction, cancellation, owner/order change or a proven relevant input condition or duplicate
 dispatch cannot authorize a second call. No menus, fixed sleeps or creation retry.
 Fresh capture/render authority is a later qualified consumer step; this slice
 cannot permit rendering merely because navigation evidence was reported.
