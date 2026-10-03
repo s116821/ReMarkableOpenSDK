@@ -149,7 +149,7 @@ public slots:
         const bool ownerCurrent=current() && activeOwner(owner_,engine_);
         checking_=false;
         // Do not repeat getters; their reentry may have changed epoch/lifetime/time.
-        return ownerCurrent && current() && owner_.window && owner_.receiver && owner_.scene && owner_.document;
+        return ownerCurrent && current() && retainedContext();
     }
     void invalidate() { invalid_=true; ++epoch_; }
 private:
@@ -162,6 +162,14 @@ private:
         if (done_ || invalid_ || !engine_ || QThread::currentThread()!=thread() || engine_->thread()!=thread() ||
             elapsed_.elapsed()>=config_.budgetMs || !progress_()) return false;
         return !done_ && !invalid_ && engine_ && engine_->thread()==thread() && elapsed_.elapsed()<config_.budgetMs;
+    }
+    // QObject::thread() is nonvirtual context metadata, not a native value
+    // getter. Check it after callbacks too: they may have moved an owner.
+    bool retainedContext() const {
+        return engine_ && owner_.window && owner_.receiver && owner_.scene && owner_.document &&
+            QThread::currentThread()==thread() && engine_->thread()==thread() &&
+            owner_.window->thread()==thread() && owner_.receiver->thread()==thread() &&
+            owner_.scene->thread()==thread() && owner_.document->thread()==thread();
     }
     bool connectSignal(QObject *object, const char *signature) {
         if (!object) return false;
@@ -213,12 +221,9 @@ private:
         QMetaObject::invokeMethod(this,[this]{
             // Delivery is another cancellation/lifetime/deadline boundary. This
             // adds no new native getter and never refreshes a failed read.
-            const bool deliverable = !invalid_ && engine_ && owner_.window && owner_.receiver &&
-                owner_.scene && owner_.document && QThread::currentThread()==thread() && engine_->thread()==thread() &&
+            const bool deliverable = !invalid_ && retainedContext() &&
                 elapsed_.elapsed()<config_.budgetMs && progress_();
-            if (result_.facts && (!deliverable || invalid_ || !engine_ || !owner_.window ||
-                !owner_.receiver || !owner_.scene || !owner_.document ||
-                QThread::currentThread()!=thread() || engine_->thread()!=thread() ||
+            if (result_.facts && (!deliverable || invalid_ || !retainedContext() ||
                 elapsed_.elapsed()>=config_.budgetMs || epoch_!=result_.facts->endEpoch)) {
                 result_.facts.reset(); result_.stage=QStringLiteral("facts-delivery-boundary-refused");
             }

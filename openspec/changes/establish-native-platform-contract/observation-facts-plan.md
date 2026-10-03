@@ -114,14 +114,25 @@ cancellation, nested reentry/teardown and delivery-boundary loss. The silent A-B
 fixture intentionally passes only as limited, non-atomic facts, demonstrating the
 unobserved mutation limitation rather than qualifying a native snapshot.
 
-Author validation: all 63 owned fixtures pass using pinned image
+Author validation: all 67 owned fixtures pass using pinned image
 `sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618`,
 network disabled, source mounted read-only, vendor Qt SDK 5.8.203, ARM compiler
 with `-Wall -Wextra -Werror` and qemu/offscreen execution. Final cases assert both
 getter-side effects and the specific queued-delivery refusal boundary so an earlier
 failure cannot masquerade as that test. Strict validation of this OpenSpec change
 also passes. These are owned fixture/source checks, not actual native/model proof.
-Independent review and reproduction remain pending against the frozen revision.
+Main independently reproduced the initial 63 fixtures and strict validation at
+`eec5a798eaa54512f29695e1a01efa559d2da217`. Astra's full five-file review found
+one P2 acceptance blocker: retained document/owner affinity could change after
+the final getter/progress check or before delivery without being refused. An owned
+post-read document-thread move reproduced accepted facts on that revision.
+The narrow repair checks nonvirtual QObject thread metadata for every retained
+owner, engine and session after allowed() getter/progress and both before/after
+delivery progress, without new native value reads. Four owned regressions cover
+post-read, delivery-progress, getter and post-owner-validation final-progress
+document thread moves. All assert the move really happened; delivery cases also
+require the delivery refusal stage. The repaired full 67-case author run passes.
+Independent repair review and reproduction remain pending against the next frozen revision.
 The wider native platform change remains unfinished; no
 canonical spec sync, archive, integration or product authority follows from this slice.
 

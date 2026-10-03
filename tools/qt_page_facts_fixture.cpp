@@ -13,8 +13,9 @@ class DocumentFixture : public QObject {
 public:
     QStringList ids;
     mutable std::function<void()> hook;
+    mutable int idReads=0;
     bool reverseWrong=false;
-    QString id() const { return QStringLiteral("00000000-0000-4000-8000-000000000001"); }
+    QString id() const { ++idReads; return QStringLiteral("00000000-0000-4000-8000-000000000001"); }
     int pageCount() const { return ids.size(); }
     Q_INVOKABLE QString idForPage(int index) const {
         const QString value=ids.value(index); const auto callback=hook;
@@ -98,6 +99,7 @@ int main(int argc,char **argv) {
     qmlRegisterType<OwnedReceiver>("OwnedFacts",1,0,"OwnedReceiver");
     auto engine=std::make_unique<QQmlApplicationEngine>();
     auto document=std::make_unique<DocumentFixture>();
+    QThread foreignDocumentThread;
     IncompleteDocument incomplete;
     IncompatibleDocument incompatible;
     WrongSignalsDocument wrongSignals;
@@ -165,11 +167,20 @@ Window { visible:true; width:400; height:400
     QQmlEngine otherEngine;
     QQuickWindow otherWindow;
     if (mode=="wrong-window") { otherWindow.show(); otherWindow.requestActivate(); QCoreApplication::processEvents(); }
-    bool readReturned=false, deliveryHooked=false;
+    bool readReturned=false, deliveryHooked=false, threadMoved=false;
+    int finalProgressCalls=0;
     std::unique_ptr<PageFactsSession> session;
     session=std::make_unique<PageFactsSession>(mode=="wrong-engine" ? &otherEngine : engine.get(),config,[&]{
         if (readReturned && !deliveryHooked && mode=="delivery-reentry") { deliveryHooked=true; session->begin(); }
         if (readReturned && !deliveryHooked && mode=="delivery-progress-destroy") { deliveryHooked=true; engine.reset(); }
+        if (readReturned && !deliveryHooked && mode=="delivery-progress-document-thread") {
+            deliveryHooked=true; document->moveToThread(&foreignDocumentThread); threadMoved=true;
+        }
+        // Second progress call in allowed(): activeOwner has already checked
+        // affinity, so only the post-progress retained-context check catches it.
+        if (mode=="final-progress-document-thread" && document->idReads>=2 && ++finalProgressCalls==2) {
+            document->moveToThread(&foreignDocumentThread); threadMoved=true;
+        }
         return progress;
     },[&](PageFactsResult value){
         if (nested) held=false;
@@ -197,6 +208,7 @@ Window { visible:true; width:400; height:400
         if (mode=="signal-page") emit scene->pageIdChanged();
         if (mode=="getter-focus") scene->setFocus(false);
         if (mode=="getter-context") scene->setProperty("document",QVariant::fromValue<QObject *>(&app));
+        if (mode=="getter-document-thread") { document->moveToThread(&foreignDocumentThread); threadMoved=true; }
         if (mode=="getter-cancel") progress=false;
         if (mode=="deadline") QThread::msleep(1010);
         if (mode=="nested") {
@@ -226,6 +238,7 @@ Window { visible:true; width:400; height:400
         // Intentionally unnotified A->B->A: facts can pass and are NOT atomic.
         if (mode=="silent-aba") { document->ids.swapItemsAt(0,1); document->ids.swapItemsAt(0,1); }
     };
+    document->idReads=0;
     session->begin();
     readReturned=true;
     if (completed) return 4; // All delivery deferred until the native/read stack unwinds.
@@ -234,6 +247,7 @@ Window { visible:true; width:400; height:400
     if (mode=="delivery-deadline") QThread::msleep(1010);
     if (mode=="engine-destroy") engine.reset();
     if (mode=="window-destroy") delete window;
+    if (mode=="delivery-document-thread") { document->moveToThread(&foreignDocumentThread); threadMoved=true; }
     QCoreApplication::processEvents();
     const bool expected=mode=="good-one" || mode=="good-six" || mode=="good-cap" || mode=="silent-aba" || mode=="release";
     const bool facts=bool(result.facts);
@@ -244,9 +258,17 @@ Window { visible:true; width:400; height:400
     const bool hookRequired=mode=="deadline" || mode.startsWith("nested") || mode=="getter-cancel" ||
         mode=="dirty" || mode=="silent-aba";
     const bool deliveryRequired=mode.startsWith("delivery-") || mode=="engine-destroy" || mode=="window-destroy";
-    const bool boundary=(!hookRequired || hooked) && (!deliveryRequired || result.stage=="facts-delivery-boundary-refused");
+    const bool threadRequired=mode.endsWith("document-thread");
+    const bool boundary=(!hookRequired || hooked) && (!deliveryRequired || result.stage=="facts-delivery-boundary-refused") &&
+        (!threadRequired || (threadMoved && document->thread()==&foreignDocumentThread));
     const bool passed=completed && facts==expected && limited && held && boundary;
     std::printf("%s: %s (%s; limited=%d; nested-held=%d; boundary=%d)\n",argv[1],passed ? "PASS" : "FAIL",qPrintable(result.stage),limited,held,boundary);
+    if (document && document->thread()==&foreignDocumentThread) {
+        // Restore from the owning thread before ordinary owned-fixture teardown.
+        foreignDocumentThread.start();
+        QMetaObject::invokeMethod(document.get(),[&]{ document->moveToThread(app.thread()); },Qt::BlockingQueuedConnection);
+        foreignDocumentThread.quit(); foreignDocumentThread.wait();
+    }
     return passed ? 0 : 1;
 }
 #include "qt_page_facts_fixture.moc"
