@@ -1,0 +1,15 @@
+[package]
+name = "remarkable-open-sdk"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+description = "Experimental semantic reMarkable platform contract; no native adapter yet"
+
+[features]
+default = []
+mock = []
+
+[dependencies]
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
+sha2 = "=0.10.9"
