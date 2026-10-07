@@ -277,3 +277,30 @@ The SDK SHALL NOT convert identity-free legacy pixels into Capture facts, Source
 #### Scenario: Legacy history cannot authorize native output
 - **WHEN** a consumer operation requires qualified native capture, page ownership, binding or output completion
 - **THEN** legacy historical association supplies none of those capabilities and cannot satisfy the required SDK guard or receipt.
+
+### Requirement: Development normalization measurements are exact-build and same-call
+The SDK SHALL restrict the development normalization discriminator to the reviewed
+exact provider/profile and fixed two-stop contract in input-normalization-discriminator.md.
+It SHALL preserve bounded raw scalar bytes before interpretation, correlate the same
+generation/thread/frame/handler/contact, retain nonfinite bit patterns explicitly,
+and expose no operational capability, coordinate correction or general tracing API.
+The consumer SHALL qualify the complete debugger transport and independent recovery
+on an owned target fixture before one separately prepared native candidate, within
+existing total/lifetime budgets. A failed, interrupted or ambiguous attempt SHALL
+remain spent and unknown without automatic attach/input retry.
+
+#### Scenario: Provider or instruction mismatch before arming
+- **WHEN** generation, module fingerprint/load mapping, ARM state or either fixed instruction differs from the reviewed profile
+- **THEN** the discriminator refuses before breakpoint/input effects and creates no measurement authority.
+
+#### Scenario: Paired normalization stops match
+- **WHEN** the two bounded stops match the same generation, thread, frame, handler, contact and caller
+- **THEN** the private receipt preserves the actual pre/post double bytes and adjacent state with scheduling/concurrency limitations, without claiming physical origin or unperturbed navigation success.
+
+#### Scenario: Post stop or persistence fails
+- **WHEN** the post stop is absent/mismatched, evidence persistence is partial, the debugger channel dies or its deadline expires
+- **THEN** bounded acquired bytes remain historical, the attempt stays spent/unknown and independently qualified recovery removes the debugger and restores stock without retrying input or resuming unknown patched code.
+
+#### Scenario: Ordinary normalization implementation is statically consistent
+- **WHEN** static inspection finds no justified correction but runtime operands remain unknown
+- **THEN** the SDK retains the investigation as unfinished and does not patch ranges, rotation, event ABI or rounding based only on endpoint resemblance.

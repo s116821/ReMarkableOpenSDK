@@ -123,6 +123,18 @@ Bootstrap this active SDK plan, agree receipt/identity semantics with REM-37, na
 
 ## Open Questions
 
+### Fixed development contact normalization investigation
+
+The [two-stop discriminator design](input-normalization-discriminator.md) owns the
+exact ARM register/layout, same-call correlation, bounded lossless persistence and
+debugger-effect contract. It measures actual pre/post fractions inside the function
+at0x15528 using PRE0x1563c and POST0x15664, preserving double bits. These private
+fingerprint-bound offsets do not enter the public SDK. SDK provides focused tooling;
+consumer orchestration owns the fresh candidate, one input and independent stock
+recovery. A standard debugger is preferred to a new in-process trampoline; exact
+host/SSH/server transport and target recovery remain qualification gates. Existing
+native lifetime budgets and unknown historical receipts are not relaxed.
+
 Which native service/mechanism can satisfy creation and durable reconciliation without fragile startup modification? Which exact current firmware/runtime fingerprints are qualified? Which existing Reader capture/navigation primitives should move in the first slice? What SDK license and dependencies are approved for independent public consumption? These remain explicit implementation gates, not assumed facts.
 
 ### Historical evidence export

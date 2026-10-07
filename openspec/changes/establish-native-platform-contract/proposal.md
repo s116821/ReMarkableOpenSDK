@@ -31,6 +31,12 @@ None. This empty repository has no implemented canonical baseline.
 
 ## Impact
 
+The October7 fixed development [normalization discriminator](input-normalization-discriminator.md)
+adds a proposed exact-build two-stop debugger measurement for the unresolved RM2
+touch-coordinate investigation. It is not a public hook API, coordinate fix or
+production runtime dependency. Independent proposal/source/utility/recovery review
+and Main-only controlled qualification precede any candidate observation.
+
 SDK repository gains its own contract and eventual implementation/tests/release artifacts. ReMarkableBuddiesDocs owns the coordinated product delta; ReMarkableBuddies adapts its DeviceBackend boundary and owns any separate Supervisor process within the same Buddy artifact. Manager continues one compatible Buddy installation, not a second SDK runtime or user-managed XOVI prerequisite. SDK owns adapter activation/readiness/invalidation/recovery and logical navigation/device gesture semantics; Buddy owns product trigger interpretation and supervisor scheduling. No cloud sync, firmware update, personal pairing, automatic cold-boot injection, public Buddy admin API or all-at-once platform extraction is included.
 
 Native page creation remains an unpassed research gate. A product-level manual blank-successor fallback is permitted only after the exhaustive investigation required by REM-25; SDK `Unsupported` alone does not satisfy that product gate.

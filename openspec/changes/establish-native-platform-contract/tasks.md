@@ -51,3 +51,12 @@
 - [x] 5.7 Independently review fixed device-frames-v1 proposal with Main/Astra and consumer before implementation; preserve old spent evidence and all bounded/passive observation gates. No artifact or device selection.
 
 - [x] 5.8 Independently review fixed device-frames-v1 implementation and exact Buddy/Docs freezes after focused synthetic fixtures; no target artifact/private packet/device selection until separate gates.
+
+## 6. Fixed development same-call normalization discriminator
+
+- [ ] 6.1 Independently review input-normalization-discriminator.md and exact consumer owning plan; choose one concrete host/SSH/debugger transport and recovery sequence.
+- [ ] 6.2 Freeze official debugger provenance, build/ABI/dependency closure and fixed focused implementation; independently review exact SDK/consumer source revisions before target use.
+- [ ] 6.3 Verify two-stop ARM registers/flags/double memory and same-call guards on original owned fixtures; cover wrong identity/instruction/thread/frame, absent hits, partial output and debugger/transport death without retries.
+- [ ] 6.4 Main alone qualifies the complete exact utilities/transport/bounded persistence and independent cleanup on a harmless owned target dummy before a fresh native candidate; preserve existing budgets.
+- [ ] 6.5 After gates pass, Main performs one controlled candidate observation with fresh baseline/independent recovery; independently review same-call operands and original fixture preservation. No guessed coordinate fix or historical receipt promotion.
+- [ ] 6.6 Only after a demonstrated cause, propose/review the smallest correction and verify the integrated logical navigation workflow. Keep unfinished native/product gates open; canonical sync/archive only after the corresponding implemented requirements are actually fulfilled.
