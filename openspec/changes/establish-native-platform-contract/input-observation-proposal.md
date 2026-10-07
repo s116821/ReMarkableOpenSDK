@@ -175,7 +175,7 @@ device_system_id signed canonical decimal string or explicit null, device_type
 integer or explicit null. Absent pointer means false and both null; present means
 true, signed qint64 systemId and numeric type in filter storage; only later JSON
 serialization converts the ID with QString::number. Consumer requires canonical
-regex `^(0|-?[1-9][0-9]{0,18})$` and Int64.TryParse inclusive signed64 range;
+regex `\A(0|-?[1-9][0-9]{0,18})\z` and Int64.TryParse inclusive signed64 range;
 refuse plus, -0, leading zeros, overflow, numeric ID and coercion. Type must be
 JSON int/long in0..2147483647; retain unknown numeric types without capabilities.
 All three properties must exist. No names, seats, unique stylus IDs, raw pointers,
@@ -264,3 +264,12 @@ collector/preservation/deadline/legacy shape tests. Strict OpenSpec and diff che
 are required at freeze. Main/Astra exact implementation review remains open; no
 sync/archive, merger or spent evidence promotion. Source basis: current coordinated
 selection, repository implementation and these local tool outputs.
+
+### Independent review correction: canonical signed ID termination
+
+Astra reproduced a trailing-LF device ID accepted by the proposed .NET `$` anchor
+and whitespace-tolerant Int64.TryParse. Use absolute `\A`/`\z` anchors for this
+new signed-ID wire field, retaining the exact inclusive Int64 range check. Buddy
+adds LF/CRLF/CR/leading or trailing space/tab refusals and updates frozen decoder
+SHA. This corrects the shared proposal and consumer only; SDK scalar capture and
+serialization are unchanged. Earlier318 assertions alone missed this case.
