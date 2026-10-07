@@ -25,6 +25,8 @@
 - [ ] 3.6 Define and independently review SDK logical Next/Previous navigation with per-tablet, orientation-aware gesture implementations, at most one gesture and explicit verified/unchanged/uncertain/unsupported outcomes. Coordinate Sol implementation and the independent RM1 owner through Main; physical swipe direction is not the public semantic direction.
 
 ## 4. Verification and delivery
+- [x] 3.7 Implement the fixed default-off input observer/end/one-grab source mode and run focused synthetic Qt fixtures; see input-observation-proposal.md October 6 checkpoint. Source only, no target artifact selection.
+- [ ] 3.8 Independently review the exact input observation implementation and coordinated consumer revisions before separate artifact/packet/device gates.
 - [ ] 4.1 Run contract/mock checks, ELF architecture/float ABI/interpreter/NEEDED/versioned-import comparisons against exact qualified providers, and independent SDK review; record toolchain/sysroot provenance and evidence scope.
 - [ ] 4.2 Complete native RM2 middle/end insertion, writable page, PDF bytes/ink/unknown metadata, navigation/reopen, retries, interruption and recovery acceptance.
 - [ ] 4.3 Verify consumer binding and fresh render guards with REM-37/current Reader, including restart after native commit and before binding commit.

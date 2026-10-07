@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "qt_input_observation.h"
 
 namespace qml_access {
 struct FactsEntryConfig {
@@ -15,13 +16,16 @@ struct FactsEntryConfig {
     PageFactsConfig facts;
     int setupBudgetMs=20000;
     bool developmentSetup120=false;
+    bool developmentInputObservation=false;
     QString setupSelection;
     bool setupValid() const {
-        return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==QStringLiteral("main-dev-facts-120s") :
+        return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
+            (developmentInputObservation ? QStringLiteral("main-dev-input-observation-120s"):QStringLiteral("main-dev-facts-120s")) :
             setupBudgetMs>=1 && setupBudgetMs<=20000 && setupSelection.isEmpty();
     }
     QByteArray setupProfile() const {
-        return developmentSetup120 ? QByteArray("main-dev-facts-120s") : QByteArray("default-dev-20s");
+        return developmentInputObservation ? QByteArray("main-dev-input-observation-120s"):
+            developmentSetup120 ? QByteArray("main-dev-facts-120s") : QByteArray("default-dev-20s");
     }
 };
 struct FactsEntryResult {
@@ -32,6 +36,7 @@ struct FactsEntryResult {
 // through completion. No controller, native mutator or general command endpoint.
 class FactsEntry final : public QObject {
     Q_OBJECT
+    friend struct InputObservationFixtureAccess;
 public:
     FactsEntry(QGuiApplication *app, FactsEntryConfig config,
                std::function<void(FactsEntryResult)> completed,
@@ -48,7 +53,8 @@ public:
         started_=true; elapsed_.start(); origin_=clock_ ? clock_() : 0;
         if (!app_ || app_->thread()!=thread() || QThread::currentThread()!=thread() ||
             !QRegularExpression(QStringLiteral("^[0-9a-f]{32}$")).match(config_.nonce).hasMatch() ||
-            !config_.facts.valid() || !config_.setupValid() || !completed_) {
+            !config_.facts.valid() || !config_.setupValid() || !completed_ ||
+            (config_.developmentInputObservation && (!config_.developmentSetup120 || config_.facts.budgetMs!=5000))) {
             finish("facts-entry-config-refused"); return;
         }
         root_=::open(config_.directory.toUtf8().constData(),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
@@ -56,7 +62,9 @@ public:
             finish("facts-entry-directory-refused"); return;
         }
         if (exists("facts-waiting") || exists("facts-request") || exists("facts-request.tmp") ||
-            exists("callback.json") || exists("diagnostics.json") || exists("refusal.json")) { finish("facts-entry-stale-refused"); return; }
+            exists("callback.json") || exists("diagnostics.json") || exists("refusal.json") ||
+            (config_.developmentInputObservation && (exists("input-observation-ready") || exists("input-observation-end") ||
+             exists("input-observation-end.tmp") || exists("input-observation-complete.json") || exists("input-window.png")))) { finish("facts-entry-stale-refused"); return; }
         process_=QByteArray::number(::getpid());
         processStart_=processStart();
         if (processStart_.isEmpty() || readFile("attempt.identity",128)!=process_+' '+processStart_+'\n') {
@@ -96,6 +104,8 @@ public slots:
     }
 protected:
     bool eventFilter(QObject *object,QEvent *event) override {
+        if (config_.developmentInputObservation && observationReady_ && !done_)
+            observation_.observe(object,event,observationWindow_,now());
         if (!done_ && !engine_ && qobject_cast<QWindow *>(object) &&
             (event->type()==QEvent::Show || event->type()==QEvent::Expose || event->type()==QEvent::FocusIn))
             queueBootstrap();
@@ -186,6 +196,28 @@ private:
             engine_=selected;
             if (!context()) { finish("facts-entry-engine-refused"); return; }
             connect(engine_,&QObject::destroyed,this,&FactsEntry::cancel);
+            if (config_.developmentInputObservation) {
+                const auto positiveDecimal=[](const QByteArray &value){
+                    if(value.isEmpty() || value.size()>20 || value[0]=='0')return false;
+                    for(char digit:value)if(digit<'0' || digit>'9')return false;
+                    bool ok=false;value.toULongLong(&ok);return ok;
+                };
+                if(!positiveDecimal(process_) || !positiveDecimal(processStart_) ||
+                   !positiveDecimal(QByteArray::number(qulonglong(rootStat_.st_dev))) ||
+                   !positiveDecimal(QByteArray::number(qulonglong(rootStat_.st_ino)))) {
+                    finish("input-observation-identity-width-refused");return;
+                }
+                auto *window=qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
+                if (!window || !window->isVisible() || !window->isActive() || window->thread()!=thread() || qmlEngine(window)!=engine_) {
+                    finish("input-observation-window-refused");return;
+                }
+                observationWindow_=window;observation_=InputObservationStore{};observationReady_=true;
+                const auto ready=identity("waiting-input-observation")+' '+QByteArray::number(now())+" 120000 "+config_.setupProfile()+'\n';
+                if (!observationCurrent() || now()>=config_.setupBudgetMs || ready.size()>256 || !writeFile("input-observation-ready",ready)) {
+                    finish("input-observation-ready-refused");return;
+                }
+                queueRequest();return;
+            }
             const QByteArray waiting=identity("waiting-facts")+' '+QByteArray::number(now())+' '+
                 QByteArray::number(config_.setupBudgetMs)+' '+config_.setupProfile()+'\n';
             if (!live() || now()>=config_.setupBudgetMs || !writeFile("facts-waiting",waiting)) {
@@ -200,6 +232,7 @@ private:
         QMetaObject::invokeMethod(this,[this]{
             const Scope scope(this); requestQueued_=false;
             if (done_ || consumed_) return;
+            if (config_.developmentInputObservation) { acceptObservationEnd();return; }
             if (!context() || !live() || now()>=config_.setupBudgetMs) { finish("facts-entry-request-context-refused"); return; }
             if (!exists("facts-request")) return;
             consumed_=true; // every existing token consumes the one admission
@@ -212,8 +245,76 @@ private:
             QMetaObject::invokeMethod(this,[this]{startRead();},Qt::QueuedConnection);
         },Qt::QueuedConnection);
     }
+    bool observationCurrent() const {
+        return context() && live() && observationWindow_ && observationWindow_->thread()==thread() &&
+            observationWindow_->isVisible() && observationWindow_->isActive() &&
+            QGuiApplication::focusWindow()==observationWindow_ && qmlEngine(observationWindow_)==engine_;
+    }
+    void acceptObservationEnd() {
+        if (!observationCurrent() || now()>=config_.setupBudgetMs) { finish("input-observation-end-context-refused");return; }
+        if (exists("facts-request") || exists("facts-request.tmp")) { finish("input-observation-purpose-refused");return; }
+        if (!exists("input-observation-end")) return;
+        consumed_=true;
+        const auto expected=identity("end-input-observation")+" 120000 "+config_.setupProfile()+'\n';
+        if (expected.size()>256 || readFile("input-observation-end",256)!=expected ||
+            !observationCurrent() || now()>=config_.setupBudgetMs) { finish("input-observation-end-refused");return; }
+        observation_.sealed=true;acceptedAt_=now();timer_.start(config_.facts.budgetMs);
+        QMetaObject::invokeMethod(this,[this]{captureObservation();},Qt::QueuedConnection);
+    }
+    void captureObservation() {
+        const Scope scope(this);
+        const auto current=[&]{return observationCurrent() && now()<acceptedAt_+config_.facts.budgetMs;};
+        if (!current()) { finish("input-observation-capture-context-refused");return; }
+        const auto width=observationWindow_->width(),height=observationWindow_->height();
+        const double dpr=observationWindow_->devicePixelRatio();
+        if (width<=0 || height<=0 || !std::isfinite(dpr) || dpr<=0 || double(width)*height*dpr*dpr>4194304) {
+            finish("input-observation-image-cap-refused");return;
+        }
+        const qint64 grabStart=now();reading_=true;
+        const QImage image=observationWindow_->grabWindow();
+        reading_=false;const qint64 grabEnd=now();
+        if (!current()) { finish("input-observation-capture-unknown");return; }
+        QString imageStatus=QStringLiteral("unsupported-empty");
+        qint64 pngBytes=0;
+        if (!image.isNull()) {
+            if (qint64(image.width())*image.height()>4194304 || image.sizeInBytes()>16777216) {
+                finish("input-observation-image-cap-refused");return;
+            }
+            const int fd=::openat(root_,"input-window.png",O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,0600);
+            if (fd<0) { finish("input-observation-image-output-refused");return; }
+            InputImageOutput output(fd);QImageWriter writer(&output,"png");
+            const bool saved=writer.write(image);pngBytes=output.bytes();::close(fd);
+            if (!saved || !current()) { finish("input-observation-image-output-unknown");return; }
+            imageStatus=QStringLiteral("available");
+        }
+        auto object=observation_.json();
+        object["kind"]=QStringLiteral("development-input-observation");object["nonce"]=config_.nonce;
+        object["attempt_pid"]=QString::fromLatin1(process_);object["attempt_start"]=QString::fromLatin1(processStart_);
+        object["root_device"]=QString::number(qulonglong(rootStat_.st_dev));object["root_inode"]=QString::number(qulonglong(rootStat_.st_ino));
+        object["accepted_ms"]=acceptedAt_;object["seal_ms"]=acceptedAt_;object["grab_start_ms"]=grabStart;
+        object["grab_end_ms"]=grabEnd;
+        object["application_thread"]=true;object["engine_thread"]=true;object["scope_current"]=true;
+        object["width"]=width;object["height"]=height;object["dpr"]=dpr;
+        object["image_status"]=imageStatus;object["image_width"]=image.width();object["image_height"]=image.height();object["png_bytes"]=pngBytes;
+        object["native_authority"]=false;object["render_authority"]=false;object["ui_acknowledged"]=false;
+        // Publish at a separate queued boundary after this callback unwinds.
+        // The original accepted-end budget and retained window still govern.
+        QMetaObject::invokeMethod(this,[this,object]() mutable {
+            const Scope completionScope(this);
+            const auto current=[&]{return observationCurrent() && now()<acceptedAt_+config_.facts.budgetMs;};
+            if (!current()) { finish("input-observation-completion-context-refused");return; }
+            object["completed_ms"]=now();object["gui_callback_completed"]=true;
+            const auto bytes=inputCompletionBytes(object);
+            if (bytes.isEmpty() || !current() || !writeFile("input-observation-complete.json",bytes) || !current()) {
+                if (rootCurrent()) ::unlinkat(root_,"input-observation-complete.json",0);
+                finish("input-observation-completion-unknown");return;
+            }
+            finish("input-observation-completed");
+        },Qt::QueuedConnection);
+    }
     void startRead() {
         const Scope scope(this);
+        if (config_.developmentInputObservation) { finish("input-observation-facts-refused");return; }
         if (!readCurrent()) { finish("facts-entry-dispatch-refused"); return; }
         reading_=true;
         reader_=std::make_unique<PageFactsSession>(engine_,config_.facts,[this]{return readCurrent();},
@@ -249,6 +350,8 @@ private:
         if (done_) return;
         done_=true; result_.stage=QString::fromLatin1(stage); timer_.stop();
         if (root_>=0 && rootCurrent()) ::unlinkat(root_,"facts-waiting",0);
+        observation_.sealed=true;
+        if (config_.developmentInputObservation && root_>=0 && rootCurrent()) ::unlinkat(root_,"input-observation-ready",0);
         queueCompletion();
     }
     void queueCompletion() {
@@ -294,6 +397,9 @@ private:
     }
     QPointer<QGuiApplication> app_;
     QPointer<QQmlEngine> engine_;
+    QPointer<QQuickWindow> observationWindow_;
+    InputObservationStore observation_;
+    bool observationReady_=false;
     FactsEntryConfig config_;
     std::function<void(FactsEntryResult)> completed_;
     std::function<qint64()> clock_;

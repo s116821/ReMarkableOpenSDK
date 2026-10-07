@@ -125,3 +125,30 @@ No tests prove target event acceptance, physical EPD or root cause.
 Coordinate exact SDK/consumer proposal revisions before code, then independent
 source/artifact/packet review before any Main-owned attempt. No nonce, build,
 device action, canonical sync, archive or production authority is selected here.
+
+## October 6 source implementation checkpoint
+
+The default-off FactsEntry mode, fixed event storage and capped output stream are
+implemented in qt_page_facts_entry.h and qt_input_observation.h. One accepted end
+seals storage and queues one grab. A separate queued publication boundary follows
+the capture callback's return, retaining the original accepted-end5000ms budget,
+QPointer window, unique engine and live closure/root/attempt checks. Facts-reader
+construction remains excluded; the existing facts mode and protocol stay intact.
+
+Verified with tools/qt_page_facts_entry_test.sh in the existing vendor SDK image
+sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618,
+QT_PROBE_SDK_ENV=/opt/codex/rm2/5.8.203/environment-setup-cortexa7hf-neon-remarkable-linux-gnueabi,
+read-only source mount and network disabled:21 refusal checks,32 existing entry
+cases and16 observation cases PASS. Observation fixtures exercise genuine public
+Qt GUI/offscreen callbacks plus explicitly synthetic events/clocks: storage/point/
+count/JSON/PNG stream caps, accepted-state preservation, duplicate counts, receiver
+relationships, inactive readiness, wrong/overlength/cross-purpose ends, restoration,
+setup boundary and window loss/destruction/cancellation/deadline at queued completion.
+
+These fixtures do not cover every proposed target condition: actual target image
+behavior, window replacement/ambiguous-engine selection, nested render behavior,
+full target touch synthesis, exact physical EPD and installed artifact compatibility
+remain unqualified. Source inspection establishes the single grab call and no
+event-filter output; fixtures cannot prove all possible Qt render reentrancy.
+Independent exact source review, artifact/packet selection and Main-owned device
+gates remain open. No target payload build, fresh nonce or device action occurred.

@@ -38,6 +38,17 @@ for case in good myfiles no-owner-then-ready wrong-document wrong-token oversize
    -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/fixture" "$case"
  else QT_QPA_PLATFORM=offscreen "$work/fixture" "$case"; fi
 done
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
+ tools/qt_input_observation_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
+ $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/observation-fixture"
+for case in good overflow duplicate caps accepted-true inactive-window wrong-purpose oversize setup-boundary window-loss restoring cross-facts completion-window-loss completion-destroy-window completion-cancel completion-deadline; do
+ if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
+  /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
+   -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \
+   -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
+   -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/observation-fixture" "$case"
+ else QT_QPA_PLATFORM=offscreen "$work/observation-fixture" "$case"; fi
+done
 if [ -n "${FACTS_BUDDY_SOURCE:-}" ]; then
  ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
   -DOWNED_FACTS_PUBLISHER -I"$FACTS_BUDDY_SOURCE/tools/native_page_facts_probe" \
