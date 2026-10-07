@@ -37,6 +37,7 @@
 - [ ] 4.10 Verify insertion plus fresh current-page observation: already-target requires no gesture; otherwise only a freshly verified source with the intended target adjacent may issue one logical Next. Require intended native target, unchanged expected after-order and fresh qualified pixels before consumer binding/write. Cover wrong neighbor, stale pixels, orientation/model mismatch, cancellation and uncertain completion without retry. Insertion auto-selection remains unknown; no direct-open prerequisite.
 
 ## 5. Historical evidence export amendment
+- [ ] 5.6 Coordinate input-observation-proposal.md with consumer before code; implement only fixed development observation/end/image semantics, extend owned entry/Qt fixtures and independently review exact source/artifact/packet revisions before separately selected hardware gates. No facts session or native/render authority.
 - [x] 5.1 Independently review evidence-export-contract.md with root and consumer against exact source revisions. Both accepted SDK 9b61d7284edabe6a1fea61c3f621049300b3bc32 against consumer Docs fbb2fd4cbf0352eeb71ecb32b2b3a0683a4fabd6.
 - [x] 5.2 Implement bounded immutable facts, canonical UUID output and explicit synthetic clock/qualification semantics; preserve operational opacity. Independent Sol review accepted exact 644811c52aa6af5d151a0f8ace3cf9d7ed45f927; integrated source unchanged.
 - [ ] 5.3 Verify complete lossless round trips, limits and inability to restore authority; coordinate exact consumer mappings before Reader integration.

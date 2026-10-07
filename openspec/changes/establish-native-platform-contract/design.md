@@ -1,5 +1,11 @@
 ## Context
 
+The prospective private diagnostic is specified in
+[input-observation-proposal.md](input-observation-proposal.md): bounded
+non-consuming eventFilter records, explicit purpose-isolated end admission and
+one separate GUI-thread window image. This adds no facts/native/render capability;
+implementation awaits exact SDK/consumer proposal coordination.
+
 This is an active design, not a stable release or implemented interface. The current Buddy DeviceBackend provides a useful seam but mixes product history/status semantics with device operations. At fetched Buddy main `ff8ad75`, native_page explicitly distinguishes persisted last-opened candidates from proof that a page remains on screen; the SDK must preserve that distinction.
 
 SDK owns native facts and mechanisms. Buddy owns conversation identities, binding CAS, source retention, cancellation policy and the local Prepared/NativeCommitted/BindingCommitted/ReconcileRequired journal. Native receipts provide evidence to that journal; they do not constitute a second binding registry.

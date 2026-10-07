@@ -6,6 +6,11 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Propose a private development-only Qt input observer plus one separately
+  requested window image, using existing entry lifetime and ownership guards;
+  see [input-observation-proposal.md](input-observation-proposal.md). Code and
+  target qualification remain unselected.
+
 - Establish SDK-owned OpenSpec and a narrow, versioned semantic contract for device capabilities, page identity, guarded capture/navigation and creation receipts.
 - Keep persistent page identity distinct from current runtime/visit ownership and capture evidence.
 - Prioritize logical Next/Previous with qualified per-tablet, orientation-aware gestures and verified intended destination. Direct native PageKey opening is deferred, not an MVP prerequisite; preserve its unfinished research and setup findings in [the active navigation plan](logical-navigation-plan.md).

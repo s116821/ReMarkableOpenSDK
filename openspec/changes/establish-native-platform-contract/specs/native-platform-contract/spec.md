@@ -1,5 +1,28 @@
 ## ADDED Requirements
 
+### Requirement: Purpose-isolated development Qt input observation
+The private development entry SHALL optionally observe bounded touch/mouse events
+through its existing always-false application filter, without changing accepted
+state or performing filter I/O, capture or document traversal. It SHALL publish
+readiness only after collection is enabled for an exact retained live GUI window,
+consume at most one distinct observation-end token, seal records before one
+separate GUI-thread grabWindow callback and publish bounded completion evidence
+only after actual callback completion with scope/deadline checks. It SHALL NOT
+start PageFactsSession, grant native/render/UI authority, retry capture, extend
+existing clocks or interpret a facts-request as observation end.
+
+#### Scenario: Selected diagnostic completes
+- **WHEN** the purpose-bound end request and retained window/root/generation remain valid through the separate GUI callback
+- **THEN** bounded observed events, explicit truncation and separate image availability may be reported with all operational authority false.
+
+#### Scenario: Missing events or unsupported capture
+- **WHEN** this observer sees no events or grabWindow yields no usable image
+- **THEN** the result is limited to this observer/capture path and cannot establish kernel rejection, handler acceptance, native ownership or physical-panel state.
+
+#### Scenario: Wrong purpose, stale scope or delayed completion
+- **WHEN** a cross-purpose/stale/duplicate token, destroyed or changed window, closure, generation drift or expired deadline occurs
+- **THEN** no usable successful completion or further grab is authorized, and consumer restoration remains required.
+
 ### Requirement: Independent semantic capability contract
 The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
 
