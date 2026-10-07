@@ -154,6 +154,27 @@ errors on retained duplicate names; repeated invocation is not idempotent succes
 That command is not selected for production publication. Maintained existing-tag
 draft creation/upload/completeness/finalization composition remains unfinished.
 
+## Maintained GitHub CLI and composition qualification
+
+The proposed ordered tag/build/draft/recovery configuration and exact remaining
+owner inputs are in [composition.md](composition.md). The separate read-only
+`github-cli-qualification.yml` verifies the official upstream 2.102.0 archive
+checksum and runs five publisher fixtures plus two actual tag-to-compiled-crate
+composition fixtures. It passes only fake credentials to an owned loopback TLS
+server. Set `SDK_GITHUB_CLI`, `PYTHON_SEMANTIC_RELEASE` and `SDK_FIXTURE_CARGO` to
+the verified/hash-installed/pinned tool paths, then run:
+
+```sh
+python -m unittest discover -s release -p 'github_cli_fixtures.py' -v
+python -m unittest discover -s release -p 'composition_fixtures.py' -v
+```
+
+The binary advisory job is a separate unsuppressed gate: GO-2026-5932 currently
+causes exit3. Read the exact version/severity/function/reachability and supported
+remediation assessment in [upstream-audit.md](upstream-audit.md). A passing
+functional job or command-source scan cannot waive that failure. No production
+workflow, tags, release, settings, SDK source or Buddy/Manager files are changed.
+
 Primary command/configuration sources:
 [Python Semantic Release CLI](https://python-semantic-release.readthedocs.io/en/latest/api/commands.html),
 [configuration](https://python-semantic-release.readthedocs.io/en/latest/configuration/configuration.html).

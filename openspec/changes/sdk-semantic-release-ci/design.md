@@ -1,6 +1,6 @@
 # Design and unresolved gates
 
-Conventional Commit PR titles become squash subjects. Upstream commit-analyzer determines release type; upstream semantic-release determines version/tag and upstream GitHub plugin publishes declared assets. docs: explicitly suppresses release even if other default conventions would suggest one. Upstream path/title Actions must reject docs: misclassification of application changes; no custom classifier. Relevant build/CI/dependency changes must receive a tested release policy. Breaking/pre-1.0 and first SDK version policy need explicit acceptance before activation.
+Conventional Commit PR titles become squash subjects. The original candidate uses upstream commit-analyzer and semantic-release; their dependency audit remains unresolved. The current maintained alternative proposes Python Semantic Release for tag-only calculation and explicit existing-tag GitHub CLI drafts, with no production tool selected. docs: explicitly suppresses release even if other default conventions would suggest one. Upstream path/title Actions must reject docs: misclassification of application changes; no custom classifier. Relevant build/CI/dependency changes must receive a tested release policy. Breaking/pre-1.0 and first SDK version policy need explicit acceptance before activation.
 
 Initial qualification uses actual pinned semantic-release and commit-analyzer packages, owned temporary bare/work repositories, equal timestamps, immutable fixture tags and dry-run. Fixture results are not hosted CI or production publication proof. The SDK toolchains and downstream Cargo consumer are not prerequisites for semantic qualification.
 
@@ -10,7 +10,7 @@ Rust library distribution should use an immutable Git tag/exact locked commit (o
 
 Future Buddy prerelease promotion is a separate coordinated REM-46/41 decision. GitHub prerelease metadata and SemVer prerelease identifiers are different: promotion must preserve tag/artifact/runtime identity and never relabel/rebuild bytes under an existing tag. Running Manager instances discover stable promotion by refresh/poll and gate installation on manifest integrity/compatibility.
 
-First public SDK release remains gated by actual source availability, license/dependency/API policy and independent source/artifact review. SDK main currently lacks Cargo sources; researching/pinning release tools does not supply them. Preserve baseline PR #2 and active native research separately.
+First public SDK release remains gated by accepted shipping source availability, license/dependency/API policy and independent source/artifact review. The current candidate compiler lanes use an explicit experimental snapshot, not accepted shipping source; researching/pinning release tools does not supply that acceptance. Preserve baseline PR #2 and active native research separately.
 
 User clarification: no project version field or placeholder is maintained in source. Git tags alone mint/maintain project versions. Packaging/runtime version fields are generated only in an isolated build staging area from the checked-out tag; never committed. No version-bump commits. This supersedes earlier manifest-placeholder allowances. Dependency pins are upstream identities, not this project version.
 
@@ -155,3 +155,25 @@ remote release or files, and retries error on duplicate retained asset names.
 It is not selected as the complete SDK publication mechanism. Qualify a maintained
 existing-tag draft creator/uploader/verifier/finalizer with explicit required asset
 completeness and immutable publication; successful exit alone is insufficient.
+
+Next publisher qualification candidate is maintained GitHub CLI 2.102.0, exact
+upstream binary/source, in loopback TLS fixtures only. Exercise --verify-tag,
+explicit --draft creation, partial upload recovery without --clobber, byte
+verification/completeness before --draft=false finalization, and published
+immutability refusal. The CLI's ordinary auto-publish create path may delete an
+incomplete draft after failure; test that behavior rather than assuming it retains
+recoverable assets. No production selection/settings/release or custom publisher
+is authorized by fixture success. Scan the exact upstream binary independently.
+
+The [concrete maintained composition](../../../release/composition.md) specifies
+upstream tag-only calculation, remote identity verification, generated build
+staging, explicit draft creation, retained-asset verification, missing-only
+uploads and complete verification before finalization. Two actual-tool fixtures
+exercise the full tag-to-compiled-source-crate/recovery handoff and fail before
+build/API calls without remote tag authority. This is not a production coordinator.
+The separate publisher qualification workflow has read-only permissions and a
+non-suppressed full-binary govulncheck gate. GO-2026-5932 currently fails it despite
+restricted release-command source scans reporting no affected calls/imports.
+Severity is unspecified in the primary advisory; no high/critical classification
+or waiver is inferred. Owner security policy/remediation, protected immutable
+remote publication and accepted shipping SDK source/compatibility remain gates.

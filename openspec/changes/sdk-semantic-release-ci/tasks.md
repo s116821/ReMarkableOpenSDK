@@ -3,6 +3,8 @@
 - [x] Locally qualify Python Semantic Release alternative with hash-pinned installation, extended policy histories, explicit remote-tag build identity and failed-push/retry fixtures; document bootstrap/publisher limits.
 - [ ] Verify hosted Python alternative checks and obtain independent review of this separately identified follow-up delta before production selection.
 - [ ] Qualify maintained existing-tag publisher/completeness and immutable finalization composition independently before production selection.
+- [x] Locally execute maintained GitHub CLI draft/recovery fixtures and actual upstream tag-to-compiled-distribution composition; document exact publisher advisory/reachability and remaining policy/source/provider gates.
+- [ ] Verify hosted publisher/composition qualification, obtain independent exact-delta review and resolve the unsuppressed binary advisory gate before selecting the publisher.
 
 - [x] Inventory issues/ownership and reconcile current user rules with REM-30/46/41.
 - [x] Create SDK-owned proposal/design/tasks/delta before implementation.

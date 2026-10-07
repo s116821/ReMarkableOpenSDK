@@ -106,3 +106,38 @@ Installed default npm-publisher dependencies remain required even when the
 candidate runtime excludes that plugin; core/analyzer micromatch→braces is also
 used. This is reachability evidence, not a waiver. The separate Python candidate
 workflow does not change or bypass the historical audit job.
+
+## GitHub CLI publisher decision — 2026-10-07
+
+Candidate upstream **2.102.0**, source
+`fc4b137cdef0a6bd28fd461b7cf9c84a5812a8cd`, official Linux amd64 archive SHA256
+`bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386`.
+govulncheck **1.8.0**, upstream Go **1.27.1**. No upstream source/lock changed.
+
+| Decision input | Exact evidence |
+| --- | --- |
+| Advisory/version | [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932), golang.org/x/crypto **v0.57.0**; obsolete OpenPGP implementation, all versions affected, no known fixed version. |
+| Severity | [Reviewed primary JSON](https://vuln.go.dev/ID/GO-2026-5932.json) has **no severity/CVSS field**. Do not classify it as high/critical or infer a numerical score. |
+| Binary result | `govulncheck -mode binary -show verbose PATH_TO_VERIFIED_GH` exits **3**, with linked OpenPGP symbols. This is not a demonstrated exploit in a release command. |
+| Affected functions/dependency | Rekor **v1.5.3** `pkg/pki/pgp/pgp.go`: `Verify` calls OpenPGP detached/armored signature checking; key parsing calls `ReadKeyRing` / `ReadArmoredKeyRing`. Shared attestation dependencies bring this implementation into the full CLI binary. |
+| Release-command source result | Exact-source scans of `./pkg/cmd/release/{create,upload,download,edit}`, and separately `{verify,verify-asset}`, each exit **0**: no affected calls, no affected imported packages, one required-module advisory. This supports a restricted-path assessment, not whole-binary safety or proof against reflective/interface dispatch. |
+| Existing gate | Historical qualification still runs `npm audit --audit-level=high` and fails. The alternative does not depend on that npm graph and does not waive that job. New publisher workflow preserves a separate failing **binary advisory gate**, without continue-on-error or ignored advisory. |
+| Supported remediation | An x/crypto version bump alone cannot fix an all-version retired package. The upstream advisory recommends a maintained OpenPGP replacement; that change belongs upstream in the importing dependency/CLI. Consume and requalify its official release, not a patched private fork. |
+| Alternatives assessed | softprops **3.0.3** has the recorded runtime audit blockers. ncipollo/release-action **1.21.0**, exact `339a81892b84b4eeb0f6e744e4574d79d0d9b8dd`, runtime pnpm audit reports **11 high/13 moderate/5 low** findings through brace-expansion5.0.4/undici7.24.3. PSR publish has the documented correctness gaps. None is a clean selected substitute. |
+
+**Recommendation for owner review:** retain this maintained CLI as a functional
+candidate and review the bounded command reachability evidence. Production
+selection requires either an official remediation or an explicit reviewed policy
+decision about whether that command boundary suffices for this unscored advisory.
+Do not quietly convert a binary scan failure into success. The proposed workflow
+uses the conservative binary gate until such a decision changes the declared
+policy. Source scans are evidence, not an advisory suppression mechanism.
+
+Five actual-binary loopback TLS fixtures pass. Two additional end-to-end fixtures
+use the actual maintained tag CLI, bare Git remote, exact remote identity helper,
+real Rust executable/source crate and maintained draft download/upload/edit.
+They prove interrupted recovery without retagging and refusal before build/API
+calls when a local tag has no remote authority. All API identities and tokens are
+synthetic. Modeled immutability is not live GitHub enforcement; production
+tag/asset concurrency, attestation verification and accepted SDK source remain
+separate gates. See [the concrete composition](composition.md).

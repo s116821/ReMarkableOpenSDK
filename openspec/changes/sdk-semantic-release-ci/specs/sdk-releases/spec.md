@@ -26,6 +26,17 @@ No project version field or placeholder SHALL be maintained in source. Packaging
 - **WHEN** an official build stages the verified tagged source
 - **THEN** package/runtime identity is generated from that tag in build output without editing the source checkout or creating a version-bump commit.
 
+### Requirement: Existing-tag draft recovery verifies complete byte identity
+Publication SHALL use maintained tooling for existing-tag drafts and SHALL verify retained assets against independently verified build identity before uploading missing names. Finalization SHALL require the complete declared manifest/distributions and exact remote source identity. Recovery SHALL NOT retag, clobber retained bytes or treat a functional fixture as a security-gate waiver.
+
+#### Scenario: Interrupted draft upload
+- **WHEN** an upload fails after some verified assets reached an existing-tag draft
+- **THEN** recovery retains those bytes, verifies the subset, uploads missing declared names and checks completeness before finalization without minting another version.
+
+#### Scenario: Unresolved publisher advisory
+- **WHEN** the declared publisher binary security gate fails despite passing functional or restricted source-reachability checks
+- **THEN** production selection remains refused until supported remediation or an explicitly reviewed policy change resolves the gate; its failure is not silently suppressed.
+
 ### Requirement: Explicit distribution and consumer identity
 Each SDK release SHALL include all declared implemented distributions with source/contract/target/compatibility/hash provenance. Architectural compilation SHALL not imply native model support. Buddy SHALL consume a pinned SDK version at build time and bundle required target helpers; development MAY use local Cargo overrides, but official builds SHALL refuse local-path resolution. Unknown model/firmware/runtime combinations SHALL remain unsupported.
 
