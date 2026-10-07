@@ -135,6 +135,13 @@ recovery. A standard debugger is preferred to a new in-process trampoline; exact
 host/SSH/server transport and target recovery remain qualification gates. Existing
 native lifetime budgets and unknown historical receipts are not relaxed.
 
+The [disposable-server lifecycle amendment](disposable-debug-server.md) supersedes
+the unmodified server choice: attached-process EXITKILL must be checked on every
+live thread and reset, partial attach must precede all text writes, and failures
+must kill rather than detach. Only an explicitly authorized successful D after
+word restoration may release. Exact modified-source/artifact and real-kernel death
+qualification are required; an external delayed kill cannot prove no unsafe resume.
+
 Which native service/mechanism can satisfy creation and durable reconciliation without fragile startup modification? Which exact current firmware/runtime fingerprints are qualified? Which existing Reader capture/navigation primitives should move in the first slice? What SDK license and dependencies are approved for independent public consumption? These remain explicit implementation gates, not assumed facts.
 
 ### Historical evidence export

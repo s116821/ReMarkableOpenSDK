@@ -37,6 +37,12 @@ touch-coordinate investigation. It is not a public hook API, coordinate fix or
 production runtime dependency. Independent proposal/source/utility/recovery review
 and Main-only controlled qualification precede any candidate observation.
 
+The [task-only disposable-server amendment](disposable-debug-server.md) holds the
+unmodified GNU14.2 attach path after source review found missing attached-process
+EXITKILL and automatic detach on exit. Mandatory checked per-thread protection,
+kill-on-failure cleanup and explicit successful release require a narrowly reviewed
+GNU-source patch, new artifact identity and actual owned-target failure evidence.
+
 SDK repository gains its own contract and eventual implementation/tests/release artifacts. ReMarkableBuddiesDocs owns the coordinated product delta; ReMarkableBuddies adapts its DeviceBackend boundary and owns any separate Supervisor process within the same Buddy artifact. Manager continues one compatible Buddy installation, not a second SDK runtime or user-managed XOVI prerequisite. SDK owns adapter activation/readiness/invalidation/recovery and logical navigation/device gesture semantics; Buddy owns product trigger interpretation and supervisor scheduling. No cloud sync, firmware update, personal pairing, automatic cold-boot injection, public Buddy admin API or all-at-once platform extraction is included.
 
 Native page creation remains an unpassed research gate. A product-level manual blank-successor fallback is permitted only after the exhaustive investigation required by REM-25; SDK `Unsupported` alone does not satisfy that product gate.

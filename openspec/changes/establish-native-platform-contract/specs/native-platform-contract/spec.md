@@ -304,3 +304,26 @@ remain spent and unknown without automatic attach/input retry.
 #### Scenario: Ordinary normalization implementation is statically consistent
 - **WHEN** static inspection finds no justified correction but runtime operands remain unknown
 - **THEN** the SDK retains the investigation as unfinished and does not patch ranges, rotation, event ABI or rounding based only on endpoint resemblance.
+
+### Requirement: Disposable debugger failures cannot release unknown patched code
+The development discriminator SHALL use only the independently reviewed task-only
+server contract in disposable-debug-server.md. It SHALL require checked mandatory
+EXITKILL protection on every live LWP and option reset before instrumentation or
+collection readiness, retain an unmodified partial-attach window, and kill the
+selected disposable process on failure rather than automatically detaching it.
+Only an explicit successful release authorization followed by protocol D after
+breakpoint removal and original-word verification SHALL permit detach. Source,
+new artifact identity and actual owned-target failure evidence SHALL precede native
+qualification; the original unmodified GNU14.2 server SHALL remain held.
+
+#### Scenario: Protection or complete thread attachment fails
+- **WHEN** any live LWP cannot be accounted for or mandatory EXITKILL application is unsupported, masked, failed or later lost
+- **THEN** no instrumentation readiness is granted, the attempt remains spent and the selected disposable process enters bounded kill recovery without ordinary detach or unsafe resume.
+
+#### Scenario: Client channel or tracer dies with breakpoints installed
+- **WHEN** EOF, client death, server SIGKILL or internal failure occurs before successful release
+- **THEN** the qualified live-server kill policy or kernel EXITKILL prevents release of unknown patched code, and independent recovery verifies target/tracer exit before restoration; a delayed external kill alone is insufficient evidence.
+
+#### Scenario: Explicit successful detach
+- **WHEN** bounded evidence is complete, breakpoints are removed, original words are verified and the exact one-use release authorization is followed by D
+- **THEN** only that checked process may detach; incidental unarmed D, intervening errors or partial detach invoke failure recovery, and lost acknowledgement cannot authorize replay.

@@ -5,6 +5,13 @@ this investigation through focused implementation, review and a small controlled
 trial once its gates pass. Main alone operates the tablet. This does not select a
 navigation correction, production debugger dependency or generic tracing API.
 
+The [disposable-server amendment](disposable-debug-server.md) supersedes selection
+of the unmodified GNU14.2 server for software-breakpoint attachment. Source review
+found that its attached inferiors omit EXITKILL and normal exit cleanup detaches.
+Original server06e575 remains held; a narrowly modified server requires exact
+amendment/source/artifact review and actual failure qualification. The Windows
+direct SSH stdio transport remains the selected first path, with a new server hash.
+
 ## Evidence and ownership
 
 The private Astra trace receipt `93c27c98129e99bc02c36d24545312a1944a8236436cd02231ed439b06ebac45`
@@ -145,7 +152,8 @@ do not silently relax either or retry input. No post-stop waiting for user inter
 
 Recovery is independent of GDB, gdbserver, the candidate and the host SSH session.
 Before attach, Main must arm and qualify a bounded external guard for the exact
-debugger/candidate generations. Normal completion deletes breakpoints, detaches,
+debugger/candidate generations. Normal completion deletes breakpoints, verifies
+restored words, obtains the amendment's fixed one-use release authorization, detaches,
 verifies gdbserver exit and continues the existing completion/stock restoration.
 Host failure, debugger disconnect, missed POST, unexpected stop/signal, target exit,
 partial persistence or deadline consumes the claim, records unknown, and invokes
