@@ -297,3 +297,46 @@ Main executed the revised read-only observer once after reporting independent so
 SDK independently inspected and hash-verified the 291-byte private sample SHA256 `9b01aa28807952fa6af7e2ea653c0c289c9cf40fe9d92059c70fdeccb707d7b7` and receipt SHA256 `c997864405a15b6ca247fff081bf1a3756fef6be01eca87ad4fa6c8809b7a98e`. Result: `phase=matched-sample-only`, 3096 types, one candidate, `incomplete=false`, `atomic=false`, 74,426 remote bytes (24 times 3096 plus 122). Exact registration meta-object, existing-instance callback manager/invoker, guarded pointer, controller vptr and QObject backlink passed their checked read/reread chain. The sampled strong value -1 satisfies the observer's nonzero check; it is not ownership, a retained reference or proof against ABA reuse. Raw object/capture/control addresses stay private.
 
 The receipt records helper exit zero, empty stderr, no transport timeout, verified helper termination and removal of exact staged files. Original xochitl process/start/state and three active services were preserved. These are observed receipt facts; physical UI responsiveness was not exercised. This is positive controller-root discovery on the exact firmware, not a current-page identity, native call, source guard or mutation result. No target call/write, restart or retry occurred. Next investigate the [single queued callback hypothesis](native-singleton-observation.md#result-and-next-feasibility-hypothesis) with a concrete entry/stock-restore recipe; do not replay the historical pointer after restart.
+
+### Unchanged-axis filtering: focused source comparison (2026-10-07)
+
+The [Linux input protocol](https://docs.kernel.org/input/event-codes.html)
+emits changed values and retains state that readers can query. This makes a
+repeated native point after a consumer restart a plausible explanation for a
+seeded observer seeing the intended contact while a fresh consumer sees a corner.
+This is a hypothesis, not a retrospective diagnosis of the spent 1a48 attempt.
+
+At Buddy source `2791a25ad3de394cddcb759ecc5c9e84d099e371`,
+`input_observer.rs::seed` queries MT tracking IDs and X/Y through EVIOCGMTSLOTS,
+checks tracking-ID stability, and seeds each slot's coordinates. The owned touch
+window checks axis values when present but accepts reconstructed exact contacts
+without requiring raw X/Y events. Its
+`exact_single_contact_accepts_split_batches_and_kernel_axis_deduplication` test
+explicitly accepts tracking-down/SYN/tracking-up/SYN with seeded coordinates.
+`hardware_probe.rs` prints `echo_observed=true` without raw-axis provenance.
+Therefore the historical echo cannot prove X/Y delivery to a fresh Qt handler.
+This does not justify changing the production ownership classifier.
+
+Independent saved-plugin inspection (SHA256
+`678574220af960704c8f2b622f3e9208f5a0548dad2f636f3f13ead330c312ec`)
+finds fresh contact allocation at offsets `0x15bc8..0x15be8` initializes X/Y to
+zero. The tracking-ID path does not initialize those axes from kernel state;
+the X and Y event paths store the incoming coordinates into the contact. The
+inspected constructor initializes current X/Y and the contact hash to zero.
+Its direct ioctl calls query capabilities, ABS_X/ABS_MT_POSITION_X and
+ABS_Y/ABS_MT_POSITION_Y bounds, pressure bounds, name, and grab/ungrab; no
+EVIOCGMTSLOTS call appears among those constructor calls. The successful axis
+query paths copy input_absinfo minimum/maximum into bounds, not value into a
+contact. This is a bounded static finding, not a whole-program absence proof.
+Private disassembly remains in `forensic-1a48-readonly/` and is not published.
+
+These findings support a fresh zero-valued contact if both axes were suppressed.
+They do not establish the retained kernel coordinates during 1a48, actual raw
+events delivered then, or why the observed normalized corner was specifically
+(0,1): actual Y inversion/matrix/later mapping remains unmeasured. A diagnostic
+must distinguish fresh seed values from raw axis events; a different safe point
+must change both native axes relative to the fresh seed. Any device trial remains
+Main-owned and separately selected. All debugger work remains paused.
+
+Source basis: current project source and saved exact-binary disassembly, plus
+the linked primary kernel documentation. Causal attribution is inference.
