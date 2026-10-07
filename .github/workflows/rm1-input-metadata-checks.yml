@@ -1,0 +1,36 @@
+name: RM1 input metadata checks
+on:
+  pull_request:
+  push:
+    branches: [research/rem-49-rm1-navigation]
+permissions:
+  contents: read
+jobs:
+  owned-metadata-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Host strict build and sanitizer-backed metadata fixtures
+        run: |
+          set -e
+          cc -std=c11 -Wall -Wextra -Werror -pedantic tools/rm1_input_geometry.c -o "$RUNNER_TEMP/rm1-probe"
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined tools/rm1_input_geometry_test.c -o "$RUNNER_TEMP/rm1-fixtures"
+          "$RUNNER_TEMP/rm1-fixtures"
+          set +e
+          "$RUNNER_TEMP/rm1-probe" --invalid > "$RUNNER_TEMP/refusal"
+          status=$?
+          set -e
+          test "$status" = 1
+          test ! -s "$RUNNER_TEMP/refusal"
+      - name: Pull exact upstream compatibility compiler image
+        run: docker pull ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf@sha256:4a08bebb60f08d52c1885b643a768f163c7318c05f91cf119f6c02855ea52699
+      - name: Compile ARMv7 and execute owned fixtures in emulator
+        run: |
+          mkdir "$RUNNER_TEMP/rm1-arm"
+          docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -v "$GITHUB_WORKSPACE/tools:/source:ro" -v "$RUNNER_TEMP/rm1-arm:/output" \
+            ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf@sha256:4a08bebb60f08d52c1885b643a768f163c7318c05f91cf119f6c02855ea52699 \
+            sh -c 'set -e; arm-linux-gnueabihf-gcc -std=c11 -Wall -Wextra -Werror -pedantic -O2 -static /source/rm1_input_geometry.c -o /output/probe; arm-linux-gnueabihf-gcc -std=c11 -Wall -Wextra -Werror -pedantic -O2 -static /source/rm1_input_geometry_test.c -o /output/fixtures; qemu-arm /output/fixtures'
+          sha256sum "$RUNNER_TEMP/rm1-arm/probe"
