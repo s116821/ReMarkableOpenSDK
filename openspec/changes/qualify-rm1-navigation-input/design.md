@@ -1,5 +1,11 @@
 # Design and evidence boundaries
 
+Delivery boundary: this change ships the fixed read-only metadata probe and its
+evidence restrictions. The unfinished gesture/profile/native completion work is
+preserved in active `qualify-rm1-logical-navigation`; it is not a prerequisite for
+metadata source delivery and is not accepted by this change's review or archive.
+The scope split changes no source, firmware, artifact or hardware observation.
+
 Current read-only USB observations: RM1 model, event2 cyttsp5_mt, mxc_epdc_fb,
 fbset physical mode 1404x1872 with virtual allocation 1408x3840. Modes list both
 portrait and landscape; this does not establish current UI orientation or input
