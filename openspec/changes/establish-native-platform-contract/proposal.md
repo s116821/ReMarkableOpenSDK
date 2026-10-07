@@ -31,6 +31,13 @@ None. This empty repository has no implemented canonical baseline.
 
 ## Impact
 
+Current October7 selection is proposal/preparation for
+[maintained launch-and-kill](launch-kill-discriminator.md): unmodified pinned GNU
+server launches one disposable process and always kills it after capture or failure.
+This supersedes the attach/custom-release mechanism below, preserves its unfinished
+work, and requires explicit startup/readiness/diagnostic preparation and actual-kernel
+protection qualification. No source implementation or device action is selected here.
+
 The October7 fixed development [normalization discriminator](input-normalization-discriminator.md)
 adds a proposed exact-build two-stop debugger measurement for the unresolved RM2
 touch-coordinate investigation. It is not a public hook API, coordinate fix or

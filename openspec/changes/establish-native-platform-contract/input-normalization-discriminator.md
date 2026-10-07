@@ -5,7 +5,14 @@ this investigation through focused implementation, review and a small controlled
 trial once its gates pass. Main alone operates the tablet. This does not select a
 navigation correction, production debugger dependency or generic tracing API.
 
-The [disposable-server amendment](disposable-debug-server.md) supersedes selection
+Current lifecycle proposal: [maintained launch-and-kill](launch-kill-discriminator.md).
+It supersedes the attach/detach/custom-server lifecycle below, including its5s
+attach-through-detach timing, restoration ledger and private release command.
+Exact scalar/layout/first-hit/same-call and evidence limits remain applicable.
+The older mechanism descriptions are preserved as superseded research, not parallel
+permission to attach or release an instrumented process.
+
+Historical selection: the [disposable-server amendment](disposable-debug-server.md) superseded selection
 of the unmodified GNU14.2 server for software-breakpoint attachment. Source review
 found that its attached inferiors omit EXITKILL and normal exit cleanup detaches.
 Original server06e575 remains held; a narrowly modified server requires exact

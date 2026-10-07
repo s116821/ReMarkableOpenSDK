@@ -281,17 +281,19 @@ The SDK SHALL NOT convert identity-free legacy pixels into Capture facts, Source
 ### Requirement: Development normalization measurements are exact-build and same-call
 The SDK SHALL restrict the development normalization discriminator to the reviewed
 exact provider/profile and fixed two-stop contract in input-normalization-discriminator.md.
+The current launch-kill-discriminator.md lifecycle supersedes historical attach
+and successful-detach mechanics in that document.
 It SHALL preserve bounded raw scalar bytes before interpretation, correlate the same
 generation/thread/frame/handler/contact, retain nonfinite bit patterns explicitly,
 and expose no operational capability, coordinate correction or general tracing API.
 The consumer SHALL qualify the complete debugger transport and independent recovery
 on an owned target fixture before one separately prepared native candidate, within
 existing total/lifetime budgets. A failed, interrupted or ambiguous attempt SHALL
-remain spent and unknown without automatic attach/input retry.
+remain spent and unknown without automatic launch/connection/input retry.
 
 #### Scenario: Provider or instruction mismatch before arming
 - **WHEN** generation, module fingerprint/load mapping, ARM state or either fixed instruction differs from the reviewed profile
-- **THEN** the discriminator refuses before breakpoint/input effects and creates no measurement authority.
+- **THEN** the discriminator refuses before normalization breakpoint/input effects and creates no measurement authority; separately reviewed startup debugger effects do not satisfy measurement readiness.
 
 #### Scenario: Paired normalization stops match
 - **WHEN** the two bounded stops match the same generation, thread, frame, handler, contact and caller
@@ -305,32 +307,30 @@ remain spent and unknown without automatic attach/input retry.
 - **WHEN** static inspection finds no justified correction but runtime operands remain unknown
 - **THEN** the SDK retains the investigation as unfinished and does not patch ranges, rotation, event ABI or rounding based only on endpoint resemblance.
 
-### Requirement: Disposable debugger failures cannot release unknown patched code
-The development discriminator SHALL use only the independently reviewed task-only
-server contract in disposable-debug-server.md. It SHALL require checked mandatory
-EXITKILL protection on every live LWP and option reset before instrumentation or
-collection readiness, retain an unmodified partial-attach window, and kill the
-selected disposable process on failure rather than automatically detaching it.
-Only an explicit successful release authorization followed by protocol D after
-breakpoint removal and original-word verification SHALL permit detach. Source,
-new artifact identity and actual owned-target failure evidence SHALL precede native
-qualification; the original unmodified GNU14.2 server SHALL remain held.
-Every debugger text modification, including internal step and loader breakpoints,
-SHALL be limited to the reviewed bounded site ledger and verified restored through
-raw reads before release. Two capture stops SHALL NOT imply only two text writes.
+### Requirement: Launched measurement processes are always terminated
+The development discriminator SHALL follow launch-kill-discriminator.md for its
+current lifecycle, superseding the attach/custom-release proposal while preserving
+that unfinished history. It SHALL use one frozen standard server launch over SSH
+stdio, persist bounded PRE/POST evidence, and terminate the disposable inferior on
+success and failure without detach. It SHALL NOT attribute checked-every-LWP
+SETOPTIONS enforcement to unmodified GNU14.2; actual frozen-kernel qualification
+and refusal gates SHALL precede any native candidate. Bounded startup, exact plugin
+mappings and dual readiness SHALL precede the single input, with separate5s armed
+measurement inside the unchanged150s overall limit. Helper release/quiescence and
+verified inferior/tracer exit SHALL precede stock restoration.
 
-#### Scenario: Protection or complete thread attachment fails
-- **WHEN** any live LWP cannot be accounted for or mandatory EXITKILL application is unsupported, masked, failed or later lost
-- **THEN** no instrumentation readiness is granted, the attempt remains spent and the selected disposable process enters bounded kill recovery without ordinary detach or unsafe resume.
+#### Scenario: Startup or readiness is incomplete
+- **WHEN** the finite startup deadline/checkpoints fail, plugin mappings are unverified, or candidate Ready and debugger armed/resumed readiness do not both match the current generation
+- **THEN** no input is issued, the attempt stays spent and bounded kill recovery runs without automatic relaunch or deadline extension.
 
-#### Scenario: Client channel or tracer dies with breakpoints installed
-- **WHEN** EOF, client death, server SIGKILL or internal failure occurs before successful release
-- **THEN** the qualified live-server kill policy or kernel EXITKILL prevents release of unknown patched code, and independent recovery verifies target/tracer exit before restoration; a delayed external kill alone is insufficient evidence.
+#### Scenario: Necessary kernel protection cannot be established
+- **WHEN** actual owned launch/clone/reset/server-death/client-EOF qualification finds unsupported, missing, ambiguous or lost protection
+- **THEN** native use is refused; delayed guard cleanup alone is insufficient, and any minimal launched-only enforcement patch requires a separate exact review.
 
-#### Scenario: Explicit successful detach
-- **WHEN** bounded evidence is complete, breakpoints are removed, original words are verified and the exact one-use release authorization is followed by D
-- **THEN** only that checked process may detach; incidental unarmed D, intervening errors or partial detach invoke failure recovery, and lost acknowledgement cannot authorize replay.
+#### Scenario: Successful measurement is persisted
+- **WHEN** both same-call snapshots and their bounded count/hash receipts are durably retained
+- **THEN** the reviewed path kills the disposable inferior without successful detach and separately verifies termination, input quiescence and restoration; measurement alone does not prove navigation completion.
 
-#### Scenario: Additional debugger breakpoint site
-- **WHEN** ARM stepping or implicit client behavior requests another instruction modification
-- **THEN** the site must match the fixed reviewed profile and bounded ledger before writing, and all recorded sites must pass raw restoration checks before release; unprofiled sites, overflow or restoration mismatch fail without widening the trial.
+#### Scenario: Implicit debugger instruction writes occur
+- **WHEN** ARM stepping or loader handling adds internal breakpoints
+- **THEN** source review, advance notice and owned qualification cover those effects, but no restoration ledger or private D release protocol is inferred necessary for a process that is always killed; fixed acquisition and evidence limits remain unchanged.

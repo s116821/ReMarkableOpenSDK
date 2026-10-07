@@ -54,6 +54,11 @@
 
 ## 6. Fixed development same-call normalization discriminator
 
+Lifecycle portions of6.1-6.9 describe the prior attach/custom-release candidate and
+remain unfinished history. Current selected proposal/preparation follows6.10-6.13;
+shared measurement/evidence requirements still apply. Do not continue GNU patch
+expansion or check off target qualification based on the host-only collector.
+
 - [ ] 6.1 Independently review input-normalization-discriminator.md and exact consumer owning plan; choose one concrete host/SSH/debugger transport and recovery sequence.
 - [ ] 6.2 Freeze official debugger provenance, build/ABI/dependency closure and fixed focused implementation; independently review exact SDK/consumer source revisions before target use.
 - [ ] 6.3 Verify two-stop ARM registers/flags/double memory and same-call guards on original owned fixtures; cover wrong identity/instruction/thread/frame, absent hits, partial output and debugger/transport death without retries.
@@ -63,3 +68,7 @@
 - [ ] 6.7 Independently accept disposable-debug-server.md and exact consumer amendment before modifying GNU source; hold original06e575 from software-breakpoint attachment.
 - [ ] 6.8 Review minimal task-only patch across partial attach, mandatory checked EXITKILL for all LWPs/resets, text-write/resume readiness, exception/EOF/exit kill policy and authorized restored-word release; freeze new provenance/artifact/hash without implicit fallback.
 - [ ] 6.9 Qualify exact multithread owned-target server/client SIGKILL, EOF, failed protection, thread creation and release races under independent cleanup before any native trial; do not infer kernel behavior from host/QEMU tests.
+- [ ] 6.10 Independently accept launch-kill-discriminator.md and exact consumer amendment; freeze bounded startup checkpoints/plugin mappings, dual readiness, timers and child-only preload/diagnostics preparation. Proposal only, no implementation/device selection.
+- [ ] 6.11 After separate source selection, adapt fixed collection to persist then always kill; independently review wrapper, original utilities, guard and exact sources without reviving custom detach/ledger machinery.
+- [ ] 6.12 Main alone qualifies frozen actual-kernel launched multi-thread/clone/reset/server-death/client-EOF protection and termination; unsupported or unestablished protection refuses, with any minimal launched-only patch requiring a later proposal.
+- [ ] 6.13 Only after gates select one fresh candidate/input, preserve helper release/quiescence and stock restoration, and distinguish diagnostic two-snapshot evidence from navigation completion; keep integrated workflow gates open.

@@ -1,5 +1,10 @@
 # Task-only disposable debugger server amendment
 
+Superseded for current selection by [maintained launch-and-kill](launch-kill-discriminator.md).
+Custom-source expansion is paused; preserve the unfinished drafts and evidence.
+The requirements below describe the prior attach-and-release proposal, not the
+current candidate and not a qualified implementation.
+
 Status: proposed October 7, 2026; source review required before modifying GNU
 GDBserver. This amends [the normalization discriminator](input-normalization-discriminator.md).
 It does not authorize a tablet attachment or qualify a new runtime artifact.

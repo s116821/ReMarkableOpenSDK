@@ -125,6 +125,13 @@ Bootstrap this active SDK plan, agree receipt/identity semantics with REM-37, na
 
 ### Fixed development contact normalization investigation
 
+Current lifecycle selection is [maintained launch-and-kill](launch-kill-discriminator.md),
+which supersedes the attach/custom-release mechanics in the following historical
+design. It uses standard launch/kill paths with explicitly limited actual-kernel
+qualification, bounded startup plus5s armed measurement inside150s, and no successful
+detach. Preserve the measurement contract and paused custom work without claiming
+unmodified GNU provides checked-every-LWP enforcement.
+
 The [two-stop discriminator design](input-normalization-discriminator.md) owns the
 exact ARM register/layout, same-call correlation, bounded lossless persistence and
 debugger-effect contract. It measures actual pre/post fractions inside the function
