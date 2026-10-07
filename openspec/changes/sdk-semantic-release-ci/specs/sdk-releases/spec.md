@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Semantic Git tags are version authority
-SDK release automation SHALL use maintained upstream tooling to derive SemVer from enforced PR-title-derived main squash messages. Official artifacts SHALL be built after immutable tag creation from its exact SHA with matching version/provenance. No project version field or placeholder SHALL be maintained in source; packaging/runtime versions SHALL be generated only at build time from the checked-out tag and SHALL NOT be committed. docs: merges SHALL not bump/tag/release or compile application code on main. Application code mislabeled docs: SHALL be refused by upstream classification/title checks.
+SDK release automation SHALL use maintained upstream tooling to derive SemVer from enforced PR-title-derived main squash messages. Official artifacts SHALL be built after immutable tag creation from its exact SHA with matching version/provenance. docs: merges SHALL not bump/tag/release or compile application code on main. Application code mislabeled docs: SHALL be refused by upstream classification/title checks.
 
 #### Scenario: Feature and fix history
 - **WHEN** eligible feature/fix merges follow prior immutable tags, including equal commit timestamps
@@ -18,6 +18,13 @@ SDK release automation SHALL use maintained upstream tooling to derive SemVer fr
 #### Scenario: Failed push retains local tag
 - **WHEN** upstream tagging leaves a local tag after a refused or uncertain remote push
 - **THEN** builds and publication remain refused until the exact remote tag is observed and its fetched commit equals the intended source; local tag existence or a no-release retry is insufficient.
+
+### Requirement: Package and runtime versions are generated during builds
+No project version field or placeholder SHALL be maintained in source. Packaging and runtime versions SHALL be generated only at build time from the checked-out Git tag and SHALL NOT be committed.
+
+#### Scenario: Official package staging
+- **WHEN** an official build stages the verified tagged source
+- **THEN** package/runtime identity is generated from that tag in build output without editing the source checkout or creating a version-bump commit.
 
 ### Requirement: Explicit distribution and consumer identity
 Each SDK release SHALL include all declared implemented distributions with source/contract/target/compatibility/hash provenance. Architectural compilation SHALL not imply native model support. Buddy SHALL consume a pinned SDK version at build time and bundle required target helpers; development MAY use local Cargo overrides, but official builds SHALL refuse local-path resolution. Unknown model/firmware/runtime combinations SHALL remain unsupported.
