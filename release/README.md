@@ -116,6 +116,48 @@ both official identity and cache invalidation back to development. This is
 build identity preparation, not a implemented SDK/Buddy runtime API.
 [Cargo build-script guidance](https://doc.rust-lang.org/cargo/reference/build-scripts.html).
 
+## Python maintained-tool alternative qualification
+
+The separate read-only `python-release-qualification.yml` tests Python Semantic
+Release 10.7.0 without replacing or waiving the historical npm candidate's audit.
+Install in a new Python 3.12 environment:
+
+```sh
+python -m venv .python-tools
+.python-tools/bin/python -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+.python-tools/bin/pip-audit
+PYTHON_SEMANTIC_RELEASE="$PWD/.python-tools/bin/semantic-release" python -m unittest discover -s release -p 'python_semantic_release_fixtures.py' -v
+```
+
+The lock was generated with upstream pip-tools 7.6.2 using the command in its
+header; versions/hashes identify consumed upstream dependencies, not this SDK.
+The ten actual-CLI fixtures run against owned bare repos and loopback HTTP only.
+No real credential is passed. HTTP/insecure mode is enabled only in the temporary
+publisher fixture config, never the candidate configuration.
+
+Extended evidence: successive equal-time tags and stable breaking major; source
+HEAD unchanged; hostile copied body text never executed; failed-push local tag
+and no-release replay cannot authorize a remote build; absent/unreachable remote
+refused; annotated remote identity verified without rewriting conflicting local
+tags. `remote_identity.py` only verifies the exact remote object/source using Git;
+it neither calculates a version nor tags/builds/publishes. Verification is an
+observation boundary; tag protection/immutable publication must prevent later
+remote changes independently. Existing `stage_source.py` still separately requires
+the clean checked-out source and matching local tag before build staging.
+
+Observed limits: with no baseline tag, raw version CLI emits v0.0.0 even for a
+docs-only initial history. Qualified upstream path/title gating must suppress
+the command entirely for docs-only events, including bootstrap; first release
+policy remains unaccepted. `publish --tag` exits successfully for a missing remote
+release or no matched distributions. Partial-upload retry fills missing files but
+errors on retained duplicate names; repeated invocation is not idempotent success.
+That command is not selected for production publication. Maintained existing-tag
+draft creation/upload/completeness/finalization composition remains unfinished.
+
+Primary command/configuration sources:
+[Python Semantic Release CLI](https://python-semantic-release.readthedocs.io/en/latest/api/commands.html),
+[configuration](https://python-semantic-release.readthedocs.io/en/latest/configuration/configuration.html).
+
 
 `verify_assets.py` compares previously downloaded SDK assets with an independently
 generated verified-build manifest. It checks exact declared names, regular-file

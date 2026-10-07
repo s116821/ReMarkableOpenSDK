@@ -1,0 +1,21 @@
+# Candidate qualification only. Project versions exist only in Git tags.
+[semantic_release]
+tag_format = "v{version}"
+version_toml = []
+version_variables = []
+build_command = ""
+allow_zero_version = true
+major_on_zero = false
+commit_parser = "conventional"
+[semantic_release.branches.main]
+match = "main"
+prerelease = false
+[semantic_release.commit_parser_options]
+allowed_tags = ["feat", "fix", "perf", "build", "ci", "chore", "refactor", "test", "revert"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf", "build", "ci", "chore", "refactor", "test", "revert"]
+other_allowed_tags = []
+parse_squash_commits = false
+[semantic_release.remote]
+type = "github"
+ignore_token_for_push = true

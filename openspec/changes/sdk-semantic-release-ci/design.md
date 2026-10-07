@@ -122,3 +122,36 @@ release APIs, coordinates retries, computes versions, tags nor publishes.
 Production composition/concurrency must separately ensure the verified remote
 assets stay unchanged before upstream finalization; this local check is not
 remote immutability or production acceptance.
+
+Python Semantic Release 10.7.0 is a maintained alternative qualification candidate,
+not a production selection. Its documented no-commit/no-changelog/skip-build
+version command with empty version locations creates tags on the existing source
+HEAD. Its upstream conventional parser excludes docs (including breaking docs)
+and disables squash-body parsing; partial version tags remain disabled. No own
+source version or private version calculator is introduced. Dependency installation
+will use a complete hash-pinned upstream tool/auditor graph and supported pip.
+
+Extend qualification with equal-time/tagged histories, stable breaking changes,
+docs-only initial histories, copied hostile body text, and actual failed-push
+recovery against owned bare remotes. A failed remote push can leave a local tag;
+CLI success/no-release and local tag existence are not publication authorization.
+Before any official build, query the exact remote tag, fetch its immutable object
+and verify its peeled commit equals the intended job source. Absence, query failure
+or mismatch refuses the build; retry cannot force/move a tag or choose a fresh
+version for the failed operation. This is source/tag identity verification, not
+a custom semantic engine. Existing-tag asset publication will use maintained
+upstream tooling and retain separate byte/completeness/concurrency gates. All
+candidate remote writes are confined to disposable local fixture servers/repos;
+production credentials, repository settings and releases remain untouched.
+
+Observed bootstrap limit: the raw alternative CLI creates v0.0.0 for a docs-only
+history with no prior tag. Do not invoke it for docs-only main events: the already
+qualified upstream path/title gates must suppress tagging and builds entirely,
+including bootstrap. First SDK release policy remains explicitly unaccepted;
+an upstream default/bootstrap value is not a maintained project version.
+
+Observed existing-tag publisher limits: PSR publish succeeds with no matching
+remote release or files, and retries error on duplicate retained asset names.
+It is not selected as the complete SDK publication mechanism. Qualify a maintained
+existing-tag draft creator/uploader/verifier/finalizer with explicit required asset
+completeness and immutable publication; successful exit alone is insufficient.

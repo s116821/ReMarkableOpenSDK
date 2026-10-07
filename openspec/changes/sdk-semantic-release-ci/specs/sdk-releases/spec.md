@@ -15,6 +15,10 @@ SDK release automation SHALL use maintained upstream tooling to derive SemVer fr
 - **WHEN** build/publication fails after tagging or main advances
 - **THEN** automation refuses wrong-source/version publication and recovers the intended immutable tag/assets without inventing duplicate versions.
 
+#### Scenario: Failed push retains local tag
+- **WHEN** upstream tagging leaves a local tag after a refused or uncertain remote push
+- **THEN** builds and publication remain refused until the exact remote tag is observed and its fetched commit equals the intended source; local tag existence or a no-release retry is insufficient.
+
 ### Requirement: Explicit distribution and consumer identity
 Each SDK release SHALL include all declared implemented distributions with source/contract/target/compatibility/hash provenance. Architectural compilation SHALL not imply native model support. Buddy SHALL consume a pinned SDK version at build time and bundle required target helpers; development MAY use local Cargo overrides, but official builds SHALL refuse local-path resolution. Unknown model/firmware/runtime combinations SHALL remain unsupported.
 
