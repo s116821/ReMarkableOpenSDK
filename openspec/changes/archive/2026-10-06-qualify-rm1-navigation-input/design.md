@@ -66,3 +66,12 @@ not qualification of this device's current UI orientation. Physical mode
 1404x1872 and virtual allocation 1408x3840 remain separate from kernel touch
 ranges and logical page coordinates. Known equal ranges do not justify borrowing
 RM2 inversion. A complete gesture/source test fixture remains pending.
+
+Main accepted the exact documentation/scope delta at
+0db021d3a3162daf02791ce5bb19f0c684af60f2 after its independent metadata source
+review. Both current-head hosted checks passed (37567770894/37567770905). The
+canonical metadata spec is the accepted requirement delta with only its heading
+changed. This completed metadata change is archived; active logical-navigation
+requirements/tasks remain untouched. Final closeout delta review/checks and
+coordinated squash merge are still required. Author RM1 receipt remains attributed
+as before; Main performed no new tablet action or hardware re-verification.
