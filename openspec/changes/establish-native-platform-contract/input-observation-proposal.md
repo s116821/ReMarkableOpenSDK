@@ -152,3 +152,75 @@ remain unqualified. Source inspection establishes the single grab call and no
 event-filter output; fixtures cannot prove all possible Qt render reentrancy.
 Independent exact source review, artifact/packet selection and Main-owned device
 gates remain open. No target payload build, fresh nonce or device action occurred.
+
+## Proposed fixed device and coordinate frames profile (review before implementation)
+
+Main and Astra selected this minimum source-only proposal after spent8b observer
+records showed corner-local touch coordinates. The existing observation does not
+identify the mapping cause or handler acceptance. Main's valid-mask refinement
+supersedes the earlier whole-point nonfinite refusal proposal. No implementation,
+new artifact, packet, input or device attempt is selected by this proposal.
+
+Require fixed `device-frames-v1` evidence_profile in SDK completion, consumer
+decoder, packet bindings and receipt. A newly selected decoder must refuse an
+old payload missing that exact profile; preserve original spent packets/receipts
+without rewriting or revalidating them as extended evidence. Default-off fixed
+development mode remains mutually exclusive with facts, with no PageFactsSession
+or native/render/UI authority. This profile does not change the heap overview
+profile, helper, image capture or qualification rules.
+
+For each event of the seven existing types, obtain QPointerEvent::pointingDevice()
+once and store only fixed scalars: required device_present boolean,
+device_system_id signed canonical decimal string or explicit null, device_type
+integer or explicit null. Absent pointer means false and both null; present means
+true, QString::number(qint64 systemId), numeric type. Consumer requires canonical
+regex `^(0|-?[1-9][0-9]{0,18})$` and Int64.TryParse inclusive signed64 range;
+refuse plus, -0, leading zeros, overflow, numeric ID and coercion. Type must be
+JSON int/long in0..2147483647; retain unknown numeric types without capabilities.
+All three properties must exist. No names, seats, unique stylus IDs, raw pointers,
+per-point device identity, registries, enumeration, fd inference or retained objects.
+SystemId is Qt backend/session identity, not physical origin, evdev fd/inode or
+handler identity. Distinct IDs discriminate reported Qt identities; equal IDs
+do not establish one handler or physical contact.
+
+Retain existing point id/state and local x/y; add scene_x/scene_y/global_x/global_y.
+Touch uses public QEventPoint position/scenePosition/globalPosition; mouse uses
+public QMouseEvent position/scenePosition/globalPosition and keeps id0/statebutton
+and existing source/buttons semantics. Never normalizedPosition, geometry-derived
+normalization, remapping, clipping, screen limits, rounding or zero substitution.
+Required per-point valid_mask is JSON int/long0..7: local1, scene2, global4.
+Capture each frame independently: both finite doubles mean setbit plus both
+numbers; either NaN/Inf means clearbit plus both explicit null. Retain id/state
+even mask0. Every coordinate key exists. Decoder accepts setbit only with both
+JSON int/long/double finite; clearbit only with both explicit null. Missing keys,
+bool/string/one-sided null or mask/value contradiction refuse the completion.
+Finite extreme values, including the observed8388608 sentinel, remain evidence.
+Invalid frames are represented only by the mask. In this new profile point_overflow
+means actual excess capacity; unlike old profile, nonfinite frames do not omit
+whole points or set that flag. Old evidence semantics remain historical.
+
+Preserve64 records x4 points, seven saturated counts, fixed receiver relationships,
+ms/timestamps, retained scope/lifetime guards, original setup/read/total deadlines,
+one end/one queued grab,8MiB PNG and8192-byte JSON whole-record-tail pruning with
+output_truncated. Six coordinate doubles per point replace two, adding8192bytes
+for64x4 point coordinate arrays; all struct/device metadata remains fixed and
+compile-time bounded. Filter stores only fixed scalars, returns false, never
+changes accepted state, performs I/O/JSON, dispatches events, traverses windows,
+adds timers or creates an instrumentation framework.
+
+Focused owned fixtures must copy deliberately distinct touch/mouse local/scene/
+global frames; distinguish repeated and different device IDs; cover null device,
+signed64 extrema exact string roundtrip and malformed IDs/types; exhaust all eight
+masks with consistent pairs and reject contradictory/missing fields; capture mixed
+valid and NaN/Inf frames without losing other frames; preserve finite extremes;
+exercise64/65 records,4/5 points, worst-width JSON pruning within8192 with whole
+records/overflow; preserve passive false filter and acceptance plus existing
+lifetime/deadline tests. Review exact source and consumer freezes before separate
+artifact/packet/device selection. No navigation fix or private platform ABI guess.
+
+Interpretation is limited: interior scene/global with corner local is a frame/local
+handling lead; corner in all frames points upstream of receiver snapshot without
+proving a backend cause. Matching time/global across different device IDs supports
+duplicate Qt device delivery only, never two physical contacts or UI acceptance.
+Source basis: current Main/Astra coordination and repository source contract;
+actual8b reviewed evidence is an observational lead, not a verified root cause.
