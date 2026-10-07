@@ -28,7 +28,11 @@ total: explicit server ledger capture/restoration will require shared accounting
 before native implementation. GDB internal protocol/decoding accesses are separate
 bookkeeping. Raw private evidence is capped at8192 aggregate serialized bytes;
 each acquired memory/register entry is persisted before semantic classification,
-and completion is persisted before host-fixture detach. Failed/partial reads are
+and its byte count/SHA256 is retained in an append-only fixed-width receipt index.
+The index is fsynced and read back before returning from each write, including
+release-ready completion. Its bytes count against the same8192 cap; no receipt
+self-hash or duplicate raw snapshot is introduced. Completion is persisted before
+host-fixture detach. Failed/partial reads are
 charged without retry; failure never detaches through the collector success path.
 The host fixture command holds on failure until its independent watchdog terminates
 the owned processes. This host cleanup is not the proposed target recovery guard.

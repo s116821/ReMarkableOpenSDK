@@ -35,9 +35,14 @@ for mode in identity rotate nonfinite; do
  kill "$watchdog_pid" "$debugger_watchdog" 2>/dev/null || true
  grep -q NORMALIZATION_HOST_FIXTURE_MEASURED /out/$mode/gdb.stdout
  python3 - "$mode" <<'PY'
-import base64,json,math,pathlib,sys
+import base64,hashlib,json,math,pathlib,struct,sys
 mode=sys.argv[1]; files=sorted(pathlib.Path('/out',mode).glob('acquisition-*.json'))
-assert files and sum(p.stat().st_size for p in files)<=8192
+receipts=pathlib.Path('/out',mode,'normalization.receipts').read_bytes()
+assert files and sum(p.stat().st_size for p in files)+len(receipts)<=8192
+assert receipts[:8]==b'NORMR001' and len(receipts)==8+36*len(files)
+for ordinal,p in enumerate(files):
+ count,digest=struct.unpack_from('<I32s',receipts,8+36*ordinal)
+ assert count==p.stat().st_size and digest==hashlib.sha256(p.read_bytes()).digest()
 entries=[json.loads(p.read_bytes())['entry'] for p in files]
 result=entries[-1]['result']; assert result['status']=='measured' and not result['authority']
 assert result['requested_bytes']==result['acquired_bytes']==286 and result['successful_stops']==2

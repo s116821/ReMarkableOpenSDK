@@ -40,12 +40,23 @@ class Evidence:
             raise Refused("Private evidence directory refused")
         with (self.root / "normalization.claim").open("xb"):
             pass
-        self.entries, self.status, self.written = [], "unknown", 0
+        self.entries, self.status = [], "unknown"
+        # Fixed-width durable receipts: ordinal is the record position, followed
+        # by little-endian byte count and SHA256. No self-hash or raw duplication.
+        self.receipts = b"NORMR001"
+        self.receipt_path = self.root / "normalization.receipts"
+        with self.receipt_path.open("xb") as stream:
+            stream.write(self.receipts)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if self.receipt_path.read_bytes() != self.receipts:
+            raise Refused("Private receipt readback mismatch")
+        self.written = len(self.receipts)
 
     def save(self):
         raw = encode({"status": self.status, "entry": self.entries[-1],
                       "authority": False})
-        if self.written + len(raw) > MAX_RAW:
+        if self.written + len(raw) + 36 > MAX_RAW:
             raise Refused("Private raw evidence cap")
         # The claim is spent even when writing or readback fails. Retain old files.
         name = "acquisition-%03d.json" % len(self.entries)
@@ -57,9 +68,21 @@ class Evidence:
         saved = destination.read_bytes()
         if saved != raw:
             raise Refused("Private byte readback mismatch")
-        self.written += len(raw)
+        digest = hashlib.sha256(saved).digest()
+        receipt = struct.pack("<I32s", len(saved), digest)
+        with self.receipt_path.open("ab") as stream:
+            if stream.tell() != len(self.receipts):
+                raise Refused("Private receipt length mismatch")
+            stream.write(receipt)
+            stream.flush()
+            os.fsync(stream.fileno())
+        expected = self.receipts + receipt
+        if self.receipt_path.read_bytes() != expected:
+            raise Refused("Private receipt readback mismatch")
+        self.receipts = expected
+        self.written += len(raw) + len(receipt)
         return {"path": name, "bytes": len(raw),
-                "sha256": hashlib.sha256(saved).hexdigest()}
+                "sha256": digest.hex()}
 
     def append(self, entry):
         self.entries.append(entry)

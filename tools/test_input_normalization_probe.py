@@ -1,5 +1,6 @@
 """Host-only failure and persistence tests through the fixed policy entrypoint."""
 import base64
+import hashlib
 import json
 import struct
 import tempfile
@@ -82,7 +83,14 @@ class ProbeTests(unittest.TestCase):
                 result = None
             files = sorted(Path(directory).glob("acquisition-*.json"))
             saved = [json.loads(p.read_bytes())["entry"] for p in files]
-            self.assertLessEqual(sum(p.stat().st_size for p in files), 8192)
+            receipts = Path(directory, "normalization.receipts").read_bytes()
+            self.assertLessEqual(sum(p.stat().st_size for p in files) + len(receipts), 8192)
+            self.assertEqual(receipts[:8], b"NORMR001")
+            self.assertEqual(len(receipts), 8 + 36 * len(files))
+            for ordinal, file in enumerate(files):
+                count, digest = struct.unpack_from("<I32s", receipts, 8 + ordinal * 36)
+                self.assertEqual(count, file.stat().st_size)
+                self.assertEqual(digest, hashlib.sha256(file.read_bytes()).digest())
             self.assertLessEqual(sum(e.get("requested", 0) for e in saved), 1024)
             for e in saved:
                 if "acquired" in e:
@@ -198,6 +206,23 @@ class ProbeTests(unittest.TestCase):
         self.assertFalse(a.detached)
         self.assertEqual(a.resumes, 1)
         self.assertIn({"phase": "pre", "register": "sp", "status": "unknown", "base64": ""}, saved)
+
+    def test_receipt_tampering_prevents_release(self):
+        class CorruptReceipt(Evidence):
+            def append(self, entry):
+                if entry.get("phase") == "release-ready":
+                    damaged = bytearray(self.receipt_path.read_bytes())
+                    damaged[0] ^= 1
+                    self.receipt_path.write_bytes(damaged)
+                return super().append(entry)
+        with tempfile.TemporaryDirectory() as directory:
+            e, a = CorruptReceipt(directory), OwnedAdapter()
+            p = FixedProbe(a, e, a.addresses, "owned-generation")
+            with self.assertRaisesRegex(Refused, "receipt readback mismatch"):
+                p.run()
+            self.assertEqual(p.successful_stops, 2)
+            self.assertFalse(a.detached)
+            self.assertTrue(e.root.joinpath("normalization.claim").exists())
 
 
 if __name__ == "__main__":
