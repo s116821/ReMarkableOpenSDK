@@ -1,9 +1,11 @@
 # RM1 read-only input geometry probe
 
 This is a metadata probe, not a navigation adapter. It reads the fixed RM1 model
-and event2 kernel identity/capabilities/static ABS ranges. It never reads input
-events or current coordinates, grabs a device, sends input, modifies xochitl or
-inspects documents. Repeated static observations are not lifetime/source authority.
+and event2 kernel identity/capabilities/static ABS ranges. EVIOCGABS incidentally
+returns each axis's current value along with its bounds; the probe immediately
+clears that value without using, retaining or reporting it. It never reads the
+input event stream, grabs a device, sends input, modifies xochitl or inspects
+documents. Repeated static observations are not lifetime/source authority.
 Unknown orientation/navigation remains unsupported in every report.
 
 Host verification:

@@ -3,7 +3,9 @@
 ### Requirement: RM1 input metadata remains read-only and unqualified
 The RM1 input probe SHALL read only fixed device metadata, verify stable model,
 device/capability/range identity and exclude current coordinates or personal
-content. It SHALL perform no input event read/grab/injection or native mutation.
+content from retained observations and output. Current axis values incidentally
+returned by EVIOCGABS SHALL be immediately cleared without use. It SHALL perform
+no input event-stream read/grab/injection or native mutation.
 A caller SHALL bound the process and clean up its owned process on failure.
 
 #### Scenario: Stable metadata

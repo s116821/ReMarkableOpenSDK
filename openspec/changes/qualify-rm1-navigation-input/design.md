@@ -10,7 +10,8 @@ Probe scope: no arguments; verify the fixed model path; open event2 read-only,
 nonblocking, close-on-exec and without following a final symlink. Verify Linux
 input character device major/minor. Read only EVIOCGNAME, EVIOCGBIT and EVIOCGABS
 metadata, twice, on the same descriptor. Require stable identity/capabilities and
-static axis bounds; ignore volatile current values. Refuse malformed/changing
+static axis bounds. EVIOCGABS also returns volatile current values; immediately
+clear them without using, retaining or reporting them. Refuse malformed/changing
 snapshots. Emit one bounded JSON record after full verification, no personal
 content, current touch coordinates or addresses. Kernel ioctls are synchronous;
 a three-second process alarm provides default signal termination, and a host/remote
@@ -38,7 +39,19 @@ passed remote hash verification, metadata checks and exit 0. Owned private home
 staging was removed and independently confirmed absent; xochitl was active
 afterward. Kernel ranges: slot 0..31, X 0..767, Y 0..1023, tracking 0..65535,
 pressure/major/minor 0..255, orientation -127..127; all fuzz/flat/resolution 0.
-No current coordinates, input events or documents were read. No input injected.
+EVIOCGABS incidentally returned current axis values, which were immediately
+cleared without use, retention or output. No input event stream or documents
+were read. No input injected. This run receipt is author-reported; Main's source
+review did not independently inspect the real-RM1 receipt.
+
+Independent Main review of all nine files at 8f51dd278a0a368d012b95b86902d4bb720cf052
+found no blocking source correctness issue within the metadata-only scope:
+https://github.com/s116821/ReMarkableOpenSDK/pull/4#pullrequestreview-5401421257
+Main independently passed strict host compilation, 15 sanitizer-backed fixtures
+and quiet invalid-argument refusal, and inspected the successful hosted ARM
+emulator checks. The requested current-value documentation correction changes
+no probe/test/workflow bytes. Source review does not grant gesture or profile
+qualification; canonical sync/archive and final delta review remain pending.
 
 Pinned libremarkable d9125f136ed34926c2528c34722aa3494611d644 dynamically reads
 axis sizes and assigns different RM1/RM2 multitouch placement (device/mod.rs).
