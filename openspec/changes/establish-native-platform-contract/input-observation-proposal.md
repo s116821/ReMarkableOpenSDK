@@ -58,7 +58,13 @@ Use distinct names/purpose: `input-observation-ready`, temporary
 nonce/PID/start/root device+inode, waiting-input-observation stage, setup elapsed,
 120000 setup and fixed `main-dev-input-observation-120s` profile. End carries the
 same identity plus end-input-observation stage,120000 and that exact profile.
-Records are private0600 regular non-symlink files, maximum128 bytes.
+Records are private0600 regular non-symlink files, maximum256 bytes. Numeric
+identity fields admit only positive decimal PID/start/device/inode values of at
+most20 digits each; elapsed time is decimal0..119999 and setup is exactly120000.
+Maximum-width ready/end records are189/178 bytes respectively. Validate each
+numeric field and complete record length; reject overflow/overlength without
+truncation. Apply256 consistently to this mode's writer, reader, publisher and
+collector. Existing facts protocol caps remain unchanged.
 
 Directory watcher queues an explicit observation-end handler, never queueRequest's
 read-facts dispatch. Any existing end token consumes one admission, valid or not.
@@ -108,7 +114,9 @@ temporal alignment and stability; agreement/disagreement alone is not causality.
 Extend existing owned Qt entry fixtures: mode isolation/zero facts-reader calls;
 exact readiness/window selection; unchanged event return/accepted state; storage/
 point/output caps and overflow; touch/mouse duplicates; other/unknown receivers;
-wrong/stale/cross-purpose/duplicate tokens; destroyed/replaced/inactive windows;
+wrong/stale/cross-purpose/duplicate tokens, maximum-width identities and
+near-setup-deadline ready tokens, overlength/overflow without truncation;
+destroyed/replaced/inactive windows;
 closure/restore/identity drift; delayed/lost GUI completion and late/empty/oversize
 capture; one grab only and no I/O in the filter. Use explicit synthetic fixtures
 and real public Qt GUI/offscreen behavior where available, labeled accordingly.
