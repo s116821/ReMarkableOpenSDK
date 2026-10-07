@@ -273,3 +273,22 @@ new signed-ID wire field, retaining the exact inclusive Int64 range check. Buddy
 adds LF/CRLF/CR/leading or trailing space/tab refusals and updates frozen decoder
 SHA. This corrects the shared proposal and consumer only; SDK scalar capture and
 serialization are unchanged. Earlier318 assertions alone missed this case.
+
+### Final independent source acceptance (no artifact or device qualification)
+
+Main and Astra independently accepted exact source triple
+SDK4f84be45993edbd80f5ea086c023ec947ca96541 /
+Buddy21e06d842f44f886061af6b25d0dd2decd23ff07 /
+Docs156138ca7024ae9e44d8522abf0f525aed0069f0 after initial implementation and
+both narrow decoder repairs. Each reports full vendor suite EXIT0:21 refusal,
+32 facts-entry and17 observation cases; collector331 PASS; no remaining blocking
+source finding within the reviewed scope. SDK4f84 proposal-only delta preserves
+884f141 code bytes. Astra also reran the original LF reproducer, now false.
+Main names sdk-fixtures.log SHA8ae060403e7a47aa782763e6e3b9929961cf248617643f6059cbfdcfca7cd03b
+under device-frames-main-source-review and main review5939c001 as internal evidence;
+those are coordinator-reported references, not hyperlinks or Sol readback.
+Close SDK5.8/Docs4.17 for independent source review only. Native packet4.11 and
+artifact/private packet/device/physical-input qualification remain open. Fresh
+baseline and any later preparation require Main's separate selection. No worker
+device contact, nonce reuse, retry, facts promotion, merge, sync or archive.
+Original spent8b receipts/false flags and separate cleanup chronology are retained.

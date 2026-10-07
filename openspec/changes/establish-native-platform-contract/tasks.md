@@ -50,4 +50,4 @@
 
 - [x] 5.7 Independently review fixed device-frames-v1 proposal with Main/Astra and consumer before implementation; preserve old spent evidence and all bounded/passive observation gates. No artifact or device selection.
 
-- [ ] 5.8 Independently review fixed device-frames-v1 implementation and exact Buddy/Docs freezes after focused synthetic fixtures; no target artifact/private packet/device selection until separate gates.
+- [x] 5.8 Independently review fixed device-frames-v1 implementation and exact Buddy/Docs freezes after focused synthetic fixtures; no target artifact/private packet/device selection until separate gates.
