@@ -173,7 +173,8 @@ For each event of the seven existing types, obtain QPointerEvent::pointingDevice
 once and store only fixed scalars: required device_present boolean,
 device_system_id signed canonical decimal string or explicit null, device_type
 integer or explicit null. Absent pointer means false and both null; present means
-true, QString::number(qint64 systemId), numeric type. Consumer requires canonical
+true, signed qint64 systemId and numeric type in filter storage; only later JSON
+serialization converts the ID with QString::number. Consumer requires canonical
 regex `^(0|-?[1-9][0-9]{0,18})$` and Int64.TryParse inclusive signed64 range;
 refuse plus, -0, leading zeros, overflow, numeric ID and coercion. Type must be
 JSON int/long in0..2147483647; retain unknown numeric types without capabilities.
@@ -194,7 +195,7 @@ numbers; either NaN/Inf means clearbit plus both explicit null. Retain id/state
 even mask0. Every coordinate key exists. Decoder accepts setbit only with both
 JSON int/long/double finite; clearbit only with both explicit null. Missing keys,
 bool/string/one-sided null or mask/value contradiction refuse the completion.
-Finite extreme values, including the observed8388608 sentinel, remain evidence.
+Finite extreme values, including the observed8388608 value, remain evidence.
 Invalid frames are represented only by the mask. In this new profile point_overflow
 means actual excess capacity; unlike old profile, nonfinite frames do not omit
 whole points or set that flag. Old evidence semantics remain historical.
