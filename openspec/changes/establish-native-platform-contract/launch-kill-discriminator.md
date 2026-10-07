@@ -99,6 +99,67 @@ same-call thread/frame/handler/contact checks are unchanged; never choose a hit 
 expected X/Y. Startup checkpoints are not additional successful measurement captures.
 The exact permitted startup stops/counts must be frozen before target qualification.
 
+### Proposed finite startup sequence for exact review
+
+Installed pinned Windows15.2 locally accepts `tcatch load`, `set mi-async on` and
+`interrupt`; its default all-stop SIGINT policy is stop/print/no-pass. These are
+local feature checks, not proof that remote asynchronous operation works. Select
+MI asynchronous control in all-stop mode as the concrete preparation candidate,
+with token-correlated responses and bounded output; keep non-stop disabled.
+
+Permit exactly THREE reported startup stops on a successful path, then TWO
+measurement stops. No other user-visible breakpoint/signal/exit stop may be skipped
+or continued. Internal loader/step events handled by GDB are distinct bookkeeping,
+bounded by the startup wall/output caps, not falsely counted as only three kernel
+stops. No general event trace is retained.
+
+1. Initial program exec stop: verify the one launched inferior identity and server
+   provenance. Install exactly one temporary load catchpoint with anchored regex
+   `(^|/)libepaper[.]so$`, then continue asynchronously once. Do not install PRE/POST
+   here, and do not guess loader addresses. The wrapper/shell exec events consumed
+   by gdbserver startup must be qualified separately, not disguised as capture stops.
+2. Exact matching plugin-load catchpoint: verify its identifier and matching module,
+   then confirm the temporary catchpoint is removed. Freeze/check actual executable
+   mappings against ELF PT_LOAD offsets, file device/inode, complete plugin/QtGui
+   hashes and the launched generation. Ambiguous/missing mappings or any other
+   reported stop refuse. Do not treat load as candidate Ready; continue once with
+   NO normalization breakpoint installed while remaining Qt startup runs.
+3. After independently validated candidate Ready, issue exactly one token-correlated
+   MI interrupt while that same inferior is running. Accept only the corresponding
+   expected all-stop interrupt outcome, with SIGINT not delivered on subsequent
+   resume; any race to an unrelated stop refuses. Revalidate generation, Ready,
+   provider mappings/hashes, ARM state and PRE/POST original words while stopped.
+   Only now install PRE and begin5s measurement, then resume once. Main issues the
+   one input only after this resumed/armed confirmation and still-current Ready.
+
+The Ready check is the existing bounded private input-observation-ready record,
+not a new inferred UI condition. Consumer preparation must reuse its nonce/root/
+process-generation/setup-profile and expiry checks, retain its bounded source
+bytes, and perform at most300 checks at a100ms minimum interval within the same30s
+startup ceiling. Individual read timeouts cannot extend that ceiling. Persist final
+accepted/refused evidence and counts within8192, not every polling transcript.
+Ready may arrive during the load stop; it must still pass the final stopped
+revalidation. No input while stopped, repeated interrupt, synthetic Ready, or
+fallback to installing PRE early is permitted. Freeze the exact Ready checker
+source/hash and interrupt stop encoding with the owning consumer plan.
+
+The existing owned fixture with checkpoint code in its main executable does NOT model this
+plugin-load/Ready sequence. Preparation needs an original bounded shared-library
+fixture loaded with dlopen, an independently emitted bounded Ready record after
+initialization, and multiple threads. Its fixed test-only module name/profile must
+be distinct from native libepaper. It must exercise delayed/missing/wrong-library
+load, Ready before/after load, missing/expired/wrong-generation Ready, interrupt
+race/unexpected stop, and deadline exhaustion, then the same two captures and kill.
+Exact Windows client/standard server SSH qualification must cover this complete
+sequence; prior vendor-GDB/QEMU static-fixture success cannot close that gap.
+
+Source basis for this sequence: local pinned-client help/settings output; GNU14.2
+break-catch-load.c matches its regex against added library names and suppresses
+nonmatching load reports, explaining the proposed anchored catchpoint. Exact15.2
+runtime behavior, implicit loader writes, asynchronous readiness and timing remain
+qualification gates. This is a proposed finite preparation profile, not source
+implementation selection or a demonstrated native startup sequence.
+
 ## Measure, persist, kill, restore
 
 Capture the two PRE/POST scalar snapshots using the existing exact fingerprint/
