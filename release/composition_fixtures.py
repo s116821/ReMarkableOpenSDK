@@ -5,6 +5,7 @@ reach a disposable bare repository and its API calls reach loopback TLS only.
 """
 import json
 import os
+from pathlib import Path
 import shutil
 import unittest
 
@@ -26,6 +27,10 @@ class MaintainedComposition(GithubCliCandidate):
         for name in ("RUSTUP_HOME", "CARGO_HOME"):
             if name in os.environ:
                 f.env[name] = os.environ[name]
+        # Hosted rustup does not export RUSTUP_HOME. The isolated child HOME must
+        # not hide the installed toolchain or fall back to an implicit version.
+        f.env.setdefault("RUSTUP_HOME", str(Path.home() / ".rustup"))
+        f.env["RUSTUP_TOOLCHAIN"] = "1.98.1"
         (f.repo / "Cargo.toml").write_text(
             '[package]\nname="owned_composition"\nedition="2024"\nlicense="MIT"\n'
         )
