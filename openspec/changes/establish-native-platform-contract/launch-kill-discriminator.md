@@ -76,8 +76,11 @@ scan, arbitrary breakpoint search or open-ended continue loop. Unexpected stops
 or missing mappings consume the attempt and invoke kill recovery.
 
 Propose a maximum30s startup from launch dispatch to candidate-ready plus debugger
-armed/resumed, based on Main's reported historical roughly15s candidate startup.
-That timing is reported project evidence, not a newly measured guarantee. Validate
+armed/resumed as an engineering ceiling pending exact startup timing qualification.
+It is not derived from a verified historical startup measurement. Main corrected
+the earlier roughly15s attribution: the14999/15066/16197ms observations concern
+post-input end-publication GUI acceptance/grab/completion, not candidate Ready or
+startup latency. Do not reuse those observations as startup evidence. Validate
 the exact30s bound on the owned full path before use; an incompatible result requires
 another reviewed bound, not an automatic extension. Keep the existing150s overall
 native lifetime/operation bound, including startup, acquisition, kill and restoration.
@@ -146,6 +149,6 @@ and review. Do not promote old unknown receipts or close unfinished native gates
 4. Main qualifies the complete actual owned launch/clone/reset/death/EOF/kill path;
    only accepted evidence permits selecting one fresh UI candidate and one input.
 
-Source basis: current Main selection and reported startup timing, verified local
+Source basis: current Main selection and correction of the startup-time attribution, verified local
 GNU14.2 source, official GDB documentation and accepted host-only source/receipts.
 All proposed timings and actual-kernel protection remain unqualified here.
