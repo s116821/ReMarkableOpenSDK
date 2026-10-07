@@ -315,6 +315,9 @@ Only an explicit successful release authorization followed by protocol D after
 breakpoint removal and original-word verification SHALL permit detach. Source,
 new artifact identity and actual owned-target failure evidence SHALL precede native
 qualification; the original unmodified GNU14.2 server SHALL remain held.
+Every debugger text modification, including internal step and loader breakpoints,
+SHALL be limited to the reviewed bounded site ledger and verified restored through
+raw reads before release. Two capture stops SHALL NOT imply only two text writes.
 
 #### Scenario: Protection or complete thread attachment fails
 - **WHEN** any live LWP cannot be accounted for or mandatory EXITKILL application is unsupported, masked, failed or later lost
@@ -327,3 +330,7 @@ qualification; the original unmodified GNU14.2 server SHALL remain held.
 #### Scenario: Explicit successful detach
 - **WHEN** bounded evidence is complete, breakpoints are removed, original words are verified and the exact one-use release authorization is followed by D
 - **THEN** only that checked process may detach; incidental unarmed D, intervening errors or partial detach invoke failure recovery, and lost acknowledgement cannot authorize replay.
+
+#### Scenario: Additional debugger breakpoint site
+- **WHEN** ARM stepping or implicit client behavior requests another instruction modification
+- **THEN** the site must match the fixed reviewed profile and bounded ledger before writing, and all recorded sites must pass raw restoration checks before release; unprofiled sites, overflow or restoration mismatch fail without widening the trial.

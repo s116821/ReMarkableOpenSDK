@@ -96,8 +96,11 @@ starting+0x15528. This refines the earlier entry/post sketch: two stops here sup
 the actual pre-map doubles without a third entry breakpoint. Expected ARM words
 are 0x0a000001 and 0xe59d006c respectively; qualification must independently verify
 them from the frozen ELF. Preserve CPSR, including condition flags for PRE's branch.
-Standard software breakpoints temporarily change two instruction words in the
-candidate's process memory. They are not read-only observations or on-disk patches.
+The two capture breakpoints temporarily change instructions in the candidate's
+process memory. ARM software single-step and implicit debugger loader breakpoints
+can add instruction writes; two capture stops do not imply only two patched words.
+The amendment requires a fixed bounded inventory and restoration check for every
+client/internal breakpoint site. These are not read-only observations or on-disk patches.
 This effect must be explicit in Main's advance notice and recovery qualification.
 Do not silently substitute hardware breakpoints without qualifying that exact path.
 

@@ -27,6 +27,14 @@ The signature-verified GNU GDB14.2 source used for original server SHA256
 - The event-loop exception handler at `server.cc:4002` and top-level handler
   at4029 can unwind or exit; successful detach at1272 uses direct `exit(0)`.
   A scope destructor alone is not sufficient coverage of lifecycle exits.
+- `linux-arm-low.cc:1014-1043` enables software stepping and reports no hardware
+  single-step; `linux-low.cc:3921-3932` installs breakpoints at the predicted next
+  PCs. Therefore step-over can modify more than the two primary capture sites.
+- GNU14.2 `gdb/solib-svr4.c:2336-2412` uses `auto_solib_add` for symbol loading
+  separately from creating the loader event breakpoint. Disabling automatic
+  shared-library symbols alone does not establish absence of loader breakpoints.
+  This is explanatory source evidence; exact Windows GDB15.2 behavior still needs
+  qualification and must not be inferred from the14.2 source alone.
 
 Original server06e575 remains immutable provenance evidence and is held from the
 software-breakpoint attachment path. An external five-second guard cannot prove
@@ -92,6 +100,29 @@ or direct-exit path may convert failure into resume/detach of this process.
 
 ## Failure and the sole release path
 
+Every text site modified by the debugger belongs to a bounded private ledger,
+including primary capture breakpoints, internal software-step sites, implicit
+loader/event breakpoints and any reinsertion. Propose at most16 distinct sites,
+each at most4 bytes, further restricted to a reviewed fixed profile of permitted
+module fingerprints/offsets/ARM-or-Thumb encodings. No arbitrary address input,
+memory scan or unbounded accumulation is permitted. Read and preserve original
+raw bytes before the first insertion, validate the expected provider/encoding,
+and track insertion/removal state across reuse without overwriting the original.
+An unexpected site, unknown write path or exhausted ledger refuses before that
+write and enters failure recovery; do not widen the profile during a trial.
+
+Explicit ledger capture and final verification reads count toward the existing
+1024-byte requested-read limit, including failed/overlapping reads. GDB internal
+instruction-decoding/protocol reads remain separately identified bookkeeping,
+not a claim of zero memory access. Release must verify raw restored bytes for ALL
+recorded sites, including already-removed step breakpoints, without memory shadows.
+Source review and the actual owned fixture must identify all write paths, establish
+that no ledger bypass exists and characterize the exact Windows client's internal
+breakpoints. Prefer disabling unnecessary implicit breakpoint behavior where the
+exact client supports it; `auto-solib-add off` alone is insufficient. No guessed
+loader offset enters a native profile. Advance notice must describe additional
+qualified internal breakpoint writes, not claim only two instruction words.
+
 EOF, client death, protocol error, unexpected stop, evidence failure, deadline,
 internal exception and incomplete coverage all select FAILURE. The live server
 kills the selected disposable process instead of normal exit detachment. A bounded
@@ -112,7 +143,7 @@ identity change invalidates it. An unarmed D is terminal failure, never detach.
 
 Before accepting that authorization and D, server checks must establish all threads
 stopped/protected, no active inserted client/internal/step-over breakpoints or jump
-pads, and the fixed words restored through a raw target-memory check that bypasses
+pads, and ALL ledger words restored through a raw target-memory check that bypasses
 GDB breakpoint-shadow substitution. Host checks after deletion remain mandatory;
 their requested memory bytes, including any explicit server verification reads,
 count toward the existing1024-byte collector budget. No read retry is introduced.
@@ -140,6 +171,10 @@ EXITKILL, failed SETOPTIONS, partial attach, unreadable enumeration, new threads
 generation changes, server/client/SSH death, early/forged D, release-check failure,
 partial detach and exhausted byte/time/evidence budgets. A one-line source grep
 or mocked syscall success cannot establish full-path behavior.
+Include internal ARM step-over/loader sites, removal and reinsertion, restoration
+mismatch at an already-removed site, unknown site/encoding, ledger overflow and
+shadowed-memory false matches. Two capture stops remain the evidence limit;
+internal stepping must not be mislabeled as a third successful capture.
 
 Main-only owned-target qualification then exercises the exact patched binary and
 Windows-client/SSH transport with multiple LWPs, including thread creation, server
