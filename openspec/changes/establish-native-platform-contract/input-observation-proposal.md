@@ -225,3 +225,42 @@ proving a backend cause. Matching time/global across different device IDs suppor
 duplicate Qt device delivery only, never two physical contacts or UI acceptance.
 Source basis: current Main/Astra coordination and repository source contract;
 actual8b reviewed evidence is an observational lead, not a verified root cause.
+
+## Device frames source implementation checkpoint (independent review pending)
+
+Main selected source implementation after Main/Astra accepted proposal490fc8f/
+0f5c9d5 and clarified cf7ee82/a0bac1b. SDK filter now stores fixed qint64/int/bool
+device metadata and six doubles plus mask per point. Public touch/mouse getters
+feed independently finite frames; JSON serialization emits explicit nulls for
+invalid frames and canonical signed device-ID strings after capture. Completion
+requires device-frames-v1. Buddybc957af54ccaa577c3851496e6a95fa0dda419a1 requires
+that exact profile, all device and coordinate properties, strict signed64 IDs,
+null consistency, integer mask0..7 and finite mask/value pairs; literal profile
+is bound in local packet/receipt and decoder SHA frozen. Facts-mode output and
+original deadlines/live guards/image capture/legacy overview binding/preservation
+are unchanged. No native payload build/private packet/nonce/device selection.
+
+Verification used vendor image416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618,
+QT_PROBE_SDK_ENV=/opt/codex/rm2/5.8.203/environment-setup-cortexa7hf-neon-remarkable-linux-gnueabi,
+read-only source mount, network none and synthetic Qt/offscreen via qemu-arm.
+The tools/qt_page_facts_entry_test.sh run passed21 refusal and32 facts entry cases;
+observation fixture compilation initially found an ambiguous empty touch-list
+constructor. Replacing it with explicit QList<QEventPoint>{} changed fixture only.
+The observation portion was then compiled/rerun separately: all17 cases PASS.
+Windows CRLF was stripped in the shell stream before execution. No failed run is
+represented as a complete suite pass. The new frames case verifies public getter
+copy for distinct frames, repeated/different devices, signed64 extrema strings,
+null device, all eight mixed NaN/Inf masks without point overflow, finite extreme
+values,64/65 records and worst-width four-point whole-record pruning under8192.
+Existing caps cover4/5 points, counts and PNG; entry cases retain passive filter,
+accepted state, sealing, lifetime and deadlines. These are owned synthetic fixtures,
+not target input, installed plugin mapping, physical origin or handler acceptance.
+
+Buddy command `pwsh -NoProfile -File tools/native_page_facts_probe/test-input-observation-collector.ps1`
+PASS318 mock/no-device assertions: all8 masks and missing/contradictory frame keys,
+nonfinite/nonnumeric values, null/present device schemas, canonical signed extrema
+roundtrips and malformed/range/type refusal, old profile refusal, plus original
+collector/preservation/deadline/legacy shape tests. Strict OpenSpec and diff checks
+are required at freeze. Main/Astra exact implementation review remains open; no
+sync/archive, merger or spent evidence promotion. Source basis: current coordinated
+selection, repository implementation and these local tool outputs.

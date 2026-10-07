@@ -41,7 +41,7 @@ done
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
  tools/qt_input_observation_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/observation-fixture"
-for case in good overflow duplicate caps accepted-true inactive-window wrong-purpose oversize setup-boundary window-loss restoring cross-facts completion-window-loss completion-destroy-window completion-cancel completion-deadline; do
+for case in good overflow duplicate caps frames accepted-true inactive-window wrong-purpose oversize setup-boundary window-loss restoring cross-facts completion-window-loss completion-destroy-window completion-cancel completion-deadline; do
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
   /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
    -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

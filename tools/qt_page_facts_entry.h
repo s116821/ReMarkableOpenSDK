@@ -288,6 +288,7 @@ private:
             imageStatus=QStringLiteral("available");
         }
         auto object=observation_.json();
+        object["evidence_profile"]=QStringLiteral("device-frames-v1");
         object["kind"]=QStringLiteral("development-input-observation");object["nonce"]=config_.nonce;
         object["attempt_pid"]=QString::fromLatin1(process_);object["attempt_start"]=QString::fromLatin1(processStart_);
         object["root_device"]=QString::number(qulonglong(rootStat_.st_dev));object["root_inode"]=QString::number(qulonglong(rootStat_.st_ino));

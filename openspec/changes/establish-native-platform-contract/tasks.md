@@ -48,4 +48,6 @@
 
 - [x] 2.7 Independently review the guarded explicit disposable-fixture one-call mode and synthetic lifecycle cases, then qualify one native insertion/preservation/persistence under Main-owned recovery. Achieved October 3 at SDK97726f3/Buddy01213c6: [native insertion and stock-restart persistence](https://linear.app/magentumdragon/issue/REM-25#comment-7d695be1-1baa-4611-8648-26876db57a6e), [independent preservation review and Main visual development reopen](https://linear.app/magentumdragon/issue/REM-25#comment-f498c923-e7a1-41c4-ad3b-396891c353c9). This is one explicit fixture, now six pages; its former expected-five configuration is historical and cannot authorize another mutation. M3 is preserved and is not a prerequisite; active-view gate2.6 and production gates2.3/4.2/4.7/4.8 remain open. Visual development controls do not qualify an SDK reopening API.
 
-- [ ] 5.7 Independently review fixed device-frames-v1 proposal with Main/Astra and consumer before implementation; preserve old spent evidence and all bounded/passive observation gates. No artifact or device selection.
+- [x] 5.7 Independently review fixed device-frames-v1 proposal with Main/Astra and consumer before implementation; preserve old spent evidence and all bounded/passive observation gates. No artifact or device selection.
+
+- [ ] 5.8 Independently review fixed device-frames-v1 implementation and exact Buddy/Docs freezes after focused synthetic fixtures; no target artifact/private packet/device selection until separate gates.
