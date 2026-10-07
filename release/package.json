@@ -1,0 +1,17 @@
+{
+  "name": "sdk-release-qualification",
+  "private": true,
+  "description": "Private upstream release-tool qualification harness",
+  "type": "module",
+  "engines": {
+    "node": ">=24.10.0"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=tap *.test.mjs"
+  },
+  "devDependencies": {
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "conventional-changelog-conventionalcommits": "10.4.0",
+    "semantic-release": "25.0.9"
+  }
+}

@@ -1,0 +1,7 @@
+# Unknown paths remain application-relevant. Do not exclude every Markdown file:
+# src/README.md and release/README.md may affect shipped/build tooling.
+application:
+  - '**'
+  - '!*.md'
+  - '!docs/**'
+  - '!openspec/**/*.md'
