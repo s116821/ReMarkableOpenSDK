@@ -46,6 +46,10 @@ are not physical action/contact counts: synthesized mouse can duplicate touch.
 Other/unknown targets do not establish selected-window delivery. Later installed
 application filters may consume events first. Zero events proves only this
 observer saw none within its scope, never kernel rejection or Qt-wide absence.
+The end/completion marker bounds this sampled interval; it does not prove that
+Qt input queues are drained or impose ordering across the input and filesystem
+descriptors. Any accepted/spontaneous/synthesized indicators are sampled values,
+not physical-origin or handler-acceptance proof.
 
 ## Specialized end protocol and clocks
 
