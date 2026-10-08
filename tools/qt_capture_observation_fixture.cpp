@@ -20,6 +20,11 @@ struct CaptureObservationFixtureAccess {
     static void run(FactsEntry &entry){entry.captureOwnerWindow();}
     static void invalidate(FactsEntry &entry){entry.captureInvalid_=true;}
     static CaptureOwnerFailure latched(const FactsEntry &entry){return entry.captureOwnerFailure_;}
+    static QByteArray visitedScalar(FactsEntry &entry){
+        auto &d=entry.captureOwnerFailure_;d={};d.branch="owner-discovery";d.discovery="open-topology-bound";
+        d.accepted=0;d.failure=0;d.effectiveDeadline=5000;d.owner.visited=4097;d.owner.receivers=0;d.owner.scenes=0;d.owner.topologyLimit="visited";
+        return entry.captureOwnerFailureBytes();
+    }
     static void grab(FactsEntry &entry,std::function<QImage()> callback){entry.captureGrabForFixture_=std::move(callback);}
     static void temporary(FactsEntry &entry,std::function<void()> callback){entry.captureTemporaryForFixture_=std::move(callback);}
 };
@@ -65,7 +70,8 @@ Window { visible:true; width:400; height:400
     auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects()[0]);auto *receiver=window->findChild<OwnedReceiver *>("receiver");auto *scene=window->findChild<SceneView *>("scene");
     receiver->evidence=[&]{return scene->hasActiveFocus();};window->requestActivate();scene->forceActiveFocus();QCoreApplication::processEvents();
     if(mode=="owner-ambiguous")window->findChild<OwnedReceiver *>("outer")->evidence=[] {return true;};
-    if(mode=="owner-topology") {QQuickItem *node=window->contentItem();for(int i=0;i<25;++i)node=new QQuickItem(node);}
+    if(mode=="owner-topology" || mode=="topology-boundary-depth") {QQuickItem *node=window->contentItem();for(int i=0;i<(mode=="owner-topology" ? 25:24);++i)node=new QQuickItem(node);}
+    if(mode=="owner-topology-queue" || mode=="topology-boundary-queue")for(int i=0;i<(mode=="owner-topology-queue" ? 4094:4093);++i)new QQuickItem(window->contentItem());
     qint64 time=0;int callbacks=0,grabs=0,mappings=0;bool inGrab=false,held=true,acquired=false;FactsEntryResult result;
     QByteArray external(400*400*4,char(0xff));
     receiver->evidence=[&]{if(acquired && mode=="external-buffer")external.fill(char(0));return scene->hasActiveFocus();};
@@ -94,6 +100,30 @@ Window { visible:true; width:400; height:400
     });
     const auto drain=[] {for(int i=0;i<25;++i)QCoreApplication::processEvents();};
     entry.start();drain();
+    if(mode=="topology-visited-scalar"){
+        const auto value=QJsonDocument::fromJson(CaptureObservationFixtureAccess::visitedScalar(entry)).object();
+        if(value.size()!=33 || value["version"].toInt()!=2 || value["visited_items"].toInt()!=4097 || value["topology_limit"]!="visited" ||
+            !value["topology_depth"].isNull() || !value["topology_queue_size"].isNull() || !value["topology_child_count"].isNull() ||
+            !value["matched_pairs"].isNull() || callbacks || grabs || mappings)return 30;
+        std::printf("PASS topology visited scalar seam only; no bounded traversal reproduction\n");return 0;
+    }
+    if(mode=="owner-topology" || mode=="owner-topology-queue" || mode=="topology-boundary-depth" || mode=="topology-boundary-queue"){
+        int focusReads=0,progressReads=0;receiver->evidence=[&]{++focusReads;return scene->hasActiveFocus();};
+        PageOwner owner;const auto progress=[&]{++progressReads;return true;};
+        const QByteArray ordinary=findPageOwner(&engine,progress,owner);const int ordinaryFocus=focusReads,ordinaryProgress=progressReads;
+        focusReads=0;progressReads=0;PageOwnerDiagnostics diagnostics;
+        const QByteArray observed=findPageOwner(&engine,progress,owner,&diagnostics);
+        if(ordinary!=observed || focusReads!=ordinaryFocus || progressReads!=ordinaryProgress)return 30;
+        const bool boundary=mode.startsWith("topology-boundary-");
+        const int expectedVisited=mode=="owner-topology" ? 28:mode=="owner-topology-queue" ? 2:mode=="topology-boundary-depth" ? 27:4096;
+        if(diagnostics.visited!=expectedVisited || progressReads!=expectedVisited+(boundary ? 2:0) || focusReads!=(boundary ? 2:0) ||
+            ordinary!=(boundary ? "open-owner-observed":"open-topology-bound"))return 30;
+        if(boundary){
+            if(diagnostics.topologyLimit || diagnostics.topologyDepth!=-1 || diagnostics.topologyQueueSize!=-1 || diagnostics.topologyChildCount!=-1)return 30;
+            std::printf("PASS topology boundary %s sink/no-sink visits=%d progress=%d getters=%d\n",argv[1],diagnostics.visited,progressReads,focusReads);return 0;
+        }
+        receiver->evidence=[&]{return scene->hasActiveFocus();};
+    }
     QFile waiting(root+"/facts-waiting");if(!waiting.open(QIODevice::ReadOnly))return 5;
     const auto fields=waiting.readAll().trimmed().split(' ');
     auto token=fields.mid(0,5).join(' ')+" capture-observation 120000 main-dev-facts-120s\n";
@@ -137,15 +167,15 @@ Window { visible:true; width:400; height:400
         else {
             if(!diagnostic.open(QIODevice::ReadOnly))return 23;
             const auto bytes=diagnostic.readAll();const auto value=QJsonDocument::fromJson(bytes).object();
-            if(bytes.size()>8192 || value.size()!=29 || value["failure_ms"].toInteger()!=first.failure || value["failure_ms"].toInteger()==9999 ||
+            if(bytes.size()>8192 || value.size()!=33 || value["failure_ms"].toInteger()!=first.failure || value["failure_ms"].toInteger()==9999 ||
                 value["native_authority"].toBool(true) || value["render_authority"].toBool(true) || value["ui_acknowledged"].toBool(true))return 24;
             const QString branch=value["branch"].toString();
-            QJsonObject expected{{"kind","development-capture-owner-refusal"},{"version",1},{"nonce",nonce},
+            QJsonObject expected{{"kind","development-capture-owner-refusal"},{"version",2},{"nonce",nonce},
                 {"attempt_pid",QString::number(::getpid())},{"attempt_start",QString::fromLatin1(FactsEntry::processStart())},
                 {"root_device",QString::fromLatin1(fields[3])},{"root_inode",QString::fromLatin1(fields[4])},
                 {"setup_profile","main-dev-facts-120s"},{"capture_accepted_ms",0},{"failure_ms",mode=="owner-deadline" ? 5000:0},
                 {"effective_deadline_ms",5000},{"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}};
-            for(const char *name:{"deadline_check_ms","predicate","discovery_result","visited_items","receiver_candidates","scene_candidates","matched_pairs","first_pair_receiver","first_pair_scene","first_pair_rejection","active_owner_rejection","observer_role","observer_member","observer_failure"})expected[name]=QJsonValue::Null;
+            for(const char *name:{"deadline_check_ms","predicate","discovery_result","visited_items","receiver_candidates","scene_candidates","matched_pairs","first_pair_receiver","first_pair_scene","first_pair_rejection","active_owner_rejection","observer_role","observer_member","observer_failure","topology_limit","topology_depth","topology_queue_size","topology_child_count"})expected[name]=QJsonValue::Null;
             expected["branch"]="owner-discovery";
             expected["discovery_result"]="open-owner-unavailable";
             expected["visited_items"]=3;expected["receiver_candidates"]=1;expected["scene_candidates"]=1;expected["matched_pairs"]=0;
@@ -164,7 +194,11 @@ Window { visible:true; width:400; height:400
                 else expected["active_owner_rejection"]="drawing-area-focused";
                 if(originalFocus!=(mode=="owner-progress" ? 1:2))return 29;
             }else if(mode=="owner-cap"){expected["discovery_result"]="open-candidate-bound";expected["visited_items"]=10;expected["receiver_candidates"]=9;expected["scene_candidates"]=0;expected["matched_pairs"]=QJsonValue::Null;}
-            else if(mode=="owner-topology"){expected["discovery_result"]="open-topology-bound";expected["visited_items"]=28;expected["matched_pairs"]=QJsonValue::Null;}
+            else if(mode=="owner-topology"){expected["discovery_result"]="open-topology-bound";expected["visited_items"]=28;expected["matched_pairs"]=QJsonValue::Null;expected["topology_limit"]="depth";expected["topology_depth"]=25;}
+            else if(mode=="owner-topology-queue"){
+                expected["discovery_result"]="open-topology-bound";expected["visited_items"]=2;expected["receiver_candidates"]=1;expected["scene_candidates"]=0;expected["matched_pairs"]=QJsonValue::Null;
+                expected["topology_limit"]="queue-cap";expected["topology_depth"]=1;expected["topology_queue_size"]=4096;expected["topology_child_count"]=1;
+            }
             else if(mode=="owner-ambiguous"){expected["discovery_result"]="open-owner-ambiguous";expected["visited_items"]=4;expected["receiver_candidates"]=2;expected["matched_pairs"]=2;}
             else if(mode=="owner-observer" || mode=="owner-revalidation" || mode=="owner-reentrant-noevents"){
                 expected["discovery_result"]="open-owner-observed";

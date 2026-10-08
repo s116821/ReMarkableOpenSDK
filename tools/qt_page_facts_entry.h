@@ -635,7 +635,8 @@ QtObject {
         const auto count=[](qint64 value)->QJsonValue{return value<0 ? QJsonValue(QJsonValue::Null):QJsonValue(value);};
         const bool discovery=QByteArrayView(d.branch)==QByteArrayView("owner-discovery");
         const bool pair=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-owner-unavailable");
-        return QJsonDocument(QJsonObject{{"kind","development-capture-owner-refusal"},{"version",1},{"nonce",config_.nonce},
+        const bool topology=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-topology-bound");
+        return QJsonDocument(QJsonObject{{"kind","development-capture-owner-refusal"},{"version",2},{"nonce",config_.nonce},
             {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
             {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
             {"setup_profile",QString::fromLatin1(config_.setupProfile())},{"capture_accepted_ms",d.accepted},{"failure_ms",d.failure},
@@ -647,6 +648,10 @@ QtObject {
             {"first_pair_rejection",text(pair ? d.owner.firstRejection:nullptr)},
             {"active_owner_rejection",text(discovery ? d.owner.finalRejection:d.activeReason)},
             {"observer_role",text(d.observerRole)},{"observer_member",text(d.observerMember)},{"observer_failure",text(d.observerFailure)},
+            {"topology_limit",text(topology ? d.owner.topologyLimit:nullptr)},
+            {"topology_depth",count(topology ? d.owner.topologyDepth:-1)},
+            {"topology_queue_size",count(topology ? d.owner.topologyQueueSize:-1)},
+            {"topology_child_count",count(topology ? d.owner.topologyChildCount:-1)},
             {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}}).toJson(QJsonDocument::Compact);
     }
     void finish(const char *stage) {

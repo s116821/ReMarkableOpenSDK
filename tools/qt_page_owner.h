@@ -46,6 +46,8 @@ struct PageOwnerDiagnostics {
     int visited=-1, receivers=-1, scenes=-1, matches=-1;
     int firstReceiver=-1, firstScene=-1;
     const char *firstRejection=nullptr, *finalRejection=nullptr;
+    const char *topologyLimit=nullptr;
+    qint64 topologyDepth=-1, topologyQueueSize=-1, topologyChildCount=-1;
 };
 inline bool activeOwner(const PageOwner &owner, QQmlEngine *engine, const char **reason=nullptr) {
     const auto refuse=[reason](const char *value){if(reason)*reason=value;return false;};
@@ -93,7 +95,15 @@ inline const char *findPageOwner(QQmlEngine *engine, const std::function<bool()>
         if (!node.item || node.item->thread() != engine->thread()) return "open-item-lost";
         ++visited;
         if(diagnostics)diagnostics->visited=visited;
-        if (visited > 4096 || node.depth > 24) return "open-topology-bound";
+        if (visited > 4096) {
+            if(diagnostics)diagnostics->topologyLimit="visited";
+            return "open-topology-bound";
+        }
+        const int depth=node.depth;
+        if (depth > 24) {
+            if(diagnostics){diagnostics->topologyLimit="depth";diagnostics->topologyDepth=depth;}
+            return "open-topology-bound";
+        }
         if (qmlEngine(node.item) == engine &&
             (node.item->flags() & QQuickItem::ItemIsFocusScope) &&
             propertyType(node.item, "currentPage", QMetaType::fromType<int>()) &&
@@ -107,8 +117,12 @@ inline const char *findPageOwner(QQmlEngine *engine, const std::function<bool()>
         if(diagnostics){diagnostics->receivers=receivers.size();diagnostics->scenes=scenes.size();}
         if (receivers.size() > 8 || scenes.size() > 8) return "open-candidate-bound";
         const auto children = node.item->childItems();
-        if (children.size() > 4096 - queue.size()) return "open-topology-bound";
-        for (auto *child : children) queue.append({child, node.depth + 1});
+        const auto childCount=children.size(), queueSize=queue.size();
+        if (childCount > 4096 - queueSize) {
+            if(diagnostics){diagnostics->topologyLimit="queue-cap";diagnostics->topologyDepth=depth;diagnostics->topologyQueueSize=queueSize;diagnostics->topologyChildCount=childCount;}
+            return "open-topology-bound";
+        }
+        for (auto *child : children) queue.append({child, depth + 1});
     }
     int matches = 0;
     if(diagnostics)diagnostics->matches=0;
