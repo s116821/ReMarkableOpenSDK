@@ -183,8 +183,12 @@ The fixed version1 field names are `kind`, `version`, `nonce`, `attempt_pid`,
 `png_sha256`, `image_status`, `gui_callback_completed`, `scope_current`,
 `atomic_snapshot`, `native_authority`, `render_authority`, `ui_acknowledged`, and
 `observed_order`. Process/start/root numeric identities are positive decimal strings
-of at most20 digits, times and dimensions are bounded JSON integers, DPR is finite
-positive, IDs are canonical strings, SHA256 is lowercase64hex. Success requires
+of at most20 digits. begin_epoch/end_epoch are also positive canonical decimal
+strings of at most20 digits (quint64), with the local capture epoch initialized to1.
+Times and dimensions are bounded JSON integers, DPR is finite positive, IDs are
+canonical strings, SHA256 is lowercase64hex. Conservatively require image_width
+equal qRound(width*dpr) and image_height equal qRound(height*dpr); mismatches refuse,
+including a backend returning a differently sized framebuffer. Success requires
 `image_status=available`, both completion/scope booleans true and the five authority/
 order booleans false. No success document is emitted for empty or failed capture.
 Consumer validation rejects missing/extra/wrong-type fields, nonmonotonic times,
