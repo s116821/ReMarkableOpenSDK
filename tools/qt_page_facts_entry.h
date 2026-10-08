@@ -29,6 +29,7 @@ struct FactsEntryConfig {
     int developmentReceiverSubtreeItemCap=0; // 0 preserves legacy flags; only explicit1024/2048/4096 are accepted.
     bool developmentReceiverSubtreeCaptureAllowUnfocusedArea=false; // Unqualified v8 only; typed bool still required.
     int developmentReceiverSubtreeDepthCap=0; // 0 preserves depth8; explicit16 requires itemcap2048/4096; explicit32 requires4096.
+    bool developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics=false; // Unqualified v9 atop v8; fixed reason labels only.
     QString setupSelection;
     bool setupValid() const {
         return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
@@ -89,6 +90,7 @@ public:
             config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
             finish("capture-observation-config-refused");return;
         }
+        if(config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics && (!config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea && (!config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeItemCap==4096 && config_.developmentReceiverSubtreeDepthCap!=16 && config_.developmentReceiverSubtreeDepthCap!=32){finish("capture-observation-config-refused");return;}
         if((config_.developmentReceiverSubtreeDepthCap!=0 && config_.developmentReceiverSubtreeDepthCap!=16 && config_.developmentReceiverSubtreeDepthCap!=32) ||
@@ -547,7 +549,7 @@ private:
                             const PageOwner previous=captureOwner_;captureOwner_=candidate;
                             const bool observed=captureObservers(&diagnostic);captureOwner_=previous;
                             return observed;
-                        },config_.developmentReceiverSubtreeItemCap ? config_.developmentReceiverSubtreeItemCap:(config_.developmentReceiverSubtreeCapture512 ? 512:256),config_.developmentReceiverSubtreeDepthCap ? config_.developmentReceiverSubtreeDepthCap:8,config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea);
+                        },config_.developmentReceiverSubtreeItemCap ? config_.developmentReceiverSubtreeItemCap:(config_.developmentReceiverSubtreeCapture512 ? 512:256),config_.developmentReceiverSubtreeDepthCap ? config_.developmentReceiverSubtreeDepthCap:8,config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea,config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics);
                 }else diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,&diagnostic.sceneFunnel);
                 const auto &funnel=diagnostic.sceneFunnel;
                 if(config_.developmentFocusAncestry)qInfo("rem25-focus-scene-funnel-v1 complete=%d items=%lld visited=%lld engine=%lld class=%lld page_id=%lld page_id_changed=%lld document_wrapper_changed=%lld pass=%lld",
@@ -633,7 +635,7 @@ QtObject {
             {"image_width",image.width()},{"image_height",image.height()},{"png_bytes",pngBytes},{"png_sha256",QString::fromLatin1(capturePngHash_)},
             {"image_status","available"},{"gui_callback_completed",true},{"scope_current",true},{"atomic_snapshot",false},
             {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false},{"observed_order",false}};
-        if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope",config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea ? "receiver-subtree-capture-unqualified-v8":config_.developmentReceiverSubtreeDepthCap==32 ? "receiver-subtree-capture-unqualified-v7":config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
+        if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope",config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics ? "receiver-subtree-capture-unqualified-v9":config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea ? "receiver-subtree-capture-unqualified-v8":config_.developmentReceiverSubtreeDepthCap==32 ? "receiver-subtree-capture-unqualified-v7":config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
         QMetaObject::invokeMethod(this,[this,object,epoch]() mutable {
             const Scope completionScope(this);
             if (!captureAllowed() || !captureIdentity() || epoch!=captureEpoch_ || !captureTokenCurrent() || exists("facts-request") || exists("facts-request.tmp")) { finish("capture-observation-completion-refused");return; }
@@ -798,7 +800,7 @@ QtObject {
             json.insert("scene_rejected_document_wrapper_changed",count(classified ? d.sceneFunnel.documentWrapperChanged:-1));
             json.insert("scene_passed",count(classified ? d.sceneFunnel.pass:-1));
         }
-        if(config_.developmentReceiverSubtreeCapture)json.insert("discovery_scope",config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea ? "receiver-subtree-capture-unqualified-v8":config_.developmentReceiverSubtreeDepthCap==32 ? "receiver-subtree-capture-unqualified-v7":config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
+        if(config_.developmentReceiverSubtreeCapture)json.insert("discovery_scope",config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics ? "receiver-subtree-capture-unqualified-v9":config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea ? "receiver-subtree-capture-unqualified-v8":config_.developmentReceiverSubtreeDepthCap==32 ? "receiver-subtree-capture-unqualified-v7":config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
         return QJsonDocument(json).toJson(QJsonDocument::Compact);
     }
     void finish(const char *stage) {
