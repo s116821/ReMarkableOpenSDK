@@ -6,6 +6,11 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Propose bounded first-original-evaluation diagnostics for the aggregate
+  development capture owner refusal, preserving callback compatibility and all
+  existing guards; see [capture-owner-diagnostics.md](capture-owner-diagnostics.md).
+  This is evidence-only design, not implementation or another device attempt.
+
 - Propose one default-off development owner/window capture inside the existing
   facts entry, before the consumer's visual-before-facts gate; see
   [capture-observation-plan.md](capture-observation-plan.md). It retains separate

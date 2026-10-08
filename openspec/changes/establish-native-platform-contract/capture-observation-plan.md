@@ -1,5 +1,9 @@
 # One development owner/window capture before facts admission
 
+The additive [owner-refusal diagnostic proposal](capture-owner-diagnostics.md)
+addresses the aggregate refusal observed after the f0e6ff4 implementation. It
+preserves this capture contract and does not select code or a new native attempt.
+
 Status: proposed SDK source refinement against `b8c1d0372c878122a2fb3b76bae88cfc019b1dda`.
 Main owns device operation; Astra owns this native-source investigation; Sol owns
 ordinary implementation/integration and independent review. This is not a native

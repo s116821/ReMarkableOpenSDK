@@ -160,6 +160,14 @@ Which native service/mechanism can satisfy creation and durable reconciliation w
 
 ### Historical evidence export
 
+The proposed [capture owner diagnostics](capture-owner-diagnostics.md) retain
+the first failed original gate evaluation in the default-off capture path. Fixed
+branch/discovery/observer enums, bounded candidate detail and original-clock times
+explain refusal without repeating getters, traversal or input. The existing
+callback stage remains authoritative for refusal; the additive private diagnostic
+is optional evidence and grants no capability. Implementation, consumer admission
+and exact artifact/packet review remain separate gates.
+
 The proposed additive contract in [evidence-export-contract.md](evidence-export-contract.md) defines bounded, versioned, lossless facts for observations, creation receipts and capture batches. Export is one-way and separate from operational guards. Native qualification/profile and clock facts absent from the synthetic model remain explicitly unavailable; persistence cannot supply them. Exact review and consumer agreement precede implementation.
 
 ### Explicit fixture insertion feasibility trial, October 2

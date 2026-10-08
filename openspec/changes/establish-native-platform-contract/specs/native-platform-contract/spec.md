@@ -328,6 +328,31 @@ remain spent and unknown without automatic launch/connection/input retry.
 - **WHEN** static inspection finds no justified correction but runtime operands remain unknown
 - **THEN** the SDK retains the investigation as unfinished and does not patch ranges, rotation, event ABI or rounding based only on endpoint resemblance.
 
+### Requirement: Development capture owner refusal retains original diagnostic evidence
+The default-off development capture path SHALL follow capture-owner-diagnostics.md
+for bounded first-failure evidence. It SHALL preserve the original aggregate
+callback stage and all existing predicates, short-circuit order, topology limits,
+once-only behavior, original clock and independent recovery. Diagnostic collection
+SHALL NOT repeat getters, owner traversal or input, relax acceptance, or confer
+native/render authority. Consumer preservation and exact source/artifact review
+SHALL precede any separately selected native attempt.
+
+#### Scenario: An owner gate refuses
+- **WHEN** initial progress, owner discovery, observer installation or owner revalidation first fails
+- **THEN** the original terminal branch and finite detail are latched with original-clock failure/deadline evidence, while the callback remains capture-observation-owner-refused and acquisition does not continue.
+
+#### Scenario: No owner pair qualifies
+- **WHEN** the original bounded discovery returns open-owner-unavailable
+- **THEN** existing candidate counters and the first evaluated pair rejection are retained without another traversal or getter evaluation, with null pair detail if none was evaluated and no claim that one rejection explains all candidates.
+
+#### Scenario: State changes before diagnostic publication
+- **WHEN** signals, closure or elapsed time change after the original refusal
+- **THEN** later state cannot replace the latched cause or synthesize skipped checks, and lost output scope may suppress the diagnostic without replacing the original refusal or delaying recovery.
+
+#### Scenario: Diagnostic evidence cannot be preserved
+- **WHEN** the private diagnostic is absent, partial, foreign, malformed or cannot be safely copied
+- **THEN** the consumer keeps the refusal and applicable ownership/preservation rules without granting visual, facts, capture or retry authority.
+
 ### Requirement: Launched measurement processes are always terminated
 The development discriminator SHALL follow launch-kill-discriminator.md for its
 current lifecycle, superseding the attach/custom-release proposal while preserving
