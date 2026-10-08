@@ -658,9 +658,15 @@ QtObject {
                 else if (exists("facts-request.tmp")) reason="facts-request-tmp-present";
                 if (reason) {
                     refused=true;
-                    captureCompletionRefusal_=QJsonObject{{"kind","development-capture-completion-refusal"},{"version",1},{"reason",reason},
+                    const auto fixedLabel=[](const char *label,std::initializer_list<const char *> labels) {
+                        if(label)for(const char *fixed:labels)if(qstrcmp(label,fixed)==0)return QJsonValue(QString::fromLatin1(fixed));
+                        return QJsonValue(QJsonValue::Null);
+                    };
+                    captureCompletionRefusal_=QJsonObject{{"kind","development-capture-completion-refusal"},{"version",2},{"reason",reason},
                         {"capture_accepted_ms",captureAcceptedAt_},{"baseline_ms",baseline},{"post_read_ms",postRead},
-                        {"failure_ms",now()},{"effective_deadline_ms",std::min(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)}};
+                        {"failure_ms",now()},{"effective_deadline_ms",std::min(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)},
+                        {"allowed_predicate",fixedLabel(allowed.predicate,{"reentrant-check","invalidated-before","context-before","lifetime-before","active-owner","invalidated-after","context-after","lifetime-after","owner-pointers","owner-threads","deadline"})},
+                        {"allowed_active_reason",fixedLabel(allowed.activeReason,{"capture-context","pointers-or-threads","window-focus-active-visible","engine-association","window-association","item-visible-enabled","receiver-ancestor","drawing-area-focused","receiver-document","scene-document","document-identity"})}};
                 }
             }
             if (refused) { finish("capture-observation-completion-refused");return; }

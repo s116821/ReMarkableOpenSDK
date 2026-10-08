@@ -270,7 +270,7 @@ Window { visible:true; width:400; height:400
         if(value.size()!=(selectedFailure ? 5:4))return 34;
         if(selectedFailure) {
             const auto d=value["completion_refusal"].toObject();
-            if(result.stage!="capture-observation-completion-refused" || d.size()!=8 || d["reason"]!="allowed-refused" ||
+            if(result.stage!="capture-observation-completion-refused" || d.size()!=10 || d["version"].toInt()!=2 || d["allowed_predicate"]!="invalidated-before" || !d["allowed_active_reason"].isNull() || d["reason"]!="allowed-refused" ||
                 d["capture_accepted_ms"].toInteger()!=0 || d["baseline_ms"].toInteger()!=0 || d["post_read_ms"].toInteger()!=0 ||
                 d["failure_ms"].toInteger()!=0 || d["effective_deadline_ms"].toInteger()!=5000)return 35;
         }

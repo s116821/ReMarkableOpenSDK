@@ -112,3 +112,38 @@ consumer retains no decoded diagnostic and grants no authority.
   selected or authorized by this source increment.
 
 Broad/native qualification, canonical sync and archive remain unfinished.
+
+
+## Accepted cached allowed-label increment (2026-10-08)
+
+Main's subsequent actual attempt reported an `allowed-refused` failure timestamp
+before its accepted + 5000 deadline. This does not identify the previous attempt's
+failure and does not determine which allowed guard failed. Main accepted the
+smallest source-only increment: serialize the already cached `predicate` and
+`activeReason` from the same first `captureAllowedChecked` call. No additional
+getter, traversal, check, flag, acceptance rule or clock sample is introduced.
+
+Selected failure diagnostics now emit version 2 with exactly ten fields: the
+original eight plus nullable `allowed_predicate` and `allowed_active_reason`.
+Both serializers admit only the existing guard's fixed labels; absent or unknown
+cached labels serialize as null. The consumer validates each nullable field's
+string type and fixed allowlist. Historical version 1 remains exact eight fields;
+version 1 rejects the new fields and version 2 requires both, including null.
+The selector remains default-off; successful/default-off callback shape,
+completion v2 exact37 scope v11, SDK parser, queued callback and original five
+second budget remain unchanged.
+
+WHEN the first allowed check fails due to preexisting invalidation, THEN the
+selected diagnostic is v2/exact10 with allowed_predicate `invalidated-before`
+and allowed_active_reason null. WHEN historical v1 data is read, THEN strict
+exact8 decoding remains supported. WHEN a v2 cached label is unknown, an array,
+or missing, THEN decoding returns no diagnostic, without granting authority.
+
+- [x] Implement the two cached-label serializers and strict historical decoder.
+- [x] Thirty focused consumer checks, including v1/v2 shape and negative labels.
+- [x] Exact production ARM compile and existing three focused owned fixtures.
+- [ ] Freeze exact revisions and obtain Main/Astra bounded review.
+- [ ] Any fresh nonce/packet/device selection remains separately owned by Main.
+
+Full native qualification and the fresh Reader harness remain unfinished. No
+canonical sync or archive follows from this diagnostic increment.
