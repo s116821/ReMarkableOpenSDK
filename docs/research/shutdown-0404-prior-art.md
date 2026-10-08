@@ -41,3 +41,29 @@ Do not patch FactsEntry destruction on this evidence: no concrete defect was ide
 An arbitrary sleep, the host exception repair, or switching to XOVI does not clear the native retry hold. Main alone owns any subsequent selection. Full native qualification and OpenSpec completion remain open.
 
 Source basis: live reads of project Mem handoff v35 and prior-art v4; fresh upstream Git clones pinned above; GitHub issue/commit API output; independently inspected archived SDK startup/entry, selected restore source and saved 0404 journal. Upstream diagnosis is attributed; local causal correspondence is inference. Private evidence is retained in the operator packet, not published here.
+
+## Actual preserved core: October 8 follow-up
+
+Main recovered a matching-time core from the configured Memfault MAR store and verified its compressed hash before and after read-only collection. Offline inspection independently verified the uncompressed core hash and the exact saved xochitl binary. The native failure is now more specific than the journal-only hypothesis: **an invalid memory read in xochitl on a rendering call path during shutdown**. It remains neither a proven use-after-free nor a qualified recovery fix.
+
+Direct evidence:
+
+- ELF32 ARM notes contain faulting LWP 17423. GDB selects that thread; NT_SIGINFO independently records SIGSEGV (11), code 1 (`SEGV_MAPERR`), address `0x6d30f000`.
+- PC `0x0066d004` maps through NT_FILE to `/usr/bin/xochitl`. The partial unwind proceeds through `0x0068447c`, `0x0065ec34`, `0x00667d44`, then `0x75f5dd5c`, resolved using the exact Qt Quick provider as `QQuickWindowPrivate::renderSceneGraph()`. Unwinding stops there; no complete stack or absence of an earlier payload contribution is claimed.
+- Bounded private instruction inspection identifies a 16-byte read beginning at `0x6d30eff8`, crossing the faulting page boundary. The surrounding QImage scanline path and selected scalar registers indicate row 16, row pointer `0x6d30ef08`, horizontal pixels 60 through 63 and clipped width 1404. This particular read is within the observed horizontal bound; it is not evidence of a simple right-edge vector overread. Actual backing-allocation extent, ownership and deallocation history remain unavailable.
+- Neither read address has an NT_FILE mapping. That excludes an identified file-backed range in the note, not anonymous mappings. The core omits captured PT_LOAD bytes for both these addresses **and the known code addresses**; omitted capture is not evidence of freed/unmapped memory. The invalid-access finding comes from SIGINFO, not from missing core bytes.
+
+Private reproducibility evidence: `astra-core-check.py` SHA256 `7595f3678c740ef29a1624abce7bdbb0843e61b1fba3a00339255122aec1dce8`, retained beside the private core. Run with the bundled Python against the already installed Docker image; it uses network-disabled, read-only containers and a read-only evidence mount, disables GDB auto-loading/debuginfod, and emits only selected scalar registers, the partial backtrace, selected NT_FILE ranges and PRSTATUS/SIGINFO fields. Its independent standard-library ELF-note decoder asserts the thread/signal/address. It does not emit memory bytes, full register sets, manifest identities or proprietary disassembly. The row/pixel interpretation additionally relies on the separately performed bounded private instruction inspection, not on this decoder alone.
+
+| Verified input/tool | SHA256 |
+| --- | --- |
+| Private uncompressed core | `37be0ff8b52434c36a97adff39aa381ab490864fd59df3c700ecd0ea89d4c34e` |
+| Saved xochitl | `071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df` |
+| Qt Quick 6.10.3 | `b20f9adaefe8cebeca445906e891370f75f0b0af878ac1b35e0c91159778628f` |
+| Qt Core 6.10.3 | `43b0e210d64e59b534490d78c4c82cc1d2958999b0969aa0f77e11a082704e5d` |
+| ARM GDB 14.2 | `07cccce897774dffb8530630fefbde363e75f4d42dcf6b573040e840e448feef` |
+| Offline toolchain image | `416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618` |
+
+The Qt hashes match the frozen pre-experiment device baseline. No provider copy, device execution, runtime edit or retry was needed for this analysis. The reproducible check passed locally. Main separately reports an independent direct ELF-note parse matching the exact hash, ARM format, LWP, PC/read register, SIGINFO and selected NT_FILE mappings; Main also independently repeated the five-frame partial unwind and verified the exact GDB, xochitl, Qt Quick and Qt Core hashes. The row/pixel interpretation was not independently repeated, and use-after-free remains unproven. Raw core, proprietary code and local receipt bodies remain private.
+
+Next justified increment is independent verification of these narrow notes/hashes and comparison with an upstream crash signature or a demonstrated native display-completion contract. The evidence does not justify a FactsEntry destructor patch, arbitrary delay, CPU-sampler implementation or native retry. The previously proposed sampler is explicitly **held**; it would not resolve display lifetime or the recovery-timeout conflict. Runtime payload 71d9 and spent 0404 remain unchanged.

@@ -60,6 +60,8 @@
 
 October 8 source-only lifecycle checkpoint: [0404 prior-art assessment](../../../docs/research/shutdown-0404-prior-art.md) records a reported upstream 3.28 restart/display use-after-free and the limits of its mitigation. It identifies a diagnostic lead, not the local cause or a completed recovery gate. The spent packet and SDK payload remain held; no task below is completed by that research.
 
+The [preserved-core follow-up](../../../docs/research/shutdown-0404-prior-art.md#actual-preserved-core-october-8-follow-up) now establishes SIGSEGV/MAPERR in a native rendering path using exact binaries and a reproducible private offline check. Use-after-free and safe recovery remain unproven; sampler implementation and native retry remain held. Main reports independent ELF-note/hash and five-frame partial-unwind verification passed. The row/pixel disassembly interpretation was not independently repeated; use-after-free remains unproven. No qualification task is closed.
+
 Lifecycle portions of6.1-6.9 describe the prior attach/custom-release candidate and
 remain unfinished history. Current selected proposal/preparation follows6.10-6.13;
 shared measurement/evidence requirements still apply. Do not continue GNU patch
