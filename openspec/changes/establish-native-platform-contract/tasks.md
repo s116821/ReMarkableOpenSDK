@@ -19,7 +19,7 @@
 ## 3. Implementation
 - [ ] 3.1 Implement versioned capability/profile and identity/evidence types with unsupported results and explicit synthetic origin.
 - [ ] 3.2 Implement deterministic mocks and tests for input/order change between dispatch and execution, two devices sharing UUIDs, recreated adapter handles, stale ownership, capture races, native-assigned ID recovery, cancellation and indeterminate outcomes.
-- [ ] 3.3 Implement qualified RM2 adapter operations using the accepted mechanism; keep unknown firmware disabled and cold boot stock. Any XOVI path requires the lifecycle gates in runtime-mechanism-comparison.md, not persistent boot injection.
+- [ ] 3.3 Implement qualified RM2 adapter operations using the accepted mechanism; keep unknown firmware disabled and cold boot stock. Any XOVI path requires the lifecycle gates in [the runtime mechanism comparison](../../../docs/research/runtime-mechanism-comparison.md), not persistent boot injection.
 - [ ] 3.4 Integrate current Reader/native creation seams through build-time consumption; keep Buddy journal/bindings and product policy in Buddy.
 - [ ] 3.5 Establish reproducible target artifacts, exact compatibility/provenance manifest and license notices; leave unqualified Paper Pro capabilities unsupported.
 - [ ] 3.6 Define and independently review SDK logical Next/Previous navigation with per-tablet, orientation-aware gesture implementations, at most one gesture and explicit verified/unchanged/uncertain/unsupported outcomes. Coordinate Sol implementation and the independent RM1 owner through Main; physical swipe direction is not the public semantic direction.

@@ -19,3 +19,11 @@ The manual equivalent is to check every proposed requirement has an observable W
 Do not publish proprietary firmware, extracted QML/source bodies, credentials or personal documents. Prefer original implementations of independently observed interoperability contracts. Track source licenses and publication constraints before incorporating third-party code. The first implementation must settle the SDK license and dependency policy with the maintainer; this bootstrap does not relicense any prior-art source.
 
 SDK changes that affect Buddy consumption need coordinated consumer integration changes in ReMarkableBuddiesDocs and ReMarkableBuddies. Manager installs Buddy artifacts; it must not infer compatibility from matching version numbers. Record exact revisions, evidence limits and merge order in PR comments. Keep a single unfinished delivery rather than marking an independent planning-only PR as completion of native page creation.
+
+## Documentation
+
+Use [the SDK knowledge index](docs/README.md) for reusable research, references and
+experiment findings. New documentation belongs under `docs/`, except root project
+guidance, conventional tool-discovery files and genuine OpenSpec workflow artifacts.
+Change-specific plans/checkpoints remain in `openspec/`; link to the canonical
+knowledge body and preserve evidence/provenance instead of copying it.

@@ -1,6 +1,6 @@
 # Native insertion reachability and bounded experiment
 
-Status: active research plan, October 1, 2026. Read-only R1, R2 and R2D observations have completed; see attributed results in [research.md](research.md). No native adapter or mutation experiment is qualified. This supplements research tasks 2.2–2.4 without completing them. Main remains the sole tablet operator. Production Gates A–D remain unexecuted. Development observation is distinct from production acceptance. The October 1 23:40 UTC lifecycle refinement makes supervised lazy XOVI eligible for comparison, not selected; see [the current mechanism assessment](runtime-mechanism-comparison.md).
+Status: active research plan, October 1, 2026. Read-only R1, R2 and R2D observations have completed; see attributed results in [native-platform ledger](../../../docs/research/native-platform-ledger.md). No native adapter or mutation experiment is qualified. This supplements research tasks 2.2–2.4 without completing them. Main remains the sole tablet operator. Production Gates A–D remain unexecuted. Development observation is distinct from production acceptance. The October 1 23:40 UTC lifecycle refinement makes supervised lazy XOVI eligible for comparison, not selected; see [the current mechanism assessment](../../../docs/research/runtime-mechanism-comparison.md).
 
 ## Candidate comparison
 
@@ -89,11 +89,11 @@ Runtime restart tests establish restart recovery, not arbitrary power-loss durab
 
 ## Decision needed if Gate A remains unresolved
 
-Production implementation continues only with a named, reviewable entry mechanism and a credible execution-time serialization design. Development stage R remains separately bounded. The current direct-versus-supervised-XOVI comparison and lifecycle-first experiment are in [runtime-mechanism-comparison.md](runtime-mechanism-comparison.md); the revised candidate permission is not an approval to inject or run an opaque mutator. Capability remains Unsupported until the required evidence exists.
+Production implementation continues only with a named, reviewable entry mechanism and a credible execution-time serialization design. Development stage R remains separately bounded. The current direct-versus-supervised-XOVI comparison and lifecycle-first experiment are in [runtime mechanism comparison](../../../docs/research/runtime-mechanism-comparison.md); the revised candidate permission is not an approval to inject or run an opaque mutator. Capability remains Unsupported until the required evidence exists.
 
 ## Source basis
 
-Candidate roles and save/lock observations derive from host-only static analysis of hash-verified private firmware artifacts documented in [research.md](research.md), plus the explicitly attributed operator inventory. The raw artifacts and locators are private and have no public evidence link. This file contains original conclusions and a proposed experiment, not proprietary implementation text or an executed acceptance report.
+Candidate roles and save/lock observations derive from host-only static analysis of hash-verified private firmware artifacts documented in [native-platform ledger](../../../docs/research/native-platform-ledger.md), plus the explicitly attributed operator inventory. The raw artifacts and locators are private and have no public evidence link. This file contains original conclusions and a proposed experiment, not proprietary implementation text or an executed acceptance report.
 
 [Vendor documentation](https://developer.remarkable.com/documentation/xochitl) recommends stopping xochitl when accessing/changing stored documents; a live coordinated-metadata route therefore needs affirmative cache/lifecycle evidence. [Qt meta-object documentation](https://doc.qt.io/qt-6/qmetaobject.html) describes object-based invocation, and [QLockFile documentation](https://doc.qt.io/qt-6/qlockfile.html) describes cooperating-process locking. These general references do not qualify private runtime behavior; exact target Qt 6.10.3 headers/providers remain the implementation baseline. Gates and acceptance procedures above are design inference from the accepted SDK contract.
 
