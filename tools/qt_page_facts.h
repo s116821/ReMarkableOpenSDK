@@ -114,7 +114,8 @@ public:
             owner_=retainedTicket_->owner_;
         } else ownerStage=findPageOwner(engine_, [this]{return current();}, owner_);
         if (QByteArrayView(ownerStage) != QByteArrayView("open-owner-observed")) { finish(ownerStage); return; }
-        if (!installObservers() || !allowed()) { finish("facts-metadata-or-context-refused"); return; }
+        const bool installed=installObservers();
+        if ((retainedMode_ ? (!allowed() || !installed) : (!installed || !allowed()))) { finish("facts-metadata-or-context-refused"); return; }
         const quint64 baseline=epoch_;
         const qint64 began=elapsed_.elapsed();
         QQmlComponent component(engine_, this);

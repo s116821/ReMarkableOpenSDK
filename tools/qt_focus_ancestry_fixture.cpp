@@ -1,7 +1,11 @@
 #include "qt_page_facts_entry.h"
 #define main standaloneFocusFactsFixtureMain
+#define SceneView OriginalSceneView
+#define qt_meta_tag_ZN9SceneViewE_t qt_meta_tag_originalSceneView_t
 #include "qt_page_facts_fixture.cpp"
 #undef main
+#undef SceneView
+#undef qt_meta_tag_ZN9SceneViewE_t
 #include <QFile>
 #include <QDir>
 #include <QTemporaryDir>
@@ -21,8 +25,18 @@ struct FocusAncestryFixtureAccess {
     static bool sessionAllowed(FactsEntry &entry){return entry.reader_ && entry.reader_->allowed();}
     static bool hasSession(const FactsEntry &entry){return bool(entry.reader_);}
     static bool invalid(const FactsEntry &entry){return entry.captureInvalid_;}
+    static void suppress(FactsEntry &entry){entry.focusGuard_.disconnect();entry.app_->removeEventFilter(&entry);}
+    static bool observed(const FactsEntry &entry){return entry.result_.observed;}
+    static bool callbackWritten(const FactsEntry &entry){return entry.exists("callback.json");}
+    static bool bindings(FactsEntry &entry){return entry.captureBindingsCurrent();}
 };
 }
+class SceneView : public QQuickItem {
+    Q_OBJECT
+    Q_PROPERTY(QString pageId MEMBER pageId NOTIFY pageIdChanged)
+public: QString pageId;
+signals: void pageIdChanged(); void documentWrapperChanged();
+};
 class FocusReentryFilter : public QObject {
 public:
     QEvent::Type type=QEvent::FocusOut;
@@ -37,12 +51,14 @@ int main(int argc,char **argv){
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
     if(argc!=2)return 2;
     const QByteArray mode=argv[1];
-    qmlRegisterType<SceneView>("OwnedFacts",1,0,"SceneView");
+    qmlRegisterType<OriginalSceneView>("OwnedFacts",1,0,"SceneView");
+    qmlRegisterType<SceneView>("OwnedFacts",1,0,"NegativeScene");
     qmlRegisterType<OwnedReceiver>("OwnedFacts",1,0,"OwnedReceiver");
     QTemporaryDir tmp;const QString nonce="0123456789abcdef0123456789abcdef",root=tmp.path()+"/rmb-qt-probe-"+nonce;
     QDir().mkdir(root);::chmod(root.toUtf8().constData(),0700);
     if(!put(root+"/owner",nonce.toLatin1()) || !put(root+"/attempt.identity",QByteArray::number(::getpid())+' '+FactsEntry::processStart()+'\n'))return 3;
-    DocumentFixture document;document.ids={"00000000-0000-4000-8000-000000000002"};
+    DocumentFixture ordinaryDocument;IncompatibleDocument incompatibleDocument;
+    DocumentFixture &document=(mode.startsWith("metadata") ? static_cast<DocumentFixture &>(incompatibleDocument):ordinaryDocument);document.ids={"00000000-0000-4000-8000-000000000002"};
     QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",&document);
     QByteArray qml=R"QML(import QtQuick
 import QtQuick.Window
@@ -59,12 +75,18 @@ Window { visible:true; width:400; height:400
         qml.replace(" OwnedReceiver { id:receiver"," OwnedReceiver { objectName:\"outer\"; focus:true; property QtObject document:ownedDocument; property int currentPage:0; property string currentPageId:\"owned\"\n OwnedReceiver { id:receiver");
         qml.insert(qml.lastIndexOf('}'),'}');
     }
+    if(mode=="scene9-negative"){
+        const int at=qml.indexOf("  SceneView");
+        qml.insert(at,QByteArray(" NegativeScene { focus:true\n").repeated(9));
+        qml.insert(qml.lastIndexOf('}'),QByteArray("}\n").repeated(9));
+    }
     engine.loadData(qml,QUrl("qrc:/FocusOwned.qml"));
     if(engine.rootObjects().size()!=1)return 4;
     auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first());
     auto *receiver=window->findChild<OwnedReceiver *>("receiver");
-    auto *scene=window->findChild<SceneView *>("scene");
+    auto *scene=window->findChild<OriginalSceneView *>("scene");
     if(!window || !receiver || !scene)return 4;
+    if(mode.startsWith("endpoint"))scene->setFlag(QQuickItem::ItemIsFocusScope);
     int ownerReads=0;
     receiver->evidence=[&] {++ownerReads;return true;};
     if(auto *outer=window->findChild<OwnedReceiver *>("outer"))outer->evidence=[] {return true;};
@@ -80,9 +102,12 @@ Window { visible:true; width:400; height:400
     config.facts={document.id(),document.ids,6,5000};config.setupBudgetMs=120000;
     config.developmentSetup120=config.developmentCaptureObservation=config.developmentFocusAncestry=true;
     config.setupSelection="main-dev-facts-120s";
-    qint64 time=0;int callbacks=0,grabs=0,mappings=0;FactsEntryResult result;
-    FactsEntry entry(&app,config,[&](FactsEntryResult value){++callbacks;result=std::move(value);},[&]{return time;});
-    CaptureObservationFixtureAccess::grab(entry,[&]{++grabs;QImage image(400,400,QImage::Format_ARGB32);image.fill(Qt::white);return image;});
+    qint64 time=0;int callbacks=0,grabs=0,mappings=0,finalChecks=0;
+    std::function<void()> clockHook;FactsEntryResult result;
+    FactsEntry entry(&app,config,[&](FactsEntryResult value){++callbacks;result=std::move(value);},[&]{if(clockHook)clockHook();return time;});
+    auto *subscene=new QQuickItem(scene);
+    const auto mismatch=[&]{FocusAncestryFixtureAccess::suppress(entry);subscene->forceActiveFocus();if(!scene->hasActiveFocus() || window->activeFocusItem()!=subscene)std::abort();};
+    CaptureObservationFixtureAccess::grab(entry,[&]{++grabs;if(mode=="endpoint-capture")mismatch();QImage image(400,400,QImage::Format_ARGB32);image.fill(Qt::white);return image;});
     document.hook=[&]{++mappings;};entry.start();drain();
     auto *other=new QQuickItem(window->contentItem());
     FocusReentryFilter reentry;
@@ -100,12 +125,18 @@ Window { visible:true; width:400; height:400
         else if(mode=="initial-invalidated")entry.invalidateCapture();
         else {other->forceActiveFocus();if(!reentry.seen || window->activeFocusItem()!=scene) return 9;}
     }
+    if(mode=="endpoint-visual")receiver->evidence=[&]{++ownerReads;if(grabs && !FocusAncestryFixtureAccess::invalid(entry))mismatch();return true;};
     drain();
-    if(mode=="edge25" || mode=="ambiguous" || mode=="focus-event" || mode=="initial-invalidated" || mode=="aba-out" || mode=="aba-in"){
+    if(mode=="endpoint-capture" || mode=="endpoint-visual" || mode=="scene9-negative" || mode=="edge25" || mode=="ambiguous" || mode=="focus-event" || mode=="initial-invalidated" || mode=="aba-out" || mode=="aba-in"){
+        if(mode.startsWith("endpoint")){
+            if(callbacks!=1 || result.observed || !FocusAncestryFixtureAccess::invalid(entry) || mappings)return 6;
+            std::printf("PASS focus-owned %s endpoint-refused native_authority=false\n",argv[1]);return 0;
+        }
         QFile file(root+"/capture-owner-refusal.json");if(!file.open(QIODevice::ReadOnly))return 6;
         const auto value=QJsonDocument::fromJson(file.readAll()).object();
         if(value.size()!=37 || value["version"]!=3 || value["discovery_scope"]!="window-focus-ancestry-v1" ||
             !value["topology_limit"].isNull() || callbacks!=1 || result.observed || grabs || mappings)return 6;
+        if(mode=="scene9-negative" && (value["scene_candidates"]!=9 || value["discovery_result"]!="open-candidate-bound" || !value["matched_pairs"].isNull()))return 6;
         if(mode=="edge25" && (value["chain_items"]!=25 || value["chain_complete"]!=false || value["chain_failure"]!="depth-bound"))return 6;
         if(mode=="ambiguous" && (value["chain_complete"]!=true || value["matched_pairs"]!=2 || value["discovery_result"]!="open-owner-ambiguous"))return 6;
         if((mode=="focus-event" || mode=="initial-invalidated" || mode=="aba-out" || mode=="aba-in") && (value["branch"]!="initial-progress" || !value["chain_items"].isNull() || value["predicate"]!="invalidated"))return 6;
@@ -114,6 +145,9 @@ Window { visible:true; width:400; height:400
         if(QJsonDocument::fromJson(complete.readAll()).object().size()!=36)return 7;
         const int count=FocusAncestryFixtureAccess::items(entry);
         if(count!=(mode=="edge24" ? 25:3))return 7;
+        if(mode=="endpoint-bindings"){mismatch();if(FocusAncestryFixtureAccess::bindings(entry) || !FocusAncestryFixtureAccess::invalid(entry))return 8;entry.cancel();drain();std::printf("PASS focus-owned endpoint-bindings native_authority=false\n");return 0;}
+        if(mode=="endpoint-final1" || mode=="endpoint-final2")clockHook=[&]{if(FocusAncestryFixtureAccess::observed(entry) && (mode=="endpoint-final1" ? ++finalChecks==1:FocusAncestryFixtureAccess::callbackWritten(entry)))mismatch();};
+        if(mode=="metadata-ticket-loss")receiver->evidence=[&,reads=0]()mutable{++ownerReads;if(FocusAncestryFixtureAccess::hasSession(entry) && ++reads==2)FocusAncestryFixtureAccess::generation(entry);return true;};
         if(mode=="generation")FocusAncestryFixtureAccess::generation(entry);
         if(mode=="ticket-reentrant")receiver->evidence=[&]{
             if(FocusAncestryFixtureAccess::hasSession(entry)){(void)FocusAncestryFixtureAccess::sessionAllowed(entry);}
@@ -124,14 +158,17 @@ Window { visible:true; width:400; height:400
         if(mode=="delivery-generation")document.hook=[&]{++mappings;QMetaObject::invokeMethod(&app,[&]{FocusAncestryFixtureAccess::generation(entry);},Qt::QueuedConnection);};
         if(!put(root+"/facts-request",fields.mid(0,5).join(' ')+" read-facts 120000 main-dev-facts-120s\n"))return 7;
         drain();
-        const bool success=mode!="generation" && mode!="ticket-reentrant" && mode!="delivery-generation";
+        const bool success=mode!="generation" && mode!="ticket-reentrant" && mode!="delivery-generation" && !mode.startsWith("metadata") && !mode.startsWith("endpoint");
         if(callbacks!=1 || result.observed!=success || FocusAncestryFixtureAccess::items(entry)!=count)return 8;
-        if(!success){
+        if(mode.startsWith("endpoint")){if(!FocusAncestryFixtureAccess::invalid(entry) || result.observed || result.stage!=(mode=="endpoint-final1" ? "facts-entry-delivery-refused":"facts-entry-output-unknown"))return 8;}
+        else if(!success){
             QFile file(root+"/refusal.json");if(!file.open(QIODevice::ReadOnly))return 8;
             const auto value=QJsonDocument::fromJson(file.readAll()).object();
-            if(value.size()!=27 || value["reader_stage"]!="facts-retained-owner-refused" || value["reader_result_had_facts"]!=false || value["entry_stage"]!="facts-entry-read-refused" || value["refusal_path"]!="reader-result")return 8;
+            if(value.size()!=27 || value["reader_stage"]!=(mode=="metadata-only" ? "facts-metadata-or-context-refused":"facts-retained-owner-refused") || value["reader_result_had_facts"]!=false || value["entry_stage"]!="facts-entry-read-refused" || value["refusal_path"]!="reader-result")return 8;
         }
     }
     std::printf("PASS focus-owned %s stage=%s grabs=%d mappings=%d native_authority=false\n",argv[1],result.stage.toUtf8().constData(),grabs,mappings);
     return 0;
 }
+
+#include "qt_focus_ancestry_fixture.moc"

@@ -212,6 +212,11 @@ private:
         explicit Scope(FactsEntry *value):entry(value){++entry->depth_;}
         ~Scope(){if (--entry->depth_==0) entry->queueCompletion();}
     };
+    bool captureFocusEndpointsCurrent() {
+        if(!config_.developmentFocusAncestry)return true;
+        if(!focusGuard_.endpoints()){invalidateCapture();return false;}
+        return true;
+    }
     bool captureAllowedChecked(CaptureOwnerFailure *diagnostic) {
         const Scope scope(this);
         const auto refuse=[diagnostic](const char *reason){if(diagnostic)diagnostic->predicate=reason;return false;};
@@ -219,10 +224,12 @@ private:
         captureChecking_=true;
         const bool valid=(!captureInvalid_ || refuse("invalidated-before")) &&
             (context() || refuse("context-before")) && (captureLife() || refuse("lifetime-before")) &&
+            (captureFocusEndpointsCurrent() || refuse("invalidated-before")) &&
             (activeOwner(captureOwner_,engine_,diagnostic ? &diagnostic->activeReason:nullptr) || refuse("active-owner"));
         captureChecking_=false;
         if (!(valid && (!captureInvalid_ || refuse("invalidated-after")) &&
             (context() || refuse("context-after")) && (captureLife() || refuse("lifetime-after")) &&
+            (captureFocusEndpointsCurrent() || refuse("invalidated-after")) &&
             ((captureOwner_.window && captureOwner_.receiver && captureOwner_.scene && captureOwner_.document) || refuse("owner-pointers")) &&
             ((captureOwner_.window->thread()==thread() && captureOwner_.receiver->thread()==thread() &&
               captureOwner_.scene->thread()==thread() && captureOwner_.document->thread()==thread()) || refuse("owner-threads")))) return false;

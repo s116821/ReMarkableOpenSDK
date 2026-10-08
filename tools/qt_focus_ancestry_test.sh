@@ -7,6 +7,7 @@ if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then moc="$OECORE_NATIVE_SYSROOT/usr/libexec/
 else moc="$(pkg-config --variable=libexecdir Qt6Core)/moc"; fi
 for file in qt_page_facts qt_page_facts_entry; do "$moc" "tools/$file.h" -o "$work/$file.moc"; done
 "$moc" tools/qt_page_facts_fixture.cpp -o "$work/qt_page_facts_fixture.moc"
+"$moc" tools/qt_focus_ancestry_fixture.cpp -o "$work/qt_focus_ancestry_fixture.moc"
 cat > "$work/key-positive.cpp" <<'CPP'
 #include "qt_retained_owner_ticket.h"
 #include <type_traits>
@@ -31,7 +32,7 @@ done
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
  tools/qt_focus_ancestry_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/focus-fixture"
-for case in good large edge24 edge25 ambiguous focus-event initial-invalidated aba-out aba-in generation ticket-reentrant second-factory delivery-generation getter-counts; do
+for case in good large edge24 edge25 ambiguous focus-event initial-invalidated aba-out aba-in generation ticket-reentrant second-factory delivery-generation getter-counts metadata-only metadata-ticket-loss scene9-negative endpoint-capture endpoint-visual endpoint-bindings endpoint-final1 endpoint-final2; do
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
   "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 \
    -E QT_QPA_PLATFORM=offscreen -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \

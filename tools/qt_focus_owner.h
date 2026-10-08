@@ -90,7 +90,6 @@ inline const char *findFocusPageOwner(QQmlEngine *engine,const std::function<boo
             node->metaObject()->indexOfProperty("document")>=0)receivers.append(node);
         if(qmlEngine(node)==engine && classInherits(node,"SceneView") &&
             propertyType(node,"pageId",QMetaType::fromType<QString>()) &&
-            node->metaObject()->indexOfProperty("document")>=0 &&
             node->metaObject()->indexOfSignal("pageIdChanged()")>=0 &&
             node->metaObject()->indexOfSignal("documentWrapperChanged()")>=0)scenes.append(node);
         d.receivers=receivers.size();d.scenes=scenes.size();
