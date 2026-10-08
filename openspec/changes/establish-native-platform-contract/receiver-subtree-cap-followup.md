@@ -122,3 +122,12 @@ independentrestore/no-facts/no-ticket. Depth7 at refusal proves neither complete
 traversal within8 nor sufficiency of2048. Tiny2048complete/2049overflow-before-
 getters plus historical decoder bounds and exact compile/review precede a fresh
 Main-selected packet. No broad matrix, new nonce or device action selected here.
+Fixed2048 checkpoint: SDK08eece31c8285262d87a9d1ff723c09c0c2b9703 and
+Buddy239a8187bf31d0c95a6a5bb380d1ab7fbb743e92. Exact frozen17 checks passed:
+2048complete/2049overflow-before-drawinggetter/nullmatched,3historicaloverflows,
+8funnel/4privacy. Exact selected productioncompile passed -Werror/-zdefs without
+fixturemacros. Artifact SHA256 0b1270fa2923daaa99a33a09bb92205e87919031a9f86a396f0a8ea3a73e92aa.
+Exact consumer31+16+28+32 passed. Receipt sol-receiver-subtree-cap2048-r1/review-receipt.json
+SHA256 d6dc7bf40d9b24095274dd24ec3bf58d79c6b151a4f53e4d0592f76ad94b8739.
+Astra source review no findings; finalreceipt/consumer closeout pending. No native
+qualification, fresh nonce or packet selected; full lifecycle remains open.
