@@ -109,7 +109,9 @@ public:
         started_=true; elapsed_.start();
         if (!config_.valid() || !current()) { finish("facts-config-or-context-refused"); return; }
         const char *ownerStage="open-owner-observed";
-        if (retainedMode_) {
+        if (receiverSourceMode_) {
+            // Exact owner supplied by the entry; never rediscover or mint a ticket.
+        } else if (retainedMode_) {
             if (!retainedTicket_) { retainedFailure_=true; finish("facts-retained-owner-refused"); return; }
             owner_=retainedTicket_->owner_;
         } else ownerStage=findPageOwner(engine_, [this]{return current();}, owner_);
@@ -156,7 +158,7 @@ public slots:
             return false;
         }
         checking_=true;
-        const bool ownerCurrent=current() && (retainedMode_ ? ticketOwner() : activeOwner(owner_,engine_));
+        const bool ownerCurrent=current() && (receiverSourceMode_ ? retainedContext() : retainedMode_ ? ticketOwner() : activeOwner(owner_,engine_));
         checking_=false;
         // Do not repeat getters; their reentry may have changed epoch/lifetime/time.
         return ownerCurrent && current() && retainedContext();
@@ -164,6 +166,12 @@ public slots:
     void invalidate() { invalid_=true; ++epoch_; }
 private:
     friend class FactsEntry;
+    struct ReceiverSourceOnly {};
+    PageFactsSession(ReceiverSourceOnly, QQmlEngine *engine, PageFactsConfig config,
+        PageOwner owner, std::function<bool()> progress, std::function<void(PageFactsResult)> completed)
+        : PageFactsSession(engine,std::move(config),std::move(progress),std::move(completed)) {
+        receiverSourceMode_=true; owner_=std::move(owner);
+    }
     PageFactsSession(QQmlEngine *engine, PageFactsConfig config,
         std::unique_ptr<RetainedOwnerTicket> ticket, std::function<void(PageFactsResult)> completed)
         : PageFactsSession(engine,std::move(config),std::function<bool()>{},std::move(completed)) {
@@ -271,7 +279,7 @@ private:
     std::function<void(PageFactsResult)> completed_;
     PageOwner owner_;
     std::unique_ptr<RetainedOwnerTicket> retainedTicket_;
-    bool retainedMode_=false,retainedFailure_=false;
+    bool retainedMode_=false,retainedFailure_=false,receiverSourceMode_=false;
     QPointer<QObject> helper_;
     QElapsedTimer elapsed_;
     PageFactsResult result_;

@@ -43,7 +43,8 @@ int main(int argc,char **argv) {
     config.facts={document.id(),{QStringLiteral("00000000-0000-4000-8000-000000000002")},6,5000};document.ids=config.facts.expectedOrder;
     config.setupBudgetMs=120000;config.developmentSetup120=true;config.developmentCaptureObservation=true;config.setupSelection=QStringLiteral("main-dev-facts-120s");
     const bool completionDiagnostic=mode.startsWith("completion-diagnostic-");
-    if(completionDiagnostic) {
+    const bool sourceFacts=mode.startsWith("source-facts-");
+    if(completionDiagnostic || sourceFacts) {
         config.developmentReceiverSubtreeCapture=true;
         config.developmentReceiverSubtreeItemCap=4096;config.developmentReceiverSubtreeDepthCap=32;
         config.developmentReceiverSubtreeCaptureAllowUnfocusedArea=true;
@@ -51,6 +52,12 @@ int main(int argc,char **argv) {
         config.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics=true;
         config.developmentReceiverSubtreeCaptureEntryIdConversion=true;
         config.developmentCaptureCompletionRefusalDiagnostics=mode!="completion-diagnostic-default-off";
+    }
+    if(sourceFacts) {
+        config.developmentReceiverSourceFacts=true;
+        for(int i=3;i<=7;++i)config.facts.expectedOrder.append(QStringLiteral("00000000-0000-4000-8000-%1").arg(i,12,10,QLatin1Char('0')));
+        document.ids=config.facts.expectedOrder;
+        document.reverseWrong=mode=="source-facts-reverse";
     }
     IncompleteDocument incomplete;
     QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",mode=="owner-observer" ? static_cast<QObject *>(&incomplete):static_cast<QObject *>(&document));
@@ -89,7 +96,11 @@ Window { visible:true; width:400; height:400
         if(mode=="completion-late" && QFileInfo::exists(root+"/capture-observation-complete.json"))time=5000;
         return time;
     });
-    document.hook=[&]{++mappings;};
+    document.hook=[&]{
+        ++mappings;
+        if(mode=="source-facts-invalidate") {emit scene->viewportChanged();QCoreApplication::processEvents();}
+        if(mode=="source-facts-deadline")time=5000;
+    };
     if(mode=="temporary-unlink")CaptureObservationFixtureAccess::temporary(entry,[&]{QFile::remove(root+"/capture-observation-request.tmp");});
     CaptureObservationFixtureAccess::grab(entry,[&]{
         ++grabs;inGrab=true;
@@ -141,7 +152,7 @@ Window { visible:true; width:400; height:400
     }
     QFile waiting(root+"/facts-waiting");if(!waiting.open(QIODevice::ReadOnly))return 5;
     const auto fields=waiting.readAll().trimmed().split(' ');
-    auto token=fields.mid(0,5).join(' ')+" capture-observation 120000 main-dev-facts-120s\n";
+    auto token=fields.mid(0,5).join(' ')+(sourceFacts ? " receiver-source-facts 120000 main-dev-facts-120s\n":" capture-observation 120000 main-dev-facts-120s\n");
     if(mode=="wrong-token")token[0]='f';
     if(mode=="early-facts")put(root+"/facts-request.tmp","early");
     if(mode=="cross-purpose")put(root+"/input-observation-end.tmp","wrong");
@@ -252,10 +263,23 @@ Window { visible:true; width:400; height:400
 #else
         return 6;
 #endif
-    }else put(root+"/capture-observation-request",token);
+    }else put(root+(sourceFacts ? "/receiver-source-facts-request":"/capture-observation-request"),token);
     if((mode=="publication-alias" || mode=="temporary-unlink") && ::link((root+"/capture-observation-request").toUtf8().constData(),(root+"/capture-observation-request.tmp").toUtf8().constData())!=0)return 6;
     if(mode=="foreign-temporary")put(root+"/capture-observation-request.tmp",token);
     drain();
+    if(sourceFacts) {
+        const bool success=mode=="source-facts-good";
+        QFile output(root+"/receiver-source-facts.json");
+        if(output.open(QIODevice::ReadOnly)!=success || grabs!=0 || callbacks!=1 || result.observed || !held)return 41;
+        if(QFileInfo::exists(root+"/capture-window.png") || QFileInfo::exists(root+"/capture-observation-complete.json") || QFileInfo::exists(root+"/facts-request"))return 42;
+        if(success) {
+            const auto value=QJsonDocument::fromJson(output.readAll()).object();
+            if(value.size()!=27 || value["order"].toArray().size()!=6 || value["page_count"].toInt()!=6 || mappings!=6 ||
+                value["native_authority"].toBool() || value["render_authority"].toBool() ||
+                result.stage!="receiver-source-facts-observed-unqualified")return 43;
+        } else if(mappings<1)return 44;
+        std::printf("PASS %s mappings=%d grabs=%d unqualified=true\n",argv[1],mappings,grabs);return 0;
+    }
     if(completionDiagnostic) {
         const bool success=mode=="completion-diagnostic-success";
         QFile complete(root+"/capture-observation-complete.json");

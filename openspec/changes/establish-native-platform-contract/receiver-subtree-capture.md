@@ -189,3 +189,57 @@ read, THEN its original exact field count remains required.
 
 Native cause/qualification, fresh Reader capture, canonical sync and archive
 remain unfinished. Reader repair f6999d5 remains independently held for review.
+
+## Separate receiver source-facts observation (October 8)
+
+This source-only increment follows successful unqualified capture; it does not
+promote that capture to a live capability. `developmentReceiverSourceFacts` is
+false by default and requires the existing v11 receiver profile, exactly six
+expected pages and pageCap six. The held capture behavior remains the default.
+No Rust API, Reader admission, retained ticket or native mutation is added.
+
+WHEN this option is selected, THEN consume only the separate
+`receiver-source-facts-request` token (same nonce/PID/start/root binding, purpose
+`receiver-source-facts`, setup 120000/main-dev-facts-120s). Reuse bounded receiver
+owner discovery, then branch before capture helper construction or pixel grab.
+A private entry-only `PageFactsSession::ReceiverSourceOnly` constructor keeps the
+exact owner and invokes the unchanged readFacts helper: native pageCount,
+idForPage/pageForId forward/reverse mapping, current page/alias, and final tuple.
+The observed order comes from returned mapping values, not a copied expected
+order on an untested branch. Unsupported mapping types retain ordinary refusal.
+
+WHEN a getter reenters, input/owner changes, lifetime closes, request changes or
+the original accepted+5000 deadline expires, THEN no source result is admitted.
+The session's own clock cannot extend the entry deadline. Existing CallScope,
+queued completion and QPointer ownership protect getter-stack unwind. The final
+entry output boundary checks retained invalidation, threads, root/generation,
+request/purpose and original deadline; a partial/late owned output is withdrawn.
+The old retained-owner ticket still explicitly refuses receiver-subtree mode.
+
+WHEN the bounded read succeeds, THEN emit only `receiver-source-facts.json`
+(max8192), kind development-receiver-source-facts, version1, scope
+receiver-source-facts-unqualified-v1. Exact27 fields: kind, version, scope, nonce,
+attempt_pid, attempt_start, root_device, root_inode, document_id, page_id,
+page_index, page_count, order, alias_matches, forward_reverse_mapping_matches,
+observed_order, accepted_ms, read_begin_ms, read_end_ms, effective_deadline_ms,
+begin_epoch, end_epoch, atomic_snapshot, native_authority, render_authority,
+ui_acknowledged, delivered_ms. Three mapping booleans are true; all four authority
+booleans are false. Count/order size six, index0..5, equal entry epochs, monotonic
+entry-relative times with delivered strictly before min(120000,accepted+5000).
+The callback adds source_facts_reader_stage (fixed normalized string, empty before
+reader completion); success stage is receiver-source-facts-observed-unqualified.
+`FactsEntryResult.observed` stays false. No facts-request, PNG, successful capture
+completion, native PageObservation or Reader effect permission is produced.
+
+- [x] Implement separate default-off request/session/diagnostic path.
+- [x] Exact production ARM compile (-Werror/-z defs, no fixture macros).
+- [x] Four ARM/QEMU source cases: six native mappings/no pixels, reverse mismatch,
+  sticky invalidation during getter with event processing, original deadline
+  expiry during getter; existing v3 capture success control also passed.
+- [ ] Independent source/consumer review and Main selection.
+- [ ] Actual RM2 observation; native acquisition/dispatch qualification remains open.
+
+This is an unfinished research increment within the active change. No fresh
+nonce, packet, tablet operation, canonical sync, archive or release follows from
+source implementation. Buddy owns ordinary read-only consumer tooling; Main owns
+exact packet selection and independent rollback/restoration.

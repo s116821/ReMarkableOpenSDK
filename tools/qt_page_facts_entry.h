@@ -33,6 +33,7 @@ struct FactsEntryConfig {
     bool developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics=false; // Unqualified v10 atop v9; invalid/QUuid/other labels only.
     bool developmentReceiverSubtreeCaptureEntryIdConversion=false; // Unqualified v11 hypothesis atop v10; exact registered converter only.
     bool developmentCaptureCompletionRefusalDiagnostics=false; // Fixed final-callback diagnostics only; selected v11 required.
+    bool developmentReceiverSourceFacts=false; // Separate unqualified six-page source read, no pixels/ticket.
     QString setupSelection;
     bool setupValid() const {
         return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
@@ -73,7 +74,7 @@ public:
         focusGuard_.disconnect();
         if (app_) app_->removeEventFilter(this);
         reader_.reset();
-        for (int fd:{captureTokenFd_,capturePngFd_,captureCompleteFd_}) if (fd>=0) ::close(fd);
+        for (int fd:{captureTokenFd_,capturePngFd_,captureCompleteFd_,sourceFactsFd_}) if (fd>=0) ::close(fd);
         if (root_>=0) ::close(root_);
     }
     void start() {
@@ -93,6 +94,7 @@ public:
             config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
             finish("capture-observation-config-refused");return;
         }
+        if(config_.developmentReceiverSourceFacts && (!config_.developmentReceiverSubtreeCaptureEntryIdConversion || config_.facts.expectedOrder.size()!=6 || config_.facts.pageCap!=6)){finish("receiver-source-facts-config-refused");return;}
         if(config_.developmentCaptureCompletionRefusalDiagnostics && !config_.developmentReceiverSubtreeCaptureEntryIdConversion){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureEntryIdConversion && (!config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics || !config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics || !config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics && (!config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics || !config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
@@ -122,6 +124,7 @@ public:
             exists("capture-observation-complete.json") || exists("capture-window.png") || exists("capture-owner-refusal.json") || exists("input-observation-end") || exists("input-observation-end.tmp"))) {
             finish("capture-observation-stale-refused"); return;
         }
+        if(config_.developmentReceiverSourceFacts && (exists("receiver-source-facts-request") || exists("receiver-source-facts-request.tmp") || exists("receiver-source-facts.json"))){finish("receiver-source-facts-stale-refused");return;}
         processStart_=processStart();
         if (processStart_.isEmpty() || readFile("attempt.identity",128)!=process_+' '+processStart_+'\n') {
             finish("facts-entry-generation-refused"); return;
@@ -520,9 +523,11 @@ private:
         if (captureIndex_>=0) return captureIndex_==index && captureDocument_==doc && capturePage_==page;
         captureIndex_=index;captureDocument_=doc;capturePage_=page;return true;
     }
+    const char *captureRequestName() const { return config_.developmentReceiverSourceFacts ? "receiver-source-facts-request":"capture-observation-request"; }
+    const char *captureTemporaryName() const { return config_.developmentReceiverSourceFacts ? "receiver-source-facts-request.tmp":"capture-observation-request.tmp"; }
     bool captureTokenCurrent() const {
         struct stat named{},temporary{};
-        const bool hasTemporary=::fstatat(root_,"capture-observation-request.tmp",&temporary,AT_SYMLINK_NOFOLLOW)==0;
+        const bool hasTemporary=::fstatat(root_,captureTemporaryName(),&temporary,AT_SYMLINK_NOFOLLOW)==0;
         const int temporaryError=errno;
         if (captureTemporaryForFixture_) captureTemporaryForFixture_();
         if (hasTemporary && captureTemporaryReleased_) return false;
@@ -531,9 +536,9 @@ private:
         // alias. Reopening the alias can race its legitimate publisher unlink.
         const bool temporaryCurrent=hasTemporary ? S_ISREG(temporary.st_mode) && temporary.st_uid==::geteuid() && (temporary.st_mode&0777)==0600 &&
             temporary.st_dev==captureTokenStat_.st_dev && temporary.st_ino==captureTokenStat_.st_ino : temporaryError==ENOENT;
-        return ::fstatat(root_,"capture-observation-request",&named,AT_SYMLINK_NOFOLLOW)==0 &&
+        return ::fstatat(root_,captureRequestName(),&named,AT_SYMLINK_NOFOLLOW)==0 &&
             named.st_dev==captureTokenStat_.st_dev && named.st_ino==captureTokenStat_.st_ino &&
-            readFile("capture-observation-request",256)==captureToken_ && temporaryCurrent &&
+            readFile(captureRequestName(),256)==captureToken_ && temporaryCurrent &&
             !exists("input-observation-end") && !exists("input-observation-end.tmp");
     }
     bool captureFileCurrent(const char *name,int fd) const {
@@ -561,11 +566,11 @@ private:
             if (!captureTokenCurrent()) finish("capture-observation-replaced-refused");
             return captureDone_ && !done_;
         }
-        if (!exists("capture-observation-request")) return false;
+        if (!exists(captureRequestName())) return false;
         captureConsumed_=true;
-        captureToken_=identity("capture-observation")+" 120000 main-dev-facts-120s\n";
-        captureTokenFd_=::openat(root_,"capture-observation-request",O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
-        if (!context() || !live() || now()>=config_.setupBudgetMs || readFile("capture-observation-request",256)!=captureToken_ ||
+        captureToken_=identity(config_.developmentReceiverSourceFacts ? "receiver-source-facts":"capture-observation")+" 120000 main-dev-facts-120s\n";
+        captureTokenFd_=::openat(root_,captureRequestName(),O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
+        if (!context() || !live() || now()>=config_.setupBudgetMs || readFile(captureRequestName(),256)!=captureToken_ ||
             captureTokenFd_<0 || ::fstat(captureTokenFd_,&captureTokenStat_)!=0 || !captureTokenCurrent()) {
             finish("capture-observation-request-refused");return false;
         }
@@ -632,6 +637,7 @@ private:
             }
             finish("capture-observation-owner-refused");return;
         }
+        if(config_.developmentReceiverSourceFacts){startReceiverSourceFacts();return;}
         if(config_.developmentFocusAncestry && !prepareRetainedOwnerTicket()){
             finish("capture-observation-owner-refused");return;
         }
@@ -740,6 +746,58 @@ QtObject {
             captureReading_=false;
             timer_.start(int(config_.setupBudgetMs-now()));queueRequest();
         },Qt::QueuedConnection);
+    }
+    bool receiverSourcePurpose() const {
+        return !exists("facts-request") && !exists("facts-request.tmp") &&
+            !exists("capture-observation-request") && !exists("capture-observation-request.tmp") &&
+            !exists("capture-window.png") && !exists("capture-observation-complete.json");
+    }
+    bool receiverSourceCurrent() {
+        return !done_ && config_.developmentReceiverSourceFacts && captureEpoch_==sourceFactsEpoch_ &&
+            captureAllowed() && captureTokenCurrent() && receiverSourcePurpose();
+    }
+    // Final delivery checks latched invalidation and retained non-getter state.
+    bool receiverSourceDeliveryCurrent() const {
+        return config_.developmentReceiverSourceFacts && !closed_ && !captureInvalid_ &&
+            captureEpoch_==sourceFactsEpoch_ && context() && captureOwner_.window && captureOwner_.receiver &&
+            captureOwner_.scene && captureOwner_.document && captureOwner_.window->thread()==thread() &&
+            captureOwner_.receiver->thread()==thread() && captureOwner_.scene->thread()==thread() &&
+            captureOwner_.document->thread()==thread() && rootCurrent() && !exists("entry.closed") &&
+            !exists("restore.claim") && readFile("attempt.identity",128)==process_+' '+processStart_+'\n' &&
+            captureTokenCurrent() && receiverSourcePurpose() && captureAcceptedAt_>=0 &&
+            now()<qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000);
+    }
+    void startReceiverSourceFacts() {
+        sourceFactsEpoch_=captureEpoch_;sourceFactsBegin_=now();
+        if(!receiverSourceCurrent()){finish("receiver-source-facts-context-refused");return;}
+        reading_=true;
+        const QPointer<FactsEntry> weak=this;
+        reader_=std::unique_ptr<PageFactsSession>(new PageFactsSession(PageFactsSession::ReceiverSourceOnly{},
+            engine_,config_.facts,captureOwner_,[weak]{return weak && weak->receiverSourceCurrent();},
+            [weak](PageFactsResult result){if(weak)weak->completeReceiverSourceFacts(std::move(result));}));
+        reader_->begin();
+    }
+    void completeReceiverSourceFacts(PageFactsResult result) {
+        const Scope callbackScope(this);reading_=false;
+        readerStage_=factsRefusalReaderStage(result.stage,false);
+        if(!result.facts || !receiverSourceCurrent()){finish("receiver-source-facts-read-refused");return;}
+        const auto &f=*result.facts;
+        QJsonArray order;for(const auto &id:f.order)order.append(id);
+        QJsonObject object{{"kind","development-receiver-source-facts"},{"version",1},
+            {"scope","receiver-source-facts-unqualified-v1"},{"nonce",config_.nonce},
+            {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
+            {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
+            {"document_id",f.documentId},{"page_id",f.currentPageId},{"page_index",f.currentIndex},{"page_count",f.order.size()},
+            {"order",order},{"alias_matches",true},{"forward_reverse_mapping_matches",true},{"observed_order",true},
+            {"accepted_ms",captureAcceptedAt_},{"read_begin_ms",sourceFactsBegin_},{"read_end_ms",now()},
+            {"effective_deadline_ms",qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)},
+            {"begin_epoch",QString::number(sourceFactsEpoch_)},{"end_epoch",QString::number(captureEpoch_)},
+            {"atomic_snapshot",false},{"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}};
+        sourceFactsOutput_=QJsonDocument(object).toJson(QJsonDocument::Compact);
+        if(sourceFactsOutput_.size()>8192 || !receiverSourceCurrent()){sourceFactsOutput_.clear();finish("receiver-source-facts-output-refused");return;}
+        // Existing queued entry completion publishes this separate diagnostic.
+        // result_.observed stays false; no capture or facts admission is created.
+        finish("receiver-source-facts-observed-unqualified");
     }
     bool observationCurrent() const {
         return context() && live() && observationWindow_ && observationWindow_->thread()==thread() &&
@@ -907,6 +965,19 @@ QtObject {
         if (!done_ || depth_ || completionQueued_ || reading_) return;
         completionQueued_=true;
         QMetaObject::invokeMethod(this,[this]{
+            if(config_.developmentReceiverSourceFacts && !sourceFactsOutput_.isEmpty()) {
+                if(receiverSourceDeliveryCurrent()) {
+                    auto object=QJsonDocument::fromJson(sourceFactsOutput_).object();object["delivered_ms"]=now();
+                    sourceFactsOutput_=QJsonDocument(object).toJson(QJsonDocument::Compact);
+                    sourceFactsFd_=::openat(root_,"receiver-source-facts.json",O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,0600);
+                    if(sourceFactsFd_<0 || sourceFactsOutput_.size()>8192 ||
+                        ::write(sourceFactsFd_,sourceFactsOutput_.constData(),size_t(sourceFactsOutput_.size()))!=sourceFactsOutput_.size() ||
+                        !captureFileCurrent("receiver-source-facts.json",sourceFactsFd_) || !receiverSourceDeliveryCurrent()) {
+                        if(rootCurrent() && captureFileCurrent("receiver-source-facts.json",sourceFactsFd_))::unlinkat(root_,"receiver-source-facts.json",0);
+                        result_.stage=QStringLiteral("receiver-source-facts-output-refused");
+                    }
+                } else result_.stage=QStringLiteral("receiver-source-facts-delivery-refused");
+            }
             // Another queued boundary cannot renew the accepted-request budget.
             if (result_.observed && (!deliveryCurrent() || (config_.developmentCaptureObservation && !captureBindingsCurrent()))) {
                 revokeRetainedOwner();
@@ -937,6 +1008,7 @@ QtObject {
             QJsonObject callback{{"nonce",config_.nonce},{"stage",result_.stage},
                 {"application_thread",app_ && QThread::currentThread()==app_->thread()},
                 {"engine_thread",context()}};
+            if(config_.developmentReceiverSourceFacts)callback.insert("source_facts_reader_stage",readerStage_);
             if (config_.developmentCaptureCompletionRefusalDiagnostics && !captureCompletionRefusal_.isEmpty()) callback.insert("completion_refusal",captureCompletionRefusal_);
             result_.outputPublished=writeFile("callback.json",QJsonDocument(callback).toJson(QJsonDocument::Compact));
             // Syscalls are not preemptible. Never retain late success as a final
@@ -964,6 +1036,10 @@ QtObject {
     std::unique_ptr<RetainedOwnerTicket> pendingRetainedTicket_;
     quint64 retainedGeneration_=0;
     const char *captureInvalidationCause_=nullptr,*captureInvalidationRole_=nullptr,*captureInvalidationMember_=nullptr;
+    int sourceFactsFd_=-1;
+    quint64 sourceFactsEpoch_=0;
+    qint64 sourceFactsBegin_=-1;
+    QByteArray sourceFactsOutput_;
     QJsonObject captureCompletionRefusal_;
     CaptureOwnerFailure captureOwnerFailure_;
     bool captureOwnerFailurePending_=false;
