@@ -1,5 +1,6 @@
 #pragma once
 #include "qt_focus_owner.h"
+#include <QUuid>
 
 namespace qml_access {
 // Unqualified capture correlation only. Never call this for facts admission.
@@ -32,7 +33,7 @@ inline bool receiverSubtreeCapturePredicate(const PageOwner &owner,QQmlEngine *e
     return true;
 }
 inline bool receiverSubtreeCaptureIdentity(const PageOwner &owner,const QString &document,const QStringList &order,
-    const std::function<bool()> &progress,const char **reason=nullptr) {
+    const std::function<bool()> &progress,const char **reason=nullptr,bool documentIdTypeDiagnostics=false) {
     const auto refuse=[reason](const char *value){if(reason)*reason=value;return false;};
     if(!progress() || !owner.document || !owner.receiver || !owner.scene)return refuse("identity-context");
     const QVariant id=owner.document->property("id");
@@ -44,7 +45,8 @@ inline bool receiverSubtreeCaptureIdentity(const PageOwner &owner,const QString 
     const QVariant alias=owner.receiver->property("currentPageId");
     if(!progress() || !owner.document || !owner.receiver || !owner.scene)return refuse("identity-context");
     // Preserve all four reads before comparisons and the historical conjunction order.
-    if(id.metaType()!=QMetaType::fromType<QString>())return refuse("identity-document-type");
+    if(id.metaType()!=QMetaType::fromType<QString>())return refuse(documentIdTypeDiagnostics ?
+        (!id.isValid() ? "identity-document-type-invalid":id.metaType()==QMetaType::fromType<QUuid>() ? "identity-document-type-quuid":"identity-document-type-other"):"identity-document-type");
     if(id.toString()!=document)return refuse("identity-document-mismatch");
     if(index.metaType()!=QMetaType::fromType<int>())return refuse("identity-index-type");
     if(index.toInt()<0 || index.toInt()>=order.size())return refuse("identity-index-range");
@@ -61,10 +63,11 @@ inline bool receiverSubtreeWatchNotify(FocusOwnerGuard &guard,QObject *object,co
 }
 inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std::function<bool()> &progress,
     FocusOwnerGuard &guard,PageOwner &out,PageOwnerDiagnostics &d,FocusChainDiagnostics &chain,
-    const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe,int itemCap=256,int depthCap=8,bool allowUnfocusedArea=false,bool detailedIdentityDiagnostics=false) {
+    const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe,int itemCap=256,int depthCap=8,bool allowUnfocusedArea=false,bool detailedIdentityDiagnostics=false,bool documentIdTypeDiagnostics=false) {
     out={};chain.items=0;
     if(itemCap!=256 && itemCap!=512 && itemCap!=1024 && itemCap!=2048 && itemCap!=4096)return "open-capture-scope-refused";
     if((depthCap!=8 && depthCap!=16 && depthCap!=32) || (depthCap==16 && itemCap!=2048 && itemCap!=4096) || (depthCap==32 && itemCap!=4096) || (itemCap==4096 && depthCap!=16 && depthCap!=32))return "open-capture-scope-refused";
+    if(documentIdTypeDiagnostics && !detailedIdentityDiagnostics)return "open-capture-scope-refused";
     if(detailedIdentityDiagnostics && !allowUnfocusedArea)return "open-capture-scope-refused";
     if(allowUnfocusedArea && (itemCap!=4096 || depthCap!=32))return "open-capture-scope-refused";
     const QPointer<QQmlEngine> producer=engine;
@@ -143,7 +146,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
         if(!progress())return "open-context-lost";
         if(valid)valid=receiverSubtreeCapturePredicate(candidate,producer,progress,&reason,allowUnfocusedArea);
         if(!progress())return "open-context-lost";
-        if(valid)valid=receiverSubtreeCaptureIdentity(candidate,document,order,progress,detailedIdentityDiagnostics ? &reason:nullptr);
+        if(valid)valid=receiverSubtreeCaptureIdentity(candidate,document,order,progress,detailedIdentityDiagnostics ? &reason:nullptr,documentIdTypeDiagnostics);
         if(!progress())return "open-context-lost";
         if(!valid){if(d.firstScene<0){d.firstReceiver=0;d.firstScene=si;d.firstRejection=reason ? reason:"capture-identity";}continue;}
         ++d.matches;
@@ -152,7 +155,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
     }
     if(!d.matches)return "open-owner-unavailable";
     if(!progress())return "open-context-lost";
-    const bool valid=receiverSubtreeCapturePredicate(out,producer,progress,&d.finalRejection,allowUnfocusedArea) && receiverSubtreeCaptureIdentity(out,document,order,progress,detailedIdentityDiagnostics ? &d.finalRejection:nullptr);
+    const bool valid=receiverSubtreeCapturePredicate(out,producer,progress,&d.finalRejection,allowUnfocusedArea) && receiverSubtreeCaptureIdentity(out,document,order,progress,detailedIdentityDiagnostics ? &d.finalRejection:nullptr,documentIdTypeDiagnostics);
     if(!progress()){out={};return "open-context-lost";}
     if(!valid){out={};return "open-context-lost";}
     return "open-capture-scene-correlated";

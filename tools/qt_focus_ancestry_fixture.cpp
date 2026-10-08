@@ -69,15 +69,31 @@ public:
         return false;
     }
 };
+class UuidDocumentFixture : public DocumentFixture {
+    Q_OBJECT
+    Q_PROPERTY(QUuid id READ uuidId)
+public: QUuid uuidId() const {++idReads;return QUuid(QStringLiteral("00000000-0000-4000-8000-000000000001"));}
+};
+class OtherDocumentFixture : public DocumentFixture {
+    Q_OBJECT
+    Q_PROPERTY(int id READ otherId)
+public: int otherId() const {++idReads;return 1;}
+};
+class InvalidDocumentFixture : public DocumentFixture {
+    Q_OBJECT
+    Q_PROPERTY(QVariant id READ invalidId)
+public: QVariant invalidId() const {++idReads;return {};}
+};
 class IdentityReadFixture : public QQuickItem {
     Q_OBJECT
-    Q_PROPERTY(QString id READ id)
+    Q_PROPERTY(QVariant id READ id)
     Q_PROPERTY(int currentPage READ currentPage)
     Q_PROPERTY(QString pageId READ pageId)
     Q_PROPERTY(QString currentPageId READ currentPageId)
 public:
     mutable QStringList reads;
-    QString id() const {reads.append("document");return "document";}
+    QVariant idValue=QStringLiteral("document");
+    QVariant id() const {reads.append("document");return idValue;}
     int currentPage() const {reads.append("index");return 0;}
     QString pageId() const {reads.append("scene");return "page";}
     QString currentPageId() const {reads.append("alias");return "page";}
@@ -90,7 +106,9 @@ int main(int argc,char **argv){
     const bool receiver512=mode.startsWith("receiver-512-");
     const bool receiver1024=mode.startsWith("receiver-1024-");
     const bool receiver2048=mode.startsWith("receiver-2048-");
-    const bool receiverIdentity=mode.startsWith("receiver-identity-");
+    const bool receiverDocumentType=mode.startsWith("receiver-document-type-");
+    const bool receiverDocumentTypeSelected=receiverDocumentType && mode!="receiver-document-type-historical";
+    const bool receiverIdentity=mode.startsWith("receiver-identity-") || receiverDocumentType;
     const bool receiverUnfocused=mode.startsWith("receiver-unfocused-") || receiverIdentity;
     const bool receiverOldFalse=mode=="receiver-v7-unfocused-refusal";
     const bool receiverDepth32=mode.startsWith("receiver-depth32-");
@@ -98,7 +116,7 @@ int main(int argc,char **argv){
     const bool receiverDepth16=mode.startsWith("receiver-depth16-");
     const bool receiver4096=mode.startsWith("receiver-4096-");
     const bool receiverV5Items=mode=="receiver-v5-item-overflow";
-    const QString receiverScope=receiverIdentity ? "receiver-subtree-capture-unqualified-v9":receiverUnfocused ? "receiver-subtree-capture-unqualified-v8":(receiverDepth32 || receiverOldFalse) ? "receiver-subtree-capture-unqualified-v7":(receiver4096 || receiverV6Depth16) ? "receiver-subtree-capture-unqualified-v6":(receiverDepth16 || receiverV5Items) ? "receiver-subtree-capture-unqualified-v5":(receiver2048 || mode=="receiver-v4-depth8") ? "receiver-subtree-capture-unqualified-v4":receiver1024 ? "receiver-subtree-capture-unqualified-v3":receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
+    const QString receiverScope=receiverDocumentTypeSelected ? "receiver-subtree-capture-unqualified-v10":receiverIdentity ? "receiver-subtree-capture-unqualified-v9":receiverUnfocused ? "receiver-subtree-capture-unqualified-v8":(receiverDepth32 || receiverOldFalse) ? "receiver-subtree-capture-unqualified-v7":(receiver4096 || receiverV6Depth16) ? "receiver-subtree-capture-unqualified-v6":(receiverDepth16 || receiverV5Items) ? "receiver-subtree-capture-unqualified-v5":(receiver2048 || mode=="receiver-v4-depth8") ? "receiver-subtree-capture-unqualified-v4":receiver1024 ? "receiver-subtree-capture-unqualified-v3":receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
     if(mode=="identity-read-schedule"){
         IdentityReadFixture item;PageOwner owner{nullptr,&item,&item,&item};
         const QStringList expected{"document","index","scene","alias"};
@@ -108,7 +126,15 @@ int main(int argc,char **argv){
         if(receiverSubtreeCaptureIdentity(owner,"other",{"page"},progress,&reason) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-mismatch"))return 15;
         item.reads.clear();progressCalls=0;
         if(receiverSubtreeCaptureIdentity(owner,"other",{"page"},progress) || item.reads!=expected || progressCalls!=5)return 15;
-        std::puts("PASS identity-read-schedule four ordered reads/five progress guards detailed and default acceptance equal");return 0;
+        item.idValue=QUuid(QStringLiteral("00000000-0000-4000-8000-000000000001"));item.reads.clear();progressCalls=0;reason=nullptr;
+        if(receiverSubtreeCaptureIdentity(owner,"document",{"page"},progress,&reason,true) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-type-quuid"))return 15;
+        item.reads.clear();progressCalls=0;reason=nullptr;
+        if(receiverSubtreeCaptureIdentity(owner,"document",{"page"},progress,&reason) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-type"))return 15;
+        item.idValue=1;item.reads.clear();progressCalls=0;reason=nullptr;
+        if(receiverSubtreeCaptureIdentity(owner,"document",{"page"},progress,&reason,true) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-type-other"))return 15;
+        item.idValue=QVariant{};item.reads.clear();progressCalls=0;reason=nullptr;
+        if(receiverSubtreeCaptureIdentity(owner,"document",{"page"},progress,&reason,true) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-type-invalid"))return 15;
+        std::puts("PASS identity-read-schedule four ordered reads/five progress guards detailed/type/default acceptance equal");return 0;
     }
     qmlRegisterType<OriginalSceneView>("OwnedFacts",1,0,"SceneView");
     qmlRegisterType<SceneView>("OwnedFacts",1,0,"NegativeScene");
@@ -116,8 +142,8 @@ int main(int argc,char **argv){
     QTemporaryDir tmp;const QString nonce="0123456789abcdef0123456789abcdef",root=tmp.path()+"/rmb-qt-probe-"+nonce;
     QDir().mkdir(root);::chmod(root.toUtf8().constData(),0700);
     if(!put(root+"/owner",nonce.toLatin1()) || !put(root+"/attempt.identity",QByteArray::number(::getpid())+' '+FactsEntry::processStart()+'\n'))return 3;
-    DocumentFixture ordinaryDocument;IncompatibleDocument incompatibleDocument;
-    DocumentFixture &document=(mode.startsWith("metadata") ? static_cast<DocumentFixture &>(incompatibleDocument):ordinaryDocument);document.ids={"00000000-0000-4000-8000-000000000002"};
+    DocumentFixture ordinaryDocument;IncompatibleDocument incompatibleDocument;UuidDocumentFixture uuidDocument;OtherDocumentFixture otherDocument;InvalidDocumentFixture invalidDocument;
+    DocumentFixture &document=(receiverDocumentType ? (mode=="receiver-document-type-invalid" ? static_cast<DocumentFixture &>(invalidDocument):mode=="receiver-document-type-other" ? static_cast<DocumentFixture &>(otherDocument):static_cast<DocumentFixture &>(uuidDocument)):mode.startsWith("metadata") ? static_cast<DocumentFixture &>(incompatibleDocument):ordinaryDocument);document.ids={"00000000-0000-4000-8000-000000000002"};
     QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",&document);
     QByteArray qml=R"QML(import QtQuick
 import QtQuick.Window
@@ -170,7 +196,7 @@ Window { visible:true; width:400; height:400
     FactsEntryConfig config;config.nonce=nonce;config.directory=root;
     config.facts={document.id(),document.ids,6,5000};config.setupBudgetMs=120000;
     config.developmentSetup120=config.developmentCaptureObservation=config.developmentFocusAncestry=true;
-    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;config.developmentReceiverSubtreeItemCap=(receiver4096 || receiverDepth32 || receiverV6Depth16 || receiverUnfocused || receiverOldFalse) ? 4096:(receiver2048 || receiverDepth16 || receiverV5Items || mode=="receiver-v4-depth8") ? 2048:receiver1024 ? 1024:0;config.developmentReceiverSubtreeCaptureAllowUnfocusedArea=receiverUnfocused;config.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics=receiverIdentity;config.developmentReceiverSubtreeDepthCap=(receiverDepth32 || receiverUnfocused || receiverOldFalse) ? 32:(receiverDepth16 || receiver4096 || receiverV5Items || receiverV6Depth16) ? 16:0;}
+    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;config.developmentReceiverSubtreeItemCap=(receiver4096 || receiverDepth32 || receiverV6Depth16 || receiverUnfocused || receiverOldFalse) ? 4096:(receiver2048 || receiverDepth16 || receiverV5Items || mode=="receiver-v4-depth8") ? 2048:receiver1024 ? 1024:0;config.developmentReceiverSubtreeCaptureAllowUnfocusedArea=receiverUnfocused;config.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics=receiverIdentity;config.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics=receiverDocumentTypeSelected;config.developmentReceiverSubtreeDepthCap=(receiverDepth32 || receiverUnfocused || receiverOldFalse) ? 32:(receiverDepth16 || receiver4096 || receiverV5Items || receiverV6Depth16) ? 16:0;}
     config.setupSelection="main-dev-facts-120s";
     qint64 time=0;int callbacks=0,grabs=0,mappings=0,finalChecks=0;
     std::function<void()> clockHook;FactsEntryResult result;
@@ -230,11 +256,12 @@ Window { visible:true; width:400; height:400
     drain();
     if(receiverMode){
         if(FocusAncestryFixtureAccess::hasTicket(entry) || FocusAncestryFixtureAccess::hasSession(entry) || mappings || scene->hasActiveFocus())return 11;
-        if(receiverOldFalse || mode=="receiver-identity-wrong-tuple" || mode=="receiver-unfocused-wrong-tuple" || mode=="receiver-unfocused-two" || mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-2048-overflow" || mode=="receiver-4096-overflow" || receiverV5Items || mode=="receiver-depth16-overflow" || mode=="receiver-depth32-overflow" || receiverV6Depth16 || mode=="receiver-v4-depth8" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
+        if(receiverDocumentType || receiverOldFalse || mode=="receiver-identity-wrong-tuple" || mode=="receiver-unfocused-wrong-tuple" || mode=="receiver-unfocused-two" || mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-2048-overflow" || mode=="receiver-4096-overflow" || receiverV5Items || mode=="receiver-depth16-overflow" || mode=="receiver-depth32-overflow" || receiverV6Depth16 || mode=="receiver-v4-depth8" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
             QFile file(root+"/capture-owner-refusal.json");if(!file.open(QIODevice::ReadOnly))return 12;
             const auto value=QJsonDocument::fromJson(file.readAll()).object();
             if(value.size()!=34 || value["version"]!=5 || value["discovery_scope"]!=receiverScope || grabs || callbacks!=1 || result.observed || QFile::exists(root+"/capture-window.png"))return 12;
             if((mode=="receiver-two" || mode=="receiver-unfocused-two") && (value["matched_pairs"]!=2 || value["discovery_result"]!="open-owner-ambiguous"))return 12;
+            if(receiverDocumentType && (value["matched_pairs"]!=0 || value["discovery_result"]!="open-owner-unavailable" || value["first_pair_rejection"]!=(receiverDocumentTypeSelected ? (mode=="receiver-document-type-quuid" ? "identity-document-type-quuid":mode=="receiver-document-type-invalid" ? "identity-document-type-invalid":"identity-document-type-other"):"identity-document-type") || ownerReads<1))return 12;
             if((receiverOldFalse || mode=="receiver-unfocused-wrong-tuple" || mode=="receiver-identity-wrong-tuple") && (value["matched_pairs"]!=0 || value["discovery_result"]!="open-owner-unavailable" || value["first_pair_rejection"]!=(receiverOldFalse ? "drawing-area-focused":receiverIdentity ? "identity-page-order-mismatch":"capture-identity") || ownerReads<1))return 12;
             if(mode=="receiver-cap" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items"))return 12;
             if((mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-2048-overflow" || mode=="receiver-4096-overflow" || receiverV5Items) && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items" || ownerReads || !value["matched_pairs"].isNull() || value["topology_queue_size"]!=(receiver4096 ? 4096:(receiver2048 || receiverV5Items) ? 2048:receiver1024 ? 1024:512) || value["topology_child_count"]!=1))return 12;
