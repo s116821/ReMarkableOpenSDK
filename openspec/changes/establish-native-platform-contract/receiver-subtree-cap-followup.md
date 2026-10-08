@@ -177,3 +177,11 @@ or same-attempt relaxation; depth12 proves neither16 nor4096 sufficient.
 Tiny4096complete/4097overflow-before-getters/historicalv5item2048 overflow, exact
 productioncompile and boundedreview precede fresh Main-selected packet. No broad
 matrix/new nonce/device action selected here; full lifecycle remains open.
+4096 checkpoint: SDK34f6f55301641c6c2d7c33020fdd4e1fe0e6de92 and
+Buddydbdddc1db00005b03e567a3f0910ba4501744142. Exact15 checks passed:
+4096complete/4097overflow-before-drawinggetter/nullmatches/historicalv5item2048,
+8funnel/4privacy. Exactselectedproductioncompile passed -Werror/-zdefs/no fixture.
+Artifact SHA25694860ed3e0953f78472b6b67f3ff5f17aa117368bdf005c19380db488ca6ca9d.
+Exactconsumer166 passed. Private receipt sol-receiver-subtree-cap4096-r1/review-receipt.json
+SHA256 bfb34f2eab2e3ba3da95bad911bdbcfd1156b10a8f262457ea1d2c3edf6597a5.
+Source reviews no findings; final receipt/fresh packet/native/full lifecycle open.
