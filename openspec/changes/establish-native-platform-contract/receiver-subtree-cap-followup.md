@@ -72,3 +72,25 @@ Initial fixture frontier assertion failure is retained separately; existing nest
 subscene causes queue512+child1 overflow. Only test expectation changed afterward.
 Bounded source reviews report no findings; final receipt review closeout pending.
 No fresh nonce, packet or native run is selected. Broad qualification remains open.
+## Selected 1024-item continuation
+
+Main reports spent b30e512 refused before candidate value getters at visited288,
+queue511 plus6children, depth4, receiver1 and2metadata scenes, with null matched
+pairs/observers/predicate. NoPNG/facts; original operator restored/cleaned. Main
+subsequently reports exact helper cleanup and final baseline18885/start236725556.
+Source basis: Main current coordination messages and its published finding:
+https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6057546546.
+These statements are not independently verified native transcripts here.
+
+Main selects one separate fixed1024 profile, scope receiver-subtree-capture-unqualified-v3.
+The517 frontier does not prove the entire subtree fits1024. Preserve v1→256 and
+v2→512 historical semantics. An appended item-cap option accepts only0 or1024:
+0 retains existing bool selections;1024 requires receiver capture and refuses
+simultaneous512 flag. No adaptive expansion, retry, new general framework or
+same-attempt relaxation. Preserve depth8/scenes8/fullscan-before-values/fulltuple/
+uniqueness/sticky5s/independentrestore/no-facts/no-ticket and ordinary owner guards.
+Wire layouts remain completionv2/exact37 and refusalv5/exact34, scoped explicitly.
+
+Focused actual1024complete/1025appendrefusal-before-getters, historical scoped
+consumer bounds and exact selected productioncompile precede bounded review.
+No fresh nonce/packet/native action is selected. Broad qualification stays open.

@@ -75,7 +75,8 @@ int main(int argc,char **argv){
     const QByteArray mode=argv[1];
     const bool receiverMode=mode.startsWith("receiver-");
     const bool receiver512=mode.startsWith("receiver-512-");
-    const QString receiverScope=receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
+    const bool receiver1024=mode.startsWith("receiver-1024-");
+    const QString receiverScope=receiver1024 ? "receiver-subtree-capture-unqualified-v3":receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
     qmlRegisterType<OriginalSceneView>("OwnedFacts",1,0,"SceneView");
     qmlRegisterType<SceneView>("OwnedFacts",1,0,"NegativeScene");
     qmlRegisterType<OwnedReceiver>("OwnedFacts",1,0,"OwnedReceiver");
@@ -135,7 +136,7 @@ Window { visible:true; width:400; height:400
     FactsEntryConfig config;config.nonce=nonce;config.directory=root;
     config.facts={document.id(),document.ids,6,5000};config.setupBudgetMs=120000;
     config.developmentSetup120=config.developmentCaptureObservation=config.developmentFocusAncestry=true;
-    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;}
+    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;config.developmentReceiverSubtreeItemCap=receiver1024 ? 1024:0;}
     config.setupSelection="main-dev-facts-120s";
     qint64 time=0;int callbacks=0,grabs=0,mappings=0,finalChecks=0;
     std::function<void()> clockHook;FactsEntryResult result;
@@ -145,10 +146,11 @@ Window { visible:true; width:400; height:400
         std::puts("PASS focus-owned funnel-serializer numeric/null/unselected native_authority=false");return 0;
     }
     auto *subscene=new QQuickItem(scene);
-    if(receiver512){
+    if(receiver512 || receiver1024){
         QList<QQuickItem *> items{receiver};
         for(qsizetype i=0;i<items.size();++i)items.append(items[i]->childItems());
-        const int target=mode=="receiver-512-overflow" ? 513:512;
+        const int cap=receiver1024 ? 1024:512;
+        const int target=mode.endsWith("-overflow") ? cap+1:cap;
         if(items.size()>target)return 4;
         for(qsizetype i=items.size();i<target;++i)new QQuickItem(receiver);
         items={receiver};for(qsizetype i=0;i<items.size();++i)items.append(items[i]->childItems());
@@ -184,13 +186,13 @@ Window { visible:true; width:400; height:400
     drain();
     if(receiverMode){
         if(FocusAncestryFixtureAccess::hasTicket(entry) || FocusAncestryFixtureAccess::hasSession(entry) || mappings || scene->hasActiveFocus())return 11;
-        if(mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
+        if(mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
             QFile file(root+"/capture-owner-refusal.json");if(!file.open(QIODevice::ReadOnly))return 12;
             const auto value=QJsonDocument::fromJson(file.readAll()).object();
             if(value.size()!=34 || value["version"]!=5 || value["discovery_scope"]!=receiverScope || grabs || callbacks!=1 || result.observed || QFile::exists(root+"/capture-window.png"))return 12;
             if(mode=="receiver-two" && (value["matched_pairs"]!=2 || value["discovery_result"]!="open-owner-ambiguous"))return 12;
             if(mode=="receiver-cap" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items"))return 12;
-            if(mode=="receiver-512-overflow" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items" || ownerReads || !value["matched_pairs"].isNull() || value["topology_queue_size"]!=512 || value["topology_child_count"]!=1))return 12;
+            if((mode=="receiver-512-overflow" || mode=="receiver-1024-overflow") && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items" || ownerReads || !value["matched_pairs"].isNull() || value["topology_queue_size"]!=(receiver1024 ? 1024:512) || value["topology_child_count"]!=1))return 12;
             if(mode=="receiver-depth" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-depth" || value["topology_depth"]!=8))return 12;
             if(mode=="receiver-getter-loss" && (!getterChanged || value["predicate"]!="invalidated"))return 12;
         }else{
