@@ -22,12 +22,21 @@ Proposed internal declarations (method bodies remain subject to source review):
 class FactsEntry;
 class PageFactsSession;
 
+class RetainedOwnerFactoryKey final {
+    friend class FactsEntry;
+    RetainedOwnerFactoryKey() = default;
+    RetainedOwnerFactoryKey(const RetainedOwnerFactoryKey &) = delete;
+    RetainedOwnerFactoryKey &operator=(const RetainedOwnerFactoryKey &) = delete;
+public:
+    ~RetainedOwnerFactoryKey() = default;
+};
+
 class RetainedOwnerRecord final {
     friend class FactsEntry;
     friend class RetainedOwnerTicket;
     enum class Boundary { EntryProgress, SessionOwner, DeliveryProgress, InvalidateOnly };
     using Bridge = bool (*)(RetainedOwnerRecord &, Boundary);
-    RetainedOwnerRecord(QPointer<QObject> entry, quint64 generation,
+    RetainedOwnerRecord(const RetainedOwnerFactoryKey &, QPointer<QObject> entry, quint64 generation,
                         PageOwner owner, QPointer<QQuickItem> root,
                         QPointer<QQuickItem> anchor, quint64 captureEpoch,
                         Bridge bridge);
@@ -41,6 +50,7 @@ class RetainedOwnerRecord final {
     const Bridge bridge_;
     bool revoked_ = false;
     bool validating_ = false;
+    bool issued_ = false, transferred_ = false;
 public:
     ~RetainedOwnerRecord() = default;
 };
@@ -48,7 +58,7 @@ public:
 class RetainedOwnerTicket final {
     friend class FactsEntry;
     friend class PageFactsSession;
-    RetainedOwnerTicket(std::weak_ptr<RetainedOwnerRecord> record,
+    RetainedOwnerTicket(const RetainedOwnerFactoryKey &, std::weak_ptr<RetainedOwnerRecord> record,
                         quint64 generation, PageOwner owner);
     RetainedOwnerTicket(const RetainedOwnerTicket &) = delete;
     RetainedOwnerTicket &operator=(const RetainedOwnerTicket &) = delete;
@@ -66,7 +76,9 @@ public:
 };
 ```
 
-FactsEntry is the only factory friend. Private constructors accept a fixed static
+FactsEntry alone can create the noncopyable private factory key; session friendship
+permits validation but cannot manufacture the key required by both constructors.
+Never retain or expose the key. Private constructors accept a fixed static
 bridge only from that factory; there is no public injected PageOwner, Bridge,
 validation lambda, factory token, setter or subclass. No bridge captures raw this.
 Public destructors allow standard unique/shared destruction but grant no authority.
@@ -79,6 +91,8 @@ FactsEntry members and private methods:
 
 ```cpp
 std::shared_ptr<RetainedOwnerRecord> retainedRecord_;
+std::unique_ptr<RetainedOwnerTicket> pendingRetainedTicket_;
+bool prepareRetainedOwnerTicket();
 std::unique_ptr<PageFactsSession> makeRetainedReader();
 static bool validateRetainedRecord(RetainedOwnerRecord &record,
                                   RetainedOwnerRecord::Boundary boundary);
@@ -101,6 +115,14 @@ lambda and never calls findPageOwner. A null retained ticket refuses; it cannot
 fall back to the public constructor. The ticket is created once after selected
 complete-chain unique-owner capture and only transferred after the unchanged facts
 request/positive visual binding gate. Its owner must equal the capture owner.
+
+prepareRetainedOwnerTicket runs once after complete-chain unique-owner capture.
+It refuses existing record/ticket or issued state, creates the sealed record and
+ticket, and latches issued immediately. makeRetainedReader requires the same
+issued/nontransferred/nonrevoked record and pending ticket; latch transferred
+BEFORE moving that unique ticket into the private session constructor. A failed
+construction cannot clear the latch or reissue. A second factory call refuses
+without another session/discovery. Revocation never makes issuance available again.
 
 ## Fixed bridge and reentrant scopes
 
@@ -138,7 +160,9 @@ Boundary methods are private fixed operations, not a configurable policy:
   evaluation, guarded anchor/root checks and post-getter sticky/context checks.
 - SessionOwner replaces the one activeOwner evaluation currently between current
   checks in allowed(): validate original owner plus retained record/anchor/root,
-  evaluate activeOwner exactly once, then original post-getter progress/context.
+  evaluate activeOwner exactly once, then only local metadata/sticky guard checks.
+  Never call current, EntryProgress, DeliveryProgress, captureAllowedChecked or
+  another activeOwner here. The outer original post-current runs exactly once.
 - DeliveryProgress replaces the existing queued session progress call and preserves
   its deadline/cancellation/epoch boundary. It grants no new operation after success.
 
@@ -146,6 +170,15 @@ The exact getter schedule must be reviewed with implementation. In selected mode
 do not call sessionOwner as an extra check in addition to the existing activeOwner
 site, or call entryProgress redundantly to manufacture provenance. Original
 unselected current/allowed/delivery getter evaluation counts remain unchanged.
+Exact successful owner-getter schedule, preserving short circuit skips:
+
+| Site | Original capture mode | Selected retained mode |
+| --- | --- | --- |
+| current | progress captureAllowed activeOwner1 | EntryProgress activeOwner1 |
+| allowed | current1 + session activeOwner1 + current1 =3 | EntryProgress1 + SessionOwner1 + EntryProgress1 =3 |
+| queued session progress | captureAllowed activeOwner1 | DeliveryProgress activeOwner1 |
+
+No fourth activeOwner inside SessionOwner or recursive full boundary for provenance.
 New root/anchor checks are selected guard observations and are explicitly counted
 in fixture expectations. Owner/document predicates are never memoized past their
 original validation boundaries. Null weak pointers are checked after every call
@@ -163,9 +196,16 @@ first latched result. No helper read begins before all observers are installed.
 
 Selected current/allowed/queued delivery use the fixed ticket boundaries above.
 Ticket failure latches facts-retained-owner-refused in PageFactsResult with no
-facts unless an earlier terminal result already exists. Existing helper/metadata/
-final stages remain when ticket validation passed; a terminal result cannot be
-rewritten by a later ticket failure. The new reader stage reaches the unchanged
+facts unless an earlier terminal REFUSAL already exists. Observed success remains
+provisional: an evaluated ticket loss at queued delivery must clear facts and use
+facts-retained-owner-refused, yielding outer read-refused/had-facts=false/reader-result.
+Preserve original delivery short circuit order: session invalidity, retained
+metadata and elapsed deadline precede the progress/ticket site. Their earlier
+failure retains facts-delivery-boundary-refused without evaluating the ticket.
+An evaluated ticket failure wins before later epoch/deadline checks; passing ticket
+followed by those failures retains the original delivery stage. Never reevaluate
+skipped sites or replace an earlier refusal. Existing helper/metadata/final stages
+remain when ticket validation passed. The new reader stage reaches the unchanged
 27-field refusal only under explicit selected gating in both sanitization and
 serialization, with had-facts=false/reader-result/outer read-refused. It can never
 be paired with outer delivery-refused. Callback fields remain unchanged.
@@ -178,6 +218,13 @@ completion-triggered release during nested stacks; external caller still obeys
 the existing requirement to retain entry through completion. The entry destructor
 cannot be made safe for an arbitrary externally forced synchronous delete inside
 a getter; that remains unsupported caller behavior, not a promised lifetime lease.
+
+Queued session completion uses CallScope only around delivery validation and result
+adjustment, ending BEFORE moving result/callback and invoking external completion.
+It must not span that callback, which may release the session; no RAII destructor
+may touch a freed session afterward. queued_ is already latched, so unwind cannot
+enqueue duplicate completion. Entry bridge Scope likewise ends before external
+completion. No object member access follows a callback that can destroy its object.
 
 Guard revocation occurs immediately on terminal refusal, cancel, close and
 destruction. Entry provisional observed success preserves record and focus-event
