@@ -159,16 +159,26 @@ checks validate the same ticket. Clear only the reentrancy-in-progress flag on
 unwind, never revocation/invalidation. Entry teardown cannot free a live session
 inside its CallScope; queued completion waits for both existing depth guards.
 
-Finite stages: an unavailable/revoked/mismatched/reentrant ticket before helper
-entry or during a retained session yields facts-retained-owner-refused, preserving
-any terminal result already latched. Failed required facts observer metadata keeps
+Finite reader stages: an unavailable/revoked/mismatched/reentrant ticket before
+helper entry or during a retained session yields facts-retained-owner-refused in
+PageFactsResult, with no facts, preserving any terminal result already latched.
+This is NOT a new outer callback stage. Admit it only for the selected ancestry
+mode in factsRefusalReaderStage and the corresponding refusal serializer path:
+the existing27-field refusal.json version1 records reader_stage with that label,
+reader_result_had_facts=false and refusal_path=reader-result. FactsEntry keeps
+facts-entry-read-refused as the outer entry/callback stage for that reader result.
+Mode gating must survive both reader-stage sanitization and serialization without
+adding a wire field; old-mode allowlists do not gain an alternate owner path.
+Failed required facts observer metadata keeps
 facts-metadata-or-context-refused. Existing helper conversion/mapping failures keep
 their current stages when ticket validation passed. Entry final-delivery or output
 binding loss keeps facts-entry-delivery-refused or facts-entry-output-unknown.
 Ticket refusal emits no replacement owner diagnostic and never promotes an earlier
 capture; callback shape remains four fields. Missing entry at asynchronous return
 means no dereference or publication through it; existing independent restoration
-still controls cleanup. Consumer must explicitly admit the new refusal stage.
+still controls cleanup. Consumer must explicitly admit the selected new inner
+reader_stage while preserving the existing outer callback/entry stage allowlists,
+27-field refusal shape/version and all original completion-boundary semantics.
 
 ## Evidence and schema compatibility before implementation
 
@@ -204,6 +214,25 @@ The selected version3 matrix is normative:
 | original classification or matching failure | retained count1..25 / true / null | Existing owner-discovery matrix with reached classification counters, original return enum and original failed progress or final activeOwner detail only |
 | capture observer installation failure | retained count1..25 / true / null | observer-install/open-owner-observed and existing fixed observer tuple; classification counters and pair detail null |
 | final owner revalidation failure | retained count1..25 / true / null | owner-revalidation/open-owner-observed and original allowed predicate/active-owner detail; classification counters and pair detail null |
+
+Construction label counts are fixed: anchor-unavailable requires0; item-context
+allows0..25; root-unreached and cycle require1..25; depth-bound requires25;
+observer-unavailable allows0..25 (including the pre-chain window connection).
+Before chain initialization, a reached local engine/thread mismatch proposes
+item-context0, and missing window/root/leaf proposes anchor-unavailable0. These
+labels never override an earlier initial-progress failure or the prescribed
+post-operation progress failure; consequently some combinations may be unreachable
+under a particular context implementation and must not be forced for coverage.
+
+After complete=true, classification/matching may return only open-item-lost,
+open-context-lost, open-candidate-bound, open-owner-unavailable or
+open-owner-ambiguous on failure, and open-owner-observed on success. The BFS-only
+open-engine-thread, open-current-window-unavailable and open-topology-bound labels
+are not valid completed-chain results. Any item loss observed by the sticky guard
+takes the original invalidated progress path before a local item label can win.
+Visited classification count is0..chain_items; role counts cannot exceed reached
+classified items (with existing ninth-candidate refusal), and matched_pairs is
+null until pairing, then0..2. These are scoped ancestry counters, not BFS counts.
 
 Initialize chain_items=0 on entering discovery. Append/count an item only after
 nonnull/thread/window/cycle checks; an observer failure after append retains that
