@@ -1,5 +1,7 @@
 # Shutdown crash: targeted upstream evidence, October 8, 2026
 
+**Current direction, later October 8:** the human authorized continued independent SDK debugging and necessary targeted development experiments; an upstream answer or prior resolution of the defect is not a prerequisite. The historical blanket native-hold/external-dependency conclusions below are superseded by the [fresh lifecycle-only discriminator](../../openspec/changes/establish-native-platform-contract/shutdown-lifecycle-diagnostic.md). Main remains sole RM2 operator and must select/review each fresh packet and independent recovery. Spent packets remain spent, runtime remains unqualified, and failed 0404 restoration remains failed. The external query is unsent and will not be sent. No defect resolution is claimed.
+
 Status: source-only investigation. SDK payload `71d9dbfa33ba828540fa0a9f22ec4db8aca862d6` and spent experiment `0404` remain held. No runtime change, new packet, device action or retry is authorized by this finding. The native SIGSEGV cause remains unknown.
 
 ## Concrete lead: restart during display activity

@@ -199,3 +199,7 @@ original relative order/content and one new ID after stock restart/reopen.
 This research exception does not qualify source continuity, worker serialization,
 consumer binding or the production creation capability. See
 [trial implementation](../../../docs/experiments/qt_qml_access_probe.md#explicit-disposable-fixture-one-call-mode-october-2-unqualified-trial).
+
+## October 8 shutdown discriminator
+
+The [lifecycle-only diagnostic design](shutdown-lifecycle-diagnostic.md) defines the separate startup payload, fixed trace wire, counter/append failure behavior, hypotheses and consumer recovery boundary. The recorder remains process-resident so no callback races its own destruction; this experimental choice is not a production ownership solution. Per-frame Qt markers are diagnostic chronology, never native display-drain evidence. The consumer must keep its temporary failure guard through attempted-process termination, including the first stock stop, and record stop failure separately from later recovered stock. Main reviews the combined fresh packet; source-only fixtures do not select a tablet run.

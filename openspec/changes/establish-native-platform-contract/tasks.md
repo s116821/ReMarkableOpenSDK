@@ -58,6 +58,8 @@
 
 ## 6. Fixed development same-call normalization discriminator
 
+Current October 8 direction: continued independent SDK debugging and targeted Main-operated development diagnostics are authorized. See [fresh lifecycle discriminator](shutdown-lifecycle-diagnostic.md). Historical hold statements below preserve spent-packet and unqualified-runtime evidence; they no longer require defect resolution or an external answer before every new diagnostic. Samplers, blind replay and unreviewed device actions remain excluded.
+
 October 8 source-only lifecycle checkpoint: [0404 prior-art assessment](../../../docs/research/shutdown-0404-prior-art.md) records a reported upstream 3.28 restart/display use-after-free and the limits of its mitigation. It identifies a diagnostic lead, not the local cause or a completed recovery gate. The spent packet and SDK payload remain held; no task below is completed by that research.
 
 The [preserved-core follow-up](../../../docs/research/shutdown-0404-prior-art.md#actual-preserved-core-october-8-follow-up) now establishes SIGSEGV/MAPERR in a native rendering path using exact binaries and a reproducible private offline check. Use-after-free and safe recovery remain unproven; sampler implementation and native retry remain held. Main reports independent ELF-note/hash and five-frame partial-unwind verification passed. The row/pixel disassembly interpretation was not independently repeated; use-after-free remains unproven. No qualification task is closed.
@@ -80,3 +82,11 @@ expansion or check off target qualification based on the host-only collector.
 - [ ] 6.11 After separate source selection, adapt fixed collection to persist then always kill; independently review wrapper, original utilities, guard and exact sources without reviving custom detach/ledger machinery.
 - [ ] 6.12 Main alone qualifies frozen actual-kernel launched multi-thread/clone/reset/server-death/client-EOF protection and termination; unsupported or unestablished protection refuses, with any minimal launched-only patch requiring a later proposal.
 - [ ] 6.13 Only after gates select one fresh candidate/input, preserve helper release/quiescence and stock restoration, and distinguish diagnostic two-snapshot evidence from navigation completion; keep integrated workflow gates open.
+
+## 7. Fresh shutdown lifecycle discriminator
+
+- [x] 7.1 Define H1/H2, separate lifecycle-only payload and bounded scalar wire in shutdown-lifecycle-diagnostic.md; preserve actual 0404 failure and superseded blanket-hold history.
+- [x] 7.2 Implement observer without FactsEntry, page reads, input, event filter or forced rendering; verify exact ARM compile and focused owned signal/recording failure cases.
+- [ ] 7.3 Independently review exact SDK observer and Buddy temporary guard/singleton actor, including first-stock-stop protection, original absolute recovery budget, crash/timeout outcome and host loss.
+- [ ] 7.4 Main selects and announces one fresh frozen packet only after current fixtures/providers/policies and independent actor are verified; collect partial/crash evidence without replay or native success inference.
+- [ ] 7.5 Use actual result to reject FactsEntry necessity on matching no-FactsEntry crash, or retain timing-sensitive uncertainty on clean stop; choose only a justified next discriminator or repair. Full native qualification/sync/archive remain open.

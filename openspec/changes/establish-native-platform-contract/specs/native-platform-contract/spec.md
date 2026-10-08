@@ -419,3 +419,14 @@ verified inferior/tracer exit SHALL precede stock restoration.
 #### Scenario: Implicit debugger instruction writes occur
 - **WHEN** ARM stepping or loader handling adds internal breakpoints
 - **THEN** source review, advance notice and owned qualification cover those effects, but no restoration ledger or private D release protocol is inferred necessary for a process that is always killed; fixed acquisition and evidence limits remain unchanged.
+
+### Requirement: Development shutdown chronology grants no native authority
+The SDK SHALL keep a lifecycle-only shutdown diagnostic independent of page observation and production capabilities. Its bounded scalar trace SHALL distinguish sampled Qt events and incomplete telemetry from native display completion. A consumer SHALL preserve a failed diagnostic stop separately from any later verified stock recovery.
+
+#### Scenario: A rendering marker is observed
+- **WHEN** the selected lifecycle-only payload records a valid render event
+- **THEN** it may serve only the reviewed experiment's stop-trigger admission; it does not prove native worker drain, safe backing-buffer release, source facts or successful shutdown.
+
+#### Scenario: A trace is incomplete or stop crashes
+- **WHEN** recording drops/fails, expected markers are absent, or the attempted process terminates by signal
+- **THEN** preserve partial evidence and failed/unknown diagnostic status; a separately verified stock process cannot retroactively convert the attempted stop into success.
