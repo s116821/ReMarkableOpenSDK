@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include "qt_input_observation.h"
 #include "qt_focus_owner.h"
+#include "qt_receiver_subtree_capture.h"
 #include <atomic>
 #include <limits>
 #include <QCryptographicHash>
@@ -23,6 +24,7 @@ struct FactsEntryConfig {
     bool developmentInputObservation=false;
     bool developmentCaptureObservation=false;
     bool developmentFocusAncestry=false;
+    bool developmentReceiverSubtreeCapture=false;
     QString setupSelection;
     bool setupValid() const {
         return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
@@ -83,6 +85,10 @@ public:
             config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
             finish("capture-observation-config-refused");return;
         }
+        if(config_.developmentReceiverSubtreeCapture && (config_.developmentFocusAncestry || !config_.developmentCaptureObservation ||
+            !config_.developmentSetup120 || config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
+            finish("capture-observation-config-refused");return;
+        }
         root_=::open(config_.directory.toUtf8().constData(),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
         if (root_<0 || ::fstat(root_,&rootStat_)!=0 || !directoryMode(rootStat_) || !rootCurrent()) {
             finish("facts-entry-directory-refused"); return;
@@ -138,7 +144,7 @@ public slots:
 
 protected:
     bool eventFilter(QObject *object,QEvent *event) override {
-        if(config_.developmentFocusAncestry && focusArmed_){
+        if((config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture) && focusArmed_){
             switch(event->type()){
             case QEvent::FocusIn: case QEvent::FocusOut: case QEvent::WindowActivate: case QEvent::WindowDeactivate:
                 invalidateCapture();break;
@@ -164,6 +170,7 @@ protected:
 private:
     void revokeRetainedOwner() { if(retainedRecord_)retainedRecord_->revoked_=true; }
     bool prepareRetainedOwnerTicket() {
+        if(config_.developmentReceiverSubtreeCapture)return false;
         if(retainedRecord_ || pendingRetainedTicket_ || !focusGuard_.root || !focusGuard_.anchor)return false;
         static std::atomic<quint64> next{1};
         quint64 generation=next.load();
@@ -214,7 +221,7 @@ private:
         ~Scope(){if (--entry->depth_==0) entry->queueCompletion();}
     };
     bool captureFocusEndpointsCurrent() {
-        if(!config_.developmentFocusAncestry)return true;
+        if(!config_.developmentFocusAncestry && !config_.developmentReceiverSubtreeCapture)return true;
         if(!focusGuard_.endpoints()){invalidateCapture();return false;}
         return true;
     }
@@ -226,7 +233,9 @@ private:
         const bool valid=(!captureInvalid_ || refuse("invalidated-before")) &&
             (context() || refuse("context-before")) && (captureLife() || refuse("lifetime-before")) &&
             (captureFocusEndpointsCurrent() || refuse("invalidated-before")) &&
-            (activeOwner(captureOwner_,engine_,diagnostic ? &diagnostic->activeReason:nullptr) || refuse("active-owner"));
+            ((config_.developmentReceiverSubtreeCapture ? receiverSubtreeCapturePredicate(captureOwner_,engine_,[this]{
+                return !captureInvalid_ && context() && captureLife() && captureFocusEndpointsCurrent() && now()<qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000);
+            },diagnostic ? &diagnostic->activeReason:nullptr):activeOwner(captureOwner_,engine_,diagnostic ? &diagnostic->activeReason:nullptr)) || refuse("active-owner"));
         captureChecking_=false;
         if (!(valid && (!captureInvalid_ || refuse("invalidated-after")) &&
             (context() || refuse("context-after")) && (captureLife() || refuse("lifetime-after")) &&
@@ -359,6 +368,7 @@ private:
             if (config_.developmentCaptureObservation && !acceptCaptureRequest()) return;
             if (!context() || !live() || now()>=config_.setupBudgetMs) { finish("facts-entry-request-context-refused"); return; }
             if (!exists("facts-request")) return;
+            if(config_.developmentReceiverSubtreeCapture){finish("capture-observation-purpose-refused");return;}
             if (config_.developmentCaptureObservation && !captureBindingsCurrent()) { finish("capture-observation-facts-binding-refused");return; }
             consumed_=true; // every existing token consumes the one admission
             if (readFile("facts-request",128)!=identity("read-facts")+' '+QByteArray::number(config_.setupBudgetMs)+' '+
@@ -487,13 +497,13 @@ private:
             finish("capture-observation-request-refused");return false;
         }
         captureAcceptedAt_=now();captureReading_=true;
-        if(config_.developmentFocusAncestry)focusArmed_=true;
+        if(config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture)focusArmed_=true;
         timer_.start(int(qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)-now()));
         QMetaObject::invokeMethod(this,[this]{captureOwnerWindow();},Qt::QueuedConnection);return false;
     }
     void captureOwnerWindow() {
         const Scope scope(this);
-        if(config_.developmentFocusAncestry){
+        if(config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture){
             if(done_)return;
             if(focusDiscoveryStarted_)invalidateCapture();
             focusDiscoveryStarted_=true;
@@ -511,18 +521,29 @@ private:
         };
         if(!progress())diagnostic.branch="initial-progress";
         else {
-            if(config_.developmentFocusAncestry){
+            if(config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture){
                 const QPointer<FactsEntry> weak=this;
                 focusGuard_.context=this;
                 focusGuard_.invalidate=[weak]{if(weak)weak->invalidateCapture();};
-                diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,&diagnostic.sceneFunnel);
+                if(config_.developmentReceiverSubtreeCapture){
+                    diagnostic.discovery=findReceiverSubtreeCaptureOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,
+                        config_.facts.documentId,config_.facts.expectedOrder,[this,&diagnostic](const PageOwner &candidate){
+                            const int index=candidate.document->metaObject()->indexOfProperty("id");
+                            if(index<0)return false;
+                            const auto property=candidate.document->metaObject()->property(index);
+                            if(!property.isConstant() && (!property.hasNotifySignal() || !receiverSubtreeWatchNotify(focusGuard_,candidate.document,property.notifySignal())))return false;
+                            const PageOwner previous=captureOwner_;captureOwner_=candidate;
+                            const bool observed=captureObservers(&diagnostic);captureOwner_=previous;
+                            return observed;
+                        });
+                }else diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,&diagnostic.sceneFunnel);
                 const auto &funnel=diagnostic.sceneFunnel;
-                qInfo("rem25-focus-scene-funnel-v1 complete=%d items=%lld visited=%lld engine=%lld class=%lld page_id=%lld page_id_changed=%lld document_wrapper_changed=%lld pass=%lld",
+                if(config_.developmentFocusAncestry)qInfo("rem25-focus-scene-funnel-v1 complete=%d items=%lld visited=%lld engine=%lld class=%lld page_id=%lld page_id_changed=%lld document_wrapper_changed=%lld pass=%lld",
                     int(diagnostic.chain.complete),static_cast<long long>(diagnostic.chain.items),static_cast<long long>(diagnostic.owner.visited),
                     static_cast<long long>(funnel.engine),static_cast<long long>(funnel.sceneClass),static_cast<long long>(funnel.pageId),
                     static_cast<long long>(funnel.pageIdChanged),static_cast<long long>(funnel.documentWrapperChanged),static_cast<long long>(funnel.pass));
             } else diagnostic.discovery=findPageOwner(engine_,progress,captureOwner_,&diagnostic.owner);
-            if(QByteArrayView(diagnostic.discovery)!=QByteArrayView("open-owner-observed"))diagnostic.branch="owner-discovery";
+            if(QByteArrayView(diagnostic.discovery)!=QByteArrayView(config_.developmentReceiverSubtreeCapture ? "open-capture-scene-correlated":"open-owner-observed"))diagnostic.branch="owner-discovery";
             else if(!captureObservers(&diagnostic))diagnostic.branch="observer-install";
             else if(!captureAllowedChecked(&diagnostic))diagnostic.branch="owner-revalidation";
         }
@@ -590,7 +611,7 @@ QtObject {
         const auto png=readFile("capture-window.png",8388608);
         capturePngHash_=encodedHash.result().toHex();
         if (!saved || !captureFileCurrent("capture-window.png",capturePngFd_) || png.size()!=pngBytes || QCryptographicHash::hash(png,QCryptographicHash::Sha256).toHex()!=capturePngHash_ || !captureAllowed() || epoch!=captureEpoch_) { finish("capture-observation-image-output-unknown");return; }
-        QJsonObject object{{"kind","development-capture-observation"},{"version",1},{"nonce",config_.nonce},
+        QJsonObject object{{"kind","development-capture-observation"},{"version",config_.developmentReceiverSubtreeCapture ? 2:1},{"nonce",config_.nonce},
             {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
             {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
             {"setup_profile","main-dev-facts-120s"},{"setup_budget_ms",120000},{"capture_budget_ms",5000},{"accepted_ms",captureAcceptedAt_},
@@ -600,6 +621,7 @@ QtObject {
             {"image_width",image.width()},{"image_height",image.height()},{"png_bytes",pngBytes},{"png_sha256",QString::fromLatin1(capturePngHash_)},
             {"image_status","available"},{"gui_callback_completed",true},{"scope_current",true},{"atomic_snapshot",false},
             {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false},{"observed_order",false}};
+        if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope","receiver-subtree-capture-unqualified-v1");
         QMetaObject::invokeMethod(this,[this,object,epoch]() mutable {
             const Scope completionScope(this);
             if (!captureAllowed() || !captureIdentity() || epoch!=captureEpoch_ || !captureTokenCurrent() || exists("facts-request") || exists("facts-request.tmp")) { finish("capture-observation-completion-refused");return; }
@@ -683,6 +705,7 @@ QtObject {
         },Qt::QueuedConnection);
     }
     void startRead() {
+        if(config_.developmentReceiverSubtreeCapture){finish("capture-observation-purpose-refused");return;}
         const Scope scope(this);
         if (config_.developmentInputObservation) { finish("input-observation-facts-refused");return; }
         if (!readCurrent() || (config_.developmentCaptureObservation && !captureBindingsCurrent())) { finish("facts-entry-dispatch-refused"); return; }
@@ -731,8 +754,9 @@ QtObject {
         const auto count=[](qint64 value)->QJsonValue{return value<0 ? QJsonValue(QJsonValue::Null):QJsonValue(value);};
         const bool discovery=QByteArrayView(d.branch)==QByteArrayView("owner-discovery");
         const bool pair=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-owner-unavailable");
-        const bool topology=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-topology-bound");
-        QJsonObject json{{"kind","development-capture-owner-refusal"},{"version",config_.developmentFocusAncestry ? 4:2},{"nonce",config_.nonce},
+        const bool topology=discovery && (QByteArrayView(d.discovery)==QByteArrayView("open-topology-bound") ||
+            (config_.developmentReceiverSubtreeCapture && QByteArrayView(d.discovery)==QByteArrayView("open-capture-subtree-bound")));
+        QJsonObject json{{"kind","development-capture-owner-refusal"},{"version",config_.developmentReceiverSubtreeCapture ? 5:config_.developmentFocusAncestry ? 4:2},{"nonce",config_.nonce},
             {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
             {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
             {"setup_profile",QString::fromLatin1(config_.setupProfile())},{"capture_accepted_ms",d.accepted},{"failure_ms",d.failure},
@@ -762,6 +786,7 @@ QtObject {
             json.insert("scene_rejected_document_wrapper_changed",count(classified ? d.sceneFunnel.documentWrapperChanged:-1));
             json.insert("scene_passed",count(classified ? d.sceneFunnel.pass:-1));
         }
+        if(config_.developmentReceiverSubtreeCapture)json.insert("discovery_scope","receiver-subtree-capture-unqualified-v1");
         return QJsonDocument(json).toJson(QJsonDocument::Compact);
     }
     void finish(const char *stage) {
@@ -817,7 +842,7 @@ QtObject {
                 result_.stage=QStringLiteral("facts-entry-output-unknown");
             }
             revokeRetainedOwner();
-            if(config_.developmentFocusAncestry){focusArmed_=false;focusGuard_.disconnect();if(app_)app_->removeEventFilter(this);}
+            if(config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture){focusArmed_=false;focusGuard_.disconnect();if(app_)app_->removeEventFilter(this);}
             reader_.reset();
             auto callbackFunction=std::move(completed_); auto result=std::move(result_);
             if (callbackFunction) callbackFunction(std::move(result));
