@@ -106,7 +106,7 @@ consumer retains no decoded diagnostic and grants no authority.
 - [x] Exact production ARM compile with -Werror/-z defs and no fixture macros.
 - [x] Three focused ARM/QEMU owned-fixture checks: selected success shape,
   first allowed failure preceding a later request failure, default-off shape.
-- [x] Twenty focused consumer checks and three PowerShell syntax parses.
+- [x] Twenty-two focused consumer checks and three PowerShell syntax parses.
 - [ ] Independent source review and Main acceptance of frozen revisions.
 - [ ] Main may separately select a fresh packet and device observation; none is
   selected or authorized by this source increment.
