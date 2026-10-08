@@ -147,3 +147,45 @@ or missing, THEN decoding returns no diagnostic, without granting authority.
 
 Full native qualification and the fresh Reader harness remain unfinished. No
 canonical sync or archive follows from this diagnostic increment.
+
+
+## Accepted first-invalidation diagnostic increment (2026-10-08)
+
+Main accepted a v3 diagnostic latch after the next actual attempt reported cached
+`invalidated-before` with null active reason before the accepted deadline. The
+cause remains unproved. At existing invalidation callsites, latch fixed cause,
+role and member only on the first false-to-true transition. Every call still sets
+captureInvalid true and increments captureEpoch in the original order; later
+callbacks and cleanup cannot overwrite the first event. No clock sample or
+additional acceptance rule is introduced.
+
+Existing typed callbacks capture fixed labels at installation. FocusOwnerGuard's
+optional labeled callback preserves its ordinary callback fallback, context,
+thread and subscription order/count. Existing QMetaMethod signal routes select
+one of twenty preassigned owned no-argument slots from already known role/member
+constants. Native signal/member discovery remains the existing path; owned slot
+metadata changes. No sender introspection, dynamic name/value serialization,
+additional property read, traversal, native check or subscription is added.
+Window/chain/subtree signals use fixed category roles; arbitrary descendants
+are never identified. Focus/input event categories, endpoint checks, reentrant
+checks and repeat discovery have fixed labels. Unattributed paths retain an
+unknown cause with null role/member; absent invalidation has three null fields.
+
+Selected failure diagnostic v3 is exact13: v2's ten fields plus nullable
+invalidation_cause, invalidation_role and invalidation_member. Strict exact8 v1
+and exact10 v2 decoders remain. Successful exact37 completion/scope v11, default-
+off callback shape, queued callback and original five second budget are unchanged.
+
+WHEN an existing scene viewport signal invalidates first and a generic call
+invalidates later, THEN v3 retains signal/scene/viewportChanged() and the cached
+invalidated-before/null allowed labels. WHEN v3 fields are missing, unknown or
+nonstring nonnull, THEN diagnostic decoding refuses. WHEN historical v1/v2 is
+read, THEN its original exact field count remains required.
+
+- [x] Implement bounded existing-route labels and strict historical decoding.
+- [x] Thirty-eight focused consumer checks.
+- [x] Exact production ARM compile and three existing focused owned fixtures.
+- [ ] Main/Astra frozen source review before any separately selected packet.
+
+Native cause/qualification, fresh Reader capture, canonical sync and archive
+remain unfinished. Reader repair f6999d5 remains independently held for review.

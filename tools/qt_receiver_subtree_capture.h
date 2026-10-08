@@ -72,9 +72,9 @@ inline bool receiverSubtreeCaptureIdentity(const PageOwner &owner,const QString 
     if(page.toString()!=order[index.toInt()])return refuse("identity-page-order-mismatch");
     return true;
 }
-inline bool receiverSubtreeWatchNotify(FocusOwnerGuard &guard,QObject *object,const QMetaMethod &signal) {
+inline bool receiverSubtreeWatchNotify(FocusOwnerGuard &guard,QObject *object,const QMetaMethod &signal,const char *slotName="invalidateCapture()") {
     if(!guard.context || !object || !signal.isValid() || signal.returnMetaType()!=QMetaType::fromType<void>())return false;
-    const int slot=guard.context->metaObject()->indexOfSlot("invalidateCapture()");
+    const int slot=guard.context->metaObject()->indexOfSlot(slotName);
     return slot>=0 && guard.retain(QObject::connect(object,signal,guard.context,guard.context->metaObject()->method(slot)));
 }
 inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std::function<bool()> &progress,
@@ -125,7 +125,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
     // Install receiver value observers before its first native document getter.
     for(const char *name:{"document","currentPage","currentPageId","drawingAreaFocused"}){
         const auto property=receiver->metaObject()->property(receiver->metaObject()->indexOfProperty(name));
-        if(!property.hasNotifySignal() || !receiverSubtreeWatchNotify(guard,receiver,property.notifySignal()))return "open-capture-scope-refused";
+        if(!property.hasNotifySignal() || !receiverSubtreeWatchNotify(guard,receiver,property.notifySignal(),guard.slot("receiver",name)))return "open-capture-scope-refused";
     }
     if(!progress())return "open-context-lost";
     struct Node {QPointer<QQuickItem> item;int depth;};
@@ -135,11 +135,10 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
         const auto node=queue[cursor];
         if(!node.item || !producer || node.item->thread()!=producer->thread() || node.item->window()!=window || seen.contains(node.item))return "open-capture-scope-refused";
         seen.insert(node.item);++d.visited;
-        const auto changed=[mark=guard.invalidate]{mark();};
-        if(!guard.retain(QObject::connect(node.item,&QObject::destroyed,guard.context,changed)) ||
-            !guard.retain(QObject::connect(node.item,&QQuickItem::parentChanged,guard.context,changed)) ||
-            !guard.retain(QObject::connect(node.item,&QQuickItem::windowChanged,guard.context,changed)) ||
-            !guard.retain(QObject::connect(node.item,&QQuickItem::childrenChanged,guard.context,changed)))return "open-capture-scope-refused";
+        if(!guard.retain(QObject::connect(node.item,&QObject::destroyed,guard.context,guard.changed("receiver-subtree-item","destroyed"))) ||
+            !guard.retain(QObject::connect(node.item,&QQuickItem::parentChanged,guard.context,guard.changed("receiver-subtree-item","parentChanged"))) ||
+            !guard.retain(QObject::connect(node.item,&QQuickItem::windowChanged,guard.context,guard.changed("receiver-subtree-item","windowChanged"))) ||
+            !guard.retain(QObject::connect(node.item,&QQuickItem::childrenChanged,guard.context,guard.changed("receiver-subtree-item","childrenChanged"))))return "open-capture-scope-refused";
         if(!progress())return "open-context-lost";
         if(focusSceneCandidate(node.item,engine)){scenes.append(node.item);d.scenes=scenes.size();if(scenes.size()>8)return "open-candidate-bound";}
         if(!progress())return "open-context-lost";

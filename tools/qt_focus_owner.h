@@ -27,26 +27,32 @@ struct FocusOwnerGuard {
     QPointer<QQuickItem> root,anchor;
     QList<QPointer<QQuickItem>> chain;
     std::function<void()> invalidate;
+    std::function<void(const char *,const char *,const char *)> invalidateLabeled;
+    std::function<const char *(const char *,const char *)> diagnosticSlot;
+    auto changed(const char *role,const char *member) const {
+        return [mark=invalidate,labeled=invalidateLabeled,role,member]{if(labeled)labeled("signal",role,member);else mark();};
+    }
+    const char *slot(const char *role,const char *member) const {
+        return diagnosticSlot ? diagnosticSlot(role,member):"invalidateCapture()";
+    }
     QPointer<QObject> context;
     QList<QMetaObject::Connection> connections;
     bool retain(QMetaObject::Connection connection){if(!connection)return false;connections.append(connection);return true;}
     void disconnect(){for(const auto &connection:connections)QObject::disconnect(connection);connections.clear();}
     bool watchWindow(QQuickWindow *value) {
         window=value;
-        const auto changed=[mark=invalidate]{mark();};
         return context && window &&
-            retain(QObject::connect(value,&QQuickWindow::activeFocusItemChanged,context,changed)) &&
-            retain(QObject::connect(value,&QObject::destroyed,context,changed)) &&
-            retain(QObject::connect(value,&QWindow::activeChanged,context,changed)) &&
-            retain(QObject::connect(value,&QWindow::visibleChanged,context,changed));
+            retain(QObject::connect(value,&QQuickWindow::activeFocusItemChanged,context,changed("window","activeFocusItemChanged"))) &&
+            retain(QObject::connect(value,&QObject::destroyed,context,changed("window","destroyed"))) &&
+            retain(QObject::connect(value,&QWindow::activeChanged,context,changed("window","activeChanged"))) &&
+            retain(QObject::connect(value,&QWindow::visibleChanged,context,changed("window","visibleChanged")));
     }
     bool watchItem(QQuickItem *value) {
-        const auto changed=[mark=invalidate]{mark();};
         return context && value &&
-            retain(QObject::connect(value,&QObject::destroyed,context,changed)) &&
-            retain(QObject::connect(value,&QQuickItem::parentChanged,context,changed)) &&
-            retain(QObject::connect(value,&QQuickItem::windowChanged,context,changed)) &&
-            retain(QObject::connect(value,&QQuickItem::activeFocusChanged,context,changed));
+            retain(QObject::connect(value,&QObject::destroyed,context,changed("focus-chain-item","destroyed"))) &&
+            retain(QObject::connect(value,&QQuickItem::parentChanged,context,changed("focus-chain-item","parentChanged"))) &&
+            retain(QObject::connect(value,&QQuickItem::windowChanged,context,changed("focus-chain-item","windowChanged"))) &&
+            retain(QObject::connect(value,&QQuickItem::activeFocusChanged,context,changed("focus-chain-item","activeFocusChanged")));
     }
     bool endpoints() const {
         return window && root && anchor && window->contentItem()==root &&

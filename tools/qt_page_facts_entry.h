@@ -159,7 +159,27 @@ public slots:
             if (!reading_) finish(acceptedAt_<0 ? "facts-entry-setup-deadline" : "facts-entry-access-deadline");
         } else timer_.start(int(deadline-now()));
     }
-    void invalidateCapture() { captureInvalid_=true; ++captureEpoch_; }
+    void invalidateCapture() { invalidateCaptureLabeled("unknown",nullptr,nullptr); }
+    void invalidateCapture0() { invalidateCaptureLabeled("signal","document","pageCountChanged(int,int)"); }
+    void invalidateCapture1() { invalidateCaptureLabeled("signal","document","pageMapChanged()"); }
+    void invalidateCapture2() { invalidateCaptureLabeled("signal","document","pageAdded(int)"); }
+    void invalidateCapture3() { invalidateCaptureLabeled("signal","document","pagesAdded(QList<int>)"); }
+    void invalidateCapture4() { invalidateCaptureLabeled("signal","document","pageMoved(int,int)"); }
+    void invalidateCapture5() { invalidateCaptureLabeled("signal","document","pagesMoved()"); }
+    void invalidateCapture6() { invalidateCaptureLabeled("signal","document","pagesRemoved()"); }
+    void invalidateCapture7() { invalidateCaptureLabeled("signal","document","redirectionPageMapChanged()"); }
+    void invalidateCapture8() { invalidateCaptureLabeled("signal","document","pageUpdated(int)"); }
+    void invalidateCapture9() { invalidateCaptureLabeled("signal","document","documentMetadataChanged()"); }
+    void invalidateCapture10() { invalidateCaptureLabeled("signal","document","orientationChanged()"); }
+    void invalidateCapture11() { invalidateCaptureLabeled("signal","scene","pageIdChanged()"); }
+    void invalidateCapture12() { invalidateCaptureLabeled("signal","scene","documentWrapperChanged()"); }
+    void invalidateCapture13() { invalidateCaptureLabeled("signal","scene","workerChanged()"); }
+    void invalidateCapture14() { invalidateCaptureLabeled("signal","scene","viewportChanged()"); }
+    void invalidateCapture15() { invalidateCaptureLabeled("signal","receiver","document"); }
+    void invalidateCapture16() { invalidateCaptureLabeled("signal","receiver","currentPage"); }
+    void invalidateCapture17() { invalidateCaptureLabeled("signal","receiver","currentPageId"); }
+    void invalidateCapture18() { invalidateCaptureLabeled("signal","receiver","drawingAreaFocused"); }
+    void invalidateCapture19() { invalidateCaptureLabeled("signal","document","id"); }
     bool captureAllowed() { return captureAllowedChecked(nullptr); }
 
 protected:
@@ -167,7 +187,7 @@ protected:
         if((config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture) && focusArmed_){
             switch(event->type()){
             case QEvent::FocusIn: case QEvent::FocusOut: case QEvent::WindowActivate: case QEvent::WindowDeactivate:
-                invalidateCapture();break;
+                invalidateCaptureLabeled("focus-event","application",nullptr);break;
             default:break;
             }
         }
@@ -176,7 +196,7 @@ protected:
             case QEvent::TouchBegin: case QEvent::TouchUpdate: case QEvent::TouchEnd: case QEvent::TouchCancel:
             case QEvent::MouseButtonPress: case QEvent::MouseButtonRelease: case QEvent::MouseButtonDblClick: case QEvent::MouseMove:
             case QEvent::TabletPress: case QEvent::TabletMove: case QEvent::TabletRelease:
-            case QEvent::Wheel: case QEvent::KeyPress: case QEvent::KeyRelease: invalidateCapture(); break;
+            case QEvent::Wheel: case QEvent::KeyPress: case QEvent::KeyRelease: invalidateCaptureLabeled("input-event","application",nullptr); break;
             default: break;
             }
         }
@@ -188,6 +208,35 @@ protected:
         return false;
     }
 private:
+    void invalidateCaptureLabeled(const char *cause,const char *role,const char *member) {
+        if(config_.developmentCaptureCompletionRefusalDiagnostics && !captureInvalid_) {
+            captureInvalidationCause_=cause;captureInvalidationRole_=role;captureInvalidationMember_=member;
+        }
+        captureInvalid_=true; ++captureEpoch_;
+    }
+    static const char *invalidationSlot(const char *role,const char *member) {
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pageCountChanged(int,int)")==0)return "invalidateCapture0()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pageMapChanged()")==0)return "invalidateCapture1()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pageAdded(int)")==0)return "invalidateCapture2()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pagesAdded(QList<int>)")==0)return "invalidateCapture3()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pageMoved(int,int)")==0)return "invalidateCapture4()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pagesMoved()")==0)return "invalidateCapture5()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pagesRemoved()")==0)return "invalidateCapture6()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"redirectionPageMapChanged()")==0)return "invalidateCapture7()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"pageUpdated(int)")==0)return "invalidateCapture8()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"documentMetadataChanged()")==0)return "invalidateCapture9()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"orientationChanged()")==0)return "invalidateCapture10()";
+        if(role && member && qstrcmp(role,"scene")==0 && qstrcmp(member,"pageIdChanged()")==0)return "invalidateCapture11()";
+        if(role && member && qstrcmp(role,"scene")==0 && qstrcmp(member,"documentWrapperChanged()")==0)return "invalidateCapture12()";
+        if(role && member && qstrcmp(role,"scene")==0 && qstrcmp(member,"workerChanged()")==0)return "invalidateCapture13()";
+        if(role && member && qstrcmp(role,"scene")==0 && qstrcmp(member,"viewportChanged()")==0)return "invalidateCapture14()";
+        if(role && member && qstrcmp(role,"receiver")==0 && qstrcmp(member,"document")==0)return "invalidateCapture15()";
+        if(role && member && qstrcmp(role,"receiver")==0 && qstrcmp(member,"currentPage")==0)return "invalidateCapture16()";
+        if(role && member && qstrcmp(role,"receiver")==0 && qstrcmp(member,"currentPageId")==0)return "invalidateCapture17()";
+        if(role && member && qstrcmp(role,"receiver")==0 && qstrcmp(member,"drawingAreaFocused")==0)return "invalidateCapture18()";
+        if(role && member && qstrcmp(role,"document")==0 && qstrcmp(member,"id")==0)return "invalidateCapture19()";
+        return "invalidateCapture()";
+    }
     void revokeRetainedOwner() { if(retainedRecord_)retainedRecord_->revoked_=true; }
     bool prepareRetainedOwnerTicket() {
         if(config_.developmentReceiverSubtreeCapture)return false;
@@ -242,13 +291,13 @@ private:
     };
     bool captureFocusEndpointsCurrent() {
         if(!config_.developmentFocusAncestry && !config_.developmentReceiverSubtreeCapture)return true;
-        if(!focusGuard_.endpoints()){invalidateCapture();return false;}
+        if(!focusGuard_.endpoints()){invalidateCaptureLabeled("endpoint-check","focus-owner",nullptr);return false;}
         return true;
     }
     bool captureAllowedChecked(CaptureOwnerFailure *diagnostic) {
         const Scope scope(this);
         const auto refuse=[diagnostic](const char *reason){if(diagnostic)diagnostic->predicate=reason;return false;};
-        if (captureChecking_) { invalidateCapture(); return refuse("reentrant-check"); }
+        if (captureChecking_) { invalidateCaptureLabeled("reentrant-check","entry",nullptr); return refuse("reentrant-check"); }
         captureChecking_=true;
         const bool valid=(!captureInvalid_ || refuse("invalidated-before")) &&
             (context() || refuse("context-before")) && (captureLife() || refuse("lifetime-before")) &&
@@ -404,10 +453,10 @@ private:
         return (!done_ || result_.observed) && !closed_ && rootCurrent() && !exists("entry.closed") && !exists("restore.claim") &&
             readFile("attempt.identity",128)==process_+' '+processStart_+'\n';
     }
-    bool captureSignal(QObject *object,const char *signature,const char **failure=nullptr) {
+    bool captureSignal(QObject *object,const char *signature,const char **failure=nullptr,const char *role=nullptr,const char *member=nullptr) {
         const auto refuse=[failure](const char *value){if(failure)*failure=value;return false;};
         if (!object) return refuse("object-missing");
-        const int signal=object->metaObject()->indexOfSignal(signature),slot=metaObject()->indexOfSlot("invalidateCapture()");
+        const int signal=object->metaObject()->indexOfSignal(signature),slot=metaObject()->indexOfSlot(config_.developmentCaptureCompletionRefusalDiagnostics ? invalidationSlot(role,member):"invalidateCapture()");
         if(signal<0)return refuse("signal-missing");
         if(slot<0)return refuse("slot-missing");
         if(object->metaObject()->method(signal).returnMetaType()!=QMetaType::fromType<void>())return refuse("return-type");
@@ -422,11 +471,11 @@ private:
         for (const auto *signal:{"pageCountChanged(int,int)","pageMapChanged()","pageAdded(int)","pagesAdded(QList<int>)",
             "pageMoved(int,int)","pagesMoved()","pagesRemoved()","redirectionPageMapChanged()","pageUpdated(int)","documentMetadataChanged()","orientationChanged()"}) {
             const char *failure=nullptr;
-            if (!captureSignal(captureOwner_.document,signal,diagnostic ? &failure:nullptr))return observer("document",signal,failure);
+            if (!captureSignal(captureOwner_.document,signal,diagnostic ? &failure:nullptr,"document",signal))return observer("document",signal,failure);
         }
         for (const auto *signal:{"pageIdChanged()","documentWrapperChanged()","workerChanged()","viewportChanged()"}) {
             const char *failure=nullptr;
-            if (!captureSignal(captureOwner_.scene,signal,diagnostic ? &failure:nullptr))return observer("scene",signal,failure);
+            if (!captureSignal(captureOwner_.scene,signal,diagnostic ? &failure:nullptr,"scene",signal))return observer("scene",signal,failure);
         }
         for (const auto *name:{"document","currentPage","currentPageId","drawingAreaFocused"}) {
             const int index=captureOwner_.receiver->metaObject()->indexOfProperty(name);
@@ -434,23 +483,27 @@ private:
             const auto property=captureOwner_.receiver->metaObject()->property(index);
             if (!property.hasNotifySignal())return observer("receiver",name,"notify-missing");
             const char *failure=nullptr;
-            if(!captureSignal(captureOwner_.receiver,property.notifySignal().methodSignature().constData(),diagnostic ? &failure:nullptr))return observer("receiver",name,failure);
+            if(!captureSignal(captureOwner_.receiver,property.notifySignal().methodSignature().constData(),diagnostic ? &failure:nullptr,"receiver",name))return observer("receiver",name,failure);
         }
-        connect(captureOwner_.window,&QWindow::activeChanged,this,&FactsEntry::invalidateCapture);
-        connect(captureOwner_.window,&QWindow::visibleChanged,this,&FactsEntry::invalidateCapture);
-        connect(captureOwner_.window,&QWindow::widthChanged,this,&FactsEntry::invalidateCapture);
-        connect(captureOwner_.window,&QWindow::heightChanged,this,&FactsEntry::invalidateCapture);
-        connect(captureOwner_.window,&QWindow::screenChanged,this,&FactsEntry::invalidateCapture);
+        connect(captureOwner_.window,&QWindow::activeChanged,this,[this]{invalidateCaptureLabeled("signal","window","activeChanged");});
+        connect(captureOwner_.window,&QWindow::visibleChanged,this,[this]{invalidateCaptureLabeled("signal","window","visibleChanged");});
+        connect(captureOwner_.window,&QWindow::widthChanged,this,[this]{invalidateCaptureLabeled("signal","window","widthChanged");});
+        connect(captureOwner_.window,&QWindow::heightChanged,this,[this]{invalidateCaptureLabeled("signal","window","heightChanged");});
+        connect(captureOwner_.window,&QWindow::screenChanged,this,[this]{invalidateCaptureLabeled("signal","window","screenChanged");});
         for (const auto &item:{captureOwner_.receiver,captureOwner_.scene}) {
-            connect(item,&QQuickItem::visibleChanged,this,&FactsEntry::invalidateCapture);
-            connect(item,&QQuickItem::enabledChanged,this,&FactsEntry::invalidateCapture);
-            connect(item,&QQuickItem::activeFocusChanged,this,&FactsEntry::invalidateCapture);
-            connect(item,&QQuickItem::windowChanged,this,&FactsEntry::invalidateCapture);
-            connect(item,&QQuickItem::parentChanged,this,&FactsEntry::invalidateCapture);
+            const char *role=item==captureOwner_.receiver ? "receiver":"scene";
+            connect(item,&QQuickItem::visibleChanged,this,[this,role]{invalidateCaptureLabeled("signal",role,"visibleChanged");});
+            connect(item,&QQuickItem::enabledChanged,this,[this,role]{invalidateCaptureLabeled("signal",role,"enabledChanged");});
+            connect(item,&QQuickItem::activeFocusChanged,this,[this,role]{invalidateCaptureLabeled("signal",role,"activeFocusChanged");});
+            connect(item,&QQuickItem::windowChanged,this,[this,role]{invalidateCaptureLabeled("signal",role,"windowChanged");});
+            connect(item,&QQuickItem::parentChanged,this,[this,role]{invalidateCaptureLabeled("signal",role,"parentChanged");});
         }
         for (QObject *object:{static_cast<QObject *>(engine_.data()),static_cast<QObject *>(captureOwner_.window.data()),
             static_cast<QObject *>(captureOwner_.receiver.data()),static_cast<QObject *>(captureOwner_.scene.data()),captureOwner_.document.data()})
-            connect(object,&QObject::destroyed,this,&FactsEntry::invalidateCapture);
+        {
+            const char *role=object==engine_ ? "engine":object==captureOwner_.window ? "window":object==captureOwner_.receiver ? "receiver":object==captureOwner_.scene ? "scene":"document";
+            connect(object,&QObject::destroyed,this,[this,role]{invalidateCaptureLabeled("signal",role,"destroyed");});
+        }
         captureWatching_=true;return true;
     }
     bool captureIdentity() {
@@ -525,7 +578,7 @@ private:
         const Scope scope(this);
         if(config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture){
             if(done_)return;
-            if(focusDiscoveryStarted_)invalidateCapture();
+            if(focusDiscoveryStarted_)invalidateCaptureLabeled("discovery-repeat","entry",nullptr);
             focusDiscoveryStarted_=true;
         }
         CaptureOwnerFailure diagnostic;
@@ -545,13 +598,17 @@ private:
                 const QPointer<FactsEntry> weak=this;
                 focusGuard_.context=this;
                 focusGuard_.invalidate=[weak]{if(weak)weak->invalidateCapture();};
+                if(config_.developmentCaptureCompletionRefusalDiagnostics) {
+                    focusGuard_.invalidateLabeled=[weak](const char *cause,const char *role,const char *member){if(weak)weak->invalidateCaptureLabeled(cause,role,member);};
+                    focusGuard_.diagnosticSlot=&FactsEntry::invalidationSlot;
+                }
                 if(config_.developmentReceiverSubtreeCapture){
                     diagnostic.discovery=findReceiverSubtreeCaptureOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,
                         config_.facts.documentId,config_.facts.expectedOrder,[this,&diagnostic](const PageOwner &candidate){
                             const int index=candidate.document->metaObject()->indexOfProperty("id");
                             if(index<0)return false;
                             const auto property=candidate.document->metaObject()->property(index);
-                            if(!property.isConstant() && (!property.hasNotifySignal() || !receiverSubtreeWatchNotify(focusGuard_,candidate.document,property.notifySignal())))return false;
+                            if(!property.isConstant() && (!property.hasNotifySignal() || !receiverSubtreeWatchNotify(focusGuard_,candidate.document,property.notifySignal(),focusGuard_.slot("document","id"))))return false;
                             const PageOwner previous=captureOwner_;captureOwner_=candidate;
                             const bool observed=captureObservers(&diagnostic);captureOwner_=previous;
                             return observed;
@@ -662,11 +719,14 @@ QtObject {
                         if(label)for(const char *fixed:labels)if(qstrcmp(label,fixed)==0)return QJsonValue(QString::fromLatin1(fixed));
                         return QJsonValue(QJsonValue::Null);
                     };
-                    captureCompletionRefusal_=QJsonObject{{"kind","development-capture-completion-refusal"},{"version",2},{"reason",reason},
+                    captureCompletionRefusal_=QJsonObject{{"kind","development-capture-completion-refusal"},{"version",3},{"reason",reason},
                         {"capture_accepted_ms",captureAcceptedAt_},{"baseline_ms",baseline},{"post_read_ms",postRead},
                         {"failure_ms",now()},{"effective_deadline_ms",std::min(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)},
                         {"allowed_predicate",fixedLabel(allowed.predicate,{"reentrant-check","invalidated-before","context-before","lifetime-before","active-owner","invalidated-after","context-after","lifetime-after","owner-pointers","owner-threads","deadline"})},
-                        {"allowed_active_reason",fixedLabel(allowed.activeReason,{"capture-context","pointers-or-threads","window-focus-active-visible","engine-association","window-association","item-visible-enabled","receiver-ancestor","drawing-area-focused","receiver-document","scene-document","document-identity"})}};
+                        {"allowed_active_reason",fixedLabel(allowed.activeReason,{"capture-context","pointers-or-threads","window-focus-active-visible","engine-association","window-association","item-visible-enabled","receiver-ancestor","drawing-area-focused","receiver-document","scene-document","document-identity"})},
+                        {"invalidation_cause",captureInvalidationCause_ ? QJsonValue(QString::fromLatin1(captureInvalidationCause_)):QJsonValue(QJsonValue::Null)},
+                        {"invalidation_role",captureInvalidationRole_ ? QJsonValue(QString::fromLatin1(captureInvalidationRole_)):QJsonValue(QJsonValue::Null)},
+                        {"invalidation_member",captureInvalidationMember_ ? QJsonValue(QString::fromLatin1(captureInvalidationMember_)):QJsonValue(QJsonValue::Null)}};
                 }
             }
             if (refused) { finish("capture-observation-completion-refused");return; }
@@ -903,6 +963,7 @@ QtObject {
     std::shared_ptr<RetainedOwnerRecord> retainedRecord_;
     std::unique_ptr<RetainedOwnerTicket> pendingRetainedTicket_;
     quint64 retainedGeneration_=0;
+    const char *captureInvalidationCause_=nullptr,*captureInvalidationRole_=nullptr,*captureInvalidationMember_=nullptr;
     QJsonObject captureCompletionRefusal_;
     CaptureOwnerFailure captureOwnerFailure_;
     bool captureOwnerFailurePending_=false;
