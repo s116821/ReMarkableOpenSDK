@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QDir>
 #include <QTemporaryDir>
+#include <optional>
 static bool put(const QString &path,const QByteArray &value){
     QFile file(path);if(!file.open(QIODevice::WriteOnly|QIODevice::NewOnly))return false;
     return file.setPermissions(QFile::ReadOwner|QFile::WriteOwner) && file.write(value)==value.size();
@@ -84,6 +85,8 @@ class InvalidDocumentFixture : public DocumentFixture {
     Q_PROPERTY(QVariant id READ invalidId CONSTANT)
 public: QVariant invalidId() const {++idReads;return {};}
 };
+namespace entry {struct Id {QString text;bool fail=false;std::function<void()> callback;};}
+Q_DECLARE_METATYPE(entry::Id)
 class IdentityReadFixture : public QQuickItem {
     Q_OBJECT
     Q_PROPERTY(QVariant id READ id)
@@ -93,10 +96,11 @@ class IdentityReadFixture : public QQuickItem {
 public:
     mutable QStringList reads;
     QVariant idValue=QStringLiteral("document");
+    QString pageValue="page",aliasValue="page";
     QVariant id() const {reads.append("document");return idValue;}
     int currentPage() const {reads.append("index");return 0;}
-    QString pageId() const {reads.append("scene");return "page";}
-    QString currentPageId() const {reads.append("alias");return "page";}
+    QString pageId() const {reads.append("scene");return pageValue;}
+    QString currentPageId() const {reads.append("alias");return aliasValue;}
 };
 int main(int argc,char **argv){
     QGuiApplication app(argc,argv);app.setQuitOnLastWindowClosed(false);
@@ -117,6 +121,29 @@ int main(int argc,char **argv){
     const bool receiver4096=mode.startsWith("receiver-4096-");
     const bool receiverV5Items=mode=="receiver-v5-item-overflow";
     const QString receiverScope=receiverDocumentTypeSelected ? "receiver-subtree-capture-unqualified-v10":receiverIdentity ? "receiver-subtree-capture-unqualified-v9":receiverUnfocused ? "receiver-subtree-capture-unqualified-v8":(receiverDepth32 || receiverOldFalse) ? "receiver-subtree-capture-unqualified-v7":(receiver4096 || receiverV6Depth16) ? "receiver-subtree-capture-unqualified-v6":(receiverDepth16 || receiverV5Items) ? "receiver-subtree-capture-unqualified-v5":(receiver2048 || mode=="receiver-v4-depth8") ? "receiver-subtree-capture-unqualified-v4":receiver1024 ? "receiver-subtree-capture-unqualified-v3":receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
+    if(mode.startsWith("entry-conversion-")){
+        qRegisterMetaType<entry::Id>("entry::Id");
+        if(!QMetaType::registerConverter<entry::Id,QString>([](const entry::Id &value)->std::optional<QString>{
+            if(value.callback)value.callback();
+            if(value.fail)return std::nullopt;
+            return value.text;
+        }))return 16;
+        IdentityReadFixture item;auto *window=new QQuickWindow;PageOwner owner{window,&item,&item,&item};
+        const QString doc="00000000-0000-4000-8000-000000000001",page="00000000-0000-4000-8000-000000000002";
+        item.pageValue=item.aliasValue=page;
+        if(mode=="entry-conversion-wrong-tuple")item.pageValue=item.aliasValue="00000000-0000-4000-8000-000000000003";
+        entry::Id value{doc,mode=="entry-conversion-false",{}};
+        if(mode=="entry-conversion-invalidation")value.callback=[window]{delete window;};
+        item.idValue=QVariant::fromValue(value);
+        int progressCalls=0;const auto progress=[&]{++progressCalls;return true;};const char *reason=nullptr;
+        const bool selected=mode!="entry-conversion-historical";
+        const bool valid=receiverSubtreeCaptureIdentity(owner,doc,{page},progress,&reason,true,selected);
+        const bool expected=mode=="entry-conversion-good";
+        const char *expectedReason=mode=="entry-conversion-wrong-tuple" ? "identity-page-order-mismatch":mode=="entry-conversion-false" ? "identity-entry-conversion-failed":mode=="entry-conversion-invalidation" ? "identity-context":"identity-document-type-other";
+        if(valid!=expected || item.reads!=QStringList({"document","index","scene","alias"}) || progressCalls!=(selected ? 6:5) || (expected ? reason!=nullptr:QByteArrayView(reason)!=QByteArrayView(expectedReason)))return 16;
+        if(owner.window)delete window;
+        std::printf("PASS entry-conversion %s exact tuple/read order; postguard before status; no native premise\n",argv[1]);return 0;
+    }
     if(mode=="identity-read-schedule"){
         IdentityReadFixture item;PageOwner owner{nullptr,&item,&item,&item};
         const QStringList expected{"document","index","scene","alias"};
