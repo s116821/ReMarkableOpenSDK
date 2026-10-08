@@ -16,9 +16,9 @@ native transcript or proof of final baseline completion.
 ## Proposed bounded delta
 
 For a separately selected future source checkpoint, raise only the complete
-receiver-subtree total queue-item cap from256 to1024, including the receiver.
+receiver-subtree total queue-item cap from256 to512, including the receiver.
 The observed enqueue would require257 total items; it does not establish the
-complete receiver size. 1024 is a finite fourfold experimental allowance, not
+complete receiver size. 512 is a finite twofold experimental allowance, not
 an estimate of actual total size or a promise of complete traversal. The same
 original5s capture deadline and progress checks still stop an expensive walk.
 No retry, second walk, automatic escalation, sampling or partial-match acceptance.
@@ -35,7 +35,7 @@ receiver-subtree-capture-unqualified-v2. Keep completion v2/exact37 and refusal
 v5/exact34 layouts; bind the new scope upfront through config/packet/collectors.
 Existing v1 scope remains frozen at256 and must not silently gain a larger cap.
 If implemented, consumer visited_items/topology_queue_size limits and the
-subtree-items overflow relation must use1024 only for selected v2 scope.
+subtree-items overflow relation must use512 only for selected v2 scope.
 
 ## Minimal implementation and verification, if selected
 
@@ -44,10 +44,14 @@ subtree-items overflow relation must use1024 only for selected v2 scope.
 - Buddy: bind new selected scope and update only its scoped numeric limits and
   overflow relation; preserve historical v1 decoding or explicitly refuse it
   for the new selected mode. Preserve spent packet bytes and evidence.
-- Focused checks: unique off-chain capture, two-valid refusal,1025-item cap and
-  getter invalidation; selected/unselected scope and1024 boundary decoding.
+- Focused checks: unique off-chain capture, two-valid refusal,513-item cap and
+  getter invalidation; selected/unselected scope and512 boundary decoding.
   Compile exact selected production ARM source; obtain bounded review.
 - Main selects a fresh nonce and current baseline for one later native attempt.
 
 Broad qualification remains open. A larger item cap may simply reveal another
 bounded refusal. No broader matrix is a prerequisite to this narrow proposal.
+Bounded review advice: Astra recommends512 as the smaller explicit next allowance,
+with an actual owned512-complete case and512-overflow-before-getters case plus
+old-scope parser preservation and exact production compile. This remains a
+proposal awaiting Main selection; Astra has not reviewed an implemented delta.
