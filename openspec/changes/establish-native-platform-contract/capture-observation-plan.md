@@ -32,8 +32,24 @@ update can also cause a flush. The
 [threaded software loop](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/scenegraph/adaptations/software/qsgsoftwarethreadedrenderloop.cpp)
 blocks the caller while the render thread synchronizes, renders and reads back.
 These are upstream mechanisms, not proof of the vendor's exact render loop.
-Consequently the grab is active acquisition that may change rendering state.
-Its return does not certify asynchronous native page-worker texture readiness.
+Grabbing can therefore change rendering state, but it must not be assumed to
+force a fresh render on the selected RM2 backend. Its return does not certify
+asynchronous native page-worker texture readiness.
+
+Local inspection of the pinned vendor SDK image established that its
+libQt6Quick.so.6.10.3 matches the retained target-admission SHA256
+`b20f9adaefe8cebeca445906e891370f75f0b0af878ac1b35e0c91159778628f`.
+Its generic grab dispatch agrees with the upstream render-loop/control boundary.
+The SDK also contains libqsgepaper.so, SHA256
+`4f8a352a45550679bef3e5a800393e7289cbb43377e33b42ceed23f89ca6b831`.
+Narrow static inspection of that plugin's grab path finds a copy of the image held
+by its framebuffer singleton, without using the requested window or invoking
+polish/synchronization/render work in that path. Buffer setup can select a supplied
+image or its internal image; this is not an observed native page/frame identity.
+Runtime selection and target identity of that plugin remain unverified. If that
+path is active, a call on the retained window still acquires framebuffer pixels,
+not a window-specific render completion. No private offsets or reconstructed
+firmware source are incorporated into the SDK implementation.
 
 Qt frame submission/swap signals identify scenegraph stages, not a native page
 generation or completed physical e-ink refresh. Adding a frame counter or waiting
@@ -48,8 +64,8 @@ Keep the existing independent process restoration; no in-process deadline can
 preempt a hung grab. Original implementation only; no prior-art code is copied.
 
 The bounded question is: did one uniquely observed active owner retain its current
-identity through one grab of that same window, and what pixels did that acquisition
-return? Full visual review can corroborate the expected fixture. This is development
+identity through one grab requested on that same window, and what pixels did that
+backend-dependent acquisition return? Full visual review can corroborate the expected fixture. This is development
 correspondence evidence; it does not establish content revision, worker completion,
 general render freshness, a qualified CapturedBatch, or physical panel state.
 The stronger [capture contract](capture-contract.md) remains unchanged.
