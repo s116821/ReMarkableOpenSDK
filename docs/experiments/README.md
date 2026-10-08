@@ -9,6 +9,7 @@ packet or past trial is not permission to execute a new one.
 | --- | --- |
 | [R1/R2/R2D runtime observers](runtime-observers.md) | Bounded non-atomic sampling, reader/mapping limits and owned host fixtures |
 | [Qt/QML access probe](qt_qml_access_probe.md) | Existing-engine access, lifecycle/refusal semantics, synthetic fixtures and narrow disposable trial boundaries |
+| [Focus ancestry finding](../research/qt-focus-owner-discovery.md) | Pinned Qt6.10.3 nested-focus behavior, incomplete BFS evidence and conditional discovery scope |
 | [Normalization collector host tests](input-normalization-host-tests.md) | Owned ARM/QEMU policy evidence; not actual-kernel EXITKILL, native transport or tablet recovery proof |
 
 | Change-specific knowledge source | What to look for |

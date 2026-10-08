@@ -328,6 +328,32 @@ remain spent and unknown without automatic launch/connection/input retry.
 - **WHEN** static inspection finds no justified correction but runtime operands remain unknown
 - **THEN** the SDK retains the investigation as unfinished and does not patch ranges, rotation, event ABI or rounding based only on endpoint resemblance.
 
+### Requirement: Development focus ancestry requires a complete guarded chain
+The separately selected focus-ancestry mode SHALL follow
+focus-ancestry-discovery.md as an explicit change to discovery completeness. It
+SHALL retain the depth24/item4096/candidate8 bounds, original owner/identity and
+unique-pair checks, one-shot budgets and independent restoration. It SHALL require
+a complete retained leaf-to-content-root chain, sticky focus/lifetime/parent
+continuity and a guarded retained-owner facts handoff without another discovery.
+No first match, sibling scan, BFS fallback, forceFocus, bound increase or retry is
+permitted. Exact source/consumer review SHALL precede implementation.
+
+#### Scenario: Unrelated window items exceed the old cumulative BFS budget
+- **WHEN** the separately selected focus-ancestry mode obtains a complete stable chain within its original bounds
+- **THEN** it evaluates every eligible retained-chain pair under the original owner predicates without visiting unrelated branches or claiming equivalence to the old full-tree acceptance set.
+
+#### Scenario: The focus chain is incomplete, changed or ambiguous
+- **WHEN** the root cannot be reached within24 edges, focus/lifetime/parent continuity fails, or more than one pair qualifies
+- **THEN** the attempt refuses without another search, partial-owner selection, deadline extension or acquisition.
+
+#### Scenario: Visual review precedes retained-owner facts
+- **WHEN** the consumer later publishes its permitted facts request after visual review
+- **THEN** the selected facts path requires the original guarded owner and capture bindings, preserves all facts observers/identity/order checks and refuses a stale ticket without rediscovery.
+
+#### Scenario: Historical diagnostics came from another discovery scope
+- **WHEN** a consumer reads retained version1 or version2 evidence from full-tree discovery
+- **THEN** it keeps the original schema, bytes and unresolved limits and never interprets its counts as ancestry observations or promotes it into version3 authority.
+
 ### Requirement: Development capture owner refusal retains original diagnostic evidence
 The default-off development capture path SHALL follow capture-owner-diagnostics.md
 for bounded first-failure evidence. It SHALL preserve the original aggregate

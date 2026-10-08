@@ -6,6 +6,11 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Propose a separately selected development focus-ancestry discovery domain and
+  guarded retained-owner facts handoff; see
+  [focus-ancestry-discovery.md](focus-ancestry-discovery.md). This changes discovery
+  completeness explicitly, preserves bounds, and selects no native trial.
+
 - Propose version2 finite topology return-site evidence for development owner
   refusal; see [capture-topology-diagnostics.md](capture-topology-diagnostics.md).
   Preserve version1 history, original limits and evaluation counts.

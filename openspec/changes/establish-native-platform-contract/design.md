@@ -160,6 +160,13 @@ Which native service/mechanism can satisfy creation and durable reconciliation w
 
 ### Historical evidence export
 
+The proposed [focus-ancestry discovery](focus-ancestry-discovery.md) uses one
+complete bounded leaf-to-content-root chain and every eligible pair, grounded in
+the conditional pinned-Qt proof in [SDK knowledge](../../../docs/research/qt-focus-owner-discovery.md).
+It is an explicit new discovery domain, not a fallback after BFS refusal. Sticky
+chain/anchor guards must survive visual review and the retained-owner facts path;
+no second discovery, bound increase or implicit native qualification is allowed.
+
 The [topology diagnostic amendment](capture-topology-diagnostics.md) distinguishes
 the original visited, depth and cumulative queue-cap returns with four nullable
 scalar/enum fields in private diagnostic version2. Existing version1 bytes stay
