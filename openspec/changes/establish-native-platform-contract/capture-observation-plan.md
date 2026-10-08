@@ -46,10 +46,24 @@ Narrow static inspection of that plugin's grab path finds a copy of the image he
 by its framebuffer singleton, without using the requested window or invoking
 polish/synchronization/render work in that path. Buffer setup can select a supplied
 image or its internal image; this is not an observed native page/frame identity.
-Runtime selection and target identity of that plugin remain unverified. If that
+Main subsequently reports a fresh read-only target hash matching this plugin;
+the stock process mappings did not show it loaded. Runtime plugin selection remains
+unverified. If that
 path is active, a call on the retained window still acquires framebuffer pixels,
 not a window-specific render completion. No private offsets or reconstructed
 firmware source are incorporated into the SDK implementation.
+
+The retained xochitl artifact was freshly verified at SHA256
+`071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df`.
+Narrow local static tracing also identifies an embedded EPRenderLoop: an
+initialization branch passes an object with that RTTI/vtable to
+QSGRenderLoop::setInstance. Its grab slot likewise obtains a singleton-held image
+and invokes the QImage copy constructor, with no requested-window use or direct
+render call in that body. This supplies a concrete built-in candidate despite the
+missing standalone plugin mapping. It does not establish that the branch executed
+or identify the live render-loop object; initialization/getter effects remain
+possible. Private locators stay outside Git. No new hook or backend selection is
+introduced by the observation implementation.
 
 Qt frame submission/swap signals identify scenegraph stages, not a native page
 generation or completed physical e-ink refresh. Adding a frame counter or waiting
@@ -138,7 +152,15 @@ are also sticky invalidations, including change-away-and-back observed by signal
 Never clear them to obtain a favorable result.
 
 Check image dimensions/DPR first, perform exactly one GUI-thread grabWindow on the
-retained owner window, then reread the same small identity subset under the same
+retained owner window. After checking returned dimensions/raw bounds, immediately
+make one bounded owned pixel copy with QImage::copy before post-read getters or
+encoding. Qt's [version-matched QImage implementation](https://github.com/qt/qtbase/blob/v6.10.3/src/gui/image/qimage.cpp)
+normally shares data in its copy constructor; a returned QImage alone does not
+establish independent pixels when a backend retains external storage. The owned
+copy is not another grab or an atomic framebuffer snapshot. Count its allocation
+and execution in the same capture deadline, reject null/late/lost-scope copy, and
+include copying in the acquisition interval ending at grab_end_ms. Then reread
+the same small identity subset under the same
 observers and compare it with baseline. Empty/oversize image, owner/context change,
 observed epoch/input change or late return cannot yield usable completion. Preserve
 nested-call depth and deferred teardown through getters and grab reentrancy.
@@ -204,6 +226,7 @@ reentry; no PageFactsSession/mapping read before facts; unavailable/ambiguous ow
 wrong IDs/alias/index; owner destruction or ABA/input/viewport/worker invalidation
 during getter/grab/queued completion/visual pause; empty/oversize/late image; capped
 encoding and output replacement; original setup expiry despite capture success;
+external-buffer alias modification after the owned copy cannot change encoded pixels;
 one facts admission after capture, with result agreement and invalidation through
 final delivery. Use injected hooks/clocks and owned Qt scene items, not proprietary
 objects. Run the existing entry/facts suites plus these focused cases. Host/offscreen
