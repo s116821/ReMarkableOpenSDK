@@ -16,3 +16,16 @@ Start with [SDK technical knowledge](docs/README.md) for research, reference
 contracts and experiment findings. Read [contributor guidance](CONTRIBUTING.md), the [workflow](openspec/README.md), and the active design before implementation.
 
 The experimental Rust prototype models scoped page observations, creation/reconciliation outcomes and bounded synthetic PNG capture evidence. It pins image 0.25.10 (PNG only) and sha2 0.10.9; Cargo.lock records transitive dependencies. Its optional `mock` feature is synthetic; native defaults are unsupported. Run `cargo test --all-features` and `cargo clippy --all-targets --all-features -- -D warnings`. See [implementation limits](openspec/changes/establish-native-platform-contract/implementation.md) before using the prototype.
+
+The separate opt-in `development-capture` feature provides
+`development_capture::ReadOnlyDevelopmentCapture::from_collected_v11` for exact
+PNG and completion bytes from the supervised v11 experiment. It checks saved
+correspondence against caller-supplied expected bindings, owns the original bytes,
+and labels them `DevelopmentUnqualifiedHistoricalCorrespondence`. It does not
+acquire a live capture, observe page order, construct synthetic/native capture
+facts, or grant any platform or Reader effect capability. Live collection and
+restoration remain the caller's responsibility. Focused checks:
+`cargo test --features development-capture --test development_capture`.
+The ignored private-fixture check uses `SDK_DEVELOPMENT_CAPTURE_FIXTURE` pointing
+to local `expected-binding.json`, `capture-observation-complete.json`, and
+`capture-window.png`; these private files must never be committed.

@@ -3,6 +3,8 @@
 #![forbid(unsafe_code)]
 
 pub mod capture;
+#[cfg(feature = "development-capture")]
+pub mod development_capture;
 pub mod evidence;
 pub mod navigation;
 

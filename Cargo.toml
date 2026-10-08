@@ -9,7 +9,10 @@ description = "Experimental semantic reMarkable platform contract; no native ada
 [features]
 default = []
 mock = []
+development-capture = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 image = { version = "=0.25.10", default-features = false, features = ["png"] }
 sha2 = "=0.10.9"
+serde = { version = "=1.0.229", features = ["derive"], optional = true }
+serde_json = { version = "=1.0.151", optional = true }
