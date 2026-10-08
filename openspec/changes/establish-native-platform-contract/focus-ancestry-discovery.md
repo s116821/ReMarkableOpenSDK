@@ -35,6 +35,15 @@ Qt owned-fixture evidence must support these semantics before artifact selection
 unknown firmware, unsupported subscene ownership, or incomplete root reachability
 refuses. Public upstream source alone is not vendor-runtime qualification.
 
+Subscene exclusion is a profile-qualification prerequisite, not a claim that
+public root reachability detects every delivery agent. No new private-Qt probe or
+hidden object scan is selected. The feature must remain unselected for a native
+profile until exact-runtime evidence establishes ordinary-window delivery and
+the focus-event observation premise for that profile; unknown subscene semantics
+cannot be blessed by an operator boolean or successful root reachability alone.
+The owned tests below establish only their fixture profile. If that premise cannot
+be established for native use, this proposed mode remains unsupported there.
+
 Install bounded lifetime/parent/window/focus invalidation for each retained chain
 item before reading its next parent; observe window activeFocusItemChanged before
 sampling the anchor and retain sticky change-away-and-back invalidation through
@@ -42,6 +51,44 @@ capture and final facts delivery. Use the existing entry event filter for input.
 Callbacks only mark invalidation; no getter, I/O or traversal in signal handlers.
 Connection/lifetime/context failure refuses. Check the existing progress guard
 at each step and after any getter; all time counts against the original deadline.
+
+### Conservative event guard and exact failure precedence
+
+Selected-mode arming occurs immediately after successful capture-request admission,
+before queuing captureOwnerWindow and before sampling root/leaf. The existing
+application-level GUI event filter is already installed by entry startup. While
+armed, ANY delivered FocusIn, FocusOut, WindowActivate or WindowDeactivate event
+on that application thread calls the existing invalidateCapture path, regardless
+of target object; retain the existing input-event invalidation set as well.
+No object/window lookup, getter, traversal, I/O, event consumption or focus change
+is performed by the filter. It always returns false. This deliberately accepts
+unrelated-focus false refusals to avoid an attribution gap during construction.
+Signal-based anchor/item invalidation remains additional protection, not a
+substitute for pre-receiver event observation.
+
+Arming persists through queued discovery, capture, visual pause, facts reads and
+final delivery. Do not disarm on successful capture or while no owner is retained.
+On terminal refusal/cancel/close, mark the guard revoked immediately; remove
+connections/filter only during existing deferred teardown after entry/session
+Scope depths unwind. Revocation and first-failure state are sticky; nested callbacks
+cannot clear either. No code may reinstall an observer or rearm to obtain success.
+
+All armed focus/input events and connected chain/anchor/lifetime changes use
+captureInvalid_=true and the existing capture epoch increment. Original progress
+order remains context, live, invalidated, token, deadline. Thus simultaneous
+invalidated/deadline loss reports invalidated if earlier context/live passed;
+the skipped deadline operand stays null. Add no new progress predicate.
+Every construction operation is bracketed by original progress checkpoints.
+Evaluate its local chain condition once and hold its candidate failure label;
+then evaluate the post-operation progress checkpoint BEFORE committing that label.
+If progress fails, retain open-context-lost/predicate and chain_failure=null;
+otherwise retain open-focus-chain-refused and the local label. No reevaluation to
+choose a preferred explanation. Initial progress still precedes discovery and
+keeps its original branch. An anchor mismatch first observed by endpoint sampling
+also calls invalidateCapture before that post-check, so it resolves to invalidated.
+Remove anchor-changed and guard-invalidated from the chain_failure enum; they
+would duplicate the sticky progress failure. A failure already latched during
+nested execution wins over any outer failure and cannot be replaced.
 
 Walk parentItem once per edge, from retained leaf to the exact retained content
 root. Cache QPointers and edges. Reject repeated pointers/cycles, null before root,
@@ -84,6 +131,45 @@ checks remain required. Shared ownership/lifetime plumbing and teardown order
 must be independently reviewed; there is no retained-owner continuation without
 the original guard. Native/render/atomic authority remains false.
 
+The internal ticket contract is finite: only a FactsEntry private factory/friend
+may construct the selected retained session after permitted facts admission. A
+noncopyable ticket contains the exact PageOwner QPointers, weak FactsEntry identity,
+and a weak handle to an entry-owned guard record with a unique per-entry generation.
+There is no public constructor taking an arbitrary PageOwner or validation lambda.
+The guard record is irrevocably revoked on refusal/cancel/close/destruction. A
+temporary shared lock keeps record storage alive only; it never extends entry
+authority. No lambda captures an unguarded raw this or grants independent lifetime.
+Successful facts finish is provisional until its existing final queued binding
+checks/publication complete: retain the guard through that boundary, just as
+captureLife currently permits done with result.observed. Revoke after final
+delivery, or immediately when any final check converts success to refusal.
+Never revoke merely on entering provisional success and thereby force every
+successful delivery to fail; this exception cannot authorize another operation.
+
+Validation first checks weak entry/record availability, generation, selected mode
+and nonrevocation, then enters the existing FactsEntry Scope before touching its
+members. A per-ticket validation-in-progress flag rejects nested validation and
+invalidates the guard; it does not skip validation or recurse. The facts session
+also holds its existing CallScope. Validate original context/root/attempt/closure,
+sticky epoch/focus state, retained root/anchor equality and unchanged owner QPointers,
+then existing activeOwner and progress again after getters. No chain reconstruction.
+Observer installation is bracketed by ticket validation; the existing facts
+observer set must all install before any helper read. Per-getter and final-delivery
+checks validate the same ticket. Clear only the reentrancy-in-progress flag on
+unwind, never revocation/invalidation. Entry teardown cannot free a live session
+inside its CallScope; queued completion waits for both existing depth guards.
+
+Finite stages: an unavailable/revoked/mismatched/reentrant ticket before helper
+entry or during a retained session yields facts-retained-owner-refused, preserving
+any terminal result already latched. Failed required facts observer metadata keeps
+facts-metadata-or-context-refused. Existing helper conversion/mapping failures keep
+their current stages when ticket validation passed. Entry final-delivery or output
+binding loss keeps facts-entry-delivery-refused or facts-entry-output-unknown.
+Ticket refusal emits no replacement owner diagnostic and never promotes an earlier
+capture; callback shape remains four fields. Missing entry at asynchronous return
+means no dereference or publication through it; existing independent restoration
+still controls cleanup. Consumer must explicitly admit the new refusal stage.
+
 ## Evidence and schema compatibility before implementation
 
 Do not label ancestry counts as full-window BFS counts or silently reuse v2
@@ -98,7 +184,7 @@ bindings identify the discovery scope for successful records.
 Chain fields: items is null before discovery initializes, otherwise0..25;
 complete is false until the retained root is reached, then true; failure is null
 or a finite label `anchor-unavailable`, `item-context`, `root-unreached`,
-`depth-bound`, `cycle`, `anchor-changed`, `guard-invalidated`, `observer-unavailable`.
+`depth-bound`, `cycle`, `observer-unavailable`.
 Failures during chain construction use branch owner-discovery and discovery_result
 `open-focus-chain-refused`; predicate remains null except an original failed
 progress subcondition, which retains open-context-lost and its original predicate.
@@ -140,9 +226,10 @@ after discovery is sticky continuation refusal and cannot overwrite earlier
 latched evidence. Consumer must reject unknown/mixed version fields, inconsistent
 chain/branch tuples and raw duplicate keys while preserving bounded raw failure
 bytes under existing ownership/cleanup rules. No addresses/object names/tree dumps.
-Sol/Main must settle the full finite version3 decoder matrix and retained-ticket
-API together before implementation, including how post-discovery guard refusal
-maps to existing callback stages. This proposal grants no partial wire rollout.
+Sol/Main must accept this finite version3 matrix, ticket semantics and corresponding
+consumer refusal-stage amendment before implementation. Concrete C++ signatures
+must preserve these ownership rules and receive source review; this proposal
+grants no partial wire rollout.
 
 ## Required proof and fixtures
 
@@ -162,6 +249,14 @@ fixtures under the exact vendor Qt runtime and independently inspect results:
 - Focus/reparent/window/lifetime changes during every getter boundary, including
   away-and-back and nested event delivery; retained guards must refuse and defer
   teardown. No final pointer-equality substitution for sticky invalidation.
+- Intentionally move focus away/back inside FocusOut and separately FocusIn
+  handlers before the outer window notification; demonstrate the armed application
+  filter invalidates before the receiver handler even when final anchor/notified
+  values match. Exercise filter ordering/suppression, nested scopes, and subscene
+  delivery; unsupported observation remains a failed qualification gate.
+- Combine focus invalidation with deadline expiry, observer failure and endpoint
+  mismatch; assert original progress precedence, null skipped operands and immutable
+  nested-first failure. Confirm unrelated focus events conservatively refuse.
 - Later facts receives the identical retained owner without another discovery;
   invalid ticket, dropped entry, changed focus or stale capture cannot read facts.
   Ordinary facts/input modes retain their existing behavior and fixture coverage.

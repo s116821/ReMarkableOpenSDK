@@ -23,6 +23,15 @@ and notifications that can change focus again. Subscene agents also delegate to
 the window agent; this is not proof that arbitrary subscene roots have a complete
 parentItem path to the window content root.
 
+In that pinned source, focus events precede the window notification.
+[notifyFocusChangesRecur](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/util/qquickdeliveryagent.cpp#L591-L610)
+compares notified and final flags before signaling. Reentrant event handlers can
+restore the original anchor before outer notification; endpoint signals alone
+therefore do not prove continuity. The proposal requires conservative application
+event-filter invalidation before receiver FocusIn/FocusOut handlers, plus explicit
+same-runtime tests. Filter ordering/suppression and unsupported subscene paths
+remain qualification limits, not an assumed universal observation surface.
+
 ## Conditional completeness argument
 
 For a stable ordinary window focus hierarchy, a scene satisfying the SDK's
