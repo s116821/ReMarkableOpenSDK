@@ -113,7 +113,7 @@ Window { visible:true; width:400; height:400
         qml.replace("objectName:\"scene\"; focus:true","objectName:\"scene\"; focus:false");
         qml.insert(qml.indexOf("  SceneView")," Item { objectName:\"captureAnchor\"; focus:true }\n");
         if(mode=="receiver-two" || mode=="receiver-other-page" || mode=="receiver-unfocused-two"){
-            const QByteArray page=mode=="receiver-two" ? "00000000-0000-4000-8000-000000000002":"00000000-0000-4000-8000-000000000003";
+            const QByteArray page=(mode=="receiver-two" || mode=="receiver-unfocused-two") ? "00000000-0000-4000-8000-000000000002":"00000000-0000-4000-8000-000000000003";
             qml.insert(qml.indexOf("  SceneView")," SceneView { focus:false; document:receiver.document; pageId:\""+page+"\" }\n");
         }
     }
