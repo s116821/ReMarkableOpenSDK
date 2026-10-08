@@ -74,6 +74,8 @@ int main(int argc,char **argv){
     if(argc!=2)return 2;
     const QByteArray mode=argv[1];
     const bool receiverMode=mode.startsWith("receiver-");
+    const bool receiver512=mode.startsWith("receiver-512-");
+    const QString receiverScope=receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
     qmlRegisterType<OriginalSceneView>("OwnedFacts",1,0,"SceneView");
     qmlRegisterType<SceneView>("OwnedFacts",1,0,"NegativeScene");
     qmlRegisterType<OwnedReceiver>("OwnedFacts",1,0,"OwnedReceiver");
@@ -133,7 +135,7 @@ Window { visible:true; width:400; height:400
     FactsEntryConfig config;config.nonce=nonce;config.directory=root;
     config.facts={document.id(),document.ids,6,5000};config.setupBudgetMs=120000;
     config.developmentSetup120=config.developmentCaptureObservation=config.developmentFocusAncestry=true;
-    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;}
+    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;}
     config.setupSelection="main-dev-facts-120s";
     qint64 time=0;int callbacks=0,grabs=0,mappings=0,finalChecks=0;
     std::function<void()> clockHook;FactsEntryResult result;
@@ -143,6 +145,15 @@ Window { visible:true; width:400; height:400
         std::puts("PASS focus-owned funnel-serializer numeric/null/unselected native_authority=false");return 0;
     }
     auto *subscene=new QQuickItem(scene);
+    if(receiver512){
+        QList<QQuickItem *> items{receiver};
+        for(qsizetype i=0;i<items.size();++i)items.append(items[i]->childItems());
+        const int target=mode=="receiver-512-overflow" ? 513:512;
+        if(items.size()>target)return 4;
+        for(qsizetype i=items.size();i<target;++i)new QQuickItem(receiver);
+        items={receiver};for(qsizetype i=0;i<items.size();++i)items.append(items[i]->childItems());
+        if(items.size()!=target)return 4;
+    }
     if(mode=="receiver-cap")for(int i=0;i<257;++i)new QQuickItem(receiver);
     if(mode=="receiver-depth"){
         QQuickItem *parent=receiver;
@@ -173,18 +184,19 @@ Window { visible:true; width:400; height:400
     drain();
     if(receiverMode){
         if(FocusAncestryFixtureAccess::hasTicket(entry) || FocusAncestryFixtureAccess::hasSession(entry) || mappings || scene->hasActiveFocus())return 11;
-        if(mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
+        if(mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
             QFile file(root+"/capture-owner-refusal.json");if(!file.open(QIODevice::ReadOnly))return 12;
             const auto value=QJsonDocument::fromJson(file.readAll()).object();
-            if(value.size()!=34 || value["version"]!=5 || value["discovery_scope"]!="receiver-subtree-capture-unqualified-v1" || grabs || callbacks!=1 || result.observed || QFile::exists(root+"/capture-window.png"))return 12;
+            if(value.size()!=34 || value["version"]!=5 || value["discovery_scope"]!=receiverScope || grabs || callbacks!=1 || result.observed || QFile::exists(root+"/capture-window.png"))return 12;
             if(mode=="receiver-two" && (value["matched_pairs"]!=2 || value["discovery_result"]!="open-owner-ambiguous"))return 12;
             if(mode=="receiver-cap" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items"))return 12;
+            if(mode=="receiver-512-overflow" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items" || ownerReads || !value["matched_pairs"].isNull() || value["topology_queue_size"]!=1 || value["topology_child_count"]!=512))return 12;
             if(mode=="receiver-depth" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-depth" || value["topology_depth"]!=8))return 12;
             if(mode=="receiver-getter-loss" && (!getterChanged || value["predicate"]!="invalidated"))return 12;
         }else{
             QFile file(root+"/capture-observation-complete.json");if(!file.open(QIODevice::ReadOnly))return 13;
             const auto value=QJsonDocument::fromJson(file.readAll()).object();
-            if(value.size()!=37 || value["version"]!=2 || value["discovery_scope"]!="receiver-subtree-capture-unqualified-v1" || grabs!=1 || callbacks || value["page_index"]!=0)return 13;
+            if(value.size()!=37 || value["version"]!=2 || value["discovery_scope"]!=receiverScope || grabs!=1 || callbacks || value["page_index"]!=0)return 13;
             if(activeOwner(FocusAncestryFixtureAccess::captureOwner(entry),&engine))return 13;
             if(mode=="receiver-facts-refusal"){
                 if(!put(root+"/facts-request",fields.mid(0,5).join(' ')+" read-facts 120000 main-dev-facts-120s\n"))return 14;

@@ -54,8 +54,9 @@ inline bool receiverSubtreeWatchNotify(FocusOwnerGuard &guard,QObject *object,co
 }
 inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std::function<bool()> &progress,
     FocusOwnerGuard &guard,PageOwner &out,PageOwnerDiagnostics &d,FocusChainDiagnostics &chain,
-    const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe) {
+    const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe,int itemCap=256) {
     out={};chain.items=0;
+    if(itemCap!=256 && itemCap!=512)return "open-capture-scope-refused";
     const QPointer<QQmlEngine> producer=engine;
     if(!progress())return "open-context-lost";
     if(!engine || QThread::currentThread()!=engine->thread())return "open-capture-scope-refused";
@@ -114,7 +115,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
         if(!progress())return "open-context-lost";
         const auto children=node.item->childItems();
         if(!progress())return "open-context-lost";
-        if(!children.isEmpty() && (node.depth==8 || children.size()>256-queue.size())){
+        if(!children.isEmpty() && (node.depth==8 || children.size()>itemCap-queue.size())){
             d.topologyLimit=node.depth==8 ? "subtree-depth":"subtree-items";
             d.topologyDepth=node.depth;d.topologyQueueSize=queue.size();d.topologyChildCount=children.size();
             return "open-capture-subtree-bound";
