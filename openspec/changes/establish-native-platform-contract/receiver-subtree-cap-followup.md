@@ -94,3 +94,14 @@ Wire layouts remain completionv2/exact37 and refusalv5/exact34, scoped explicitl
 Focused actual1024complete/1025appendrefusal-before-getters, historical scoped
 consumer bounds and exact selected productioncompile precede bounded review.
 No fresh nonce/packet/native action is selected. Broad qualification stays open.
+1024 source verification checkpoint: SDK945f0a79b39c022f06a75789b60212d294641a92
+and Buddy2d49c04483fc98196c8427a1b1a412135b4f38ed. Exact frozen16 checks passed:
+1024complete,1025appendrefusal-before-drawinggetter/nullmatched,legacy512overflow,
+legacy256cap,8funnel and4privacy. Exact selected production ARM compile passed
+-Werror/-zdefs without fixture macros. Artifact SHA256:
+debe3cad07b1d67a091ca9762ef81b8e413994ea56b939438b55033108f1a0a2.
+Exact consumer31legacy+16scope512+28scope1024 passed; separate legacyfocus131 passed.
+Private receipt sol-receiver-subtree-cap1024-r1/review-receipt.json SHA256:
+7b6fb34bee5b96ddf26d1b2c87455e0925d01fc8f00b4941ea9f09f650bf696e.
+Astra bounded SDK source review reported no findings; final receipt/consumer
+review closeout pending. No native qualification, fresh nonce or packet selected.
