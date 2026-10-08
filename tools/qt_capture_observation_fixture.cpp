@@ -51,10 +51,21 @@ Window { visible:true; width:400; height:400
  }
 })QML";
     if(mode=="owner-zero")qml.replace("property int currentPage:0","");
+    if(mode=="owner-ambiguous") {
+        qml.replace(" OwnedReceiver { id:receiver", " OwnedReceiver { objectName:\"outer\"; anchors.fill:parent; focus:true; property QtObject document:ownedDocument; property int currentPage:0; property string currentPageId:\"owned\"\n OwnedReceiver { id:receiver");
+        qml.insert(qml.lastIndexOf('}'),'}');
+    }
+    if(mode=="owner-cap") {
+        QByteArray extras;
+        for(int i=0;i<8;++i)extras+="OwnedReceiver {property QtObject document:ownedDocument; property int currentPage:0; property string currentPageId:\"owned\"}\n";
+        qml.insert(qml.lastIndexOf('}'),extras);
+    }
     engine.loadData(qml);
     if(engine.rootObjects().size()!=1)return 4;
     auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects()[0]);auto *receiver=window->findChild<OwnedReceiver *>("receiver");auto *scene=window->findChild<SceneView *>("scene");
     receiver->evidence=[&]{return scene->hasActiveFocus();};window->requestActivate();scene->forceActiveFocus();QCoreApplication::processEvents();
+    if(mode=="owner-ambiguous")window->findChild<OwnedReceiver *>("outer")->evidence=[] {return true;};
+    if(mode=="owner-topology") {QQuickItem *node=window->contentItem();for(int i=0;i<25;++i)node=new QQuickItem(node);}
     qint64 time=0;int callbacks=0,grabs=0,mappings=0;bool inGrab=false,held=true,acquired=false;FactsEntryResult result;
     QByteArray external(400*400*4,char(0xff));
     receiver->evidence=[&]{if(acquired && mode=="external-buffer")external.fill(char(0));return scene->hasActiveFocus();};
@@ -102,6 +113,10 @@ Window { visible:true; width:400; height:400
         }
         focusReads=0;
         receiver->evidence=[&]{++focusReads;return mode=="owner-revalidation" ? focusReads<3 : mode!="owner-discovery";};
+        if(mode=="owner-final-active")receiver->evidence=[&]{++focusReads;return focusReads<2;};
+        if(mode=="owner-progress")receiver->evidence=[&]{++focusReads;CaptureObservationFixtureAccess::invalidate(entry);return true;};
+        bool nestedRefused=false,callbackHeld=true;
+        if(mode=="owner-reentrant" || mode=="owner-reentrant-noevents")receiver->evidence=[&]{++focusReads;if(focusReads==3){nestedRefused=!entry.captureAllowed();if(mode=="owner-reentrant")QCoreApplication::processEvents();callbackHeld=callbacks==0;}return true;};
         if(!put(root+"/capture-observation-request",token))return 21;
         CaptureObservationFixtureAccess::accept(entry);
         if(mode=="owner-initial")CaptureObservationFixtureAccess::invalidate(entry);
@@ -125,6 +140,40 @@ Window { visible:true; width:400; height:400
             if(bytes.size()>8192 || value.size()!=29 || value["failure_ms"].toInteger()!=first.failure || value["failure_ms"].toInteger()==9999 ||
                 value["native_authority"].toBool(true) || value["render_authority"].toBool(true) || value["ui_acknowledged"].toBool(true))return 24;
             const QString branch=value["branch"].toString();
+            QJsonObject expected{{"kind","development-capture-owner-refusal"},{"version",1},{"nonce",nonce},
+                {"attempt_pid",QString::number(::getpid())},{"attempt_start",QString::fromLatin1(FactsEntry::processStart())},
+                {"root_device",QString::fromLatin1(fields[3])},{"root_inode",QString::fromLatin1(fields[4])},
+                {"setup_profile","main-dev-facts-120s"},{"capture_accepted_ms",0},{"failure_ms",mode=="owner-deadline" ? 5000:0},
+                {"effective_deadline_ms",5000},{"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}};
+            for(const char *name:{"deadline_check_ms","predicate","discovery_result","visited_items","receiver_candidates","scene_candidates","matched_pairs","first_pair_receiver","first_pair_scene","first_pair_rejection","active_owner_rejection","observer_role","observer_member","observer_failure"})expected[name]=QJsonValue::Null;
+            expected["branch"]="owner-discovery";
+            expected["discovery_result"]="open-owner-unavailable";
+            expected["visited_items"]=3;expected["receiver_candidates"]=1;expected["scene_candidates"]=1;expected["matched_pairs"]=0;
+            if(mode=="owner-initial" || mode=="owner-deadline" || mode=="owner-reentrant") {
+                expected["branch"]="initial-progress";expected["predicate"]=mode=="owner-deadline" ? "deadline":"invalidated";
+                for(const char *name:{"discovery_result","visited_items","receiver_candidates","scene_candidates","matched_pairs"})expected[name]=QJsonValue::Null;
+                if(mode=="owner-deadline")expected["deadline_check_ms"]=5000;
+            }else if(mode=="owner-window"){
+                expected["discovery_result"]="open-current-window-unavailable";
+                for(const char *name:{"visited_items","receiver_candidates","scene_candidates","matched_pairs"})expected[name]=QJsonValue::Null;
+            }else if(mode=="owner-zero")expected["receiver_candidates"]=0;
+            else if(mode=="owner-discovery"){expected["first_pair_receiver"]=0;expected["first_pair_scene"]=0;expected["first_pair_rejection"]="drawing-area-focused";}
+            else if(mode=="owner-progress" || mode=="owner-final-active"){
+                expected["discovery_result"]="open-context-lost";expected["matched_pairs"]=1;
+                if(mode=="owner-progress")expected["predicate"]="invalidated";
+                else expected["active_owner_rejection"]="drawing-area-focused";
+                if(originalFocus!=(mode=="owner-progress" ? 1:2))return 29;
+            }else if(mode=="owner-cap"){expected["discovery_result"]="open-candidate-bound";expected["visited_items"]=10;expected["receiver_candidates"]=9;expected["scene_candidates"]=0;expected["matched_pairs"]=QJsonValue::Null;}
+            else if(mode=="owner-topology"){expected["discovery_result"]="open-topology-bound";expected["visited_items"]=28;expected["matched_pairs"]=QJsonValue::Null;}
+            else if(mode=="owner-ambiguous"){expected["discovery_result"]="open-owner-ambiguous";expected["visited_items"]=4;expected["receiver_candidates"]=2;expected["matched_pairs"]=2;}
+            else if(mode=="owner-observer" || mode=="owner-revalidation" || mode=="owner-reentrant-noevents"){
+                expected["discovery_result"]="open-owner-observed";
+                for(const char *name:{"visited_items","receiver_candidates","scene_candidates","matched_pairs"})expected[name]=QJsonValue::Null;
+                if(mode=="owner-observer"){expected["branch"]="observer-install";expected["observer_role"]="document";expected["observer_member"]="pageCountChanged(int,int)";expected["observer_failure"]="signal-missing";}
+                else {expected["branch"]="owner-revalidation";expected["predicate"]=mode=="owner-reentrant-noevents" ? "invalidated-after":"active-owner";if(mode=="owner-revalidation")expected["active_owner_rejection"]="drawing-area-focused";}
+            }
+            if((mode=="owner-reentrant" || mode=="owner-reentrant-noevents") && (!nestedRefused || !callbackHeld || originalFocus!=3))return 29;
+            if(value!=expected){qWarning()<<"diagnostic matrix mismatch"<<mode<<value<<expected;return 29;}
             if(mode=="owner-initial" && (branch!="initial-progress" || value["predicate"]!="invalidated" || !value["discovery_result"].isNull()))return 25;
             if(mode=="owner-deadline" && (branch!="initial-progress" || value["predicate"]!="deadline" || value["deadline_check_ms"].toInteger()!=5000))return 25;
             if((mode=="owner-discovery" || mode=="owner-zero" || mode=="owner-window") && branch!="owner-discovery")return 25;

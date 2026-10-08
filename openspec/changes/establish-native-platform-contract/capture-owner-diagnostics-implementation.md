@@ -15,10 +15,10 @@ existing exclusive bounded file writer. Later getters cannot replace the record.
 
 Source validation on 2026-10-07 used the vendor Qt 6.10.3 ARM SDK under QEMU:
 
-- `qt_capture_observation_test.sh`: 35 cases passed, including 10 diagnostic
+- `qt_capture_observation_test.sh`: 42 cases passed, including 17 diagnostic
   cases for initial/deadline progress, failed discovery, zero candidates,
   unavailable window, observer metadata, final revalidation, foreign output,
-  closure and generation replacement.
+  closure and generation replacement, discovery progress loss, final discovery active-owner loss, nested reentrancy with/without queued event dispatch, candidate/topology bounds and ambiguity.
 - Diagnostic fixtures checked the 29-field record, mode 0600, immutable failure
   time, original callback shape/stage, unchanged getter counts, and no capture
   image/completion authority. A sink/no-sink discovery comparison also checked
@@ -27,6 +27,6 @@ Source validation on 2026-10-07 used the vendor Qt 6.10.3 ARM SDK under QEMU:
   format cases, 17 input observation cases and the original 25 capture cases
   passed. These are synthetic source checks, not real-tablet evidence.
 
-Finite branches beyond the explicitly exercised diagnostic fixtures still need
+Every emitted diagnostic fixture compares the complete 29-field expected record, including every null. Nested queued failure is latched before the later outer failure; callback delivery remains held until Scope exits. Finite branches beyond the explicitly exercised diagnostic fixtures still need
 independent review of their instrumentation and decoder matrix. No new nonce,
 artifact or native trial is selected by this checkpoint.
