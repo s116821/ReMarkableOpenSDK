@@ -1,5 +1,9 @@
 # Bounded first-failure evidence for development capture ownership
 
+The proposed [topology return-site amendment](capture-topology-diagnostics.md)
+adds version2 evidence while preserving this implemented version1 contract for
+historical records. It changes no owner or topology acceptance predicate.
+
 Status: proposal only, against SDK `f0e6ff4ccb37b887f7f278b0b820a7d047de1559`.
 Astra owns this specification; Sol owns ordinary implementation and consumer
 integration; Main owns artifact selection, device operation and canonical sync.

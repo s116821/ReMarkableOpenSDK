@@ -337,6 +337,19 @@ SHALL NOT repeat getters, owner traversal or input, relax acceptance, or confer
 native/render authority. Consumer preservation and exact source/artifact review
 SHALL precede any separately selected native attempt.
 
+The SDK SHALL follow capture-topology-diagnostics.md for proposed version2
+return-site evidence: distinguish visited, depth and cumulative queue-cap from
+original evaluations only, retaining version1 historical records unchanged and
+preserving the original callback, clocks, limits and refusal semantics.
+
+#### Scenario: Topology refusal occurs below the visited limit
+- **WHEN** the original depth or child-append comparison refuses while visited_items is below4097
+- **THEN** version2 records the actual finite return site and only its already-evaluated scalars, without inferring owner absence, reevaluating the tree or increasing its bounds.
+
+#### Scenario: Historical version1 topology evidence is decoded
+- **WHEN** a retained valid version1 diagnostic lacks distinct topology-site fields
+- **THEN** its bytes and meaning remain unchanged, the site stays unknown, and consumers neither promote it to version2 nor infer depth solely from its visited count.
+
 #### Scenario: An owner gate refuses
 - **WHEN** initial progress, owner discovery, observer installation or owner revalidation first fails
 - **THEN** the original terminal branch and finite detail are latched with original-clock failure/deadline evidence, while the callback remains capture-observation-owner-refused and acquisition does not continue.

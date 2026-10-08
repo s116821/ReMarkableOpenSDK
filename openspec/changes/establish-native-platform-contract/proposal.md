@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Propose version2 finite topology return-site evidence for development owner
+  refusal; see [capture-topology-diagnostics.md](capture-topology-diagnostics.md).
+  Preserve version1 history, original limits and evaluation counts.
+
 - Propose bounded first-original-evaluation diagnostics for the aggregate
   development capture owner refusal, preserving callback compatibility and all
   existing guards; see [capture-owner-diagnostics.md](capture-owner-diagnostics.md).

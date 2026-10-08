@@ -160,6 +160,12 @@ Which native service/mechanism can satisfy creation and durable reconciliation w
 
 ### Historical evidence export
 
+The [topology diagnostic amendment](capture-topology-diagnostics.md) distinguishes
+the original visited, depth and cumulative queue-cap returns with four nullable
+scalar/enum fields in private diagnostic version2. Existing version1 bytes stay
+historical and unmodified; callbacks, capture/facts schemas and all bounds remain
+unchanged. No reevaluation or additional device operation is selected.
+
 The proposed [capture owner diagnostics](capture-owner-diagnostics.md) retain
 the first failed original gate evaluation in the default-off capture path. Fixed
 branch/discovery/observer enums, bounded candidate detail and original-clock times
