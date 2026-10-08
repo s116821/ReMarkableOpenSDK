@@ -335,10 +335,19 @@ private:
         captureIndex_=index;captureDocument_=doc;capturePage_=page;return true;
     }
     bool captureTokenCurrent() const {
-        struct stat named{};
+        struct stat named{},temporary{};
+        const bool hasTemporary=::fstatat(root_,"capture-observation-request.tmp",&temporary,AT_SYMLINK_NOFOLLOW)==0;
+        const int temporaryError=errno;
+        if (captureTemporaryForFixture_) captureTemporaryForFixture_();
+        if (hasTemporary && captureTemporaryReleased_) return false;
+        if (!hasTemporary && temporaryError==ENOENT) captureTemporaryReleased_=true;
+        // The held final inode's bytes below also validate an identical temporary
+        // alias. Reopening the alias can race its legitimate publisher unlink.
+        const bool temporaryCurrent=hasTemporary ? S_ISREG(temporary.st_mode) && temporary.st_uid==::geteuid() && (temporary.st_mode&0777)==0600 &&
+            temporary.st_dev==captureTokenStat_.st_dev && temporary.st_ino==captureTokenStat_.st_ino : temporaryError==ENOENT;
         return ::fstatat(root_,"capture-observation-request",&named,AT_SYMLINK_NOFOLLOW)==0 &&
             named.st_dev==captureTokenStat_.st_dev && named.st_ino==captureTokenStat_.st_ino &&
-            readFile("capture-observation-request",256)==captureToken_ && !exists("capture-observation-request.tmp") &&
+            readFile("capture-observation-request",256)==captureToken_ && temporaryCurrent &&
             !exists("input-observation-end") && !exists("input-observation-end.tmp");
     }
     bool captureFileCurrent(const char *name,int fd) const {
@@ -622,10 +631,12 @@ QtObject {
     QPointer<QQuickWindow> observationWindow_;
     PageOwner captureOwner_;
     std::function<QImage()> captureGrabForFixture_;
+    std::function<void()> captureTemporaryForFixture_;
     QPointer<QObject> captureHelper_;
     QByteArray captureToken_,captureComplete_,capturePngHash_;
     struct stat captureTokenStat_{};
     int captureTokenFd_=-1,capturePngFd_=-1,captureCompleteFd_=-1;
+    mutable bool captureTemporaryReleased_=false;
     QString captureDocument_,capturePage_;
     int captureIndex_=-1;
     quint64 captureEpoch_=1;

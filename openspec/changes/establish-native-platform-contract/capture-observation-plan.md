@@ -114,6 +114,13 @@ watcher notifications for the retained request are harmless and never re-grab;
 replaced request identity or an attempted second publication refuses continuation.
 Keep the original request file immutable and check its retained file identity
 before admitting the later facts request.
+Atomic link publication may briefly retain the request.tmp name as an alias of
+the exact held final-request inode. Accept only that regular0600/current-owner
+alias with identical purpose bytes during publication; a foreign temporary name
+refuses. Once absence of the temporary alias has been observed, its release is
+sticky and any later reappearance refuses continuation. The selected final facts
+publisher still requires the temporary name absent. This exception cannot admit
+a second capture or a replaced request.
 
 The selected capture has a fixed5000ms deadline from its own acceptance, additionally
 capped by original setup expiry. Queued dispatch, owner reading, grab, encoding

@@ -29,3 +29,14 @@ framebuffer freshness, input isolation or physical panel. Task5.7 remains open f
 linked consumer and independent artifact/packet review; native tasks2.9/4.11 remain
 open. Source basis: current original source, executed fixtures and Astra's separate
 source review; native limitations remain those in capture-observation-plan.md.
+
+Atomic publication follow-up: the SDK accepts only an identical held-inode
+temporary alias while link publication completes, avoids reopening that alias
+across publisher unlink, and makes observed temporary release sticky. Focused
+vendor/QEMU25 cases plus one real SDK-entry/consumer-publisher interleaving case
+passed normally, including foreign temporary refusal, later reappearance refusal
+and deterministic unlink between temporary metadata and final-byte validation.
+The consumer publisher also permits legitimate SDK image/completion phase advance
+after its successful link while preserving generation/root/closure checks.
+This supersedes the earlier unconditional temporary-absence source checkpoint;
+final selected facts publication still requires temporary absence.
