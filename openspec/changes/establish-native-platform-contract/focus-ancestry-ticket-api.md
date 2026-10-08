@@ -25,7 +25,7 @@ class PageFactsSession;
 class RetainedOwnerRecord final {
     friend class FactsEntry;
     friend class RetainedOwnerTicket;
-    enum class Boundary { EntryProgress, SessionOwner, DeliveryProgress };
+    enum class Boundary { EntryProgress, SessionOwner, DeliveryProgress, InvalidateOnly };
     using Bridge = bool (*)(RetainedOwnerRecord &, Boundary);
     RetainedOwnerRecord(QPointer<QObject> entry, quint64 generation,
                         PageOwner owner, QPointer<QQuickItem> root,
@@ -106,11 +106,23 @@ request/positive visual binding gate. Its owner must equal the capture owner.
 
 Ticket validate locks the weak record; checks generation, nonrevocation, weak entry
 and exact ticket/record owner QPointers; refuses if validating_ is already true.
-Nested validation revokes the record and invalidates the surviving entry through
-the fixed bridge, rather than invoking another owner check. No nested call can
-clear that state. An RAII latch clears only validating_ on unwind.
+Nested validation first revokes the record, then invokes the fixed bridge with
+InvalidateOnly. This operation bypasses normal nonrevocation admission solely to
+propagate the already latched invalidation to a surviving entry. It never invokes
+validate(), a normal boundary, progress, current(), captureAllowedChecked(),
+activeOwner(), endpoint sampling or any native getter. Resolve weak entry on the
+GUI thread, immediately enter FactsEntry::Scope, check the entry's exact record
+identity/generation and selected mode, then call invalidateCapture and latch
+record revocation; return false in every case. Missing/mismatched entry returns
+false without dereference or granting authority. InvalidateOnly is private and
+fixed in the sealed factory bridge, not a caller-supplied operation or public API.
+No nested call can clear invalidation, revocation, validating_, captureChecking_,
+session checking_ or an earlier failure. Only the original outer RAII latch clears
+its validating_ on unwind; existing owner/session checking flags remain governed
+by their original outer scopes.
 
-The static FactsEntry bridge resolves the guarded QObject via qobject_cast<FactsEntry *>
+For the three normal validation boundaries, the static FactsEntry bridge resolves
+the guarded QObject via qobject_cast<FactsEntry *>
 only after weak availability/thread checks. It immediately enters the existing
 FactsEntry::Scope before member access. It verifies selected mode, record identity
 equals entry.retainedRecord_, generation, nonrevocation, context/root/attempt/
