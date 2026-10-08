@@ -98,8 +98,8 @@ alone, and existing persisted metadata candidates are not native UI authority.
 
 ## Prior art and revisit boundary
 
-The [existing research](research.md) and
-[mechanism comparison](runtime-mechanism-comparison.md) retain pinned community
+The [existing research](../../../docs/research/native-platform-ledger.md) and
+[mechanism comparison](../../../docs/research/runtime-mechanism-comparison.md) retain pinned community
 contracts: rm-librarian existing-engine QML access, Library.entryForId/native
 document identity and event-driven readiness; Inkling's dispatch/visual-tree
 precedent; and XOVI's loader/lifecycle tradeoffs. They informed discovery, not

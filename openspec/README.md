@@ -11,3 +11,9 @@ This repository owns the SDK's API, capability, adapter, native behavior, compat
 Validate using `openspec validate --all --strict --no-interactive`. Equivalent manual review remains supported. Structural validation is not implementation verification.
 
 ReMarkableBuddiesDocs owns product behavior and references this SDK contract/version. Neither repository silently overrides or duplicates the other's contract. Current instructions supersede earlier ecosystem guidance that placed every specification in Docs.
+
+Reusable SDK research, reference guides and tooling knowledge live under
+[`docs/`](../docs/README.md). Genuine change-specific plans, design amendments and
+implementation/verification checkpoints remain here in their standard change
+structure. Link to their canonical bodies from the knowledge index; do not move
+workflow artifacts solely because they are Markdown or archive unfinished gates.

@@ -1,6 +1,6 @@
 # Candidate R2: observe the registered controller without invoking QML
 
-Status: the revised 4096-entry R2 completed once and found one matching existing-controller chain; see [actual evidence](research.md#completed-development-observation-r2-4096-controller-chain). Earlier R2 refused at its count bound and R2D sampled count 3096 without traversal; retain both historical results. Main owns device operation. The matched sample is not retained lifetime, current-page authority or callable native qualification.
+Status: the revised 4096-entry R2 completed once and found one matching existing-controller chain; see [actual evidence](../../../docs/research/native-platform-ledger.md#completed-development-observation-r2-4096-controller-chain). Earlier R2 refused at its count bound and R2D sampled count 3096 without traversal; retain both historical results. Main owns device operation. The matched sample is not retained lifetime, current-page authority or callable native qualification.
 
 ## October 2 immediate follow-up: revised R2 bound
 
@@ -32,7 +32,7 @@ Controller object access remains conditional. [Qt's threading rules](https://doc
 
 ### Implemented typed candidate probe, preserved before hardware
 
-Later October 2 decision: main held the unexecuted typed-guard packet in favor of the [community existing-engine/QML access hypothesis](research.md#community-reuse-decision-existing-engine-and-qml-singleton-access). Preserve its implementation and review evidence; do not expand private registry work while the public route is being tested.
+Later October 2 decision: main held the unexecuted typed-guard packet in favor of the [community existing-engine/QML access hypothesis](../../../docs/research/native-platform-ledger.md#community-reuse-decision-existing-engine-and-qml-singleton-access). Preserve its implementation and review evidence; do not expand private registry work while the public route is being tested.
 
 The separate development payload `tools/qt_guard_probe.cpp` and `qt_guard_probe_core.h` implement the narrow retained-candidate path; the proven `qt_startup_probe.cpp` remains unchanged. Main resolved the lookup ambiguity explicitly: use one fixed typed lookup, refuse mismatched module/name/version/static-meta-object or callback target, and always emit `uniqueness: "unproven"`. Qt's first-match lookup cannot establish duplicate absence. There is no singleton snapshot or additional registry enumeration. Exact native registration criteria are frozen in a private build configuration, including the statically corroborated version 1.0 and expected static meta-object; no historical live controller pointer is reused. The saved native executable is ELF32 ET_EXEC, not PIE; this frozen configuration uses its linked static-meta-object address and requires a freshly verified zero load bias in the operator preflight. The first PT_LOAD virtual address is not itself the load bias. A different executable/profile/bias refuses this packet.
 

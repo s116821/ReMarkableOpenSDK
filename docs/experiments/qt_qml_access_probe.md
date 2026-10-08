@@ -617,7 +617,7 @@ busy native calls; the outer operator remains responsible for hard recovery.
 
 ## Explicit PageKey development open/observe mode
 
-The October 3 [active plan](../openspec/changes/establish-native-platform-contract/page-key-open-plan.md)
+The October 3 [active plan](../../openspec/changes/establish-native-platform-contract/page-key-open-plan.md)
 adds an off-by-default `QT_PROBE_PAGE_OPEN_CONFIG` factory, `pageOpenConfig()`.
 It supplies a canonical document/source/target identity and six unique expected
 page IDs. It is mutually exclusive with the creation factory; no private fixture
