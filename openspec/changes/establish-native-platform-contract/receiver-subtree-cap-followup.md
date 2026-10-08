@@ -131,3 +131,23 @@ Exact consumer31+16+28+32 passed. Receipt sol-receiver-subtree-cap2048-r1/review
 SHA256 d6dc7bf40d9b24095274dd24ec3bf58d79c6b151a4f53e4d0592f76ad94b8739.
 Astra source review no findings; finalreceipt/consumer closeout pending. No native
 qualification, fresh nonce or packet selected; full lifecycle remains open.
+## Selected fixed2048/depth16 continuation
+
+Main reports spent6c63/v4 refused subtree-depth: visited940, queue1162+child1,
+depth8, receiver1/scenes2; pairs/predicate null, no candidate value getters/PNG/
+facts. Main reports original restore/cleanup and exact helper/final closeout,
+stock23214/start236910841. Source basis: current Main coordination message;
+not an independently verified transcript here.
+
+Main selects one separate fixed2048-items/depth16 profile, exact discovery_scope
+receiver-subtree-capture-unqualified-v5. Append depthcap option0/16 only; zero
+preserves historical depth8. Explicit16 requires baseReceiver+itemcap2048 and
+512flagfalse. Preserve historical scopesv1/v2/v3/v4 and their item/depth semantics.
+Helper admits16 only with2048 items. Completionv2/exact37 and refusalv5/exact34
+wire shapes remain. No adaptive expansion or same-attempt retry. Keep8scenes,
+completewalk-before-values/fulltuple/unique/predicates/sticky/original5s/external
+restore/no-facts/no-ticket. Bound does not promise native completion within16.
+
+Focused actual SceneView atdepth16 complete, its child at17 refused beforevalue
+getters, oldv4depth8 refusal, exact productioncompile and bounded review precede
+fresh Main-selected nonce/packet. No broad matrix or device action selected here.
