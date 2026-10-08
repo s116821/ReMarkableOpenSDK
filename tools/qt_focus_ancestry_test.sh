@@ -8,6 +8,14 @@ else moc="$(pkg-config --variable=libexecdir Qt6Core)/moc"; fi
 for file in qt_page_facts qt_page_facts_entry; do "$moc" "tools/$file.h" -o "$work/$file.moc"; done
 "$moc" tools/qt_page_facts_fixture.cpp -o "$work/qt_page_facts_fixture.moc"
 "$moc" tools/qt_focus_ancestry_fixture.cpp -o "$work/qt_focus_ancestry_fixture.moc"
+"$moc" tools/qt_focus_scene_funnel_fixture.cpp -o "$work/qt_focus_scene_funnel_fixture.moc"
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -Itools -I"$work" \
+ tools/qt_focus_scene_funnel_fixture.cpp $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/scene-funnel-fixture"
+if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
+ "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 \
+  -E QT_QPA_PLATFORM=offscreen -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
+  -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/scene-funnel-fixture"
+else QT_QPA_PLATFORM=offscreen "$work/scene-funnel-fixture"; fi
 cat > "$work/key-positive.cpp" <<'CPP'
 #include "qt_retained_owner_ticket.h"
 #include <type_traits>

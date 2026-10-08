@@ -514,7 +514,12 @@ private:
                 const QPointer<FactsEntry> weak=this;
                 focusGuard_.context=this;
                 focusGuard_.invalidate=[weak]{if(weak)weak->invalidateCapture();};
-                diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain);
+                FocusSceneFunnel funnel;
+                diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,&funnel);
+                qInfo("rem25-focus-scene-funnel-v1 complete=%d items=%lld visited=%lld engine=%lld class=%lld page_id=%lld page_id_changed=%lld document_wrapper_changed=%lld pass=%lld",
+                    int(diagnostic.chain.complete),static_cast<long long>(diagnostic.chain.items),static_cast<long long>(diagnostic.owner.visited),
+                    static_cast<long long>(funnel.engine),static_cast<long long>(funnel.sceneClass),static_cast<long long>(funnel.pageId),
+                    static_cast<long long>(funnel.pageIdChanged),static_cast<long long>(funnel.documentWrapperChanged),static_cast<long long>(funnel.pass));
             } else diagnostic.discovery=findPageOwner(engine_,progress,captureOwner_,&diagnostic.owner);
             if(QByteArrayView(diagnostic.discovery)!=QByteArrayView("open-owner-observed"))diagnostic.branch="owner-discovery";
             else if(!captureObservers(&diagnostic))diagnostic.branch="observer-install";

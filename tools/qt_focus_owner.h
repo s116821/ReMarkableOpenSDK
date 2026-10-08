@@ -8,6 +8,19 @@ struct FocusChainDiagnostics {
     bool complete=false;
     const char *failure=nullptr;
 };
+struct FocusSceneFunnel {
+    qint64 engine=0,sceneClass=0,pageId=0,pageIdChanged=0,documentWrapperChanged=0,pass=0;
+};
+inline bool focusSceneCandidate(QQuickItem *node,QQmlEngine *engine,FocusSceneFunnel *funnel=nullptr) {
+    // First failure only; preserve the original metadata predicate short circuit.
+    if(qmlEngine(node)!=engine){if(funnel)++funnel->engine;return false;}
+    if(!classInherits(node,"SceneView")){if(funnel)++funnel->sceneClass;return false;}
+    if(!propertyType(node,"pageId",QMetaType::fromType<QString>())){if(funnel)++funnel->pageId;return false;}
+    if(node->metaObject()->indexOfSignal("pageIdChanged()")<0){if(funnel)++funnel->pageIdChanged;return false;}
+    if(node->metaObject()->indexOfSignal("documentWrapperChanged()")<0){if(funnel)++funnel->documentWrapperChanged;return false;}
+    if(funnel)++funnel->pass;
+    return true;
+}
 // Entry-owned observers; callbacks only latch, never sample or traverse.
 struct FocusOwnerGuard {
     QPointer<QQuickWindow> window;
@@ -41,7 +54,8 @@ struct FocusOwnerGuard {
     }
 };
 inline const char *findFocusPageOwner(QQmlEngine *engine,const std::function<bool()> &progress,
-    FocusOwnerGuard &guard, PageOwner &out, PageOwnerDiagnostics &d, FocusChainDiagnostics &c) {
+    FocusOwnerGuard &guard, PageOwner &out, PageOwnerDiagnostics &d, FocusChainDiagnostics &c,
+    FocusSceneFunnel *funnel=nullptr) {
     out={}; c.items=0;
     const QPointer<QQmlEngine> producer=engine;
     const auto local=[&](const char *label){
@@ -88,10 +102,7 @@ inline const char *findFocusPageOwner(QQmlEngine *engine,const std::function<boo
             propertyType(node,"currentPageId",QMetaType::fromType<QString>()) &&
             propertyType(node,"drawingAreaFocused",QMetaType::fromType<bool>()) &&
             node->metaObject()->indexOfProperty("document")>=0)receivers.append(node);
-        if(qmlEngine(node)==engine && classInherits(node,"SceneView") &&
-            propertyType(node,"pageId",QMetaType::fromType<QString>()) &&
-            node->metaObject()->indexOfSignal("pageIdChanged()")>=0 &&
-            node->metaObject()->indexOfSignal("documentWrapperChanged()")>=0)scenes.append(node);
+        if(focusSceneCandidate(node,engine,funnel))scenes.append(node);
         d.receivers=receivers.size();d.scenes=scenes.size();
         if(!progress())return "open-context-lost";
         if(d.receivers>8 || d.scenes>8)return "open-candidate-bound";
