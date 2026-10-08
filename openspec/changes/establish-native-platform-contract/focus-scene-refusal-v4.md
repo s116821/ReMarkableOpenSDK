@@ -25,12 +25,21 @@ The existing selected numeric journal line remains supplemental evidence only.
 
 ## Tasks and limits
 
-- [ ] Implement selected v4 serialization and member storage.
-- [ ] Coordinate exact Buddy parser revision via its owning Docs amendment.
-- [ ] Verify positive/count consistency, malformed/missing/type/bounds/null
+- [x] Implement selected v4 serialization and member storage.
+- [x] Coordinate exact Buddy parser revision via its owning Docs amendment.
+- [x] Verify positive/count consistency, malformed/missing/type/bounds/null
   rejection, old versions, actual serializer and production ARM compile.
 - [ ] Obtain bounded independent review and freeze a fresh packet for Main.
 - [ ] Main alone selects and executes the next bounded native observation.
 
 No broad matrix is a prerequisite to that authorized bounded experiment. Broad
 source/native/release qualification, canonical sync and archive remain open.
+
+Bounded implementation397357b17ac3696739167560e3c0cfa2236b3270 pairs with
+Buddy73c60c0063dac1f832ef446cadada2a32d369327 under its consumer amendment
+ed20d7d. Owned ARM/QEMU tests passed35 cases (8 funnel,23 focus including direct
+serialization,4 compiler privacy negatives). The exact SDK commit archive
+compiled as the production ARM shared payload without fixture macros. Buddy's
+focused v4 parser passed28 checks and historical/collector checks passed727.
+Raw SDK fixture and compile logs/hashes remain in Main's private handoff receipt.
+No native qualification is claimed from these checks.
