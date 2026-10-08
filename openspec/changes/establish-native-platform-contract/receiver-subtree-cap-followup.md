@@ -161,3 +161,19 @@ sol-receiver-subtree-depth16-r1/review-receipt.json SHA256
 f8e873bf71d925cf0a1271f5422e7403dfdf351ec1ea05b6b034bdabe7b6db46.
 Bounded source reviews no findings; finalreceiptcloseout pending. No native
 qualification/fresh nonce/packet selected; full lifecycle remains open.
+## Selected fixed4096/depth16 continuation
+
+Main reports spent8796/v5 refused subtree-items beforevalues: visited1824,
+queue2048+child2,depth12,receiver1/scenes2,pairs/predicate null,noPNG/facts. Main
+reports full exact cleanup/final baseline25403/start237006777. Source basis:
+current Main coordination message, not independently verified transcript here.
+
+Main selects one fixed4096/depth16 profile,scope receiver-subtree-capture-unqualified-v6.
+Add4096 to item allowlist only with explicitdepth16/baseReceiver/no512. Depth16
+admits2048 or4096; zero/1024/2048 options and historicalv1-v5 scopes/caps/depths
+remain exact. Samewirelayouts. Keep8scenes/fullwalk-before-values/fulltuple/
+predicates/sticky/original5s/externalrestore/no-facts/no-ticket. No adaptive retry
+or same-attempt relaxation; depth12 proves neither16 nor4096 sufficient.
+Tiny4096complete/4097overflow-before-getters/historicalv5item2048 overflow, exact
+productioncompile and boundedreview precede fresh Main-selected packet. No broad
+matrix/new nonce/device action selected here; full lifecycle remains open.

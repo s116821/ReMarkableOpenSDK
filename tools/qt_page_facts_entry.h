@@ -26,8 +26,8 @@ struct FactsEntryConfig {
     bool developmentFocusAncestry=false;
     bool developmentReceiverSubtreeCapture=false;
     bool developmentReceiverSubtreeCapture512=false;
-    int developmentReceiverSubtreeItemCap=0; // 0 preserves legacy flags; only explicit1024/2048 are accepted.
-    int developmentReceiverSubtreeDepthCap=0; // 0 preserves depth8; explicit16 requires itemcap2048.
+    int developmentReceiverSubtreeItemCap=0; // 0 preserves legacy flags; only explicit1024/2048/4096 are accepted.
+    int developmentReceiverSubtreeDepthCap=0; // 0 preserves depth8; explicit16 requires itemcap2048/4096.
     QString setupSelection;
     bool setupValid() const {
         return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
@@ -88,9 +88,10 @@ public:
             config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
             finish("capture-observation-config-refused");return;
         }
+        if(config_.developmentReceiverSubtreeItemCap==4096 && config_.developmentReceiverSubtreeDepthCap!=16){finish("capture-observation-config-refused");return;}
         if((config_.developmentReceiverSubtreeDepthCap!=0 && config_.developmentReceiverSubtreeDepthCap!=16) ||
-            (config_.developmentReceiverSubtreeDepthCap && (!config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=2048 || config_.developmentReceiverSubtreeCapture512))){finish("capture-observation-config-refused");return;}
-        if((config_.developmentReceiverSubtreeItemCap!=0 && config_.developmentReceiverSubtreeItemCap!=1024 && config_.developmentReceiverSubtreeItemCap!=2048) ||
+            (config_.developmentReceiverSubtreeDepthCap && (!config_.developmentReceiverSubtreeCapture || (config_.developmentReceiverSubtreeItemCap!=2048 && config_.developmentReceiverSubtreeItemCap!=4096) || config_.developmentReceiverSubtreeCapture512))){finish("capture-observation-config-refused");return;}
+        if((config_.developmentReceiverSubtreeItemCap!=0 && config_.developmentReceiverSubtreeItemCap!=1024 && config_.developmentReceiverSubtreeItemCap!=2048 && config_.developmentReceiverSubtreeItemCap!=4096) ||
             (config_.developmentReceiverSubtreeItemCap && (!config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeCapture512))){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCapture512 && !config_.developmentReceiverSubtreeCapture){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCapture && (config_.developmentFocusAncestry || !config_.developmentCaptureObservation ||
@@ -629,7 +630,7 @@ QtObject {
             {"image_width",image.width()},{"image_height",image.height()},{"png_bytes",pngBytes},{"png_sha256",QString::fromLatin1(capturePngHash_)},
             {"image_status","available"},{"gui_callback_completed",true},{"scope_current",true},{"atomic_snapshot",false},
             {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false},{"observed_order",false}};
-        if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope",config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
+        if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope",config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
         QMetaObject::invokeMethod(this,[this,object,epoch]() mutable {
             const Scope completionScope(this);
             if (!captureAllowed() || !captureIdentity() || epoch!=captureEpoch_ || !captureTokenCurrent() || exists("facts-request") || exists("facts-request.tmp")) { finish("capture-observation-completion-refused");return; }
@@ -794,7 +795,7 @@ QtObject {
             json.insert("scene_rejected_document_wrapper_changed",count(classified ? d.sceneFunnel.documentWrapperChanged:-1));
             json.insert("scene_passed",count(classified ? d.sceneFunnel.pass:-1));
         }
-        if(config_.developmentReceiverSubtreeCapture)json.insert("discovery_scope",config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
+        if(config_.developmentReceiverSubtreeCapture)json.insert("discovery_scope",config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
         return QJsonDocument(json).toJson(QJsonDocument::Compact);
     }
     void finish(const char *stage) {
