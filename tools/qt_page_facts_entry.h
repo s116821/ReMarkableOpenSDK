@@ -37,6 +37,7 @@ struct FactsEntryConfig {
 struct CaptureOwnerFailure {
     PageOwnerDiagnostics owner;
     FocusChainDiagnostics chain;
+    FocusSceneFunnel sceneFunnel;
     const char *branch=nullptr,*predicate=nullptr,*discovery=nullptr,*activeReason=nullptr;
     const char *observerRole=nullptr,*observerMember=nullptr,*observerFailure=nullptr;
     qint64 accepted=-1,failure=-1,deadlineCheck=-1,effectiveDeadline=-1;
@@ -514,8 +515,8 @@ private:
                 const QPointer<FactsEntry> weak=this;
                 focusGuard_.context=this;
                 focusGuard_.invalidate=[weak]{if(weak)weak->invalidateCapture();};
-                FocusSceneFunnel funnel;
-                diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,&funnel);
+                diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain,&diagnostic.sceneFunnel);
+                const auto &funnel=diagnostic.sceneFunnel;
                 qInfo("rem25-focus-scene-funnel-v1 complete=%d items=%lld visited=%lld engine=%lld class=%lld page_id=%lld page_id_changed=%lld document_wrapper_changed=%lld pass=%lld",
                     int(diagnostic.chain.complete),static_cast<long long>(diagnostic.chain.items),static_cast<long long>(diagnostic.owner.visited),
                     static_cast<long long>(funnel.engine),static_cast<long long>(funnel.sceneClass),static_cast<long long>(funnel.pageId),
@@ -731,7 +732,7 @@ QtObject {
         const bool discovery=QByteArrayView(d.branch)==QByteArrayView("owner-discovery");
         const bool pair=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-owner-unavailable");
         const bool topology=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-topology-bound");
-        QJsonObject json{{"kind","development-capture-owner-refusal"},{"version",config_.developmentFocusAncestry ? 3:2},{"nonce",config_.nonce},
+        QJsonObject json{{"kind","development-capture-owner-refusal"},{"version",config_.developmentFocusAncestry ? 4:2},{"nonce",config_.nonce},
             {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
             {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
             {"setup_profile",QString::fromLatin1(config_.setupProfile())},{"capture_accepted_ms",d.accepted},{"failure_ms",d.failure},
@@ -753,6 +754,13 @@ QtObject {
             json.insert("chain_items",count(d.chain.items));
             json.insert("chain_complete",d.chain.complete);
             json.insert("chain_failure",text(d.chain.failure));
+            const bool classified=discovery && d.owner.visited>=0;
+            json.insert("scene_rejected_engine",count(classified ? d.sceneFunnel.engine:-1));
+            json.insert("scene_rejected_class",count(classified ? d.sceneFunnel.sceneClass:-1));
+            json.insert("scene_rejected_page_id",count(classified ? d.sceneFunnel.pageId:-1));
+            json.insert("scene_rejected_page_id_changed",count(classified ? d.sceneFunnel.pageIdChanged:-1));
+            json.insert("scene_rejected_document_wrapper_changed",count(classified ? d.sceneFunnel.documentWrapperChanged:-1));
+            json.insert("scene_passed",count(classified ? d.sceneFunnel.pass:-1));
         }
         return QJsonDocument(json).toJson(QJsonDocument::Compact);
     }

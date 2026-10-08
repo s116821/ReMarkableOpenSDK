@@ -19,6 +19,25 @@ struct CaptureObservationFixtureAccess {
     static void grab(FactsEntry &entry,std::function<QImage()> callback){entry.captureGrabForFixture_=std::move(callback);}
 };
 struct FocusAncestryFixtureAccess {
+    static bool serializer(FactsEntry &entry){
+        CaptureOwnerFailure d;d.branch="owner-discovery";d.owner.visited=8;
+        d.sceneFunnel={1,2,1,1,2,1};entry.captureOwnerFailure_=d;
+        const char *names[]={"scene_rejected_engine","scene_rejected_class","scene_rejected_page_id","scene_rejected_page_id_changed","scene_rejected_document_wrapper_changed","scene_passed"};
+        const int expected[]={1,2,1,1,2,1};
+        const auto sample=[&]{return QJsonDocument::fromJson(entry.captureOwnerFailureBytes()).object();};
+        auto value=sample();if(value.size()!=43 || value["version"]!=4)return false;
+        for(int i=0;i<6;++i)if(value[names[i]]!=expected[i])return false;
+        for(const char *branch:{"initial-progress","observer-install","owner-revalidation"}){
+            entry.captureOwnerFailure_.branch=branch;value=sample();
+            for(const char *name:names)if(!value[name].isNull())return false;
+        }
+        entry.captureOwnerFailure_.branch="owner-discovery";entry.captureOwnerFailure_.owner.visited=-1;value=sample();
+        for(const char *name:names)if(!value[name].isNull())return false;
+        entry.config_.developmentFocusAncestry=false;value=sample();
+        if(value.size()!=33 || value["version"]!=2)return false;
+        for(const char *name:names)if(value.contains(name))return false;
+        return true;
+    }
     static int items(const FactsEntry &entry){return entry.focusGuard_.chain.size();}
     static void generation(FactsEntry &entry){++entry.retainedGeneration_;}
     static bool secondFactory(FactsEntry &entry){return bool(entry.makeRetainedReader([](PageFactsResult){}));}
@@ -105,6 +124,10 @@ Window { visible:true; width:400; height:400
     qint64 time=0;int callbacks=0,grabs=0,mappings=0,finalChecks=0;
     std::function<void()> clockHook;FactsEntryResult result;
     FactsEntry entry(&app,config,[&](FactsEntryResult value){++callbacks;result=std::move(value);},[&]{if(clockHook)clockHook();return time;});
+    if(mode=="funnel-serializer"){
+        if(!FocusAncestryFixtureAccess::serializer(entry))return 10;
+        std::puts("PASS focus-owned funnel-serializer numeric/null/unselected native_authority=false");return 0;
+    }
     auto *subscene=new QQuickItem(scene);
     const auto mismatch=[&]{FocusAncestryFixtureAccess::suppress(entry);subscene->forceActiveFocus();if(!scene->hasActiveFocus() || window->activeFocusItem()!=subscene)std::abort();};
     CaptureObservationFixtureAccess::grab(entry,[&]{++grabs;if(mode=="endpoint-capture")mismatch();QImage image(400,400,QImage::Format_ARGB32);image.fill(Qt::white);return image;});
@@ -134,8 +157,15 @@ Window { visible:true; width:400; height:400
         }
         QFile file(root+"/capture-owner-refusal.json");if(!file.open(QIODevice::ReadOnly))return 6;
         const auto value=QJsonDocument::fromJson(file.readAll()).object();
-        if(value.size()!=37 || value["version"]!=3 || value["discovery_scope"]!="window-focus-ancestry-v1" ||
+        if(value.size()!=43 || value["version"]!=4 || value["discovery_scope"]!="window-focus-ancestry-v1" ||
             !value["topology_limit"].isNull() || callbacks!=1 || result.observed || grabs || mappings)return 6;
+        const bool classified=value["branch"]=="owner-discovery" && !value["visited_items"].isNull();
+        int total=0;
+        for(const char *name:{"scene_rejected_engine","scene_rejected_class","scene_rejected_page_id","scene_rejected_page_id_changed","scene_rejected_document_wrapper_changed","scene_passed"}){
+            if(classified){if(!value[name].isDouble() || value[name].toInt(-1)<0 || value[name].toInt()>25)return 6;total+=value[name].toInt();}
+            else if(!value[name].isNull())return 6;
+        }
+        if(classified && (total!=value["visited_items"].toInt() || value["scene_passed"]!=value["scene_candidates"]))return 6;
         if(mode=="scene9-negative" && (value["scene_candidates"]!=9 || value["discovery_result"]!="open-candidate-bound" || !value["matched_pairs"].isNull()))return 6;
         if(mode=="edge25" && (value["chain_items"]!=25 || value["chain_complete"]!=false || value["chain_failure"]!="depth-bound"))return 6;
         if(mode=="ambiguous" && (value["chain_complete"]!=true || value["matched_pairs"]!=2 || value["discovery_result"]!="open-owner-ambiguous"))return 6;
