@@ -55,3 +55,20 @@ Bounded review advice: Astra recommends512 as the smaller explicit next allowanc
 with an actual owned512-complete case and512-overflow-before-getters case plus
 old-scope parser preservation and exact production compile. This remains a
 proposal awaiting Main selection; Astra has not reviewed an implemented delta.
+
+## Selected implementation checkpoint (2026-10-08)
+
+Main selected512/v2scope. Implemented SDK a3323f1f76aac7aceea143281cf5b0e32665d8ca
+and Buddy8e3821e0a41f77d72b1e23efe025041b6b86cfb2. Exact frozen run passed16
+checks:512complete,513appendrefusal-before-drawinggetter/nullmatched,legacygood,
+legacy256cap,8funnel and4privacy. Exact selected production ARM compile passed
+-Werror/-zdefs without fixture macros. Final artifact SHA256:
+642b50e8c173c653877e2b9b38680ea103778915d8581b9686b49990283260be.
+Exact Buddy archive consumer31legacy+16new passed; separate legacyfocus131 passed.
+
+Receipt sol-receiver-subtree-cap512-r1/review-receipt.json SHA256:
+e689b81a53f166d9c4eca4c0772b418549edf789757b497b7e5efed83d773c3b.
+Initial fixture frontier assertion failure is retained separately; existing nested
+subscene causes queue512+child1 overflow. Only test expectation changed afterward.
+Bounded source reviews report no findings; final receipt review closeout pending.
+No fresh nonce, packet or native run is selected. Broad qualification remains open.
