@@ -49,6 +49,17 @@ for case in good overflow duplicate caps frames accepted-true inactive-window wr
    -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/observation-fixture" "$case"
  else QT_QPA_PLATFORM=offscreen "$work/observation-fixture" "$case"; fi
 done
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
+ tools/qt_capture_observation_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
+ $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/capture-fixture"
+for case in good duplicate wrong-token early-facts cross-purpose empty grab-epoch grab-late grab-cancel visual-epoch token-replaced png-replaced setup-expiry setup-near external-buffer dimension-mismatch completion-late completion-epoch nested-early nested-purpose visual-double-click; do
+ if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
+  /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
+   -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \
+   -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
+   -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/capture-fixture" "$case"
+ else QT_QPA_PLATFORM=offscreen "$work/capture-fixture" "$case"; fi
+done
 if [ -n "${FACTS_BUDDY_SOURCE:-}" ]; then
  ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
   -DOWNED_FACTS_PUBLISHER -I"$FACTS_BUDDY_SOURCE/tools/native_page_facts_probe" \

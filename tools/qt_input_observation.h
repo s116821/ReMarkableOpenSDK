@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QImageWriter>
+#include <QCryptographicHash>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -92,7 +93,7 @@ struct InputObservationStore {
 // One capped private PNG stream; the caller owns descriptor and scope checks.
 class InputImageOutput final:public QIODevice {
 public:
-    explicit InputImageOutput(int fd):fd_(fd){open(QIODevice::WriteOnly);}
+    explicit InputImageOutput(int fd,QCryptographicHash *hash=nullptr):fd_(fd),hash_(hash){open(QIODevice::WriteOnly);}
     qint64 bytes() const{return bytes_;}
 protected:
     qint64 readData(char *,qint64) override{return -1;}
@@ -100,9 +101,10 @@ protected:
         if (length<0 || length>8388608-bytes_) return -1;
         const auto written=::write(fd_,data,size_t(length));
         if (written!=length) return -1;
+        if (hash_) hash_->addData(QByteArrayView(data,length));
         bytes_+=written;return written;
     }
-private:int fd_;qint64 bytes_=0;
+private:int fd_;QCryptographicHash *hash_;qint64 bytes_=0;
 };
 inline QByteArray inputCompletionBytes(QJsonObject object) {
     auto events=object.value("events").toArray();

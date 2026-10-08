@@ -98,7 +98,7 @@ Window { visible:true; width:400; height:400
         if (mode=="oversize") token.append(QByteArray(129,'x'));
         if (mode=="restoring-before") put(root+"/restore.claim","closed");
         if (mode=="refusal-existing") put(root+"/refusal.json","owned-existing-record");
-        if (mode=="symlink-token") { put(root+"/target",token); ::symlink("target",(root+"/facts-request").toUtf8().constData()); }
+        if (mode=="symlink-token") { put(root+"/target",token); if (::symlink("target",(root+"/facts-request").toUtf8().constData())!=0) return 7; }
         else if (mode=="fifo-token") ::mkfifo((root+"/facts-request").toUtf8().constData(),0600);
         else if (mode=="integration") {
 #ifdef OWNED_FACTS_PUBLISHER
