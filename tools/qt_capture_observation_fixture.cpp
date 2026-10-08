@@ -42,6 +42,16 @@ int main(int argc,char **argv) {
     DocumentFixture document;FactsEntryConfig config;config.nonce=nonce;config.directory=root;
     config.facts={document.id(),{QStringLiteral("00000000-0000-4000-8000-000000000002")},6,5000};document.ids=config.facts.expectedOrder;
     config.setupBudgetMs=120000;config.developmentSetup120=true;config.developmentCaptureObservation=true;config.setupSelection=QStringLiteral("main-dev-facts-120s");
+    const bool completionDiagnostic=mode.startsWith("completion-diagnostic-");
+    if(completionDiagnostic) {
+        config.developmentReceiverSubtreeCapture=true;
+        config.developmentReceiverSubtreeItemCap=4096;config.developmentReceiverSubtreeDepthCap=32;
+        config.developmentReceiverSubtreeCaptureAllowUnfocusedArea=true;
+        config.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics=true;
+        config.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics=true;
+        config.developmentReceiverSubtreeCaptureEntryIdConversion=true;
+        config.developmentCaptureCompletionRefusalDiagnostics=mode!="completion-diagnostic-default-off";
+    }
     IncompleteDocument incomplete;
     QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",mode=="owner-observer" ? static_cast<QObject *>(&incomplete):static_cast<QObject *>(&document));
     QByteArray qml=R"QML(import QtQuick
@@ -90,6 +100,10 @@ Window { visible:true; width:400; height:400
             put(root+(mode=="nested-early" ? "/facts-request.tmp":"/input-observation-end.tmp"),"wrong");
             for(int i=0;i<10;++i)QCoreApplication::processEvents();
         }
+        if(completionDiagnostic && mode!="completion-diagnostic-success")QMetaObject::invokeMethod(&app,[&]{
+            CaptureObservationFixtureAccess::invalidate(entry);
+            put(root+"/facts-request","wrong"); // Later failure must not replace first reason.
+        },Qt::QueuedConnection);
         if(mode=="completion-epoch")QMetaObject::invokeMethod(&app,[&]{emit scene->viewportChanged();},Qt::QueuedConnection);
         QImage image;
         if(mode!="empty") {image=QImage(400,400,QImage::Format_ARGB32);image.fill(Qt::white);}
@@ -241,6 +255,27 @@ Window { visible:true; width:400; height:400
     if((mode=="publication-alias" || mode=="temporary-unlink") && ::link((root+"/capture-observation-request").toUtf8().constData(),(root+"/capture-observation-request.tmp").toUtf8().constData())!=0)return 6;
     if(mode=="foreign-temporary")put(root+"/capture-observation-request.tmp",token);
     drain();
+    if(completionDiagnostic) {
+        const bool success=mode=="completion-diagnostic-success";
+        QFile complete(root+"/capture-observation-complete.json");
+        if(complete.open(QIODevice::ReadOnly)!=success || grabs!=1 || !held || mappings)return 31;
+        if(success) {
+            const auto value=QJsonDocument::fromJson(complete.readAll()).object();
+            if(value.size()!=37 || value["version"].toInt()!=2 || value["discovery_scope"]!="receiver-subtree-capture-unqualified-v11")return 32;
+            entry.cancel();drain();
+        }
+        QFile callback(root+"/callback.json");if(!callback.open(QIODevice::ReadOnly) || callbacks!=1)return 33;
+        const auto value=QJsonDocument::fromJson(callback.readAll()).object();
+        const bool selectedFailure=!success && config.developmentCaptureCompletionRefusalDiagnostics;
+        if(value.size()!=(selectedFailure ? 5:4))return 34;
+        if(selectedFailure) {
+            const auto d=value["completion_refusal"].toObject();
+            if(result.stage!="capture-observation-completion-refused" || d.size()!=8 || d["reason"]!="allowed-refused" ||
+                d["capture_accepted_ms"].toInteger()!=0 || d["baseline_ms"].toInteger()!=0 || d["post_read_ms"].toInteger()!=0 ||
+                d["failure_ms"].toInteger()!=0 || d["effective_deadline_ms"].toInteger()!=5000)return 35;
+        }
+        std::printf("PASS %s first-failure/shape only; no native authority\n",argv[1]);return 0;
+    }
     const bool captureExpected=mode=="good" || mode=="duplicate" || mode=="visual-epoch" || mode=="token-replaced" || mode=="png-replaced" || mode=="setup-expiry" || mode=="setup-near" || mode=="external-buffer" || mode=="visual-double-click" || mode=="publication-alias" || mode=="publisher-interleave" || mode=="temporary-reappears" || mode=="temporary-unlink";
     QFile complete(root+"/capture-observation-complete.json");const bool hasComplete=complete.open(QIODevice::ReadOnly);
     if(hasComplete!=captureExpected || mappings!=0 || grabs>1 || !held)return 6;

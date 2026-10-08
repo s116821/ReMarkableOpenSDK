@@ -32,6 +32,7 @@ struct FactsEntryConfig {
     bool developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics=false; // Unqualified v9 atop v8; fixed reason labels only.
     bool developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics=false; // Unqualified v10 atop v9; invalid/QUuid/other labels only.
     bool developmentReceiverSubtreeCaptureEntryIdConversion=false; // Unqualified v11 hypothesis atop v10; exact registered converter only.
+    bool developmentCaptureCompletionRefusalDiagnostics=false; // Fixed final-callback diagnostics only; selected v11 required.
     QString setupSelection;
     bool setupValid() const {
         return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
@@ -92,6 +93,7 @@ public:
             config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
             finish("capture-observation-config-refused");return;
         }
+        if(config_.developmentCaptureCompletionRefusalDiagnostics && !config_.developmentReceiverSubtreeCaptureEntryIdConversion){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureEntryIdConversion && (!config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics || !config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics || !config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics && (!config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics || !config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics && (!config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
@@ -640,9 +642,28 @@ QtObject {
             {"image_status","available"},{"gui_callback_completed",true},{"scope_current",true},{"atomic_snapshot",false},
             {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false},{"observed_order",false}};
         if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope",config_.developmentReceiverSubtreeCaptureEntryIdConversion ? "receiver-subtree-capture-unqualified-v11":config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics ? "receiver-subtree-capture-unqualified-v10":config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics ? "receiver-subtree-capture-unqualified-v9":config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea ? "receiver-subtree-capture-unqualified-v8":config_.developmentReceiverSubtreeDepthCap==32 ? "receiver-subtree-capture-unqualified-v7":config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
-        QMetaObject::invokeMethod(this,[this,object,epoch]() mutable {
+        QMetaObject::invokeMethod(this,[this,object,epoch,baseline,postRead]() mutable {
             const Scope completionScope(this);
-            if (!captureAllowed() || !captureIdentity() || epoch!=captureEpoch_ || !captureTokenCurrent() || exists("facts-request") || exists("facts-request.tmp")) { finish("capture-observation-completion-refused");return; }
+            bool refused=false;
+            if (!config_.developmentCaptureCompletionRefusalDiagnostics) {
+                refused=!captureAllowed() || !captureIdentity() || epoch!=captureEpoch_ || !captureTokenCurrent() || exists("facts-request") || exists("facts-request.tmp");
+            } else {
+                CaptureOwnerFailure allowed;
+                const char *reason=nullptr;
+                if (!captureAllowedChecked(&allowed)) reason=allowed.predicate && QByteArray(allowed.predicate)=="deadline" ? "allowed-deadline":"allowed-refused";
+                else if (!captureIdentity()) reason="identity-refused";
+                else if (epoch!=captureEpoch_) reason="epoch-changed";
+                else if (!captureTokenCurrent()) reason="token-refused";
+                else if (exists("facts-request")) reason="facts-request-present";
+                else if (exists("facts-request.tmp")) reason="facts-request-tmp-present";
+                if (reason) {
+                    refused=true;
+                    captureCompletionRefusal_=QJsonObject{{"kind","development-capture-completion-refusal"},{"version",1},{"reason",reason},
+                        {"capture_accepted_ms",captureAcceptedAt_},{"baseline_ms",baseline},{"post_read_ms",postRead},
+                        {"failure_ms",now()},{"effective_deadline_ms",std::min(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)}};
+                }
+            }
+            if (refused) { finish("capture-observation-completion-refused");return; }
             object["completed_ms"]=now();captureComplete_=QJsonDocument(object).toJson(QJsonDocument::Compact);
             captureCompleteFd_=::openat(root_,"capture-observation-complete.json",O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,0600);
             if (captureComplete_.isEmpty() || captureComplete_.size()>8192 || captureCompleteFd_<0 ||
@@ -850,6 +871,7 @@ QtObject {
             QJsonObject callback{{"nonce",config_.nonce},{"stage",result_.stage},
                 {"application_thread",app_ && QThread::currentThread()==app_->thread()},
                 {"engine_thread",context()}};
+            if (config_.developmentCaptureCompletionRefusalDiagnostics && !captureCompletionRefusal_.isEmpty()) callback.insert("completion_refusal",captureCompletionRefusal_);
             result_.outputPublished=writeFile("callback.json",QJsonDocument(callback).toJson(QJsonDocument::Compact));
             // Syscalls are not preemptible. Never retain late success as a final
             // usable callback; partial/unknown output grants no authority.
@@ -875,6 +897,7 @@ QtObject {
     std::shared_ptr<RetainedOwnerRecord> retainedRecord_;
     std::unique_ptr<RetainedOwnerTicket> pendingRetainedTicket_;
     quint64 retainedGeneration_=0;
+    QJsonObject captureCompletionRefusal_;
     CaptureOwnerFailure captureOwnerFailure_;
     bool captureOwnerFailurePending_=false;
     std::function<QImage()> captureGrabForFixture_;

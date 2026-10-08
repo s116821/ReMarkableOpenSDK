@@ -67,3 +67,48 @@ SHA256 14ea59e81934595e5f22d81a43afa6e930c2f9ed72a33526cc4761e6f6bc2018.
 Astra source review reported no actionable defect; frozen receipt closeout and
 Main consumer review remain pending. No fresh nonce or native run is selected.
 All native qualification, full-image review and lifecycle gates remain open.
+
+## Accepted completion-refusal diagnostic increment (2026-10-08)
+
+Main accepted a separate, default-off `developmentCaptureCompletionRefusalDiagnostics`
+selector requiring the complete existing v11 selection. This source-only increment
+addresses an otherwise aggregate final queued-callback refusal. The prior actual
+failure does not establish a particular predicate or a deadline cause.
+
+The selected callback runs the original six checks exactly once in their original
+short-circuit order: allowed, identity, epoch, token, facts request, temporary facts
+request. It records only the first existing failure. `allowed-deadline` requires the
+existing allowed guard's cached predicate to equal `deadline`; other allowed
+failures remain `allowed-refused`. Remaining fixed reasons are `identity-refused`,
+`epoch-changed`, `token-refused`, `facts-request-present`, and
+`facts-request-tmp-present`. No native getter, traversal, second check, deadline,
+acceptance rule or authority changes. The accepted/baseline/post-read times are
+retained existing scalars; failure samples the existing clock once for metadata.
+Effective deadline remains min(setup budget, accepted + 5000).
+
+Only selected final-callback refusal adds `completion_refusal` to the existing
+callback. Its exact eight fields are kind (`development-capture-completion-refusal`),
+version (1), reason, capture_accepted_ms, baseline_ms, post_read_ms, failure_ms and
+effective_deadline_ms. Successful/default-off callbacks retain exactly four
+fields. Successful completion v2 remains exactly 37 fields and scope v11; the
+SDK development transport/parser and owner-refusal wire remain unchanged. Buddy
+uses a selected-only 1024-byte callback cap, strict duplicate/unknown/type/reason
+validation and retained diagnostic data; these cannot qualify facts or success.
+
+WHEN multiple final checks would fail, THEN only the first evaluated failure is
+recorded and later checks remain short-circuited. WHEN the selector is off or the
+capture succeeds, THEN no nested diagnostic field appears. WHEN the selector is
+requested without v11, THEN configuration refuses. WHEN selected callback data
+has duplicate/unknown fields, an unknown reason or a noninteger timing, THEN the
+consumer retains no decoded diagnostic and grants no authority.
+
+- [x] Implement the minimal SDK and Buddy diagnostic paths.
+- [x] Exact production ARM compile with -Werror/-z defs and no fixture macros.
+- [x] Three focused ARM/QEMU owned-fixture checks: selected success shape,
+  first allowed failure preceding a later request failure, default-off shape.
+- [x] Twenty focused consumer checks and three PowerShell syntax parses.
+- [ ] Independent source review and Main acceptance of frozen revisions.
+- [ ] Main may separately select a fresh packet and device observation; none is
+  selected or authorized by this source increment.
+
+Broad/native qualification, canonical sync and archive remain unfinished.
