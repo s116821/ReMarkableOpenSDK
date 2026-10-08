@@ -71,17 +71,17 @@ public:
 };
 class UuidDocumentFixture : public DocumentFixture {
     Q_OBJECT
-    Q_PROPERTY(QUuid id READ uuidId)
+    Q_PROPERTY(QUuid id READ uuidId CONSTANT)
 public: QUuid uuidId() const {++idReads;return QUuid(QStringLiteral("00000000-0000-4000-8000-000000000001"));}
 };
 class OtherDocumentFixture : public DocumentFixture {
     Q_OBJECT
-    Q_PROPERTY(int id READ otherId)
+    Q_PROPERTY(int id READ otherId CONSTANT)
 public: int otherId() const {++idReads;return 1;}
 };
 class InvalidDocumentFixture : public DocumentFixture {
     Q_OBJECT
-    Q_PROPERTY(QVariant id READ invalidId)
+    Q_PROPERTY(QVariant id READ invalidId CONSTANT)
 public: QVariant invalidId() const {++idReads;return {};}
 };
 class IdentityReadFixture : public QQuickItem {
@@ -126,6 +126,8 @@ int main(int argc,char **argv){
         if(receiverSubtreeCaptureIdentity(owner,"other",{"page"},progress,&reason) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-mismatch"))return 15;
         item.reads.clear();progressCalls=0;
         if(receiverSubtreeCaptureIdentity(owner,"other",{"page"},progress) || item.reads!=expected || progressCalls!=5)return 15;
+        item.reads.clear();progressCalls=0;reason=nullptr;
+        if(!receiverSubtreeCaptureIdentity(owner,"document",{"page"},progress,&reason,true) || item.reads!=expected || progressCalls!=5 || reason)return 15;
         item.idValue=QUuid(QStringLiteral("00000000-0000-4000-8000-000000000001"));item.reads.clear();progressCalls=0;reason=nullptr;
         if(receiverSubtreeCaptureIdentity(owner,"document",{"page"},progress,&reason,true) || item.reads!=expected || progressCalls!=5 || QByteArrayView(reason)!=QByteArrayView("identity-document-type-quuid"))return 15;
         item.reads.clear();progressCalls=0;reason=nullptr;
