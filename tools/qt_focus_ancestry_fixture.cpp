@@ -77,10 +77,12 @@ int main(int argc,char **argv){
     const bool receiver512=mode.startsWith("receiver-512-");
     const bool receiver1024=mode.startsWith("receiver-1024-");
     const bool receiver2048=mode.startsWith("receiver-2048-");
+    const bool receiverDepth32=mode.startsWith("receiver-depth32-");
+    const bool receiverV6Depth16=mode=="receiver-v6-depth16";
     const bool receiverDepth16=mode.startsWith("receiver-depth16-");
     const bool receiver4096=mode.startsWith("receiver-4096-");
     const bool receiverV5Items=mode=="receiver-v5-item-overflow";
-    const QString receiverScope=receiver4096 ? "receiver-subtree-capture-unqualified-v6":(receiverDepth16 || receiverV5Items) ? "receiver-subtree-capture-unqualified-v5":(receiver2048 || mode=="receiver-v4-depth8") ? "receiver-subtree-capture-unqualified-v4":receiver1024 ? "receiver-subtree-capture-unqualified-v3":receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
+    const QString receiverScope=receiverDepth32 ? "receiver-subtree-capture-unqualified-v7":(receiver4096 || receiverV6Depth16) ? "receiver-subtree-capture-unqualified-v6":(receiverDepth16 || receiverV5Items) ? "receiver-subtree-capture-unqualified-v5":(receiver2048 || mode=="receiver-v4-depth8") ? "receiver-subtree-capture-unqualified-v4":receiver1024 ? "receiver-subtree-capture-unqualified-v3":receiver512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1";
     qmlRegisterType<OriginalSceneView>("OwnedFacts",1,0,"SceneView");
     qmlRegisterType<SceneView>("OwnedFacts",1,0,"NegativeScene");
     qmlRegisterType<OwnedReceiver>("OwnedFacts",1,0,"OwnedReceiver");
@@ -140,7 +142,7 @@ Window { visible:true; width:400; height:400
     FactsEntryConfig config;config.nonce=nonce;config.directory=root;
     config.facts={document.id(),document.ids,6,5000};config.setupBudgetMs=120000;
     config.developmentSetup120=config.developmentCaptureObservation=config.developmentFocusAncestry=true;
-    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;config.developmentReceiverSubtreeItemCap=receiver4096 ? 4096:(receiver2048 || receiverDepth16 || receiverV5Items || mode=="receiver-v4-depth8") ? 2048:receiver1024 ? 1024:0;config.developmentReceiverSubtreeDepthCap=(receiverDepth16 || receiver4096 || receiverV5Items) ? 16:0;}
+    if(receiverMode){config.developmentFocusAncestry=false;config.developmentReceiverSubtreeCapture=true;config.developmentReceiverSubtreeCapture512=receiver512;config.developmentReceiverSubtreeItemCap=(receiver4096 || receiverDepth32 || receiverV6Depth16) ? 4096:(receiver2048 || receiverDepth16 || receiverV5Items || mode=="receiver-v4-depth8") ? 2048:receiver1024 ? 1024:0;config.developmentReceiverSubtreeDepthCap=receiverDepth32 ? 32:(receiverDepth16 || receiver4096 || receiverV5Items || receiverV6Depth16) ? 16:0;}
     config.setupSelection="main-dev-facts-120s";
     qint64 time=0;int callbacks=0,grabs=0,mappings=0,finalChecks=0;
     std::function<void()> clockHook;FactsEntryResult result;
@@ -161,11 +163,15 @@ Window { visible:true; width:400; height:400
         if(items.size()!=target)return 4;
     }
     if(mode=="receiver-cap")for(int i=0;i<257;++i)new QQuickItem(receiver);
-    if(receiverDepth16 || mode=="receiver-v4-depth8"){
+    if(receiverDepth16 || receiverDepth32 || receiverV6Depth16 || mode=="receiver-v4-depth8"){
         QQuickItem *parent=receiver;
         for(int i=0;i<15;++i)parent=new QQuickItem(parent);
         scene->setParentItem(parent);
-        if(mode=="receiver-depth16-complete")subscene->setParentItem(window->contentItem());
+        if(mode=="receiver-depth16-complete" || mode=="receiver-depth32-complete")subscene->setParentItem(window->contentItem());
+    }
+    if(receiverDepth32 || receiverV6Depth16){
+        QQuickItem *parent=receiver;
+        for(int i=0;i<(mode=="receiver-depth32-overflow" ? 33:32);++i)parent=new QQuickItem(parent);
     }
     if(mode=="receiver-depth"){
         QQuickItem *parent=receiver;
@@ -196,14 +202,14 @@ Window { visible:true; width:400; height:400
     drain();
     if(receiverMode){
         if(FocusAncestryFixtureAccess::hasTicket(entry) || FocusAncestryFixtureAccess::hasSession(entry) || mappings || scene->hasActiveFocus())return 11;
-        if(mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-2048-overflow" || mode=="receiver-4096-overflow" || receiverV5Items || mode=="receiver-depth16-overflow" || mode=="receiver-v4-depth8" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
+        if(mode=="receiver-two" || mode=="receiver-cap" || mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-2048-overflow" || mode=="receiver-4096-overflow" || receiverV5Items || mode=="receiver-depth16-overflow" || mode=="receiver-depth32-overflow" || receiverV6Depth16 || mode=="receiver-v4-depth8" || mode=="receiver-depth" || mode=="receiver-getter-loss"){
             QFile file(root+"/capture-owner-refusal.json");if(!file.open(QIODevice::ReadOnly))return 12;
             const auto value=QJsonDocument::fromJson(file.readAll()).object();
             if(value.size()!=34 || value["version"]!=5 || value["discovery_scope"]!=receiverScope || grabs || callbacks!=1 || result.observed || QFile::exists(root+"/capture-window.png"))return 12;
             if(mode=="receiver-two" && (value["matched_pairs"]!=2 || value["discovery_result"]!="open-owner-ambiguous"))return 12;
             if(mode=="receiver-cap" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items"))return 12;
             if((mode=="receiver-512-overflow" || mode=="receiver-1024-overflow" || mode=="receiver-2048-overflow" || mode=="receiver-4096-overflow" || receiverV5Items) && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-items" || ownerReads || !value["matched_pairs"].isNull() || value["topology_queue_size"]!=(receiver4096 ? 4096:(receiver2048 || receiverV5Items) ? 2048:receiver1024 ? 1024:512) || value["topology_child_count"]!=1))return 12;
-            if(mode=="receiver-depth16-overflow" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-depth" || value["topology_depth"]!=16 || ownerReads || !value["matched_pairs"].isNull()))return 12;
+            if((mode=="receiver-depth16-overflow" || mode=="receiver-depth32-overflow" || receiverV6Depth16) && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-depth" || value["topology_depth"]!=(receiverDepth32 ? 32:16) || ownerReads || !value["matched_pairs"].isNull()))return 12;
             if(mode=="receiver-v4-depth8" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-depth" || value["topology_depth"]!=8 || ownerReads || !value["matched_pairs"].isNull()))return 12;
             if(mode=="receiver-depth" && (value["discovery_result"]!="open-capture-subtree-bound" || value["topology_limit"]!="subtree-depth" || value["topology_depth"]!=8))return 12;
             if(mode=="receiver-getter-loss" && (!getterChanged || value["predicate"]!="invalidated"))return 12;
