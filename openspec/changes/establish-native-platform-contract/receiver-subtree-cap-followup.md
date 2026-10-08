@@ -151,3 +151,13 @@ restore/no-facts/no-ticket. Bound does not promise native completion within16.
 Focused actual SceneView atdepth16 complete, its child at17 refused beforevalue
 getters, oldv4depth8 refusal, exact productioncompile and bounded review precede
 fresh Main-selected nonce/packet. No broad matrix or device action selected here.
+Depth16 checkpoint: SDK703b2b27a4af575c6687de59b11470d64c0c8d97 and
+Buddy6ef0328fa8df1eab875ba4ee6da7f0eb2f96b082. Exact frozen15 checks passed:
+SceneViewdepth16complete/child17refusal-before-drawinggetter/nullmatched/oldv4depth8,
+8funnel/4privacy. Exact selected productioncompile passed -Werror/-zdefs without
+fixturemacros. Artifact SHA256 f15dbad116143430219a460f32c1c8514d9c290cb440dc5400ebb165bff7831d.
+Exactconsumer139 passed; separatelegacyfocus131 passed. Private receipt
+sol-receiver-subtree-depth16-r1/review-receipt.json SHA256
+f8e873bf71d925cf0a1271f5422e7403dfdf351ec1ea05b6b034bdabe7b6db46.
+Bounded source reviews no findings; finalreceiptcloseout pending. No native
+qualification/fresh nonce/packet selected; full lifecycle remains open.
