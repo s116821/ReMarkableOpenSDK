@@ -1,6 +1,7 @@
 # Bounded development scene-classification funnel
 
-Proposal against runtime430be339 and guidancec6e6d018. The prior a6d3 capture
+Implemented bounded checkpoint29f8484, proposal60c0699 against runtime430be339
+and guidancec6e6d018. The prior a6d3 capture
 remains immutable. This checkpoint does not authorize device actions or select
 a new nonce. Main owns the next bounded native observation and rollback.
 
@@ -42,3 +43,27 @@ observers, deadlines and refusal priority remain unchanged.
 
 Broad fixture/source qualification, native-profile qualification, canonical
 specification sync and archive remain open in the owning unfinished change.
+
+## Bounded verification checkpoint
+
+Implementation29f84848d9748dfdd2d6d46df24be63e3b7372dd passed eight focused
+Qt ARM/QEMU checks: each first-failure stage, positive pass, wrong pageId type,
+and zero native property reads. Existing22 focus cases and four compiler privacy
+negatives also passed. The production shared payload compiled from that exact
+commit archive with the pinned RM2 SDK, warnings-as-errors and no fixture macro.
+This is host compile and owned-fixture evidence, not native qualification.
+Main and Astra reviewed the bounded source delta without findings; Astra did
+not independently rerun the fixture suite for this checkpoint.
+
+The first three tasks above are satisfied for this bounded checkpoint. The
+native observation task and broader qualification/lifecycle work remain open.
+Private compile receipt/logs are retained by Main with the handoff; no firmware
+or attempt-specific configuration is included here.
+
+An initial-progress refusal does not enter discovery and emits no funnel line.
+A construction refusal can emit visited=-1 and all six counters0, meaning
+classification did not start. A complete chain can still have partial
+classification when an existing candidate bound refuses. Logging configuration
+can suppress qInfo; a missing line means evidence unavailable, never zero counts.
+The installed message handler executes synchronously. Preserve the original
+external clock/rollback and scope journal evidence to the attempt and PID.
