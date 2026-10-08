@@ -75,3 +75,8 @@ SDK repository gains its own contract and eventual implementation/tests/release 
 Native page creation remains an unpassed research gate. A product-level manual blank-successor fallback is permitted only after the exhaustive investigation required by REM-25; SDK `Unsupported` alone does not satisfy that product gate.
 
 October 8 targeted shutdown research adds a [lifecycle-only discriminator](shutdown-lifecycle-diagnostic.md) after the preserved rendering-path SIGSEGV. It separates FactsEntry participation from native teardown, with a bounded scalar observer and consumer-owned independent failure-guarded recovery. Renewed human authorization permits reviewed fresh diagnostics before the defect is solved; no external reply is required and no spent packet is replayed. This does not qualify a native capability.
+
+The separately selected [pre-token FactsEntry follow-up](pretoken-shutdown-diagnostic.md)
+adds only that lifecycle cohort behind a compile-time no-admission fence and a
+bounded installation proof. Source preparation and owned fixtures precede exact
+consumer/recovery review; active page getters and native execution are not selected.

@@ -14,6 +14,9 @@
 #include <atomic>
 #include <limits>
 #include <QCryptographicHash>
+#if defined(QT_FACTS_PRETOKEN_DIAGNOSTIC) && QT_FACTS_PRETOKEN_DIAGNOSTIC != 1
+#error QT_FACTS_PRETOKEN_DIAGNOSTIC must be exactly 1 when selected.
+#endif
 
 namespace qml_access {
 struct FactsEntryConfig {
@@ -64,7 +67,14 @@ class FactsEntry final : public QObject {
     friend struct InputObservationFixtureAccess;
     friend struct CaptureObservationFixtureAccess;
     friend struct FocusAncestryFixtureAccess;
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+    friend struct PretokenFixtureAccess;
+#endif
 public:
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+    // Set only at the successful installation boundary, not by the caller.
+    bool pretokenInstalled() const { return pretokenInstalled_ && !done_; }
+#endif
     FactsEntry(QGuiApplication *app, FactsEntryConfig config,
                std::function<void(FactsEntryResult)> completed,
                std::function<qint64()> clock={})
@@ -137,6 +147,9 @@ public:
         connect(&timer_,&QTimer::timeout,this,&FactsEntry::checkDeadline);
         timer_.start(config_.setupBudgetMs);
         queueBootstrap();
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+        pretokenInstalled_=timer_.isActive() && pretokenBootstrapPosted_;
+#endif
     }
     static QByteArray processStart() {
         const int fd=::open("/proc/self/stat",O_RDONLY|O_CLOEXEC);
@@ -383,6 +396,9 @@ private:
     void queueBootstrap() {
         if (done_ || bootstrapQueued_ || engine_) return;
         bootstrapQueued_=true;
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+        pretokenBootstrapPosted_=
+#endif
         QMetaObject::invokeMethod(this,[this]{
             const Scope scope(this); bootstrapQueued_=false;
             if (done_) return;
@@ -436,6 +452,11 @@ private:
         QMetaObject::invokeMethod(this,[this]{
             const Scope scope(this); requestQueued_=false;
             if (done_ || consumed_) return;
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+            // Preserve queued/watcher lifecycle; exclude EVERY request purpose.
+            // In particular, false capture config cannot fall through to facts.
+            return;
+#else
             if (config_.developmentInputObservation) { acceptObservationEnd();return; }
             if (config_.developmentCaptureObservation && !acceptCaptureRequest()) return;
             if (!context() || !live() || now()>=config_.setupBudgetMs) { finish("facts-entry-request-context-refused"); return; }
@@ -450,6 +471,7 @@ private:
             acceptedAt_=now();
             timer_.start(config_.facts.budgetMs);
             QMetaObject::invokeMethod(this,[this]{startRead();},Qt::QueuedConnection);
+#endif
         },Qt::QueuedConnection);
     }
     bool captureLife() const {
@@ -559,6 +581,10 @@ private:
             ::unlinkat(root_,"capture-observation-complete.json",0);
     }
     bool acceptCaptureRequest() {
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+        // Defense in depth even for a direct caller, before any token read.
+        return false;
+#else
         if (exists("input-observation-end") || exists("input-observation-end.tmp") || (!captureDone_ && (exists("facts-request") || exists("facts-request.tmp")))) {
             finish("capture-observation-purpose-refused");return false;
         }
@@ -578,6 +604,7 @@ private:
         if(config_.developmentFocusAncestry || config_.developmentReceiverSubtreeCapture)focusArmed_=true;
         timer_.start(int(qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)-now()));
         QMetaObject::invokeMethod(this,[this]{captureOwnerWindow();},Qt::QueuedConnection);return false;
+#endif
     }
     void captureOwnerWindow() {
         const Scope scope(this);
@@ -1058,6 +1085,10 @@ QtObject {
     InputObservationStore observation_;
     bool observationReady_=false;
     FactsEntryConfig config_;
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+    bool pretokenInstalled_=false;
+    bool pretokenBootstrapPosted_=false;
+#endif
     std::function<void(FactsEntryResult)> completed_;
     std::function<qint64()> clock_;
     QElapsedTimer elapsed_;

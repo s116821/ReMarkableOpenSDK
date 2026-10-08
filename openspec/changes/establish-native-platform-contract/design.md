@@ -202,4 +202,10 @@ consumer binding or the production creation capability. See
 
 ## October 8 shutdown discriminator
 
+The selected source-only [pre-token follow-up](pretoken-shutdown-diagnostic.md)
+adds the original FactsEntry lifecycle under a compile-time fence before all
+request dispatch, with a second capture-admission guard. Its single-root
+installation proof is distinct from engine readiness or shutdown completion.
+Source fixtures and exact consumer review precede any fresh native artifact.
+
 The [lifecycle-only diagnostic design](shutdown-lifecycle-diagnostic.md) defines the separate startup payload, fixed trace wire, counter/append failure behavior, hypotheses and consumer recovery boundary. The recorder remains process-resident so no callback races its own destruction; this experimental choice is not a production ownership solution. Per-frame Qt markers are diagnostic chronology, never native display-drain evidence. The consumer must keep its temporary failure guard through attempted-process termination, including the first stock stop, and record stop failure separately from later recovered stock. Main reviews the combined fresh packet; source-only fixtures do not select a tablet run.

@@ -2,6 +2,9 @@
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QThread>
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+#include "qt_pretoken_shutdown_entry.h"
+#endif
 #ifndef QT_SHUTDOWN_NONCE
 #error Supply a separately selected private frozen QT_SHUTDOWN_NONCE.
 #endif
@@ -38,6 +41,10 @@ void startup(){
         };
         QObject::connect(gui,&QGuiApplication::focusWindowChanged,gui,bind);
         bind(QGuiApplication::focusWindow());
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+        // Preserve ordinary signal/binding order; do not reset frame counters.
+        (void)pretoken_shutdown::start(gui,pretoken_shutdown::config(nonce),r);
+#endif
     },Qt::QueuedConnection);
 }
 }

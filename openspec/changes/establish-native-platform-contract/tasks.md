@@ -90,3 +90,11 @@ expansion or check off target qualification based on the host-only collector.
 - [ ] 7.3 Independently review exact SDK observer and Buddy temporary guard/singleton actor, including first-stock-stop protection, original absolute recovery budget, crash/timeout outcome and host loss.
 - [ ] 7.4 Main selects and announces one fresh frozen packet only after current fixtures/providers/policies and independent actor are verified; collect partial/crash evidence without replay or native success inference.
 - [ ] 7.5 Use actual result to reject FactsEntry necessity on matching no-FactsEntry crash, or retain timing-sensitive uncertainty on clean stop; choose only a justified next discriminator or repair. Full native qualification/sync/archive remain open.
+
+## 8. Pre-token FactsEntry cohort follow-up
+
+- [x] 8.1 Record the selected source-only design, compile fence, installation proof and inference limits in pretoken-shutdown-diagnostic.md before implementation.
+- [x] 8.2 Implement diagnostic-only admission exclusion and original entry lifecycle with bounded entry-installed proof; leave ordinary builds unchanged.
+- [x] 8.3 Verify unexpected-token exclusion, start refusal, engine-destruction cancellation/deferred lifetime and ordinary-build admission on owned ARM fixtures; freeze source hashes and compile scope.
+- [ ] 8.4 Main/Root independently review exact SDK source and consumer installation-plus-first-render proof, shared root and unchanged independent guard/budget before fresh native artifact selection.
+- [ ] 8.5 Only after selection collect one controlled outcome; retain incomplete Qt chronology and unresolved original fault limits. Native qualification, canonical sync and archive remain open.

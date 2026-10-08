@@ -430,3 +430,25 @@ The SDK SHALL keep a lifecycle-only shutdown diagnostic independent of page obse
 #### Scenario: A trace is incomplete or stop crashes
 - **WHEN** recording drops/fails, expected markers are absent, or the attempted process terminates by signal
 - **THEN** preserve partial evidence and failed/unknown diagnostic status; a separately verified stock process cannot retroactively convert the attempted stop into success.
+
+### Requirement: Pre-token diagnostic excludes page admission
+The separately compiled pre-token FactsEntry diagnostic SHALL preserve entry
+installation and deferred lifecycle while refusing all request dispatch before
+owner discovery, active page getters, reader construction or capture. Ordinary
+builds without the diagnostic macro SHALL retain existing admission behavior.
+
+#### Scenario: Unexpected request appears
+- **WHEN** any normal-facts, capture or source-facts token appears in the diagnostic root
+- **THEN** queued dispatch and direct capture admission remain fenced irrespective of configuration; no owner discovery, page getter, reader or capture is entered.
+
+#### Scenario: Entry installation refuses
+- **WHEN** root/generation validation or watcher/filter/timer/bootstrap setup does not complete
+- **THEN** no entry-installed event is emitted and render-only evidence cannot satisfy the selected cohort's STOP admission; existing independent recovery remains required.
+
+#### Scenario: Entry installation and render are observed
+- **WHEN** the selected strict trace contains one entry-installed event and a first before-render with matching identity and zero drops/quit flag
+- **THEN** the consumer may admit only its previously reviewed single STOP; installation does not establish engine readiness, shutdown completion or native authority.
+
+#### Scenario: Owned engine is destroyed
+- **WHEN** the owned fixture engine destruction triggers original entry cancellation
+- **THEN** completion remains queued and deletion follows the original deleteLater callback; fixture success does not prove native SIGTERM traverses that lifecycle.

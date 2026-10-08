@@ -12,7 +12,8 @@
 
 namespace shutdown_trace {
 enum class Event { Startup, Window, BeforeRender, AfterRender, AboutToQuit,
-                   WindowDestroyed, ApplicationDestroyed, LateBeforeRender, LateAfterRender };
+                   WindowDestroyed, ApplicationDestroyed, LateBeforeRender, LateAfterRender,
+                   EntryInstalled };
 inline const char *name(Event e) {
     switch(e) {
     case Event::Startup:return "startup"; case Event::Window:return "window";
@@ -22,6 +23,7 @@ inline const char *name(Event e) {
     case Event::ApplicationDestroyed:return "application-destroyed";
     case Event::LateBeforeRender:return "late-before-render";
     case Event::LateAfterRender:return "late-after-render";
+    case Event::EntryInstalled:return "entry-installed";
     }
     return "invalid";
 }
@@ -71,7 +73,7 @@ struct Recorder {
     void record(Event e) {
         if(failed.load(std::memory_order_relaxed))return;
         if(writing.test_and_set(std::memory_order_acquire)){dropped.fetch_add(1);return;}
-        // 32 normal frame pairs + one pair after quit + five lifecycle events.
+        // 32 normal frame pairs + one pair after quit + bounded lifecycle events.
         if(sequence>=96){failed=true;writing.clear(std::memory_order_release);return;}
         timespec ts{};char bytes[192];
         if(::clock_gettime(CLOCK_MONOTONIC,&ts)!=0){failed=true;writing.clear(std::memory_order_release);return;}
