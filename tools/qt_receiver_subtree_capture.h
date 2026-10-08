@@ -3,7 +3,7 @@
 
 namespace qml_access {
 // Unqualified capture correlation only. Never call this for facts admission.
-inline bool receiverSubtreeCapturePredicate(const PageOwner &owner,QQmlEngine *engine,const std::function<bool()> &progress,const char **reason=nullptr) {
+inline bool receiverSubtreeCapturePredicate(const PageOwner &owner,QQmlEngine *engine,const std::function<bool()> &progress,const char **reason=nullptr,bool allowUnfocusedArea=false) {
     const auto refuse=[reason](const char *value){if(reason)*reason=value;return false;};
     if(!progress())return refuse("capture-context");
     if(!owner.window || !owner.receiver || !owner.scene || !owner.document || !engine ||
@@ -22,7 +22,7 @@ inline bool receiverSubtreeCapturePredicate(const PageOwner &owner,QQmlEngine *e
     if(!descendant)return refuse("receiver-ancestor");
     const QVariant focused=owner.receiver->property("drawingAreaFocused");
     if(!progress())return refuse("capture-context");
-    if(!owner.receiver || !owner.scene || focused.metaType()!=QMetaType::fromType<bool>() || !focused.toBool())return refuse("drawing-area-focused");
+    if(!owner.receiver || !owner.scene || focused.metaType()!=QMetaType::fromType<bool>() || (!allowUnfocusedArea && !focused.toBool()))return refuse("drawing-area-focused");
     QPointer<QObject> receiverDocument,sceneDocument;
     if(!objectProperty(owner.receiver,"document",receiverDocument))return refuse("receiver-document");
     if(!progress())return refuse("capture-context");
@@ -54,10 +54,11 @@ inline bool receiverSubtreeWatchNotify(FocusOwnerGuard &guard,QObject *object,co
 }
 inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std::function<bool()> &progress,
     FocusOwnerGuard &guard,PageOwner &out,PageOwnerDiagnostics &d,FocusChainDiagnostics &chain,
-    const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe,int itemCap=256,int depthCap=8) {
+    const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe,int itemCap=256,int depthCap=8,bool allowUnfocusedArea=false) {
     out={};chain.items=0;
     if(itemCap!=256 && itemCap!=512 && itemCap!=1024 && itemCap!=2048 && itemCap!=4096)return "open-capture-scope-refused";
     if((depthCap!=8 && depthCap!=16 && depthCap!=32) || (depthCap==16 && itemCap!=2048 && itemCap!=4096) || (depthCap==32 && itemCap!=4096) || (itemCap==4096 && depthCap!=16 && depthCap!=32))return "open-capture-scope-refused";
+    if(allowUnfocusedArea && (itemCap!=4096 || depthCap!=32))return "open-capture-scope-refused";
     const QPointer<QQmlEngine> producer=engine;
     if(!progress())return "open-context-lost";
     if(!engine || QThread::currentThread()!=engine->thread())return "open-capture-scope-refused";
@@ -132,7 +133,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
         if(!progress())return "open-context-lost";
         if(valid && !observe(candidate))return "open-capture-scope-refused";
         if(!progress())return "open-context-lost";
-        if(valid)valid=receiverSubtreeCapturePredicate(candidate,producer,progress,&reason);
+        if(valid)valid=receiverSubtreeCapturePredicate(candidate,producer,progress,&reason,allowUnfocusedArea);
         if(!progress())return "open-context-lost";
         if(valid)valid=receiverSubtreeCaptureIdentity(candidate,document,order,progress);
         if(!progress())return "open-context-lost";
@@ -143,7 +144,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
     }
     if(!d.matches)return "open-owner-unavailable";
     if(!progress())return "open-context-lost";
-    const bool valid=receiverSubtreeCapturePredicate(out,producer,progress,&d.finalRejection) && receiverSubtreeCaptureIdentity(out,document,order,progress);
+    const bool valid=receiverSubtreeCapturePredicate(out,producer,progress,&d.finalRejection,allowUnfocusedArea) && receiverSubtreeCaptureIdentity(out,document,order,progress);
     if(!progress()){out={};return "open-context-lost";}
     if(!valid){out={};return "open-context-lost";}
     return "open-capture-scene-correlated";
