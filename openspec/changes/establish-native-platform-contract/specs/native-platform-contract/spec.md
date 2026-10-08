@@ -1,5 +1,26 @@
 ## ADDED Requirements
 
+### Requirement: Separate development capture before facts admission
+An explicitly selected private development capture SHALL retain one uniquely
+observed active owner and its current identity around one GUI-thread window grab,
+with sticky owner/input/context invalidation, bounded exclusive output and
+completion only after callback return. Its distinct one-shot request SHALL NOT
+consume or publish the facts request, reset the original setup/recovery clocks,
+or grant native/render/UI authority. The entry SHALL retain the capture guard
+through subsequent visual review and facts delivery, refusing lost continuity.
+
+#### Scenario: Capture precedes visual review and facts
+- **WHEN** the distinct capture request yields a complete bound image with unchanged retained owner and identity
+- **THEN** the entry remains within its original setup window and admits the original facts request only after the separate consumer visual gate, with no facts reader invoked by capture.
+
+#### Scenario: Reentry, early facts or lost owner
+- **WHEN** a duplicate/replaced or wrong-purpose request, early facts token, owner/input/epoch change, expiry, partial output or uncertain capture occurs
+- **THEN** no second grab or favorable re-observation is allowed and no subsequent facts continuation is authorized.
+
+#### Scenario: Scene image is not a native render fence
+- **WHEN** Qt returns an image under unchanged sampled owner identity
+- **THEN** the result remains development owner/window correspondence evidence and cannot establish native worker texture freshness, content revision, physical-panel completion or qualified SDK capture.
+
 ### Requirement: Purpose-isolated development Qt input observation
 The private development entry SHALL optionally observe bounded touch/mouse events
 through its existing always-false application filter, without changing accepted

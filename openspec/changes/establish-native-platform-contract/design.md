@@ -1,5 +1,12 @@
 ## Context
 
+The proposed [owner/window capture refinement](capture-observation-plan.md) adds
+one purpose-isolated development acquisition before facts admission. Bootstrap
+readiness, active owner observation and rendered-content provenance are distinct.
+The retained owner/epoch brackets one active Qt grab and survives visual review;
+the later facts request remains a separate one-shot admission. This does not
+establish asynchronous native page-worker readiness or a qualified capture batch.
+
 The prospective private diagnostic is specified in
 [input-observation-proposal.md](input-observation-proposal.md): bounded
 non-consuming eventFilter records, explicit purpose-isolated end admission and

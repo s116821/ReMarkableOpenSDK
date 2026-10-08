@@ -6,6 +6,12 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Propose one default-off development owner/window capture inside the existing
+  facts entry, before the consumer's visual-before-facts gate; see
+  [capture-observation-plan.md](capture-observation-plan.md). It retains separate
+  purpose/admission, one GUI grab and original clocks, without qualifying native
+  render freshness or granting facts authority before visual review.
+
 - Propose a private development-only Qt input observer plus one separately
   requested window image, using existing entry lifetime and ownership guards;
   see [input-observation-proposal.md](input-observation-proposal.md). Code and
