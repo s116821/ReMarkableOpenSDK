@@ -142,6 +142,28 @@ discovery it is nonnull only when the original progress call failed. Unknown
 enum, extra/missing field, invalid bound or inconsistent branch/field combination
 is undecodable diagnostic evidence, never an alternative successful capture.
 
+The branch/nullability matrix is normative. Identity, timing and authority fields
+are common to all branches; deadline_check_ms follows the evaluated-operand rule
+above. The remaining fields obey this matrix:
+
+| branch | predicate | discovery_result | Other permitted detail |
+| --- | --- | --- | --- |
+| `initial-progress` | Failed progress enum | null | All counters, pair, active-owner and observer fields null |
+| `owner-discovery` | Failed original progress enum only if progress failed; otherwise null | Actual non-success discovery enum | Counters at original reached points; first-pair tuple only for open-owner-unavailable; active-owner rejection only for original final validation failure; observer fields null |
+| `observer-install` | null | open-owner-observed | Fixed observer role/member/failure; counters, pair and active-owner fields null |
+| `owner-revalidation` | Failed captureAllowed enum | open-owner-observed | Active-owner rejection only when predicate is active-owner; counters, pair and observer fields null |
+
+The observed discovery success in the last two rows records the already-completed
+operation, without retaining irrelevant candidate detail. The first-pair tuple
+(receiver ordinal, scene ordinal, rejection) is all null or all populated. The
+observer tuple (role, member, failure) is populated only for observer-install.
+Counters are null before their original local initialization; afterward zero is
+an observed count, including zero matches before pairing begins. Only
+owner-discovery retains them. `open-context-lost` caused by producer/window/weak
+pointer loss does not invent a failed progress predicate. If original progress
+passed and a later pointer check failed, predicate remains null. A final
+activeOwner failure uses active_owner_rejection, never first_pair_rejection.
+
 Publish at most once at the existing deferred completion boundary using only the
 latched scalars and existing retained-root/generation/closure checks; do not call
 owner predicates or getters for serialization. Because this is failure evidence,
