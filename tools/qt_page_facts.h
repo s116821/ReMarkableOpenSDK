@@ -1,4 +1,5 @@
 #pragma once
+#include "qt_retained_owner_ticket.h"
 #include "qt_page_owner.h"
 #include <QQmlComponent>
 #include <QJsonDocument>
@@ -107,7 +108,11 @@ public:
         if (started_) { invalidate(); finish("facts-reentry-refused"); return; }
         started_=true; elapsed_.start();
         if (!config_.valid() || !current()) { finish("facts-config-or-context-refused"); return; }
-        const char *ownerStage=findPageOwner(engine_, [this]{return current();}, owner_);
+        const char *ownerStage="open-owner-observed";
+        if (retainedMode_) {
+            if (!retainedTicket_) { retainedFailure_=true; finish("facts-retained-owner-refused"); return; }
+            owner_=retainedTicket_->owner_;
+        } else ownerStage=findPageOwner(engine_, [this]{return current();}, owner_);
         if (QByteArrayView(ownerStage) != QByteArrayView("open-owner-observed")) { finish(ownerStage); return; }
         if (!installObservers() || !allowed()) { finish("facts-metadata-or-context-refused"); return; }
         const quint64 baseline=epoch_;
@@ -144,15 +149,36 @@ public:
 public slots:
     bool allowed() {
         const CallScope call(this);
-        if (checking_) { invalidate(); return false; }
+        if (checking_) {
+            invalidate();
+            if (retainedMode_) { retainedFailure_=true; if(retainedTicket_)retainedTicket_->invalidate(); }
+            return false;
+        }
         checking_=true;
-        const bool ownerCurrent=current() && activeOwner(owner_,engine_);
+        const bool ownerCurrent=current() && (retainedMode_ ? ticketOwner() : activeOwner(owner_,engine_));
         checking_=false;
         // Do not repeat getters; their reentry may have changed epoch/lifetime/time.
         return ownerCurrent && current() && retainedContext();
     }
     void invalidate() { invalid_=true; ++epoch_; }
 private:
+    friend class FactsEntry;
+    PageFactsSession(QQmlEngine *engine, PageFactsConfig config,
+        std::unique_ptr<RetainedOwnerTicket> ticket, std::function<void(PageFactsResult)> completed)
+        : PageFactsSession(engine,std::move(config),std::function<bool()>{},std::move(completed)) {
+        retainedMode_=true; retainedTicket_=std::move(ticket);
+    }
+    bool ticketOwner() {
+        const bool valid=retainedTicket_ && retainedTicket_->sessionOwner();
+        if(!valid)retainedFailure_=true;
+        return valid;
+    }
+    bool progressCurrent(bool delivery=false) {
+        if (!retainedMode_) return progress_();
+        const bool valid=retainedTicket_ && (delivery ? retainedTicket_->deliveryProgress() : retainedTicket_->entryProgress());
+        if(!valid)retainedFailure_=true;
+        return valid;
+    }
     struct CallScope {
         PageFactsSession *session;
         explicit CallScope(PageFactsSession *value):session(value){++session->depth_;}
@@ -160,7 +186,7 @@ private:
     };
     bool current() {
         if (done_ || invalid_ || !engine_ || QThread::currentThread()!=thread() || engine_->thread()!=thread() ||
-            elapsed_.elapsed()>=config_.budgetMs || !progress_()) return false;
+            elapsed_.elapsed()>=config_.budgetMs || !progressCurrent()) return false;
         return !done_ && !invalid_ && engine_ && engine_->thread()==thread() && elapsed_.elapsed()<config_.budgetMs;
     }
     // QObject::thread() is nonvirtual context metadata, not a native value
@@ -214,18 +240,22 @@ private:
             QObject::connect(object,&QObject::destroyed,this,&PageFactsSession::invalidate);
         return true;
     }
-    void finish(const char *stage) { if (done_) return; done_=true; result_.stage=QString::fromLatin1(stage); scheduleCompletion(); }
+    void finish(const char *stage) { if (done_) return; done_=true;
+        result_.stage=QString::fromLatin1(retainedFailure_ ? "facts-retained-owner-refused":stage); scheduleCompletion(); }
     void scheduleCompletion() {
         if (!done_ || depth_ || queued_) return;
         queued_=true;
         QMetaObject::invokeMethod(this,[this]{
+            {
+            const CallScope deliveryScope(this);
             // Delivery is another cancellation/lifetime/deadline boundary. This
             // adds no new native getter and never refreshes a failed read.
             const bool deliverable = !invalid_ && retainedContext() &&
-                elapsed_.elapsed()<config_.budgetMs && progress_();
+                elapsed_.elapsed()<config_.budgetMs && progressCurrent(true);
             if (result_.facts && (!deliverable || invalid_ || !retainedContext() ||
                 elapsed_.elapsed()>=config_.budgetMs || epoch_!=result_.facts->endEpoch)) {
-                result_.facts.reset(); result_.stage=QStringLiteral("facts-delivery-boundary-refused");
+                result_.facts.reset(); result_.stage=QString::fromLatin1(retainedFailure_ ? "facts-retained-owner-refused":"facts-delivery-boundary-refused");
+            }
             }
             // The caller may release the retained session in its callback.
             // Keep the callback/result alive independently before that happens.
@@ -239,6 +269,8 @@ private:
     std::function<bool()> progress_;
     std::function<void(PageFactsResult)> completed_;
     PageOwner owner_;
+    std::unique_ptr<RetainedOwnerTicket> retainedTicket_;
+    bool retainedMode_=false,retainedFailure_=false;
     QPointer<QObject> helper_;
     QElapsedTimer elapsed_;
     PageFactsResult result_;

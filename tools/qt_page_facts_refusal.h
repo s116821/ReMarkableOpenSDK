@@ -6,7 +6,8 @@
 namespace qml_access {
 // Only fixed existing reader/owner labels may enter private refusal evidence.
 // No helper error, native value, address or arbitrary result string is retained.
-inline QString factsRefusalReaderStage(const QString &stage) {
+inline QString factsRefusalReaderStage(const QString &stage,bool focusAncestry=false) {
+    if(focusAncestry && stage==QStringLiteral("facts-retained-owner-refused"))return stage;
     for (const char *allowed:{"facts-reentry-refused","facts-config-or-context-refused",
          "open-engine-thread","open-current-window-unavailable","open-context-lost","open-item-lost",
          "open-topology-bound","open-candidate-bound","open-owner-ambiguous","open-owner-unavailable",
@@ -22,13 +23,16 @@ struct FactsRefusalSample {
     qint64 sampledMs=-1, acceptedMs=-1;
     bool contextCurrent=false, rootCurrent=false, closureAbsent=false, identityCurrent=false;
     bool withinAcceptedDeadline=false;
+    bool focusAncestry=false;
 };
 inline QByteArray factsRefusalBytes(const FactsRefusalSample &sample) {
+    if(sample.focusAncestry && sample.readerStage==QStringLiteral("facts-retained-owner-refused") &&
+        (sample.readerHadFacts || sample.completionBoundary))return {};
     // The entry supplies its already validated attempt identity. This format is
     // intentionally distinct from the unchanged successful 23-field facts schema.
     const QJsonObject json{{"kind","development-facts-refusal"},{"version",1},
         {"nonce",sample.nonce},{"attempt_pid",sample.process},{"attempt_start",sample.processStart},
-        {"reader_stage",factsRefusalReaderStage(sample.readerStage)},
+        {"reader_stage",factsRefusalReaderStage(sample.readerStage,sample.focusAncestry)},
         {"reader_result_had_facts",sample.readerHadFacts},
         {"entry_stage",sample.completionBoundary ? "facts-entry-delivery-refused" : "facts-entry-read-refused"},
         {"refusal_path",sample.completionBoundary ? "entry-completion-boundary" :

@@ -9,6 +9,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "qt_input_observation.h"
+#include "qt_focus_owner.h"
+#include <atomic>
+#include <limits>
 #include <QCryptographicHash>
 
 namespace qml_access {
@@ -19,6 +22,7 @@ struct FactsEntryConfig {
     bool developmentSetup120=false;
     bool developmentInputObservation=false;
     bool developmentCaptureObservation=false;
+    bool developmentFocusAncestry=false;
     QString setupSelection;
     bool setupValid() const {
         return developmentSetup120 ? setupBudgetMs==120000 && setupSelection==
@@ -32,6 +36,7 @@ struct FactsEntryConfig {
 };
 struct CaptureOwnerFailure {
     PageOwnerDiagnostics owner;
+    FocusChainDiagnostics chain;
     const char *branch=nullptr,*predicate=nullptr,*discovery=nullptr,*activeReason=nullptr;
     const char *observerRole=nullptr,*observerMember=nullptr,*observerFailure=nullptr;
     qint64 accepted=-1,failure=-1,deadlineCheck=-1,effectiveDeadline=-1;
@@ -46,12 +51,15 @@ class FactsEntry final : public QObject {
     Q_OBJECT
     friend struct InputObservationFixtureAccess;
     friend struct CaptureObservationFixtureAccess;
+    friend struct FocusAncestryFixtureAccess;
 public:
     FactsEntry(QGuiApplication *app, FactsEntryConfig config,
                std::function<void(FactsEntryResult)> completed,
                std::function<qint64()> clock={})
         : app_(app), config_(std::move(config)), completed_(std::move(completed)), clock_(std::move(clock)) {}
     ~FactsEntry() override {
+        revokeRetainedOwner();
+        focusGuard_.disconnect();
         if (app_) app_->removeEventFilter(this);
         reader_.reset();
         for (int fd:{captureTokenFd_,capturePngFd_,captureCompleteFd_}) if (fd>=0) ::close(fd);
@@ -69,6 +77,10 @@ public:
         }
         if (config_.developmentCaptureObservation && (!config_.developmentSetup120 || config_.facts.budgetMs!=5000 || config_.developmentInputObservation)) {
             finish("capture-observation-config-refused"); return;
+        }
+        if(config_.developmentFocusAncestry && (!config_.developmentCaptureObservation || !config_.developmentSetup120 ||
+            config_.facts.budgetMs!=5000 || config_.setupSelection!=QStringLiteral("main-dev-facts-120s"))) {
+            finish("capture-observation-config-refused");return;
         }
         root_=::open(config_.directory.toUtf8().constData(),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
         if (root_<0 || ::fstat(root_,&rootStat_)!=0 || !directoryMode(rootStat_) || !rootCurrent()) {
@@ -109,7 +121,7 @@ public:
         return value;
     }
 public slots:
-    void cancel() { closed_=true; if (!reading_) finish("facts-entry-canceled"); }
+    void cancel() { closed_=true; revokeRetainedOwner(); if (!reading_) finish("facts-entry-canceled"); }
     void checkDeadline() {
         const Scope scope(this);
         if (done_) return;
@@ -125,7 +137,14 @@ public slots:
 
 protected:
     bool eventFilter(QObject *object,QEvent *event) override {
-        if (config_.developmentCaptureObservation && captureWatching_) {
+        if(config_.developmentFocusAncestry && focusArmed_){
+            switch(event->type()){
+            case QEvent::FocusIn: case QEvent::FocusOut: case QEvent::WindowActivate: case QEvent::WindowDeactivate:
+                invalidateCapture();break;
+            default:break;
+            }
+        }
+        if (config_.developmentCaptureObservation && (captureWatching_ || focusArmed_)) {
             switch (event->type()) {
             case QEvent::TouchBegin: case QEvent::TouchUpdate: case QEvent::TouchEnd: case QEvent::TouchCancel:
             case QEvent::MouseButtonPress: case QEvent::MouseButtonRelease: case QEvent::MouseButtonDblClick: case QEvent::MouseMove:
@@ -142,6 +161,52 @@ protected:
         return false;
     }
 private:
+    void revokeRetainedOwner() { if(retainedRecord_)retainedRecord_->revoked_=true; }
+    bool prepareRetainedOwnerTicket() {
+        if(retainedRecord_ || pendingRetainedTicket_ || !focusGuard_.root || !focusGuard_.anchor)return false;
+        static std::atomic<quint64> next{1};
+        quint64 generation=next.load();
+        do { if(generation==std::numeric_limits<quint64>::max())return false; }
+        while(!next.compare_exchange_weak(generation,generation+1));
+        RetainedOwnerFactoryKey key;
+        retainedGeneration_=generation;
+        retainedRecord_=std::shared_ptr<RetainedOwnerRecord>(new RetainedOwnerRecord(key,this,generation,captureOwner_,
+            focusGuard_.root,focusGuard_.anchor,captureEpoch_,&FactsEntry::validateRetainedRecord));
+        pendingRetainedTicket_=std::unique_ptr<RetainedOwnerTicket>(new RetainedOwnerTicket(key,retainedRecord_,generation,captureOwner_));
+        retainedRecord_->issued_=true;
+        return true;
+    }
+    static bool validateRetainedRecord(RetainedOwnerRecord &record,RetainedOwnerRecord::Boundary boundary) {
+        const QPointer<QObject> guarded=record.entry_;
+        if(!guarded || guarded->thread()!=QThread::currentThread())return false;
+        auto *entry=qobject_cast<FactsEntry *>(guarded.data());
+        if(!entry)return false;
+        const Scope scope(entry);
+        if(!entry->config_.developmentFocusAncestry || entry->retainedRecord_.get()!=&record ||
+            entry->retainedGeneration_!=record.generation_)return false;
+        if(boundary==RetainedOwnerRecord::Boundary::InvalidateOnly){
+            record.revoked_=true;entry->invalidateCapture();return false;
+        }
+        if(record.revoked_ || entry->captureEpoch_!=record.captureEpoch_ || !entry->context() || !entry->captureLife())return false;
+        const auto endpoints=[&]{
+            if(!record.root_ || !record.anchor_ || !record.owner_.window ||
+                record.owner_.window->contentItem()!=record.root_ || record.owner_.window->activeFocusItem()!=record.anchor_){
+                entry->invalidateCapture();return false;
+            }
+            return !entry->captureInvalid_ && entry->captureEpoch_==record.captureEpoch_;
+        };
+        if(!endpoints())return false;
+        bool valid=false;
+        if(boundary==RetainedOwnerRecord::Boundary::SessionOwner)
+            valid=activeOwner(record.owner_,entry->engine_);
+        else valid=entry->readCurrent() && entry->captureAllowed();
+        return valid && !record.revoked_ && guarded && entry->context() && entry->captureLife() && endpoints();
+    }
+    std::unique_ptr<PageFactsSession> makeRetainedReader(std::function<void(PageFactsResult)> completed) {
+        if(!retainedRecord_ || !pendingRetainedTicket_ || !retainedRecord_->issued_ || retainedRecord_->transferred_ || retainedRecord_->revoked_)return {};
+        retainedRecord_->transferred_=true;
+        return std::unique_ptr<PageFactsSession>(new PageFactsSession(engine_,config_.facts,std::move(pendingRetainedTicket_),std::move(completed)));
+    }
     struct Scope {
         FactsEntry *entry;
         explicit Scope(FactsEntry *value):entry(value){++entry->depth_;}
@@ -414,11 +479,17 @@ private:
             finish("capture-observation-request-refused");return false;
         }
         captureAcceptedAt_=now();captureReading_=true;
+        if(config_.developmentFocusAncestry)focusArmed_=true;
         timer_.start(int(qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000)-now()));
         QMetaObject::invokeMethod(this,[this]{captureOwnerWindow();},Qt::QueuedConnection);return false;
     }
     void captureOwnerWindow() {
         const Scope scope(this);
+        if(config_.developmentFocusAncestry){
+            if(done_)return;
+            if(focusDiscoveryStarted_)invalidateCapture();
+            focusDiscoveryStarted_=true;
+        }
         CaptureOwnerFailure diagnostic;
         const auto progress=[this,&diagnostic]{
             const auto refuse=[&diagnostic](const char *reason){diagnostic.predicate=reason;return false;};
@@ -432,7 +503,12 @@ private:
         };
         if(!progress())diagnostic.branch="initial-progress";
         else {
-            diagnostic.discovery=findPageOwner(engine_,progress,captureOwner_,&diagnostic.owner);
+            if(config_.developmentFocusAncestry){
+                const QPointer<FactsEntry> weak=this;
+                focusGuard_.context=this;
+                focusGuard_.invalidate=[weak]{if(weak)weak->invalidateCapture();};
+                diagnostic.discovery=findFocusPageOwner(engine_,progress,focusGuard_,captureOwner_,diagnostic.owner,diagnostic.chain);
+            } else diagnostic.discovery=findPageOwner(engine_,progress,captureOwner_,&diagnostic.owner);
             if(QByteArrayView(diagnostic.discovery)!=QByteArrayView("open-owner-observed"))diagnostic.branch="owner-discovery";
             else if(!captureObservers(&diagnostic))diagnostic.branch="observer-install";
             else if(!captureAllowedChecked(&diagnostic))diagnostic.branch="owner-revalidation";
@@ -443,6 +519,9 @@ private:
                 diagnostic.effectiveDeadline=qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000);
                 captureOwnerFailure_=diagnostic;captureOwnerFailurePending_=true;
             }
+            finish("capture-observation-owner-refused");return;
+        }
+        if(config_.developmentFocusAncestry && !prepareRetainedOwnerTicket()){
             finish("capture-observation-owner-refused");return;
         }
         QQmlComponent component(engine_,this);
@@ -595,11 +674,17 @@ QtObject {
         if (config_.developmentInputObservation) { finish("input-observation-facts-refused");return; }
         if (!readCurrent() || (config_.developmentCaptureObservation && !captureBindingsCurrent())) { finish("facts-entry-dispatch-refused"); return; }
         reading_=true;
-        reader_=std::make_unique<PageFactsSession>(engine_,config_.facts,[this]{return readCurrent() && (!config_.developmentCaptureObservation || captureAllowed());},
-            [this](PageFactsResult result){
+        const QPointer<FactsEntry> weak=this;
+        auto completed=[weak](PageFactsResult result){if(weak)weak->completeRead(std::move(result));};
+        if(config_.developmentFocusAncestry)reader_=makeRetainedReader(std::move(completed));
+        else reader_=std::make_unique<PageFactsSession>(engine_,config_.facts,[this]{return readCurrent() && (!config_.developmentCaptureObservation || captureAllowed());},std::move(completed));
+        if(!reader_){reading_=false;readerStage_=QStringLiteral("facts-retained-owner-refused");readerHadFacts_=false;refusalPending_=true;finish("facts-entry-read-refused");return;}
+        reader_->begin();
+    }
+    void completeRead(PageFactsResult result) {
                 const Scope callbackScope(this);
                 reading_=false;
-                readerStage_=factsRefusalReaderStage(result.stage); readerHadFacts_=bool(result.facts);
+                readerStage_=factsRefusalReaderStage(result.stage,config_.developmentFocusAncestry); readerHadFacts_=bool(result.facts);
                 if (!result.facts || !readCurrent()) {
                     refusalPending_=true; finish("facts-entry-read-refused"); return;
                 }
@@ -626,8 +711,6 @@ QtObject {
                 }
                 result_.observed=true;
                 finish("facts-observed-no-change-during-read");
-            });
-        reader_->begin();
     }
     QByteArray captureOwnerFailureBytes() const {
         const auto &d=captureOwnerFailure_;
@@ -636,7 +719,7 @@ QtObject {
         const bool discovery=QByteArrayView(d.branch)==QByteArrayView("owner-discovery");
         const bool pair=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-owner-unavailable");
         const bool topology=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-topology-bound");
-        return QJsonDocument(QJsonObject{{"kind","development-capture-owner-refusal"},{"version",2},{"nonce",config_.nonce},
+        QJsonObject json{{"kind","development-capture-owner-refusal"},{"version",config_.developmentFocusAncestry ? 3:2},{"nonce",config_.nonce},
             {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
             {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
             {"setup_profile",QString::fromLatin1(config_.setupProfile())},{"capture_accepted_ms",d.accepted},{"failure_ms",d.failure},
@@ -652,10 +735,18 @@ QtObject {
             {"topology_depth",count(topology ? d.owner.topologyDepth:-1)},
             {"topology_queue_size",count(topology ? d.owner.topologyQueueSize:-1)},
             {"topology_child_count",count(topology ? d.owner.topologyChildCount:-1)},
-            {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}}).toJson(QJsonDocument::Compact);
+            {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}};
+        if(config_.developmentFocusAncestry){
+            json.insert("discovery_scope","window-focus-ancestry-v1");
+            json.insert("chain_items",count(d.chain.items));
+            json.insert("chain_complete",d.chain.complete);
+            json.insert("chain_failure",text(d.chain.failure));
+        }
+        return QJsonDocument(json).toJson(QJsonDocument::Compact);
     }
     void finish(const char *stage) {
         if (done_) return;
+        if(QByteArrayView(stage)!=QByteArrayView("facts-observed-no-change-during-read"))revokeRetainedOwner();
         done_=true; result_.stage=QString::fromLatin1(stage); timer_.stop();
         if (root_>=0 && rootCurrent()) ::unlinkat(root_,"facts-waiting",0);
         observation_.sealed=true;
@@ -668,6 +759,7 @@ QtObject {
         QMetaObject::invokeMethod(this,[this]{
             // Another queued boundary cannot renew the accepted-request budget.
             if (result_.observed && (!deliveryCurrent() || (config_.developmentCaptureObservation && !captureBindingsCurrent()))) {
+                revokeRetainedOwner();
                 result_.observed=false; result_.stage=QStringLiteral("facts-entry-delivery-refused");
                 refusalPending_=true; refusalCompletionBoundary_=true;
             }
@@ -679,6 +771,7 @@ QtObject {
                 sample.nonce=config_.nonce; sample.process=QString::fromLatin1(process_);
                 sample.processStart=QString::fromLatin1(processStart_); sample.readerStage=readerStage_;
                 sample.readerHadFacts=readerHadFacts_; sample.completionBoundary=refusalCompletionBoundary_;
+                sample.focusAncestry=config_.developmentFocusAncestry;
                 sample.sampledMs=now(); sample.acceptedMs=acceptedAt_;
                 sample.contextCurrent=context(); sample.rootCurrent=rootCurrent();
                 sample.closureAbsent=!closed_ && !exists("entry.closed") && !exists("restore.claim");
@@ -698,10 +791,13 @@ QtObject {
             // Syscalls are not preemptible. Never retain late success as a final
             // usable callback; partial/unknown output grants no authority.
             if (result_.observed && (!deliveryCurrent() || (config_.developmentCaptureObservation && !captureBindingsCurrent()))) {
+                revokeRetainedOwner();
                 ::unlinkat(root_,"callback.json",0);
                 result_.observed=false; result_.outputPublished=false;
                 result_.stage=QStringLiteral("facts-entry-output-unknown");
             }
+            revokeRetainedOwner();
+            if(config_.developmentFocusAncestry){focusArmed_=false;focusGuard_.disconnect();if(app_)app_->removeEventFilter(this);}
             reader_.reset();
             auto callbackFunction=std::move(completed_); auto result=std::move(result_);
             if (callbackFunction) callbackFunction(std::move(result));
@@ -711,6 +807,11 @@ QtObject {
     QPointer<QQmlEngine> engine_;
     QPointer<QQuickWindow> observationWindow_;
     PageOwner captureOwner_;
+    FocusOwnerGuard focusGuard_;
+    bool focusArmed_=false,focusDiscoveryStarted_=false;
+    std::shared_ptr<RetainedOwnerRecord> retainedRecord_;
+    std::unique_ptr<RetainedOwnerTicket> pendingRetainedTicket_;
+    quint64 retainedGeneration_=0;
     CaptureOwnerFailure captureOwnerFailure_;
     bool captureOwnerFailurePending_=false;
     std::function<QImage()> captureGrabForFixture_;
