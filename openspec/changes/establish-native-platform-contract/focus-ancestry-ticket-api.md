@@ -24,7 +24,7 @@ class PageFactsSession;
 
 class RetainedOwnerFactoryKey final {
     friend class FactsEntry;
-    RetainedOwnerFactoryKey() = default;
+    RetainedOwnerFactoryKey() {} // user-provided: prevents C++17 aggregate {} bypass
     RetainedOwnerFactoryKey(const RetainedOwnerFactoryKey &) = delete;
     RetainedOwnerFactoryKey &operator=(const RetainedOwnerFactoryKey &) = delete;
 public:
@@ -86,6 +86,12 @@ Construct with explicit new inside the friend factory (make_unique/make_shared
 cannot acquire private constructor access). Weak ticket locking retains record
 storage temporarily, never entry lifetime or authority. Generation is a process-
 local monotonically allocated identity with overflow refusal, not a wire field.
+
+The passkey constructor must remain user-provided, not defaulted: vendor builds
+use C++17, where the defaulted form can leave this empty class an aggregate and
+permit unauthorized {} construction. Required vendor compile checks prove
+authorized FactsEntry construction and !std::is_aggregate_v<Key>, and reject both
+{} and () construction in unrelated code and the session friendship context.
 
 FactsEntry members and private methods:
 
