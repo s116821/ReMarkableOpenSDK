@@ -113,6 +113,9 @@ cannot establish continuity. No extra document/page mapping before visual review
 
 ## Later facts must use the same guarded owner
 
+The proposed [concrete C++ ticket API checkpoint](focus-ancestry-ticket-api.md)
+requires Main/Astra review before broad implementation; it is not compiled source.
+
 Current PageFactsSession::begin independently calls findPageOwner, so changing
 only pre-capture discovery would reproduce the full-tree cap after visual review.
 For this selected mode only, add a narrowly scoped internal retained-owner path:
