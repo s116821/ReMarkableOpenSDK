@@ -40,7 +40,7 @@ done
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
  tools/qt_focus_ancestry_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/focus-fixture"
-for case in receiver-1024-complete receiver-1024-overflow receiver-512-complete receiver-512-overflow receiver-good receiver-other-page receiver-two receiver-cap receiver-depth receiver-getter-loss receiver-facts-refusal funnel-serializer good large edge24 edge25 ambiguous focus-event initial-invalidated aba-out aba-in generation ticket-reentrant second-factory delivery-generation getter-counts metadata-only metadata-ticket-loss scene9-negative endpoint-capture endpoint-visual endpoint-bindings endpoint-final1 endpoint-final2; do
+for case in receiver-2048-complete receiver-2048-overflow receiver-1024-complete receiver-1024-overflow receiver-512-complete receiver-512-overflow receiver-good receiver-other-page receiver-two receiver-cap receiver-depth receiver-getter-loss receiver-facts-refusal funnel-serializer good large edge24 edge25 ambiguous focus-event initial-invalidated aba-out aba-in generation ticket-reentrant second-factory delivery-generation getter-counts metadata-only metadata-ticket-loss scene9-negative endpoint-capture endpoint-visual endpoint-bindings endpoint-final1 endpoint-final2; do
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
   "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 \
    -E QT_QPA_PLATFORM=offscreen -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \

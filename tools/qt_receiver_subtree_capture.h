@@ -56,7 +56,7 @@ inline const char *findReceiverSubtreeCaptureOwner(QQmlEngine *engine,const std:
     FocusOwnerGuard &guard,PageOwner &out,PageOwnerDiagnostics &d,FocusChainDiagnostics &chain,
     const QString &document,const QStringList &order,const std::function<bool(const PageOwner &)> &observe,int itemCap=256) {
     out={};chain.items=0;
-    if(itemCap!=256 && itemCap!=512 && itemCap!=1024)return "open-capture-scope-refused";
+    if(itemCap!=256 && itemCap!=512 && itemCap!=1024 && itemCap!=2048)return "open-capture-scope-refused";
     const QPointer<QQmlEngine> producer=engine;
     if(!progress())return "open-context-lost";
     if(!engine || QThread::currentThread()!=engine->thread())return "open-capture-scope-refused";

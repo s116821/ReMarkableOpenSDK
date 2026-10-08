@@ -105,3 +105,20 @@ Private receipt sol-receiver-subtree-cap1024-r1/review-receipt.json SHA256:
 7b6fb34bee5b96ddf26d1b2c87455e0925d01fc8f00b4941ea9f09f650bf696e.
 Astra bounded SDK source review reported no findings; final receipt/consumer
 review closeout pending. No native qualification, fresh nonce or packet selected.
+## Selected fixed2048 continuation
+
+Main reports spent9e58/1024: visited817, queue1024+child1, depth7, receiver1 and
+2metadata scenes; all pair/observer/predicate fields null. Item bound refused
+before candidate value getters, noPNG/facts. Original operator restored/cleaned;
+Main's helper closeout was underway. Source basis: Main current coordination
+message, not an independently verified transcript or final baseline here.
+
+Main selects a separate fixed2048 profile, scope receiver-subtree-capture-unqualified-v4.
+Append2048 to the existing integer allowlist0/1024; preserve v1→256/v2→512/v3→1024.
+Nonzero itemcap requires receiver capture and excludes512 bool. Use selected
+integer bound directly; unchanged wire layouts. No adaptive cap or same-attempt
+retry. Preserve depth8/scenes8/fullscan-before-getters/fulltuple/sticky/original5s/
+independentrestore/no-facts/no-ticket. Depth7 at refusal proves neither complete
+traversal within8 nor sufficiency of2048. Tiny2048complete/2049overflow-before-
+getters plus historical decoder bounds and exact compile/review precede a fresh
+Main-selected packet. No broad matrix, new nonce or device action selected here.
