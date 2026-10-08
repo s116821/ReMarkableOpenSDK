@@ -30,6 +30,12 @@ struct FactsEntryConfig {
             developmentSetup120 ? QByteArray("main-dev-facts-120s") : QByteArray("default-dev-20s");
     }
 };
+struct CaptureOwnerFailure {
+    PageOwnerDiagnostics owner;
+    const char *branch=nullptr,*predicate=nullptr,*discovery=nullptr,*activeReason=nullptr;
+    const char *observerRole=nullptr,*observerMember=nullptr,*observerFailure=nullptr;
+    qint64 accepted=-1,failure=-1,deadlineCheck=-1,effectiveDeadline=-1;
+};
 struct FactsEntryResult {
     QString stage;
     bool observed=false, outputPublished=false;
@@ -74,7 +80,7 @@ public:
              exists("input-observation-end.tmp") || exists("input-observation-complete.json") || exists("input-window.png")))) { finish("facts-entry-stale-refused"); return; }
         process_=QByteArray::number(::getpid());
         if (config_.developmentCaptureObservation && (exists("capture-observation-request") || exists("capture-observation-request.tmp") ||
-            exists("capture-observation-complete.json") || exists("capture-window.png") || exists("input-observation-end") || exists("input-observation-end.tmp"))) {
+            exists("capture-observation-complete.json") || exists("capture-window.png") || exists("capture-owner-refusal.json") || exists("input-observation-end") || exists("input-observation-end.tmp"))) {
             finish("capture-observation-stale-refused"); return;
         }
         processStart_=processStart();
@@ -115,18 +121,8 @@ public slots:
         } else timer_.start(int(deadline-now()));
     }
     void invalidateCapture() { captureInvalid_=true; ++captureEpoch_; }
-    bool captureAllowed() {
-        const Scope scope(this);
-        if (captureChecking_) { invalidateCapture(); return false; }
-        captureChecking_=true;
-        const bool valid=!captureInvalid_ && context() && captureLife() && activeOwner(captureOwner_,engine_);
-        captureChecking_=false;
-        return valid && !captureInvalid_ && context() && captureLife() && captureOwner_.window && captureOwner_.receiver &&
-            captureOwner_.scene && captureOwner_.document && captureOwner_.window->thread()==thread() &&
-            captureOwner_.receiver->thread()==thread() && captureOwner_.scene->thread()==thread() && captureOwner_.document->thread()==thread() &&
-            (captureReading_ ? now()<qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000) :
-             acceptedAt_<0 ? now()<config_.setupBudgetMs : now()<acceptedAt_+config_.facts.budgetMs);
-    }
+    bool captureAllowed() { return captureAllowedChecked(nullptr); }
+
 protected:
     bool eventFilter(QObject *object,QEvent *event) override {
         if (config_.developmentCaptureObservation && captureWatching_) {
@@ -151,6 +147,26 @@ private:
         explicit Scope(FactsEntry *value):entry(value){++entry->depth_;}
         ~Scope(){if (--entry->depth_==0) entry->queueCompletion();}
     };
+    bool captureAllowedChecked(CaptureOwnerFailure *diagnostic) {
+        const Scope scope(this);
+        const auto refuse=[diagnostic](const char *reason){if(diagnostic)diagnostic->predicate=reason;return false;};
+        if (captureChecking_) { invalidateCapture(); return refuse("reentrant-check"); }
+        captureChecking_=true;
+        const bool valid=(!captureInvalid_ || refuse("invalidated-before")) &&
+            (context() || refuse("context-before")) && (captureLife() || refuse("lifetime-before")) &&
+            (activeOwner(captureOwner_,engine_,diagnostic ? &diagnostic->activeReason:nullptr) || refuse("active-owner"));
+        captureChecking_=false;
+        if (!(valid && (!captureInvalid_ || refuse("invalidated-after")) &&
+            (context() || refuse("context-after")) && (captureLife() || refuse("lifetime-after")) &&
+            ((captureOwner_.window && captureOwner_.receiver && captureOwner_.scene && captureOwner_.document) || refuse("owner-pointers")) &&
+            ((captureOwner_.window->thread()==thread() && captureOwner_.receiver->thread()==thread() &&
+              captureOwner_.scene->thread()==thread() && captureOwner_.document->thread()==thread()) || refuse("owner-threads")))) return false;
+        qint64 compared=-1;
+        const bool beforeDeadline=captureReading_ ? (compared=now())<qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000) :
+            acceptedAt_<0 ? (compared=now())<config_.setupBudgetMs : (compared=now())<acceptedAt_+config_.facts.budgetMs;
+        if(!beforeDeadline){if(diagnostic)diagnostic->deadlineCheck=compared;return refuse("deadline");}
+        return true;
+    }
     qint64 now() const { return clock_ ? clock_()-origin_ : elapsed_.elapsed(); }
     static bool directoryMode(const struct stat &st) {
         return S_ISDIR(st.st_mode) && st.st_uid==::geteuid() && (st.st_mode&0777)==0700;
@@ -285,23 +301,37 @@ private:
         return (!done_ || result_.observed) && !closed_ && rootCurrent() && !exists("entry.closed") && !exists("restore.claim") &&
             readFile("attempt.identity",128)==process_+' '+processStart_+'\n';
     }
-    bool captureSignal(QObject *object,const char *signature) {
-        if (!object) return false;
+    bool captureSignal(QObject *object,const char *signature,const char **failure=nullptr) {
+        const auto refuse=[failure](const char *value){if(failure)*failure=value;return false;};
+        if (!object) return refuse("object-missing");
         const int signal=object->metaObject()->indexOfSignal(signature),slot=metaObject()->indexOfSlot("invalidateCapture()");
-        if (signal<0 || slot<0 || object->metaObject()->method(signal).returnMetaType()!=QMetaType::fromType<void>()) return false;
-        return bool(QObject::connect(object,object->metaObject()->method(signal),this,metaObject()->method(slot)));
+        if(signal<0)return refuse("signal-missing");
+        if(slot<0)return refuse("slot-missing");
+        if(object->metaObject()->method(signal).returnMetaType()!=QMetaType::fromType<void>())return refuse("return-type");
+        if(!QObject::connect(object,object->metaObject()->method(signal),this,metaObject()->method(slot)))return refuse("connect-failed");
+        return true;
     }
-    bool captureObservers() {
+    bool captureObservers(CaptureOwnerFailure *diagnostic=nullptr) {
+        const auto observer=[diagnostic](const char *role,const char *member,const char *failure){
+            if(diagnostic){diagnostic->observerRole=role;diagnostic->observerMember=member;diagnostic->observerFailure=failure;}
+            return false;
+        };
         for (const auto *signal:{"pageCountChanged(int,int)","pageMapChanged()","pageAdded(int)","pagesAdded(QList<int>)",
-            "pageMoved(int,int)","pagesMoved()","pagesRemoved()","redirectionPageMapChanged()","pageUpdated(int)","documentMetadataChanged()","orientationChanged()"})
-            if (!captureSignal(captureOwner_.document,signal)) return false;
-        for (const auto *signal:{"pageIdChanged()","documentWrapperChanged()","workerChanged()","viewportChanged()"})
-            if (!captureSignal(captureOwner_.scene,signal)) return false;
+            "pageMoved(int,int)","pagesMoved()","pagesRemoved()","redirectionPageMapChanged()","pageUpdated(int)","documentMetadataChanged()","orientationChanged()"}) {
+            const char *failure=nullptr;
+            if (!captureSignal(captureOwner_.document,signal,diagnostic ? &failure:nullptr))return observer("document",signal,failure);
+        }
+        for (const auto *signal:{"pageIdChanged()","documentWrapperChanged()","workerChanged()","viewportChanged()"}) {
+            const char *failure=nullptr;
+            if (!captureSignal(captureOwner_.scene,signal,diagnostic ? &failure:nullptr))return observer("scene",signal,failure);
+        }
         for (const auto *name:{"document","currentPage","currentPageId","drawingAreaFocused"}) {
             const int index=captureOwner_.receiver->metaObject()->indexOfProperty(name);
-            if (index<0) return false;
+            if (index<0)return observer("receiver",name,"property-missing");
             const auto property=captureOwner_.receiver->metaObject()->property(index);
-            if (!property.hasNotifySignal() || !captureSignal(captureOwner_.receiver,property.notifySignal().methodSignature().constData())) return false;
+            if (!property.hasNotifySignal())return observer("receiver",name,"notify-missing");
+            const char *failure=nullptr;
+            if(!captureSignal(captureOwner_.receiver,property.notifySignal().methodSignature().constData(),diagnostic ? &failure:nullptr))return observer("receiver",name,failure);
         }
         connect(captureOwner_.window,&QWindow::activeChanged,this,&FactsEntry::invalidateCapture);
         connect(captureOwner_.window,&QWindow::visibleChanged,this,&FactsEntry::invalidateCapture);
@@ -389,10 +419,32 @@ private:
     }
     void captureOwnerWindow() {
         const Scope scope(this);
-        const auto progress=[this]{return context() && live() && !captureInvalid_ && captureTokenCurrent() &&
-            now()<qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000);};
-        if (!progress() || QByteArrayView(findPageOwner(engine_,progress,captureOwner_))!=QByteArrayView("open-owner-observed") ||
-            !captureObservers() || !captureAllowed()) { finish("capture-observation-owner-refused");return; }
+        CaptureOwnerFailure diagnostic;
+        const auto progress=[this,&diagnostic]{
+            const auto refuse=[&diagnostic](const char *reason){diagnostic.predicate=reason;return false;};
+            if(!context())return refuse("context");
+            if(!live())return refuse("live");
+            if(captureInvalid_)return refuse("invalidated");
+            if(!captureTokenCurrent())return refuse("token");
+            const qint64 compared=now();
+            if(!(compared<qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000))){diagnostic.deadlineCheck=compared;return refuse("deadline");}
+            return true;
+        };
+        if(!progress())diagnostic.branch="initial-progress";
+        else {
+            diagnostic.discovery=findPageOwner(engine_,progress,captureOwner_,&diagnostic.owner);
+            if(QByteArrayView(diagnostic.discovery)!=QByteArrayView("open-owner-observed"))diagnostic.branch="owner-discovery";
+            else if(!captureObservers(&diagnostic))diagnostic.branch="observer-install";
+            else if(!captureAllowedChecked(&diagnostic))diagnostic.branch="owner-revalidation";
+        }
+        if(diagnostic.branch){
+            if(!done_ && !captureOwnerFailurePending_){
+                diagnostic.accepted=captureAcceptedAt_;diagnostic.failure=now();
+                diagnostic.effectiveDeadline=qMin(qint64(config_.setupBudgetMs),captureAcceptedAt_+5000);
+                captureOwnerFailure_=diagnostic;captureOwnerFailurePending_=true;
+            }
+            finish("capture-observation-owner-refused");return;
+        }
         QQmlComponent component(engine_,this);
         component.setData(R"QML(import QtQml
 QtObject {
@@ -577,6 +629,26 @@ QtObject {
             });
         reader_->begin();
     }
+    QByteArray captureOwnerFailureBytes() const {
+        const auto &d=captureOwnerFailure_;
+        const auto text=[](const char *value)->QJsonValue{return value ? QJsonValue(QString::fromLatin1(value)):QJsonValue(QJsonValue::Null);};
+        const auto count=[](qint64 value)->QJsonValue{return value<0 ? QJsonValue(QJsonValue::Null):QJsonValue(value);};
+        const bool discovery=QByteArrayView(d.branch)==QByteArrayView("owner-discovery");
+        const bool pair=discovery && QByteArrayView(d.discovery)==QByteArrayView("open-owner-unavailable");
+        return QJsonDocument(QJsonObject{{"kind","development-capture-owner-refusal"},{"version",1},{"nonce",config_.nonce},
+            {"attempt_pid",QString::fromLatin1(process_)},{"attempt_start",QString::fromLatin1(processStart_)},
+            {"root_device",QString::number(qulonglong(rootStat_.st_dev))},{"root_inode",QString::number(qulonglong(rootStat_.st_ino))},
+            {"setup_profile",QString::fromLatin1(config_.setupProfile())},{"capture_accepted_ms",d.accepted},{"failure_ms",d.failure},
+            {"deadline_check_ms",count(d.deadlineCheck)},{"effective_deadline_ms",d.effectiveDeadline},
+            {"branch",text(d.branch)},{"predicate",text(d.predicate)},{"discovery_result",text(d.discovery)},
+            {"visited_items",count(discovery ? d.owner.visited:-1)},{"receiver_candidates",count(discovery ? d.owner.receivers:-1)},
+            {"scene_candidates",count(discovery ? d.owner.scenes:-1)},{"matched_pairs",count(discovery ? d.owner.matches:-1)},
+            {"first_pair_receiver",count(pair ? d.owner.firstReceiver:-1)},{"first_pair_scene",count(pair ? d.owner.firstScene:-1)},
+            {"first_pair_rejection",text(pair ? d.owner.firstRejection:nullptr)},
+            {"active_owner_rejection",text(discovery ? d.owner.finalRejection:d.activeReason)},
+            {"observer_role",text(d.observerRole)},{"observer_member",text(d.observerMember)},{"observer_failure",text(d.observerFailure)},
+            {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false}}).toJson(QJsonDocument::Compact);
+    }
     void finish(const char *stage) {
         if (done_) return;
         done_=true; result_.stage=QString::fromLatin1(stage); timer_.stop();
@@ -610,6 +682,10 @@ QtObject {
                 // Failure/partial I/O stays unknown and cannot promote success.
                 (void)writeFile("refusal.json",factsRefusalBytes(sample));
             }
+            // Immutable first-failure scalars only; no owner/getter reevaluation.
+            if(captureOwnerFailurePending_ && config_.developmentCaptureObservation && !closed_ && rootCurrent() &&
+                !exists("entry.closed") && !exists("restore.claim") && readFile("attempt.identity",128)==process_+' '+processStart_+'\n')
+                (void)writeFile("capture-owner-refusal.json",captureOwnerFailureBytes());
             QJsonObject callback{{"nonce",config_.nonce},{"stage",result_.stage},
                 {"application_thread",app_ && QThread::currentThread()==app_->thread()},
                 {"engine_thread",context()}};
@@ -630,6 +706,8 @@ QtObject {
     QPointer<QQmlEngine> engine_;
     QPointer<QQuickWindow> observationWindow_;
     PageOwner captureOwner_;
+    CaptureOwnerFailure captureOwnerFailure_;
+    bool captureOwnerFailurePending_=false;
     std::function<QImage()> captureGrabForFixture_;
     std::function<void()> captureTemporaryForFixture_;
     QPointer<QObject> captureHelper_;

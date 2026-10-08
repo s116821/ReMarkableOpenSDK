@@ -16,6 +16,10 @@ static bool put(const QString &path,const QByteArray &value) {
 }
 namespace qml_access {
 struct CaptureObservationFixtureAccess {
+    static void accept(FactsEntry &entry){(void)entry.acceptCaptureRequest();}
+    static void run(FactsEntry &entry){entry.captureOwnerWindow();}
+    static void invalidate(FactsEntry &entry){entry.captureInvalid_=true;}
+    static CaptureOwnerFailure latched(const FactsEntry &entry){return entry.captureOwnerFailure_;}
     static void grab(FactsEntry &entry,std::function<QImage()> callback){entry.captureGrabForFixture_=std::move(callback);}
     static void temporary(FactsEntry &entry,std::function<void()> callback){entry.captureTemporaryForFixture_=std::move(callback);}
 };
@@ -33,8 +37,9 @@ int main(int argc,char **argv) {
     DocumentFixture document;FactsEntryConfig config;config.nonce=nonce;config.directory=root;
     config.facts={document.id(),{QStringLiteral("00000000-0000-4000-8000-000000000002")},6,5000};document.ids=config.facts.expectedOrder;
     config.setupBudgetMs=120000;config.developmentSetup120=true;config.developmentCaptureObservation=true;config.setupSelection=QStringLiteral("main-dev-facts-120s");
-    QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",&document);
-    engine.loadData(R"QML(import QtQuick
+    IncompleteDocument incomplete;
+    QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",mode=="owner-observer" ? static_cast<QObject *>(&incomplete):static_cast<QObject *>(&document));
+    QByteArray qml=R"QML(import QtQuick
 import QtQuick.Window
 import OwnedFacts 1.0
 Window { visible:true; width:400; height:400
@@ -44,7 +49,9 @@ Window { visible:true; width:400; height:400
   readonly property string currentPageId:scene.pageId
   SceneView {id:scene;objectName:"scene";anchors.fill:parent;focus:true;document:receiver.document;pageId:"00000000-0000-4000-8000-000000000002"}
  }
-})QML");
+})QML";
+    if(mode=="owner-zero")qml.replace("property int currentPage:0","");
+    engine.loadData(qml);
     if(engine.rootObjects().size()!=1)return 4;
     auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects()[0]);auto *receiver=window->findChild<OwnedReceiver *>("receiver");auto *scene=window->findChild<SceneView *>("scene");
     receiver->evidence=[&]{return scene->hasActiveFocus();};window->requestActivate();scene->forceActiveFocus();QCoreApplication::processEvents();
@@ -83,6 +90,55 @@ Window { visible:true; width:400; height:400
     if(mode=="early-facts")put(root+"/facts-request.tmp","early");
     if(mode=="cross-purpose")put(root+"/input-observation-end.tmp","wrong");
     if(mode=="setup-near")time=119999;
+    if(mode.startsWith("owner-")) {
+        int focusReads=0;
+        if(mode=="owner-discovery") {
+            receiver->evidence=[&]{++focusReads;return false;};PageOwner owner;int progressReads=0;
+            const auto progress=[&]{++progressReads;return true;};
+            const QByteArray ordinary=findPageOwner(&engine,progress,owner);const int ordinaryFocus=focusReads,ordinaryProgress=progressReads;
+            focusReads=0;progressReads=0;PageOwnerDiagnostics diagnostics;
+            const QByteArray observed=findPageOwner(&engine,progress,owner,&diagnostics);
+            if(ordinary!=observed || focusReads!=ordinaryFocus || progressReads!=ordinaryProgress || diagnostics.matches!=0 || diagnostics.firstReceiver!=0 || diagnostics.firstScene!=0)return 20;
+        }
+        focusReads=0;
+        receiver->evidence=[&]{++focusReads;return mode=="owner-revalidation" ? focusReads<3 : mode!="owner-discovery";};
+        if(!put(root+"/capture-observation-request",token))return 21;
+        CaptureObservationFixtureAccess::accept(entry);
+        if(mode=="owner-initial")CaptureObservationFixtureAccess::invalidate(entry);
+        if(mode=="owner-deadline")time=5000;
+        if(mode=="owner-window")window->hide();
+        if(mode=="owner-foreign" || mode=="owner-closure" || mode=="owner-generation")receiver->evidence=[&]{++focusReads;return false;};
+        CaptureObservationFixtureAccess::run(entry);
+        const auto first=CaptureObservationFixtureAccess::latched(entry);const int originalFocus=focusReads;
+        receiver->evidence=[&]{++focusReads;return true;};time=9999;
+        if(mode=="owner-foreign")put(root+"/capture-owner-refusal.json","foreign");
+        if(mode=="owner-closure")put(root+"/entry.closed","closed");
+        if(mode=="owner-generation"){QFile::remove(root+"/attempt.identity");put(root+"/attempt.identity","foreign\n");}
+        drain();
+        if(callbacks!=1 || result.stage!="capture-observation-owner-refused" || result.observed || focusReads!=originalFocus || grabs || mappings)return 22;
+        QFile diagnostic(root+"/capture-owner-refusal.json");
+        if(mode=="owner-closure" || mode=="owner-generation"){if(diagnostic.exists())return 23;}
+        else if(mode=="owner-foreign"){if(!diagnostic.open(QIODevice::ReadOnly) || diagnostic.readAll()!="foreign")return 23;}
+        else {
+            if(!diagnostic.open(QIODevice::ReadOnly))return 23;
+            const auto bytes=diagnostic.readAll();const auto value=QJsonDocument::fromJson(bytes).object();
+            if(bytes.size()>8192 || value.size()!=29 || value["failure_ms"].toInteger()!=first.failure || value["failure_ms"].toInteger()==9999 ||
+                value["native_authority"].toBool(true) || value["render_authority"].toBool(true) || value["ui_acknowledged"].toBool(true))return 24;
+            const QString branch=value["branch"].toString();
+            if(mode=="owner-initial" && (branch!="initial-progress" || value["predicate"]!="invalidated" || !value["discovery_result"].isNull()))return 25;
+            if(mode=="owner-deadline" && (branch!="initial-progress" || value["predicate"]!="deadline" || value["deadline_check_ms"].toInteger()!=5000))return 25;
+            if((mode=="owner-discovery" || mode=="owner-zero" || mode=="owner-window") && branch!="owner-discovery")return 25;
+            if(mode=="owner-discovery" && (value["first_pair_rejection"]!="drawing-area-focused" || originalFocus!=1))return 25;
+            if(mode=="owner-zero" && (value["receiver_candidates"].toInt()!=0 || !value["first_pair_receiver"].isNull()))return 25;
+            if(mode=="owner-observer" && (branch!="observer-install" || value["observer_role"]!="document" || value["observer_member"]!="pageCountChanged(int,int)" || value["observer_failure"]!="signal-missing"))return 25;
+            if(mode=="owner-revalidation" && (branch!="owner-revalidation" || value["predicate"]!="active-owner" || value["active_owner_rejection"]!="drawing-area-focused" || originalFocus!=3))return 25;
+            struct stat st{};if(::stat((root+"/capture-owner-refusal.json").toUtf8().constData(),&st)!=0 || (st.st_mode&0777)!=0600)return 26;
+        }
+        QFile callback(root+"/callback.json");if(!callback.open(QIODevice::ReadOnly) || QJsonDocument::fromJson(callback.readAll()).object().size()!=4)return 27;
+        if(QFileInfo::exists(root+"/capture-window.png") || QFileInfo::exists(root+"/capture-observation-complete.json"))return 28;
+        std::printf("PASS owner diagnostic %s original-focus-reads=%d immutable=true native_authority=false\n",argv[1],originalFocus);
+        return 0;
+    }
     if(mode=="publisher-interleave") {
 #ifdef OWNED_CAPTURE_PUBLISHER
         using namespace capture_observation;
