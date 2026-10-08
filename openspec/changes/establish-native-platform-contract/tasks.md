@@ -58,6 +58,8 @@
 
 ## 6. Fixed development same-call normalization discriminator
 
+October 8 source-only lifecycle checkpoint: [0404 prior-art assessment](../../../docs/research/shutdown-0404-prior-art.md) records a reported upstream 3.28 restart/display use-after-free and the limits of its mitigation. It identifies a diagnostic lead, not the local cause or a completed recovery gate. The spent packet and SDK payload remain held; no task below is completed by that research.
+
 Lifecycle portions of6.1-6.9 describe the prior attach/custom-release candidate and
 remain unfinished history. Current selected proposal/preparation follows6.10-6.13;
 shared measurement/evidence requirements still apply. Do not continue GNU patch

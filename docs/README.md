@@ -12,6 +12,7 @@ remain workflow records, not a shipping capability declaration.
 | Research | [Native-platform ledger](research/native-platform-ledger.md) | Attributed static/runtime findings, pinned prior art, positive/refused observations and unresolved limits |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
+| Shutdown investigation | [0404 upstream lifecycle evidence](research/shutdown-0404-prior-art.md) | Reported 3.28 restart/display hazard, pinned source mechanisms and retained native retry hold |
 | References | [Contracts and model limits](reference/README.md) | Navigation to canonical SDK contracts, source types and historical checkpoints |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
