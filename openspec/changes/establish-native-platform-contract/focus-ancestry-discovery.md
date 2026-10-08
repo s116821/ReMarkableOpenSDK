@@ -108,6 +108,31 @@ visited_items means classified retained-chain items, with existing candidate/
 match/first-pair semantics and existing non-chain discovery result enums. A chain
 observer failure uses chain_failure, not the document/scene observer tuple.
 
+The selected version3 matrix is normative:
+
+| Original failure | chain_items / complete / failure | Other diagnostic fields |
+| --- | --- | --- |
+| initial-progress | null / false / null | Existing initial-progress matrix, all discovery counters null |
+| chain construction failure | 0..25 / false / exact chain label | owner-discovery/open-focus-chain-refused, null predicate/deadline operand and all classification/matching/observer detail |
+| failed original progress during construction | 0..25 / false / null | owner-discovery/open-context-lost, original predicate/deadline operand; all classification/matching detail null |
+| original classification or matching failure | retained count1..25 / true / null | Existing owner-discovery matrix with reached classification counters, original return enum and original failed progress or final activeOwner detail only |
+| capture observer installation failure | retained count1..25 / true / null | observer-install/open-owner-observed and existing fixed observer tuple; classification counters and pair detail null |
+| final owner revalidation failure | retained count1..25 / true / null | owner-revalidation/open-owner-observed and original allowed predicate/active-owner detail; classification counters and pair detail null |
+
+Initialize chain_items=0 on entering discovery. Append/count an item only after
+nonnull/thread/window/cycle checks; an observer failure after append retains that
+count. Mark complete only after the root item and its required observers pass.
+Before classification, visited_items and candidate/match counters remain null;
+initialize classification counts to0, increment visited_items for each cached
+item classified (maximum chain_items), and initialize matched_pairs only when
+pairing begins. First-pair ordinals refer to root-to-leaf classified candidates,
+not BFS positions. Preserve null versus evaluated0. A failure after completion
+never masquerades as a construction failure: sticky chain/anchor loss then uses
+open-context-lost with the original progress predicate, or the existing later
+capture/facts continuation refusal stage, as appropriate. Do not reset complete.
+All four version2 topology fields are always null in version3, including when
+chain_failure=depth-bound; depth24 here is an explicitly separate ancestry bound.
+
 Initial-progress refusal has null chain_items, complete=false, failure=null;
 observer-install/revalidation preserve complete=true and retained chain_items,
 while old branch-nullability rules clear unrelated candidate detail. Chain change
