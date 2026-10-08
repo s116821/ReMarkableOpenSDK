@@ -8,6 +8,8 @@ Keep capability queries independent of product logic. Unknown firmware/model com
 
 Preserve source documents, unknown metadata and account state. No tablet access follows from cloning, compiling or simulating. Coordinate one tablet owner and give advance notice before changes. Do not incidentally upgrade firmware, pair or enable personal sync. Keep proprietary firmware and secrets out of Git and published artifacts.
 
+Improve simulator and owned-fixture coverage in parallel with exploratory development. Missing broad coverage is not a prerequisite to a specifically authorized, bounded real-device experiment; address concrete hazards in its exact path and preserve independent rollback and recovery controls. Freeze experiment inputs and isolate fixture edits so they cannot delay or invalidate the selected run. Preserve failures and unfinished tests, distinguish modeled behavior from verified hardware results, and keep full source, native-profile and release qualification gates separate and open until their defined requirements pass.
+
 Use linked SDK and consumer PRs for cross-boundary changes, with exact revisions and merge order. PR bodies start with `# Summary` and concise bullets; detailed evidence and bot responses belong in comments. Independent review and required CI precede coordinated squash merge. Do not change repository settings or release the ecosystem's 1.0 from this work.
 
 ## Documentation layout
