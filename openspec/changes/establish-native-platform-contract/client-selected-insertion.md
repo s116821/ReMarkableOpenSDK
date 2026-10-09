@@ -68,3 +68,17 @@ plus complete fixture backup/semantic postchecks. Until the applicable recovery
 contract is established, no native packet is selected. This is a concrete operator
 mismatch, not evidence against caller-selected allocation or a reason to repackage
 the rejected stock-shutdown preparation.
+
+Main subsequently confirmed the preparation tool requires all 24 protected paths
+and supports only named diagnostic proof modes: this cannot be solved by changing
+packet data. Root selected a minimum new insertion-specific source contract.
+Retain the complete fresh inventory and preactivation equality checks. Only the
+selected fixture's exact content/metadata paths may change as declared; original
+PDF/ink comparisons still produce a preservation result. Document comparison
+failure must be recorded without short-circuiting restoration of the independently
+verified stock executable/policy. Process, owned-shadow, cgroup and service safety
+checks remain mandatory. Missing output, crash or host loss still leads to the
+existing independent bounded restoration, with no retry and an uncertain operation.
+An explicit insertion mode uses its own bounded completion request/deadline, not a
+renamed diagnostic trace proof. Main owns that consumer source and exact review;
+no rejected command or historical packet is repurposed by this contract.
