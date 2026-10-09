@@ -2,7 +2,7 @@
 
 This repository is currently a research/design bootstrap. Public GitHub discussion and the checked-in requirements are sufficient; Linear, Mem, Codex and private device exports are optional maintainer tools.
 
-The experimental Rust model declares Rust 1.88 as its minimum; verification currently used Rust 1.98.1, so the minimum itself is not tested. Direct dependencies are pinned to image 0.25.10 (default features disabled, PNG enabled) and sha2 0.10.9, both MIT OR Apache-2.0; Cargo.lock records the resolved graph. Run `cargo fmt --all -- --check`, `cargo test --all-features`, and `cargo clippy --all-targets --all-features -- -D warnings`. It is unpublished (`publish = false`) pending the full contract/native/license gates.
+The experimental Rust model declares Rust 1.88 as its minimum; the exact source/lockfile now passes all-feature and no-default-feature suites on Windows Rust 1.88.0, alongside prior 1.98.1 verification. See [minimum-compiler evidence and limits](docs/reference/rust-minimum-verification.md). Direct dependencies are pinned to image 0.25.10 (default features disabled, PNG enabled) and sha2 0.10.9, both MIT OR Apache-2.0; Cargo.lock records the resolved graph. Run `cargo fmt --all -- --check`, `cargo test --all-features`, and `cargo clippy --all-targets --all-features -- -D warnings`. It is unpublished (`publish = false`) pending the full contract/native/license gates.
 
 Use a topic branch and read AGENTS.md. The active SDK change records planned behavior, not an implemented baseline. No native capability is advertised before its acceptance evidence exists. Preserve unfinished work and use isolated checkouts.
 

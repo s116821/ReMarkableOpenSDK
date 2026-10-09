@@ -10,12 +10,14 @@ remain workflow records, not a shipping capability declaration.
 | Area | Start here | Contents |
 | --- | --- | --- |
 | Research | [Native-platform ledger](research/native-platform-ledger.md) | Attributed static/runtime findings, pinned prior art, positive/refused observations and unresolved limits |
+| Input coordinates | [Protocol-B retention and remaining evidence gap](research/input-coordinate-evidence-limits.md) | Ordinary release retains axes; fresh-handler and actual-event attribution remain unresolved |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
 | Shutdown investigation | [0404 upstream lifecycle evidence](research/shutdown-0404-prior-art.md) | Rendering fault, QImage backing-storage limits, pinned prior art and dated experiment boundaries |
 | Lifecycle comparison | [8287 versus 0404 entrypoints](research/shutdown-entrypoint-comparison.md) | Verified source provenance, completed creation cleanup versus early restoration, and limits on regression attribution |
 | References | [Contracts and model limits](reference/README.md) | Navigation to canonical SDK contracts, source types and historical checkpoints |
 | Model completeness | [Tasks 3.1/3.2 coverage](reference/model-task-coverage.md) | Existing model coverage and bounded capability report; qualified native profiles remain unfinished |
+| Rust compatibility | [Minimum-compiler verification](reference/rust-minimum-verification.md) | Locked dependencies tested with Rust 1.88.0 on Windows; native and other target gates remain open |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

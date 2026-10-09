@@ -1,0 +1,21 @@
+# Input coordinates: retained protocol-B contact state
+
+October 8, 2026. This resumes the original coordinate discrepancy using retained evidence only. The [existing axis-filtering finding](native-platform-ledger.md#unchanged-axis-filtering-focused-source-comparison-2026-10-07) and [same-call measurement contract](../../openspec/changes/establish-native-platform-contract/input-normalization-discriminator.md) remain authoritative historical checkpoints. Superseded instrumentation plans do not authorize new execution. No blocked diagnostic or stock-control preparation was retried.
+
+## Newly discriminated release hypothesis
+
+The focused question was whether ordinary contact release discards coordinates, making a later same-position press zero-valued even within an established handler. Pinned [Qt 6.10.3 protocol-B processing](https://github.com/qt/qtbase/blob/v6.10.3/src/platformsupport/input/evdevtouch/qevdevtouchhandler.cpp#L598-L620) retains a released slot's contact, changes its state to Unknown, and bypasses the container clear used for protocol A. Tracking-ID changes set state/identity without resetting X/Y. This matches the [Linux type-B protocol](https://docs.kernel.org/input/multi-touch-protocol.html#protocol-usage): receivers retain per-slot state because updates contain changes, not complete coordinates each time.
+
+A bounded read of the already-retained exact-plugin trace corroborates that distinction for plugin SHA256 `678574220af960704c8f2b622f3e9208f5a0548dad2f636f3f13ead330c312ec`. At `0x17fd4..0x18024`, released-state processing checks the protocol-B flag and clears the state byte while bypassing the erase call. That branch does not overwrite the contact's X/Y. At `0x17c88..0x17ce0`, protocol B bypasses the contact-container reset. The previously anchored tracking-ID branch and fresh-contact zero initialization remain unchanged findings. Raw proprietary instructions are not published.
+
+This rejects ordinary release alone as the proposed axis-reset mechanism on the inspected protocol-B path. It does not reject the existing fresh-handler/uninitialized-slot hypothesis. A handler that never received a slot's axis values can still differ from the separately seeded Buddy observer. Conversely, an established handler retaining correct axes does not lose them merely because unchanged axes are omitted on a later press. Handler recreation, missing initialization, wrong slot, lost events and unrelated mutation remain distinct possibilities, not demonstrated causes.
+
+## What the saved evidence cannot distinguish
+
+The retained trace receipt `astra-contact-normalization-trace-review.json` already establishes double arithmetic and the QPointF mapping path. Repeating integer-rounding, wrong-overload or interior-point rotation tests would not add information. Historical helper axes `(164,1396)` and the later normalized corner `(0,1)` are not a same-call observation of the native handler's contact and matrix. The observer's seeded echo cannot retrospectively prove raw X/Y delivery. Setup bounds are not a captured normalization-time operand snapshot. Existing strict unknown receipts remain unknown.
+
+To decide the fresh-state/event hypothesis retrospectively would require a retained, generation-bound sequence identifying the selected slot, actual raw axis events delivered to that handler, and its prior slot state. To separate it from range/transform/post-map faults requires the already-specified actual contact, bounds, matrix and pre/post doubles from one correlated call. No such evidence has been identified in the retained receipts. This describes the missing observation, not a request to collect it or authorization for a new trial.
+
+No new host fixture was written: replaying hand-selected coordinates into a reimplementation would establish only the assumed state transition already visible in source, not which transition occurred on the tablet. No coordinate fix, native navigation qualification or generic additional journal pass follows.
+
+Source basis: current committed SDK findings and REM-25 issue/comments; the previously retained exact-plugin trace and scalar receipt; pinned public Qt source and Linux protocol documentation. Native inference is explicitly limited above. No tablet access, process attachment, compilation/loading of a native payload or debugger change occurred.
