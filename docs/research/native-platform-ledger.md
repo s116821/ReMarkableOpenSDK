@@ -300,6 +300,8 @@ The receipt records helper exit zero, empty stderr, no transport timeout, verifi
 
 ### Unchanged-axis filtering: focused source comparison (2026-10-07)
 
+**Later-evidence pointer:** completed 50d/da8 changed-axis trials already recorded raw axes and expected Qt coordinates; 50d visibly opened the fixture and da8 logged document-open processing despite an unchanged capture. See [the reconciled result and remaining active-render/capture distinction](input-coordinate-evidence-limits.md#later-evidence-supersedes-the-proposed-changed-axis-tap). The 1a48 discussion below remains historical, not a request to repeat that tap.
+
 The [Linux input protocol](https://docs.kernel.org/input/event-codes.html)
 emits changed values and retains state that readers can query. This makes a
 repeated native point after a consumer restart a plausible explanation for a
