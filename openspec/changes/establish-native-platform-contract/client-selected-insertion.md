@@ -19,18 +19,23 @@ native receipt constructor. Private fixture values stay outside Git.
 
 ## Focused checks and remaining work
 
-- [ ] Review exact source amendment with Main against the original successful path.
+- [x] Review exact source amendment with Main against the original successful path.
 - [x] Verify the explicit mode passes all six arguments unchanged in one call;
   omitted-target behavior remains five arguments; invalid/duplicate target and
   stale baseline refuse before claim. Reuse the existing owned QML fixture.
-- [ ] Freeze exact source/artifact/configuration with Main and confirm applicable
+- [x] Freeze exact source/artifact/configuration with Main and confirm applicable
   independent restoration without replaying any rejected operation.
-- [ ] Main selects at most one new actual call; preserve order, PDF/ink/unknown
+- [x] Main selects at most one new actual call; preserve order, PDF/ink/unknown
   metadata and independently read back allocation/persistence after restoration.
 
-No fresh target build, private packet or device action is selected yet. The owning
-change remains unfinished; canonical sync/archive and full native qualification
-are not completed by this proposed test or a component success.
+Completed one Main-operated discriminator on October 8; see the
+[canonical result](../../../docs/experiments/caller-selected-insertion-result.md).
+SDK1331b577 and consumer recovery b744937 were independently reviewed through
+artifact/packet binding. Exact requested identity persisted at index 1, originals
+were preserved and source page was restored through ordinary UI. Wrapper deadline
+failure and the unexpected-close banner remain explicit limitations. Task 2.3a's
+bounded experiment is complete; task 2.3, lifecycle qualification and the owning
+change remain unfinished. No canonical sync/archive or capability promotion follows.
 
 ## Author source checkpoint
 
@@ -47,7 +52,7 @@ and source mounted read-only: invalid-target/config controls, exact sixth argume
 stale count, stale order, legacy five-argument behavior and one-call replay refusal.
 No preload/shared-object or selected target artifact was built by that test.
 
-## Build separation and recovery issue
+## Historical build separation and recovery issue
 
 The production creation entry remains `qt_qml_access_probe.cpp` with
 `QT_PROBE_CREATION_CONFIG`, plus its creation bridge/MOC. Its current shared source
@@ -82,3 +87,13 @@ existing independent bounded restoration, with no retry and an uncertain operati
 An explicit insertion mode uses its own bounded completion request/deadline, not a
 renamed diagnostic trace proof. Main owns that consumer source and exact review;
 no rejected command or historical packet is repurposed by this contract.
+
+
+## Completed recovery checkpoint
+
+Main implemented the distinct insertion-specific contract at consumer b744937.
+Nineteen focused Linux fixtures passed independently, including expected document
+mutation, missing launch identity and evidence-write failure after abnormal exit.
+Actual trial recovery used its deadline fallback, not a timely manual stop request.
+Stock restoration and preservation passed; initial document UI restoration did not
+return cleanly. The linked result preserves both findings without lifecycle promotion.

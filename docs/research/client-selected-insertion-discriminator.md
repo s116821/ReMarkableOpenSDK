@@ -1,7 +1,8 @@
-# Next native insertion discriminator: caller-selected page identity
+# Native insertion discriminator: caller-selected page identity
 
-October 8, 2026. Selected research direction, not an implemented or selected
-tablet packet: exercise the existing native method's sixth `pageUuid` argument
+October 8, 2026. Historical selection rationale. The subsequently completed
+[one-call result](../experiments/caller-selected-insertion-result.md) honored the
+requested identity; lifecycle qualification remains open. The selected question was to exercise the existing native method's sixth `pageUuid` argument
 once on a backed-up explicit disposable fixture. The successful original insertion
 used five arguments and native-assigned identity. This tests a different allocation
 contract; it does not claim a shutdown diagnosis or repair.
@@ -14,7 +15,7 @@ one native page insertion and later persistence. The existing
 identified supplied-UUID validation and duplicate-identity checks. The saved
 controller metadata declares
 `addPageWithTemplateAndPageSize(entry::Id,int,QString,QSizeF,QJSValue,QString)`.
-Actual caller-selected allocation remains untested. A successful exact-ID result
+At proposal selection, actual caller-selected allocation was untested. A successful exact-ID result
 would narrow the operation-to-target attribution problem without requiring a new
 native-assigned correlation mechanism. It would not establish retry idempotence,
 atomic source/order comparison, crash durability or a production receipt.
@@ -69,16 +70,14 @@ transport, name or packaging is not a substitute.
 
 The source amendment and focused argument/refusal checks are described in the
 [owning proposal](../../openspec/changes/establish-native-platform-contract/client-selected-insertion.md).
-The optional-argument source and six focused owned-QML checks now exist, as recorded
-in that checkpoint. No target artifact, nonce, target UUID or device action is
-selected. Main identified a recovery prerequisite: the prior read-only actor's
-baseline included content/metadata prehashes and would refuse stock restart after
-legitimate insertion. Its packet cannot be reused unchanged; the insertion recovery
-contract remains under source review.
-Native capabilities, active-page authority and lifetime/shutdown qualification
+The source, recovery and packet reviews subsequently passed, followed by one Main
+trial and preserved closeout. See the [canonical result](../experiments/caller-selected-insertion-result.md)
+for exact revisions, allocation/preservation evidence, deadline recovery and the
+unexpected-close banner. The fixture now has seven pages; the six-page packet is
+spent. Native capabilities, active-page authority and lifetime/shutdown qualification
 remain open. The old 0404 fault and all completed attempts remain preserved.
 
 Source basis: current REM-25 description and latest timestamped comments, Main
 handoff version 50, exact SDK creation source and published findings, and freshly
 read pinned upstream sources above. The experiment and expected interpretations
-are proposals/inferences; no caller-selected native result is claimed.
+were proposals/inferences at selection; the linked result separately records actual evidence.
