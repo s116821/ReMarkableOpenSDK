@@ -68,13 +68,43 @@ findings need not be repeated as a separate test matrix.
 
 ## Timing and source gates
 
-The prior manual stop-request window was missed. Before implementation selection,
-Main must review an explicit setup/trigger/result-collection budget within the
-unchanged 360-second absolute actor deadline and 185-second recovery reserve.
-No readiness event or token renews that deadline. If ordinary opening and evidence
-collection cannot fit, refuse this packet; do not increase the deadline implicitly
-or label the old startup result as this scenario. Recovery remains independent of
-host loss and expected document mutations.
+Main's review of consumer b744937 confirms the old actor cannot run this test
+unchanged: its pre-start reserve is 195 seconds and its candidate cutoff is the
+minimum of start plus 30 seconds and absolute deadline minus 185. At the reserve
+boundary this leaves only ten seconds; the prior actual Library readiness took
+12.608 seconds before ordinary opening or inspection.
+
+For a distinct explicit after-open mode, require at least 255 seconds remaining
+before candidate start. Reserve 70 seconds for candidate work and 185 for recovery.
+The fixed candidate cutoff is `min(candidate_start + 70, absolute_deadline - 185)`.
+The original absolute deadline remains 360 seconds from actor arming. Failure to
+meet the start reserve refuses startup and restores stock; it never shortens
+verification to fit or extends the deadline.
+
+Proposed stage caps within those 70 seconds are readiness 20, ordinary opening plus
+pixels/metadata/order/idle admission 20, trigger 5, post-call result/capture 15,
+stop publication 5 and margin 5. These are feasibility budgets, not measured timing
+guarantees. Publish creation-arm only with at least 215 seconds left on the original
+clock (30 post-trigger plus 185 recovery), before the independent candidate cutoff
+and with no stop/restoration marker. Waiting/ready/arm events never renew a cutoff.
+Expose candidate PID/start, waiting state and absolute stage expiry to the host;
+no chat roundtrip may be required during the active interval. Host loss still
+reaches independent actor recovery. Pre-stop observations must bind the same PID
+and start time and retain actual source/target/other/unknown UI state.
+
+The consumer partition needs a separate exact-26 mode rather than loosening its
+legacy exact-24 contract. Require seven page IDs, all seven thumbnails, the four
+known existing ink IDs (original source, the stroked prior target, and the other
+two existing ink pages), PDF/local/pagedata/content/metadata, and ten exact runtime
+providers. Reject a missing stroked page/thumbnail or the old 24-file selection.
+Fresh configuration binds the actual ink-ID set; page order alone is not an
+assumption that all pages already have ink files.
+
+Main has reviewed this source-only feasibility plan. Implementation remains pending
+in the SDK gate and consumer actor/coordinator/preparer. Focused timing fixtures
+must exercise valid admission, start/arm boundary expiry and recovery after
+admission, preserving old mode behavior. Artifact selection and a new usage/reserve
+assessment follow source verification; no real run is selected by this review.
 
 Only focused checks of valid single admission, stale/duplicate/closed admission,
 seven-page configuration and unchanged legacy behavior are proposed. Exact source,
