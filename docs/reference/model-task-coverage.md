@@ -1,5 +1,7 @@
 # Experimental model: tasks 3.1 and 3.2 reconciliation
 
+**Later October 8 update:** Root selected the independently useful SDK query despite no current Buddy caller. The [bounded capability report](../../openspec/changes/establish-native-platform-contract/capability-report.md) now implements observational contract/profile revisions and per-operation unsupported or synthetic status. Native qualified profiles and release manifests remain absent. The inventory below preserves the pre-implementation finding; it does not describe that query as still missing after this increment.
+
 October 8, 2026; source reviewed at `316fd22` (Rust sources unchanged from its parent `4d98ebd`). This is a bounded source/assertion inventory, not a fresh test run, native qualification or full delivery acceptance. Existing accepted model/capture/evidence reviews remain recorded in [implementation checkpoints](../../openspec/changes/establish-native-platform-contract/implementation.md).
 
 ## Task 3.1: implemented types, unfinished capability/profile boundary

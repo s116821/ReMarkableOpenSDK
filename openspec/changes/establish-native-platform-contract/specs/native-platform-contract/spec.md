@@ -47,6 +47,18 @@ existing clocks or interpret a facts-request as observation end.
 ### Requirement: Independent semantic capability contract
 The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
 
+#### Scenario: Observational capability report
+- **WHEN** a consumer queries the experimental Rust platform's capabilities
+- **THEN** it receives a snapshot with separate semantic-contract and profile revisions, an explicitly unknown-native or synthetic-model profile, and per-operation unsupported reasons or SyntheticOnly status, without acquiring execution authority or changing platform state.
+
+#### Scenario: Unqualified and unknown capability reports
+- **WHEN** an unqualified platform or an unknown capability key is queried
+- **THEN** it reports Unsupported; no caller-supplied version/fingerprint or synthetic report can promote native qualification.
+
+#### Scenario: Synthetic availability is not admission
+- **WHEN** the model reports synthetic creation/navigation but guard enforcement subsequently becomes unavailable
+- **THEN** call-time checks still refuse dispatch; the earlier report cannot authorize it, and modeled native-assigned recovery does not claim persistent native correlation.
+
 #### Scenario: Unknown firmware
 - **WHEN** a caller requests page creation on an unqualified firmware/runtime fingerprint
 - **THEN** the SDK returns Unsupported without dispatching a native mutation even if another capability is qualified

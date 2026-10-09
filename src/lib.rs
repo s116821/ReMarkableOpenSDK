@@ -2,6 +2,7 @@
 //! The optional mock is synthetic and cannot establish device qualification.
 #![forbid(unsafe_code)]
 
+pub mod capabilities;
 pub mod capture;
 #[cfg(feature = "development-capture")]
 pub mod development_capture;
@@ -228,6 +229,10 @@ pub enum Reconciliation {
 /// First experimental slice. Capture/navigation remain unimplemented capabilities;
 /// they must gain their full provenance/guard contract before becoming callable.
 pub trait Platform {
+    /// Read-only implementation availability; never activates or admits work.
+    fn capabilities(&self) -> capabilities::CapabilityReport {
+        capabilities::CapabilityReport::unsupported(UnsupportedReason::CapabilityNotImplemented)
+    }
     fn navigate(
         &mut self,
         _: &navigation::NavigationRequest,
@@ -256,6 +261,9 @@ pub trait Platform {
 pub struct UnqualifiedPlatform;
 
 impl Platform for UnqualifiedPlatform {
+    fn capabilities(&self) -> capabilities::CapabilityReport {
+        capabilities::CapabilityReport::unsupported(UnsupportedReason::NoNativeAdapter)
+    }
     fn observe_page(&self) -> Result<PageObservation, ObservationFailure> {
         Err(ObservationFailure::Unsupported(
             UnsupportedReason::NoNativeAdapter,

@@ -1,5 +1,13 @@
 # Experimental implementation scope
 
+## October 8 observational capability increment
+
+`Platform::capabilities()` now returns an immutable implementation-availability snapshot, separate semantic/profile schema revisions, unknown-native or synthetic-model profile and per-key Unsupported/SyntheticOnly status. See [exact design and limits](capability-report.md). There is no native-supported constructor/status, qualification input, activation or operation authority. The mock still has no capture acquisition implementation; synthetic creation/native-assigned reconciliation remains in-memory and subject to original call-time checks. No package version, dependency, diagnostic source or Buddy API changed.
+
+Focused Windows Rust 1.98.1 verification: three capability tests with `mock`, and the same unknown-profile test with no default features, all pass (three unique tests). Offline strict Clippy all-targets in all-features and no-default-features modes, formatting, diff checks and strict OpenSpec 1/1 pass. No existing model matrix or native build was repeated. Independent semantic review is pending on the frozen source/spec pair; task 3.1 and overall native delivery remain unfinished.
+
+The earlier checkpoints below are historical; their absent-query statement is superseded only by this bounded implementation. Qualified native profiles/release manifest remain absent.
+
 The experimental Rust crate is version 0.0.0 with publishing disabled. It is an original semantic state-machine model, not a native adapter, stable public release or complete SDK contract. No production capability is advertised.
 
 Implemented prototype pieces:

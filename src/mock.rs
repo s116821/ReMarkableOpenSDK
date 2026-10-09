@@ -113,6 +113,9 @@ impl MockPlatform {
 }
 
 impl Platform for MockPlatform {
+    fn capabilities(&self) -> capabilities::CapabilityReport {
+        capabilities::CapabilityReport::synthetic(self.can_enforce_guard)
+    }
     fn acquire_after_creation(
         &mut self,
         receipt: &CreationReceipt,
