@@ -23,6 +23,8 @@
 - [ ] 3.4 Integrate current Reader/native creation seams through build-time consumption; keep Buddy journal/bindings and product policy in Buddy.
 - [ ] 3.5 Establish reproducible target artifacts, exact compatibility/provenance manifest and license notices; leave unqualified Paper Pro capabilities unsupported.
 - [ ] 3.6 Define and independently review SDK logical Next/Previous navigation with per-tablet, orientation-aware gesture implementations, at most one gesture and explicit verified/unchanged/uncertain/unsupported outcomes. Coordinate Sol implementation and the independent RM1 owner through Main; physical swipe direction is not the public semantic direction.
+- [x] 3.6a Implement [ordinary gesture mapping](gesture-mapping.md) for explicit RM2 portrait admission; focused source tests preserve exact existing Reader trajectory/timing and refuse unknown/unimplemented pairs. This is geometry only, not native qualification.
+- [ ] 3.6b Independently review the exact mapping revision and integrate Reader's real emitter with explicit current source orientation admission; pin coordinated consumer revisions. Other tablet/orientation mappings and native completion remain unfinished under 3.6.
 
 ## 4. Verification and delivery
 - [x] 3.7 Implement the fixed default-off input observer/end/one-grab source mode and run focused synthetic Qt fixtures; see input-observation-proposal.md October 6 checkpoint. Source only, no target artifact selection.

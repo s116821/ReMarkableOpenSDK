@@ -202,6 +202,9 @@ consumer binding or the production creation capability. See
 
 ## October 8 shutdown discriminator
 
+Ordinary task 3.6 mapping is defined separately in [gesture-mapping.md](gesture-mapping.md).
+Explicit tablet/orientation admission produces geometry only, never native authority.
+
 The source-only [engine-ready variant](engine-ready-shutdown-diagnostic.md) adds
 one synchronous diagnostic marker after the original waiting write and successful
 engine-destroyed connection. Consumer admission requires a later higher-frame

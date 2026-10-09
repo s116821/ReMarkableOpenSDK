@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Implement reusable ordinary logical gesture mapping for explicitly admitted RM2
+  portrait input, consumed by Reader's existing event emitter. Unknown or
+  unimplemented tablet/orientation pairs refuse. See [gesture-mapping.md](gesture-mapping.md).
+
 - Propose a separately selected development focus-ancestry discovery domain and
   guarded retained-owner facts handoff; see
   [focus-ancestry-discovery.md](focus-ancestry-discovery.md). This changes discovery

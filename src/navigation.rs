@@ -1,4 +1,6 @@
 //! Logical actions and explicit synthetic completion, never native write authority.
+pub mod gesture;
+
 use crate::{OperationId, PageKey, PageObservation, RejectionReason, UnsupportedReason};
 use std::collections::HashSet;
 

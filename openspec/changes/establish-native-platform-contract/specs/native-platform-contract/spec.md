@@ -1,5 +1,18 @@
 ## ADDED Requirements
 
+### Requirement: Explicit ordinary gesture mapping
+The SDK SHALL map logical Next/Previous to ordinary gesture geometry only for an
+explicitly admitted implemented tablet/orientation pair, without granting native
+observation, dispatch completion or receipt authority.
+
+#### Scenario: RM2 portrait mapping
+- **WHEN** a caller explicitly supplies RM2 portrait and logical Next or Previous
+- **THEN** the SDK returns the existing Reader virtual horizontal trajectory and timing for that direction without emitting input
+
+#### Scenario: Unsupported mapping
+- **WHEN** a caller supplies an unknown or unimplemented tablet/orientation pair
+- **THEN** mapping returns Unsupported with no trajectory and no event emission
+
 ### Requirement: Separate development capture before facts admission
 An explicitly selected private development capture SHALL retain one uniquely
 observed active owner and its current identity around one GUI-thread window grab,
