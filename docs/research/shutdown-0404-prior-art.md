@@ -1,5 +1,19 @@
 # Shutdown crash: targeted upstream evidence, October 8, 2026
 
+## Source-only follow-up: image object versus backing-storage lifetime
+
+October 8, after the matching engine-ready build was blocked by automatic review: that exact build remains blocked; this analysis neither retries it nor authorizes native execution. The current handoff and latest REM-25 comments were read. The existing core limitation below already answers the proposed owner-reconstruction question; it was not re-tested.
+
+**Question:** would retaining/copying a QImage, or calling `detach()`, establish ownership of the faulting pixel storage?
+
+In [Qt Base v6.10.3 qimage.cpp](https://github.com/qt/qtbase/blob/v6.10.3/src/gui/image/qimage.cpp), external-buffer creation sets `own_data=false` (763–800). Its contract requires caller-maintained buffer validity for all undetached copies (802–842). The copy constructor normally shares QImageData; active painting instead invokes `copy()` (958–969). `constScanLine()` returns the backing pointer plus stride without copying (1551–1558). `detach()` copies only when shared or read-only (1034–1045): a uniquely referenced writable external buffer can remain external. Explicit `copy()` allocates and reads the source bytes (1122–1143), so source validity is still required during copying. These are upstream semantics, not proof of an unmodified vendor implementation.
+
+**Local relevance and limit:** current SDK `qt_page_facts_entry.h` already performs `acquired.copy()` in its capture path. The preserved 0404 evidence does not establish execution of that path; the diagnostic cohort fences capture requests. A change there would therefore not be a source-backed repair of this fault. The retained core does not select Qt-owned versus external storage, establish the QImageData reference count, identify a cleanup callback, or supply release ordering. Preserving the wrapper alone cannot be accepted as a backing-storage fix.
+
+The useful narrowing is a distinction in the evidence needed: actual buffer ownership and release ordering, not merely QImage/QObject survival. Existing exact-build symbols/source or an existing lifetime trace could resolve it; the saved partial core and generic upstream source cannot. The blocked engine-ready experiment would establish a setup cohort, not directly identify the buffer owner either. No additional fixture, sampler, build or runtime patch follows from this finding.
+
+Source basis: current project Main handoff v28 and five latest REM-25 comments; existing sanitized core findings below; current SDK source at production freeze `4d98ebd71af20652c4f4800105b2e50410ccb527`; published Qt source. Causal application remains inference. No raw core or proprietary code is reproduced.
+
 **Current direction, later October 8:** the human authorized continued independent SDK debugging and necessary targeted development experiments; an upstream answer or prior resolution of the defect is not a prerequisite. The historical blanket native-hold/external-dependency conclusions below are superseded by the [fresh lifecycle-only discriminator](../../openspec/changes/establish-native-platform-contract/shutdown-lifecycle-diagnostic.md). Main remains sole RM2 operator and must select/review each fresh packet and independent recovery. Spent packets remain spent, runtime remains unqualified, and failed 0404 restoration remains failed. The external query is unsent and will not be sent. No defect resolution is claimed.
 
 Status: source-only investigation. SDK payload `71d9dbfa33ba828540fa0a9f22ec4db8aca862d6` and spent experiment `0404` remain held. No runtime change, new packet, device action or retry is authorized by this finding. The native SIGSEGV cause remains unknown.
