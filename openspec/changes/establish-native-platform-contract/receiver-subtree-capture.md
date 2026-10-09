@@ -1,0 +1,245 @@
+# Unqualified receiver-subtree capture prototype
+
+Proposal against SDK397357b. Main reports58 v4 had a complete8-item focus chain,
+receiver1, scene0, engine rejections0 and class rejections8. The narrow hypothesis
+is a correlated SceneView off that chain. This is not an active-owner premise.
+
+## Explicit requirement delta
+
+WHEN developmentReceiverSubtreeCapture is selected upfront, THEN require
+development capture, setup120000/facts5000 and main-dev-facts-120s, and refuse
+simultaneous developmentFocusAncestry. No refusal selects this as a fallback.
+WHEN a complete stable focus ancestry identifies exactly one structural receiver,
+THEN walk that receiver's subtree once, completely, capped at256 items,8 edges
+and8 SceneView metadata candidates. Refuse incompleteness, caps or ambiguous
+valid correlations. Never accept the first match from a partial walk.
+
+Retain weak window/root/actual-focus-anchor and sticky invalidation, including
+subtree children/parent/window/destruction changes. Progress checks enclose walks
+and native getters under the original5s capture clock and existing host rollback.
+Use the existing scene classifier and a separate capture predicate preserving
+context/window/engine/visibility/enabled/receiver ancestry/drawingAreaFocused/
+document QObject identity guards, excluding only SceneView.hasActiveFocus.
+Document.id, currentPage, currentPageId and scene.pageId must agree with the
+explicit expected fixture identity. No ordinary activeOwner change is permitted.
+
+WHEN capture succeeds, THEN publish the original private PNG and identity
+provenance as capture completion v2, exactly37 fields (old36 plus discovery_scope
+receiver-subtree-capture-unqualified-v1). Native/render/UI/atomic authority stays
+false. Frame correctness still requires Main's complete-image visual review.
+WHEN this mode is selected, THEN issue no retained-owner ticket, accept no facts
+request and perform no facts read. Existing facts publisher rejects v2 completion.
+
+Scoped failure uses v5 exact34 fields (existing v2's33 plus the same discovery_scope)
+through the existing owner-refusal publisher, never an active-owner success label.
+Existing v1/v2/v3/v4 formats retain their prior semantics and consumer rules.
+
+## Design, tasks and limits
+
+The new default-off entry config chooses a separate bounded discovery/capture
+predicate. Existing focus and window discovery, ordinary activeOwner and facts
+contracts remain untouched. Buddy owns explicit config/collector selection.
+
+- [x] Implement retained bounded subtree discovery and capture-only entry routing.
+- [x] Implement explicit consumer config/scoped completion and refusal decoding.
+- [x] Check unique off-chain capture, two valid scenes, cap and getter-mutation
+  invalidation with owned Qt fixtures; compile exact production ARM source.
+- [ ] Obtain bounded independent review and freeze a fresh packet for Main.
+- [ ] Main alone performs the next real capture and full PNG visual inspection.
+
+No nonce/device operation follows from this proposal. Broad source/native/release
+qualification, canonical sync and archive remain open; no broad matrix is a
+prerequisite to the specifically authorized bounded experiment.
+
+## Source verification checkpoint (2026-10-08)
+
+Implemented SDK 3e2e2b9c0a30538095b6c76255959df3273b6e7d and Buddy
+4d388b7d83c0db87d2c8da1ba4acd9e2126c7b0e. Exact frozen SDK execution passed
+7 receiver cases, 8 funnel checks and 4 privacy checks (19 total). Selected
+production ARM compile passed with -Werror and -z defs, without fixture macros.
+Artifact SHA256: 3c68f13b4237cbe63492625e9c3d7c6f2764aa624558657cc0b7cf34a8842efa.
+Buddy scoped checks passed31; existing focus131, v4 28, completion156,
+topology304 and owner292 checks passed. Getter mutation covers membership
+addition and sticky invalidation, not object deletion or complete lifetime proof.
+
+Private review receipt: rem25-device-private/sol-receiver-subtree-r1/review-receipt.json,
+SHA256 14ea59e81934595e5f22d81a43afa6e930c2f9ed72a33526cc4761e6f6bc2018.
+Astra source review reported no actionable defect; frozen receipt closeout and
+Main consumer review remain pending. No fresh nonce or native run is selected.
+All native qualification, full-image review and lifecycle gates remain open.
+
+## Accepted completion-refusal diagnostic increment (2026-10-08)
+
+Main accepted a separate, default-off `developmentCaptureCompletionRefusalDiagnostics`
+selector requiring the complete existing v11 selection. This source-only increment
+addresses an otherwise aggregate final queued-callback refusal. The prior actual
+failure does not establish a particular predicate or a deadline cause.
+
+The selected callback runs the original six checks exactly once in their original
+short-circuit order: allowed, identity, epoch, token, facts request, temporary facts
+request. It records only the first existing failure. `allowed-deadline` requires the
+existing allowed guard's cached predicate to equal `deadline`; other allowed
+failures remain `allowed-refused`. Remaining fixed reasons are `identity-refused`,
+`epoch-changed`, `token-refused`, `facts-request-present`, and
+`facts-request-tmp-present`. No native getter, traversal, second check, deadline,
+acceptance rule or authority changes. The accepted/baseline/post-read times are
+retained existing scalars; failure samples the existing clock once for metadata.
+Effective deadline remains min(setup budget, accepted + 5000).
+
+Only selected final-callback refusal adds `completion_refusal` to the existing
+callback. Its exact eight fields are kind (`development-capture-completion-refusal`),
+version (1), reason, capture_accepted_ms, baseline_ms, post_read_ms, failure_ms and
+effective_deadline_ms. Successful/default-off callbacks retain exactly four
+fields. Successful completion v2 remains exactly 37 fields and scope v11; the
+SDK development transport/parser and owner-refusal wire remain unchanged. Buddy
+uses a selected-only 1024-byte callback cap, strict duplicate/unknown/type/reason
+validation and retained diagnostic data; these cannot qualify facts or success.
+
+WHEN multiple final checks would fail, THEN only the first evaluated failure is
+recorded and later checks remain short-circuited. WHEN the selector is off or the
+capture succeeds, THEN no nested diagnostic field appears. WHEN the selector is
+requested without v11, THEN configuration refuses. WHEN selected callback data
+has duplicate/unknown fields, an unknown reason or a noninteger timing, THEN the
+consumer retains no decoded diagnostic and grants no authority.
+
+- [x] Implement the minimal SDK and Buddy diagnostic paths.
+- [x] Exact production ARM compile with -Werror/-z defs and no fixture macros.
+- [x] Three focused ARM/QEMU owned-fixture checks: selected success shape,
+  first allowed failure preceding a later request failure, default-off shape.
+- [x] Twenty-two focused consumer checks and three PowerShell syntax parses.
+- [ ] Independent source review and Main acceptance of frozen revisions.
+- [ ] Main may separately select a fresh packet and device observation; none is
+  selected or authorized by this source increment.
+
+Broad/native qualification, canonical sync and archive remain unfinished.
+
+
+## Accepted cached allowed-label increment (2026-10-08)
+
+Main's subsequent actual attempt reported an `allowed-refused` failure timestamp
+before its accepted + 5000 deadline. This does not identify the previous attempt's
+failure and does not determine which allowed guard failed. Main accepted the
+smallest source-only increment: serialize the already cached `predicate` and
+`activeReason` from the same first `captureAllowedChecked` call. No additional
+getter, traversal, check, flag, acceptance rule or clock sample is introduced.
+
+Selected failure diagnostics now emit version 2 with exactly ten fields: the
+original eight plus nullable `allowed_predicate` and `allowed_active_reason`.
+Both serializers admit only the existing guard's fixed labels; absent or unknown
+cached labels serialize as null. The consumer validates each nullable field's
+string type and fixed allowlist. Historical version 1 remains exact eight fields;
+version 1 rejects the new fields and version 2 requires both, including null.
+The selector remains default-off; successful/default-off callback shape,
+completion v2 exact37 scope v11, SDK parser, queued callback and original five
+second budget remain unchanged.
+
+WHEN the first allowed check fails due to preexisting invalidation, THEN the
+selected diagnostic is v2/exact10 with allowed_predicate `invalidated-before`
+and allowed_active_reason null. WHEN historical v1 data is read, THEN strict
+exact8 decoding remains supported. WHEN a v2 cached label is unknown, an array,
+or missing, THEN decoding returns no diagnostic, without granting authority.
+
+- [x] Implement the two cached-label serializers and strict historical decoder.
+- [x] Thirty focused consumer checks, including v1/v2 shape and negative labels.
+- [x] Exact production ARM compile and existing three focused owned fixtures.
+- [ ] Freeze exact revisions and obtain Main/Astra bounded review.
+- [ ] Any fresh nonce/packet/device selection remains separately owned by Main.
+
+Full native qualification and the fresh Reader harness remain unfinished. No
+canonical sync or archive follows from this diagnostic increment.
+
+
+## Accepted first-invalidation diagnostic increment (2026-10-08)
+
+Main accepted a v3 diagnostic latch after the next actual attempt reported cached
+`invalidated-before` with null active reason before the accepted deadline. The
+cause remains unproved. At existing invalidation callsites, latch fixed cause,
+role and member only on the first false-to-true transition. Every call still sets
+captureInvalid true and increments captureEpoch in the original order; later
+callbacks and cleanup cannot overwrite the first event. No clock sample or
+additional acceptance rule is introduced.
+
+Existing typed callbacks capture fixed labels at installation. FocusOwnerGuard's
+optional labeled callback preserves its ordinary callback fallback, context,
+thread and subscription order/count. Existing QMetaMethod signal routes select
+one of twenty preassigned owned no-argument slots from already known role/member
+constants. Native signal/member discovery remains the existing path; owned slot
+metadata changes. No sender introspection, dynamic name/value serialization,
+additional property read, traversal, native check or subscription is added.
+Window/chain/subtree signals use fixed category roles; arbitrary descendants
+are never identified. Focus/input event categories, endpoint checks, reentrant
+checks and repeat discovery have fixed labels. Unattributed paths retain an
+unknown cause with null role/member; absent invalidation has three null fields.
+
+Selected failure diagnostic v3 is exact13: v2's ten fields plus nullable
+invalidation_cause, invalidation_role and invalidation_member. Strict exact8 v1
+and exact10 v2 decoders remain. Successful exact37 completion/scope v11, default-
+off callback shape, queued callback and original five second budget are unchanged.
+
+WHEN an existing scene viewport signal invalidates first and a generic call
+invalidates later, THEN v3 retains signal/scene/viewportChanged() and the cached
+invalidated-before/null allowed labels. WHEN v3 fields are missing, unknown or
+nonstring nonnull, THEN diagnostic decoding refuses. WHEN historical v1/v2 is
+read, THEN its original exact field count remains required.
+
+- [x] Implement bounded existing-route labels and strict historical decoding.
+- [x] Thirty-eight focused consumer checks.
+- [x] Exact production ARM compile and three existing focused owned fixtures.
+- [ ] Main/Astra frozen source review before any separately selected packet.
+
+Native cause/qualification, fresh Reader capture, canonical sync and archive
+remain unfinished. Reader repair f6999d5 remains independently held for review.
+
+## Separate receiver source-facts observation (October 8)
+
+This source-only increment follows successful unqualified capture; it does not
+promote that capture to a live capability. `developmentReceiverSourceFacts` is
+false by default and requires the existing v11 receiver profile, exactly six
+expected pages and pageCap six. The held capture behavior remains the default.
+No Rust API, Reader admission, retained ticket or native mutation is added.
+
+WHEN this option is selected, THEN consume only the separate
+`receiver-source-facts-request` token (same nonce/PID/start/root binding, purpose
+`receiver-source-facts`, setup 120000/main-dev-facts-120s). Reuse bounded receiver
+owner discovery, then branch before capture helper construction or pixel grab.
+A private entry-only `PageFactsSession::ReceiverSourceOnly` constructor keeps the
+exact owner and invokes the unchanged readFacts helper: native pageCount,
+idForPage/pageForId forward/reverse mapping, current page/alias, and final tuple.
+The observed order comes from returned mapping values, not a copied expected
+order on an untested branch. Unsupported mapping types retain ordinary refusal.
+
+WHEN a getter reenters, input/owner changes, lifetime closes, request changes or
+the original accepted+5000 deadline expires, THEN no source result is admitted.
+The session's own clock cannot extend the entry deadline. Existing CallScope,
+queued completion and QPointer ownership protect getter-stack unwind. The final
+entry output boundary checks retained invalidation, threads, root/generation,
+request/purpose and original deadline; a partial/late owned output is withdrawn.
+The old retained-owner ticket still explicitly refuses receiver-subtree mode.
+
+WHEN the bounded read succeeds, THEN emit only `receiver-source-facts.json`
+(max8192), kind development-receiver-source-facts, version1, scope
+receiver-source-facts-unqualified-v1. Exact27 fields: kind, version, scope, nonce,
+attempt_pid, attempt_start, root_device, root_inode, document_id, page_id,
+page_index, page_count, order, alias_matches, forward_reverse_mapping_matches,
+observed_order, accepted_ms, read_begin_ms, read_end_ms, effective_deadline_ms,
+begin_epoch, end_epoch, atomic_snapshot, native_authority, render_authority,
+ui_acknowledged, delivered_ms. Three mapping booleans are true; all four authority
+booleans are false. Count/order size six, index0..5, equal entry epochs, monotonic
+entry-relative times with delivered strictly before min(120000,accepted+5000).
+The callback adds source_facts_reader_stage (fixed normalized string, empty before
+reader completion); success stage is receiver-source-facts-observed-unqualified.
+`FactsEntryResult.observed` stays false. No facts-request, PNG, successful capture
+completion, native PageObservation or Reader effect permission is produced.
+
+- [x] Implement separate default-off request/session/diagnostic path.
+- [x] Exact production ARM compile (-Werror/-z defs, no fixture macros).
+- [x] Four ARM/QEMU source cases: six native mappings/no pixels, reverse mismatch,
+  sticky invalidation during getter with event processing, original deadline
+  expiry during getter; existing v3 capture success control also passed.
+- [ ] Independent source/consumer review and Main selection.
+- [ ] Actual RM2 observation; native acquisition/dispatch qualification remains open.
+
+This is an unfinished research increment within the active change. No fresh
+nonce, packet, tablet operation, canonical sync, archive or release follows from
+source implementation. Buddy owns ordinary read-only consumer tooling; Main owns
+exact packet selection and independent rollback/restoration.
