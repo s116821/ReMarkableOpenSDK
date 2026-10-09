@@ -98,7 +98,7 @@ Actual trial recovery used its deadline fallback, not a timely manual stop reque
 Stock restoration and preservation passed; initial document UI restoration did not
 return cleanly. The linked result preserves both findings without lifecycle promotion.
 
-## Next narrow question: native writability of the existing target
+## Native writability of the existing target: completed bounded follow-up
 
 The current REM-25 acceptance requirements include writing on the new native page.
 Allocation, a blank capture and a page file do not establish that native pen input
@@ -119,6 +119,11 @@ repeat follows missing input, uncertain page identity or failed release.
 The useful positive outcome is writable native serialization on this one inserted
 page. Wrong-page input, unexpected original mutation or unestablished persistence
 fails that check. Neither outcome explains the unexpected-close banner, fixes the
-host stop-request window or qualifies production/native page authority. At this
-checkpoint this is a proposed question sent to Main/Root for operability review;
-no pen helper, artifact or device action is selected.
+host stop-request window or qualifies production/native page authority. That proposed question was subsequently selected by Root and completed by Main
+on October 9. See the [derived writability result](../../../docs/experiments/caller-selected-insertion-result.md#october-9-follow-up-native-writing-and-ordinary-reopen-persistence).
+One native stroke persisted after ordinary reopen; seven-page order and all twelve
+original immutable files were preserved, and the source page was restored. The
+existing helper received a narrow independently reviewed release-path correction.
+The target is now intentionally nonblank. This closes only the bounded follow-up;
+full task 2.3, native/lifecycle qualification and product integration remain open.
+No subsequent device action is selected.

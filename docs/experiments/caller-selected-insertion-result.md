@@ -91,3 +91,56 @@ artifact/packet checks, and focused test outputs. Final ordinary UI actions and
 device cleanup were performed by Main; the author inspected retained captures and
 cleanup output rather than operating the device. Private evidence has no public
 download link. Hashes identify retained evidence without publishing its contents.
+
+## October 9 follow-up: native writing and ordinary reopen persistence
+
+Main performed one selected stroke on the existing inserted page, with no new
+insertion, native payload, service restart or pen-menu change. One ordinary SDK
+Next reached the verified target. The predefined virtual-coordinate path was
+`(360,480)` to `(372,484)`, using the currently selected native pen. A narrow
+consumer helper correction validated geometry before opening the writer and used
+the existing `draw_path_screen` best-effort release path. Sol owned independent
+source review; Main reported focused geometry/release tests and provider audit
+passing. This author did not duplicate that review or rebuild.
+
+Helper source SHA-256 was
+`39454bd204f789c95e672a9e3e88fea5102d46224b3c9d3c0bda1e1364b02ec9`;
+selected ARM binary SHA-256 was
+`c7743f9c059a036128e814e8f5cda91867fbbfd76a8bbb0a2da460216e93042b`.
+Best-effort release does not guarantee release after process death or failed I/O.
+Main reported explicit unset pen contact/tool flags; retained post-stroke and final
+two-second idle observations completed without invalidation.
+
+The immediate saved target file remained 424 bytes. After ordinary Library close,
+the native file was 515 bytes, SHA-256
+`5022474d5ce7d4b8b7f0db013116d51d0c88bc373912aaeae10e156d50a10284`.
+Independent framing inspection found one additional type-5 block and valid v6
+block lengths through EOF. This is framing evidence, not a full semantic parser.
+Ordinary reopening showed the tiny stroke at Page 2 of 7; the author inspected that
+capture. Native file change plus visible persistence supports saved native ink,
+not merely a transient framebuffer overlay.
+
+Independent full-archive comparison found unchanged seven-page order, twelve
+byte-identical original immutable files, no new files, and exactly four changed
+files: target page, target thumbnail, content and metadata. The only page-object
+change was the target's `modifed` field. Other content changes were visit
+bookkeeping and size; metadata changed only last-opened/last-modified bookkeeping.
+One Previous restored the original source identity and annotated Page 1 of 7,
+also visually inspected. The target now contains this intentional small stroke
+and must not be treated as blank in future admission checks.
+
+Main's cleanup output reports all three original service PIDs active, exact
+preexisting screenshot restoration and successful task-owned cleanup. The first
+cleanup transport closed without deleting files; Main verified the unchanged
+inventory before completing cleanup with LF-delimited stdin. This was cleanup
+recovery, not a repeated drawing action.
+
+Evidence archive SHA-256:
+`6d5104c6ee7236a304272f38b17c3075e7e43fe4d5ff2e3730a7ca0e37a5a377`.
+Final fixture archive SHA-256:
+`5afec4c9de0ae3dd595d3c78eec3f20eac4c3a3ab4b88f28c544297d1afa2527`.
+Both were independently verified. Source basis is Main's actual action/release/
+cleanup report, retained receipts, independently compared archives and inspected
+captures. This qualifies one development-page writability/reopen observation;
+it does not resolve the earlier unexpected-close banner, shutdown safety,
+crash durability, native authority or Reader/Writer product integration.
