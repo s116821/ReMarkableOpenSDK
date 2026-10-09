@@ -41,6 +41,7 @@ static void drain(){for(int i=0;i<8;++i)QCoreApplication::processEvents();}
 int main(int argc,char **argv){
     assert(argc==2);const QByteArray mode(argv[1]);
     const bool refusal=mode=="identity-refused" || mode=="config-refused" || mode=="stale-refused";
+    const bool bootstrapRefusal=mode=="waiting-refused" || mode=="restore-before-ready";
     constexpr auto nonce="00000000000000000000000000000000";
     auto config=pretoken_shutdown::config(nonce);
     const QString root=config.directory;
@@ -64,7 +65,11 @@ int main(int argc,char **argv){
     assert(!QFile::exists(root+"/callback.json")); // completion has not run inline
     auto trace=read(root+"/shutdown-trace.log");
     assert(trace.count(" entry-installed ")==int(!refusal));
+    assert(!trace.contains(" entry-engine-ready "));
     if(!refusal){
+        if(mode=="waiting-refused")put(root+"/facts-waiting","exclusive-collision");
+        if(mode=="restore-before-ready")put(root+"/restore.claim",nonce);
+        if(mode=="ready-later-render")recorder->beforeRender(); // pre-ready evidence cannot qualify
         const auto fields=trace.trimmed().split('\n').back().split(' ');
         assert(fields.size()==10 && fields[2]=="entry-installed");
         assert(fields[4]==QByteArray::number(::getpid()) && fields[7]=="0" && fields[8]=="0");
@@ -92,7 +97,21 @@ Window { visible:true; width:400; height:400
  }
 })QML");
         assert(engine->rootObjects().size()==1);
-        drain();assert(entry && QFile::exists(root+"/facts-waiting"));
+        QCoreApplication::sendPostedEvents(entry.data(),QEvent::MetaCall);
+        assert(entry);
+        const auto readyTrace=read(root+"/shutdown-trace.log");
+        assert(readyTrace.count(" entry-engine-ready ")==int(!bootstrapRefusal));
+        if(!bootstrapRefusal){
+        assert(QFile::exists(root+"/facts-waiting"));
+        auto readyFields=readyTrace.trimmed().split('\n').back().split(' ');
+        assert(readyFields.size()==10 && readyFields[2]=="entry-engine-ready");
+        assert(readyFields[4]==QByteArray::number(::getpid()) && readyFields[7]=="0" && readyFields[8]=="0");
+        assert(readyFields[9]==(mode=="ready-later-render" || mode=="nonzero-frame" ? "1":"0"));
+        if(mode=="ready-later-render"){
+            recorder->beforeRender();
+            const auto later=read(root+"/shutdown-trace.log").trimmed().split('\n').back().split(' ');
+            assert(later[2]=="before-render" && later[1].toUInt()>readyFields[1].toUInt() && later[9].toUInt()>readyFields[9].toUInt());
+        }
         const int originalIds=document.idReads,originalCalls=getterCalls;
         const auto waiting=read(root+"/facts-waiting").trimmed().split(' ');
         assert(waiting.size()==9);
@@ -112,12 +131,14 @@ Window { visible:true; width:400; height:400
         assert(document.idReads==originalIds && getterCalls==originalCalls);
         for(const char *name:{"receiver-source-facts.json","capture-window.png","capture-observation-complete.json","diagnostics.json","callback.json"})
             assert(!QFile::exists(root+'/'+name));
+        assert(read(root+"/shutdown-trace.log").count(" entry-engine-ready ")==1);
+        }
         // Original engine destroyed -> cancel -> finish; completion remains queued.
         engine.reset();assert(entry && destroyed==0 && PretokenFixtureAccess::done(*entry));
         assert(!entry->pretokenInstalled() && !QFile::exists(root+"/callback.json"));
     }
     // Deliver only queued calls so the deleteLater boundary stays observable.
-    const QString expected=refusal ? mode=="identity-refused" ? "facts-entry-generation-refused":mode=="config-refused" ? "facts-entry-config-refused":"facts-entry-stale-refused":"facts-entry-canceled";
+    const QString expected=refusal ? mode=="identity-refused" ? "facts-entry-generation-refused":mode=="config-refused" ? "facts-entry-config-refused":"facts-entry-stale-refused":mode=="waiting-refused" ? "facts-entry-waiting-refused":mode=="restore-before-ready" ? "facts-entry-bootstrap-refused":"facts-entry-canceled";
     assert(PretokenFixtureAccess::stage(*entry)==expected && !PretokenFixtureAccess::delivered(*entry));
     QCoreApplication::sendPostedEvents(entry.data(),QEvent::MetaCall);
     assert(entry && destroyed==0 && PretokenFixtureAccess::delivered(*entry));
@@ -129,6 +150,7 @@ Window { visible:true; width:400; height:400
     QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
     assert(!entry && destroyed==1);drain();assert(destroyed==1);
     assert(read(root+"/shutdown-trace.log").count(" entry-installed ")==int(!refusal));
+    assert(read(root+"/shutdown-trace.log").count(" entry-engine-ready ")==int(!refusal && !bootstrapRefusal));
     ::close(recorder->fd);recorder->fd=-1;
     assert(QDir(root).removeRecursively());
     std::printf("PASS pretoken %s: installation proof, no admission/getters, original deferred lifetime\n",argv[1]);

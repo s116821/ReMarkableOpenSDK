@@ -74,6 +74,9 @@ public:
 #ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
     // Set only at the successful installation boundary, not by the caller.
     bool pretokenInstalled() const { return pretokenInstalled_ && !done_; }
+    void setPretokenReadyCallback(std::function<void()> ready) {
+        if(!started_)pretokenReady_=std::move(ready);
+    }
 #endif
     FactsEntry(QGuiApplication *app, FactsEntryConfig config,
                std::function<void(FactsEntryResult)> completed,
@@ -415,6 +418,9 @@ private:
             if (!selected) return; // bounded readiness events only, no document scan
             engine_=selected;
             if (!context()) { finish("facts-entry-engine-refused"); return; }
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+            pretokenEngineConnection_=
+#endif
             connect(engine_,&QObject::destroyed,this,&FactsEntry::cancel);
             if (config_.developmentInputObservation) {
                 const auto positiveDecimal=[](const QByteArray &value){
@@ -443,6 +449,14 @@ private:
             if (!live() || now()>=config_.setupBudgetMs || !writeFile("facts-waiting",waiting)) {
                 finish("facts-entry-waiting-refused"); return;
             }
+#ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
+            // Original write/connection completed. No extra queued turn or retry.
+            if(!pretokenReadySent_ && pretokenEngineConnection_ && pretokenReady_ &&
+               context() && live() && now()<config_.setupBudgetMs) {
+                pretokenReadySent_=true;
+                pretokenReady_();
+            }
+#endif
             queueRequest();
         },Qt::QueuedConnection);
     }
@@ -1088,6 +1102,9 @@ QtObject {
 #ifdef QT_FACTS_PRETOKEN_DIAGNOSTIC
     bool pretokenInstalled_=false;
     bool pretokenBootstrapPosted_=false;
+    bool pretokenReadySent_=false;
+    QMetaObject::Connection pretokenEngineConnection_;
+    std::function<void()> pretokenReady_;
 #endif
     std::function<void(FactsEntryResult)> completed_;
     std::function<qint64()> clock_;

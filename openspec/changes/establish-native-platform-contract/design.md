@@ -202,6 +202,11 @@ consumer binding or the production creation capability. See
 
 ## October 8 shutdown discriminator
 
+The source-only [engine-ready variant](engine-ready-shutdown-diagnostic.md) adds
+one synchronous diagnostic marker after the original waiting write and successful
+engine-destroyed connection. Consumer admission requires a later higher-frame
+render. Facts-waiting is optional corroboration; no actor phase or budget changes.
+
 The selected source-only [pre-token follow-up](pretoken-shutdown-diagnostic.md)
 adds the original FactsEntry lifecycle under a compile-time fence before all
 request dispatch, with a second capture-admission guard. Its single-root

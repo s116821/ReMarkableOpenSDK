@@ -80,3 +80,7 @@ The separately selected [pre-token FactsEntry follow-up](pretoken-shutdown-diagn
 adds only that lifecycle cohort behind a compile-time no-admission fence and a
 bounded installation proof. Source preparation and owned fixtures precede exact
 consumer/recovery review; active page getters and native execution are not selected.
+
+The [engine-ready refinement](engine-ready-shutdown-diagnostic.md) observes the
+original successful bootstrap boundary and requires a later sampled render. It
+retains the fences and recovery bounds; source preparation is not native selection.

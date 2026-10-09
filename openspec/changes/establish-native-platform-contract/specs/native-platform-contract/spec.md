@@ -452,3 +452,17 @@ builds without the diagnostic macro SHALL retain existing admission behavior.
 #### Scenario: Owned engine is destroyed
 - **WHEN** the owned fixture engine destruction triggers original entry cancellation
 - **THEN** completion remains queued and deletion follows the original deleteLater callback; fixture success does not prove native SIGTERM traverses that lifecycle.
+
+### Requirement: Engine-ready diagnostic proves source-ordered bootstrap exposure
+The diagnostic engine-ready variant SHALL emit at most one bounded scalar marker
+only after successful original engine binding, destroyed-signal connection and
+waiting-file write with current non-page context/lifetime checks. Request fences,
+original event ordering and observation/recovery/sample bounds SHALL remain intact.
+
+#### Scenario: Successful readiness precedes a later render
+- **WHEN** a valid entry-engine-ready follows installation and a pre-quit before-render has greater sequence and frame count
+- **THEN** the selected consumer may admit its reviewed STOP, without inferring current engine lifetime, display completion or native authority.
+
+#### Scenario: Readiness or a later sample is absent
+- **WHEN** readiness refuses, is dropped, arrives too late, or no later sampled render exists within the unchanged limits
+- **THEN** the result remains inconclusive and independent recovery runs without extending a deadline, forcing events or admitting page requests.

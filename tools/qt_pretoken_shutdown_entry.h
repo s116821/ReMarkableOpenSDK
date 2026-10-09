@@ -39,6 +39,9 @@ inline QPointer<qml_access::FactsEntry> start(QGuiApplication *gui,
     *holder=new qml_access::FactsEntry(gui,std::move(c),[holder](qml_access::FactsEntryResult){
         if(*holder)(*holder)->deleteLater();
     });
+    (*holder)->setPretokenReadyCallback([recorder]{
+        recorder->record(shutdown_trace::Event::EntryEngineReady);
+    });
     (*holder)->start();
     if(*holder && (*holder)->pretokenInstalled())
         recorder->record(shutdown_trace::Event::EntryInstalled);

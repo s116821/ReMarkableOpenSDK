@@ -98,3 +98,11 @@ expansion or check off target qualification based on the host-only collector.
 - [x] 8.3 Verify unexpected-token exclusion, start refusal, engine-destruction cancellation/deferred lifetime and ordinary-build admission on owned ARM fixtures; freeze source hashes and compile scope.
 - [ ] 8.4 Main/Root independently review exact SDK source and consumer installation-plus-first-render proof, shared root and unchanged independent guard/budget before fresh native artifact selection.
 - [ ] 8.5 Only after selection collect one controlled outcome; retain incomplete Qt chronology and unresolved original fault limits. Native qualification, canonical sync and archive remain open.
+
+## 9. Engine-ready pre-token refinement
+
+- [x] 9.1 Record engine-ready boundary, selected event/proof order, unchanged bounds and inconclusive absence before code.
+- [x] 9.2 Add one diagnostic-only ready callback after original successful bootstrap/waiting write; preserve ordinary source and request fences.
+- [x] 9.3 Verify owned readiness, refusal, later-frame evidence, post-ready request exclusion and ordinary equivalence; freeze closure/MOC/compiler receipts.
+- [ ] 9.4 Independently review SDK and consumer engine-ready proof before any fresh native nonce/artifact selection.
+- [ ] 9.5 Interpret any later selected result without treating markers as lifetime fences or closing native qualification/sync/archive prematurely.

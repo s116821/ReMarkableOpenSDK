@@ -31,7 +31,7 @@ run() {
   -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
   -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$@"
 }
-for mode in source-valid capture-valid malformed normal-fallback input-fallback nonzero-frame identity-refused config-refused stale-refused; do
+for mode in source-valid capture-valid malformed normal-fallback input-fallback nonzero-frame identity-refused config-refused stale-refused ready-later-render waiting-refused restore-before-ready; do
  run /out/pretoken-owned-fixture "$mode"
 done
 run /out/pretoken-ordinary-control good

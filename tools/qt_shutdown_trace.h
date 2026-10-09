@@ -13,7 +13,7 @@
 namespace shutdown_trace {
 enum class Event { Startup, Window, BeforeRender, AfterRender, AboutToQuit,
                    WindowDestroyed, ApplicationDestroyed, LateBeforeRender, LateAfterRender,
-                   EntryInstalled };
+                   EntryInstalled, EntryEngineReady };
 inline const char *name(Event e) {
     switch(e) {
     case Event::Startup:return "startup"; case Event::Window:return "window";
@@ -24,6 +24,7 @@ inline const char *name(Event e) {
     case Event::LateBeforeRender:return "late-before-render";
     case Event::LateAfterRender:return "late-after-render";
     case Event::EntryInstalled:return "entry-installed";
+    case Event::EntryEngineReady:return "entry-engine-ready";
     }
     return "invalid";
 }
