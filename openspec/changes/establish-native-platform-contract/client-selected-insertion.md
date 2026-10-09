@@ -97,3 +97,28 @@ mutation, missing launch identity and evidence-write failure after abnormal exit
 Actual trial recovery used its deadline fallback, not a timely manual stop request.
 Stock restoration and preservation passed; initial document UI restoration did not
 return cleanly. The linked result preserves both findings without lifecycle promotion.
+
+## Next narrow question: native writability of the existing target
+
+The current REM-25 acceptance requirements include writing on the new native page.
+Allocation, a blank capture and a page file do not establish that native pen input
+can be serialized and reopened on this caller-selected page. The next proposed
+check reuses the already-created seven-page fixture and exact target; it requires
+no second insertion, preload, native-open operation or stock restart.
+
+Main first assesses whether an existing reviewed native pen-input helper has known
+RM2 coordinates, contact/idle admission and bounded release semantics. This is an
+operability prerequisite, not permission to improvise an injector. If usable, a
+freshly selected attempt would back up the full current fixture, navigate once
+from verified original index 0 to the adjacent exact target, verify target/blank
+pixels, and place one small predefined native stroke. Ordinary leave/reopen and
+readback would check the stroke visually, native target-file persistence and all
+twelve original immutable hashes, then restore the source page. No automatic
+repeat follows missing input, uncertain page identity or failed release.
+
+The useful positive outcome is writable native serialization on this one inserted
+page. Wrong-page input, unexpected original mutation or unestablished persistence
+fails that check. Neither outcome explains the unexpected-close banner, fixes the
+host stop-request window or qualifies production/native page authority. At this
+checkpoint this is a proposed question sent to Main/Root for operability review;
+no pen helper, artifact or device action is selected.

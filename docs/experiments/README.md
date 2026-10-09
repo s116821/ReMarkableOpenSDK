@@ -7,6 +7,7 @@ packet or past trial is not permission to execute a new one.
 
 | Reusable guide | Evidence scope |
 | --- | --- |
+| [Caller-selected insertion result](caller-selected-insertion-result.md) | One exact UUID persisted with originals preserved; deadline recovery and unexpected-close UI leave lifecycle qualification open |
 | [RM2 portrait gesture component](rm2-portrait-gesture-component.md) | Actual stock-device Next/Previous round trip, artifact/evidence provenance and limits; no native navigation authority |
 | [R1/R2/R2D runtime observers](runtime-observers.md) | Bounded non-atomic sampling, reader/mapping limits and owned host fixtures |
 | [Qt/QML access probe](qt_qml_access_probe.md) | Existing-engine access, lifecycle/refusal semantics, synthetic fixtures and narrow disposable trial boundaries |
