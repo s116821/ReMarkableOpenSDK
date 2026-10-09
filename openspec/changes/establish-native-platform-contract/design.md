@@ -202,6 +202,10 @@ consumer binding or the production creation capability. See
 
 ## October 8 shutdown discriminator
 
+The later [caller-selected insertion proposal](client-selected-insertion.md)
+investigates native allocation independently of the rejected shutdown diagnostic.
+It preserves native Unsupported and does not infer a lifecycle fix from insertion.
+
 Ordinary task 3.6 mapping is defined separately in [gesture-mapping.md](gesture-mapping.md).
 Explicit tablet/orientation admission produces geometry only, never native authority.
 

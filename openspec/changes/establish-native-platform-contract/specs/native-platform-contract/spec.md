@@ -1,5 +1,22 @@
 ## ADDED Requirements
 
+### Requirement: Explicit-fixture caller-selected allocation experiment
+The development creation probe SHALL permit a separately selected single-call
+caller-selected identity experiment only with a fresh exact fixture baseline and
+independent restoration, without granting production native authority.
+
+#### Scenario: Explicit target is supplied
+- **WHEN** a selected fixture baseline matches and its canonical nonnil target UUID is absent
+- **THEN** the probe claims once and supplies that UUID as the sixth native creation argument, with no retry on uncertain completion
+
+#### Scenario: Invalid target or changed baseline
+- **WHEN** the target is invalid or already present, or the current fixture count/order differs
+- **THEN** the probe refuses before the mutation claim
+
+#### Scenario: Result identity differs
+- **WHEN** post-restoration evidence finds a created page whose UUID differs from the supplied target
+- **THEN** the experiment records the mismatch without issuing another insertion or constructing a native committed receipt
+
 ### Requirement: Explicit ordinary gesture mapping
 The SDK SHALL map logical Next/Previous to ordinary gesture geometry only for an
 explicitly admitted implemented tablet/orientation pair, without granting native

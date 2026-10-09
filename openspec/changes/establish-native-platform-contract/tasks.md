@@ -8,6 +8,7 @@
 - [ ] 2.1 Inventory passive IPC/service/interface evidence and firmware/runtime fingerprints through the coordinated tablet owner.
 - [ ] 2.2 Compare credible direct/native, coordinated-metadata and supervised lazy-XOVI alternatives against measured safety, cache/persistence, supervisor/runtime failure, RM2/RMPP portability and maintenance criteria; record the selected mechanism only after qualification.
 - [ ] 2.3 Qualify mutation-time compare-and-act/serialization, client-selected or durably correlated native-assigned target identity, exact insertion order and durable reconciliation on disposable notebook and annotated PDF fixtures.
+- [ ] 2.3a Review and, only after separate source/artifact/restoration selection, exercise the [one-call caller-selected identity discriminator](client-selected-insertion.md). Preserve the original native-assigned result, rejected operations and all unqualified production/lifecycle gates.
 - [ ] 2.4 Record rejected paths, remaining unknowns and recovery constraints; do not select product fallback without REM-25's exhaustive evidence gate.
 
 - [ ] 2.5 Validate the community existing-engine/public-QML singleton access adaptation on RM2 with event-driven readiness; retain exact source/artifact/operator/cleanup evidence and do not treat access alone as native page creation.

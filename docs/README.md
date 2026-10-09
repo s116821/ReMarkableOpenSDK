@@ -10,6 +10,7 @@ remain workflow records, not a shipping capability declaration.
 | Area | Start here | Contents |
 | --- | --- | --- |
 | Research | [Native-platform ledger](research/native-platform-ledger.md) | Attributed static/runtime findings, pinned prior art, positive/refused observations and unresolved limits |
+| Native insertion | [Caller-selected identity discriminator](research/client-selected-insertion-discriminator.md) | Selected one-call research question, alternative-route refresh and explicit outcome/limit table; no native result yet |
 | Input coordinates | [Protocol-B retention and remaining evidence gap](research/input-coordinate-evidence-limits.md) | Ordinary release retains axes; fresh-handler and actual-event attribution remain unresolved |
 | Ordinary gestures | [RM2 portrait component result](experiments/rm2-portrait-gesture-component.md) | One Next/Previous round trip with unchanged source files and owned cleanup; product/native navigation remains unqualified |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |

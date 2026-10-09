@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Propose the untested caller-selected identity argument on the original native
+  creation path; see [client-selected-insertion.md](client-selected-insertion.md).
+  This is separate from the rejected diagnostic and does not qualify shutdown.
+
 - Implement reusable ordinary logical gesture mapping for explicitly admitted RM2
   portrait input, consumed by Reader's existing event emitter. Unknown or
   unimplemented tablet/orientation pairs refuse. See [gesture-mapping.md](gesture-mapping.md).
