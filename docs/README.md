@@ -15,6 +15,7 @@ remain workflow records, not a shipping capability declaration.
 | Shutdown investigation | [0404 upstream lifecycle evidence](research/shutdown-0404-prior-art.md) | Rendering fault, QImage backing-storage limits, pinned prior art and dated experiment boundaries |
 | Lifecycle comparison | [8287 versus 0404 entrypoints](research/shutdown-entrypoint-comparison.md) | Verified source provenance, completed creation cleanup versus early restoration, and limits on regression attribution |
 | References | [Contracts and model limits](reference/README.md) | Navigation to canonical SDK contracts, source types and historical checkpoints |
+| Model completeness | [Tasks 3.1/3.2 coverage](reference/model-task-coverage.md) | Existing typed evidence and deterministic cases; unfinished capability/profile query without a current consumer requirement |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an
