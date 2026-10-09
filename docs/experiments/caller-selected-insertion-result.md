@@ -40,8 +40,9 @@ Independent before/after archive comparison established:
 - All twelve immutable files remained byte-identical, including PDF and existing
   ink. Only the new target's page file and thumbnail were added.
 - Content differences were limited to pages, last-opened bookkeeping, page count
-  and size. Final metadata differences were last-modified/last-opened bookkeeping
-  and current-page index; unknown fields were preserved.
+  and size. Intermediate metadata changed the current-page index from 0 to 1;
+  after returning to the source it was 0 again. Final metadata differences were
+  only last-modified/last-opened bookkeeping; unknown fields were preserved.
 
 After restart, ordinary UI reopening displayed the target as blank Page 2 of 7.
 One ordinary SDK Previous gesture restored the annotated original Page 1 of 7.
