@@ -107,6 +107,14 @@ int main(int argc, char **argv) {
         config.developmentExplicitFixture = true;
         config.targetPageId = QStringLiteral("00000000-0000-4000-8000-000000000008");
     }
+    if (mode == "dev-target-seven") {
+        pages.append(QStringLiteral("00000000-0000-4000-8000-000000000009"));
+        config.pageIds = pages;
+        config.developmentAfterOpen = true;
+        config.setupDirectory = dir.path();
+        config.setupNonce = QStringLiteral("0123456789abcdef0123456789abcdef");
+        ::chmod(QFile::encodeName(dir.path()).constData(), 0700);
+    }
     if (mode == "target-config") {
         assert(config.valid());
         for (const auto &invalid : QStringList{QStringLiteral("bad"), QStringLiteral("00000000-0000-0000-0000-000000000000"), documentId, pages[0]}) {
@@ -117,6 +125,10 @@ int main(int argc, char **argv) {
         candidate = config; candidate.pageIds[5] = candidate.pageIds[0]; assert(!candidate.valid());
         candidate = config; candidate.targetPageId.clear(); assert(!candidate.valid());
         candidate.pageIds.removeLast(); assert(candidate.valid());
+        candidate = config; candidate.developmentAfterOpen = true; assert(!candidate.valid());
+        candidate.pageIds.append(QStringLiteral("00000000-0000-4000-8000-000000000009")); assert(candidate.valid());
+        candidate.developmentAfterOpen = false; assert(!candidate.valid());
+        candidate.developmentAfterOpen = true; candidate.targetPageId.clear(); assert(!candidate.valid());
         puts("creation-target-config: explicit target/profile/baseline refusals and legacy default passed");
         return 0;
     }
@@ -136,7 +148,7 @@ QtObject {
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
         property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : fixtureMode === "dev-export-absent" ? undefined : false
-        property var pageCount: fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
+        property var pageCount: fixtureMode === "dev-target-seven" ? 7 : fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
         property var ids: )QML") + encodedPages + R"QML(
         function idForPage(i) {
             if (fixtureMode === "getter-throw") throw new Error("private getter details");
@@ -273,6 +285,25 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         puts("creation-repeat: three actual createOnce entries, exactly one claim/native call, late callback inert");
         return 0;
     }
+    QTimer armPublisher;
+    if (mode == "dev-target-seven") {
+        armPublisher.setInterval(1);
+        QObject::connect(&armPublisher, &QTimer::timeout, &app, [&] {
+            QFile marker(dir.filePath("creation-waiting"));
+            if (!marker.open(QIODevice::ReadOnly)) return;
+            auto *controller = engine.singletonInstance<QObject *>(controllerType);
+            assert(controller && controller->property("calls").toInt() == 0);
+            QByteArray bytes = marker.readAll();
+            assert(bytes.contains(" waiting "));
+            bytes.replace(" waiting ", " create ");
+            QFile arm(dir.filePath("creation-arm"));
+            assert(arm.open(QIODevice::WriteOnly | QIODevice::NewOnly));
+            assert(arm.setPermissions(QFile::ReadOwner | QFile::WriteOwner));
+            assert(arm.write(bytes) == bytes.size()); arm.close();
+            armPublisher.stop();
+        });
+        armPublisher.start();
+    }
     QPointer<qml_access::Probe> probe;
     int receipts = 0;
     QJsonObject summary;
@@ -312,7 +343,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
     if (mode.startsWith("dev-")) {
-        assert(summary.value("access_anchor").toString() == "library-ready-observation");
+        assert(summary.value("access_anchor").toString() == (mode == "dev-target-seven" ? "creation-arm-observation" : "library-ready-observation"));
         const auto stamp = [&](const char *stage) { return trial.value(QString::fromLatin1(stage) + "_ms"); };
         const auto observed = [&](const char *stage) { assert(stamp(stage).isDouble() && stamp(stage).toInteger() >= 0); };
         const auto absent = [&](const char *stage) { assert(stamp(stage).isNull()); };

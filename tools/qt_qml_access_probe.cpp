@@ -70,7 +70,12 @@ void startup() {
         }
         new qml_access::Probe(gui, record, 20000, 5000, {}, openConfig);
 #elif defined(QT_PROBE_CREATION_CONFIG)
-        new qml_access::Probe(gui, record, 20000, 5000, creationConfig());
+        auto config = creationConfig();
+        if (config.developmentAfterOpen) {
+            config.setupNonce = QString::fromLatin1(nonce);
+            config.setupDirectory = QStringLiteral("/run/rmb-qt-probe-") + config.setupNonce;
+        }
+        new qml_access::Probe(gui, record, 20000, 5000, config);
 #else
         new qml_access::Probe(gui, record);
 #endif

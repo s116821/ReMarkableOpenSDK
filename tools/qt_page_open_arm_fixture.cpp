@@ -7,7 +7,13 @@ using namespace qml_access;
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     if (argc != 2) return 2;
-    const QByteArray mode(argv[1]);
+    QByteArray mode(argv[1]);
+    const bool creation = mode.startsWith("creation-");
+    if (creation) mode.remove(0, 9);
+    const QString arm = creation ? "creation-arm" : "open-arm";
+    const QString waiting = creation ? "creation-waiting" : "open-waiting";
+    const QString temporary = creation ? "creation-arm.tmp" : "open-arm.tmp";
+    const QString accepted = creation ? "creation-arm-accepted" : "open-arm-accepted";
     QTemporaryDir root;
     if (!root.isValid()) return 3;
     ::chmod(QFile::encodeName(root.path()).constData(), 0700);
@@ -18,10 +24,11 @@ int main(int argc, char **argv) {
         file.close();
         return ::chmod(QFile::encodeName(root.filePath(name)).constData(), permissions) == 0;
     };
-    if (mode == "stale") writeFile("open-arm", "old");
-    if (mode == "stale-marker") writeFile("open-waiting", "old");
-    if (mode == "stale-temp") writeFile("open-arm.tmp", "old");
+    if (mode == "stale") writeFile(arm, "old");
+    if (mode == "stale-marker") writeFile(waiting, "old");
+    if (mode == "stale-temp") writeFile(temporary, "old");
     if (mode == "closed") writeFile("entry.closed", "old");
+    if (mode == "stopping") writeFile("stop.request", "old");
     if (mode == "restoring") writeFile("restore.claim", "old");
     if (mode == "directory-mode") ::chmod(QFile::encodeName(root.path()).constData(), 0755);
     bool progress = true;
@@ -33,11 +40,12 @@ int main(int argc, char **argv) {
             ++completions; stage=QString::fromLatin1(value);
             if (mode == "closed-before-release") writeFile("entry.closed", "closed");
             if (mode != "duplicate") app.quit();
-        });
+        }, creation ? PageOpenArmGate::Operation::Creation : PageOpenArmGate::Operation::PageOpen, creation ? 123456 : 0);
     gate.begin(); gate.begin(); // A duplicate begin cannot publish/reopen the gate.
-    bool markerValid = true;
-    if (QFile::exists(root.filePath("open-waiting")) && mode != "stale-marker") {
-        QFile marker(root.filePath("open-waiting")); if (!marker.open(QIODevice::ReadOnly)) return 4;
+    bool markerValid = !creation || (!QFile::exists(root.filePath("open-waiting")) &&
+        gate.armBytes().endsWith(" create 123456\n"));
+    if (QFile::exists(root.filePath(waiting)) && mode != "stale-marker") {
+        QFile marker(root.filePath(waiting)); if (!marker.open(QIODevice::ReadOnly)) return 4;
         markerValid = marker.readAll() == gate.waitingBytes();
     }
     const auto publish = [&] {
@@ -48,8 +56,8 @@ int main(int argc, char **argv) {
         if (mode == "oversized") bytes.append(200, 'x');
         if (mode == "symlink") {
             writeFile("other", bytes);
-            ::symlink(QFile::encodeName(root.filePath("other")).constData(), QFile::encodeName(root.filePath("open-arm")).constData());
-        } else writeFile("open-arm", bytes, mode == "token-mode" ? 0644 : 0600);
+            ::symlink(QFile::encodeName(root.filePath("other")).constData(), QFile::encodeName(root.filePath(arm)).constData());
+        } else writeFile(arm, bytes, mode == "token-mode" ? 0644 : 0600);
     };
     if (mode == "immediate") publish();
     else if (mode == "good" || mode == "closed-before-release" || mode == "duplicate" || mode == "wrong" || mode == "wrong-process" || mode == "partial" || mode == "oversized" || mode == "token-mode" || mode == "symlink")
@@ -68,8 +76,8 @@ int main(int argc, char **argv) {
     QTimer::singleShot(180, &app, &QCoreApplication::quit);
     app.exec();
     const bool good = mode == "good" || mode == "closed-before-release" || mode == "immediate" || mode == "duplicate";
-    bool ok = markerValid && (good ? completions == 1 && stage == "open-arm-accepted" :
-        mode == "none" || mode == "cancel" || mode == "unrelated" ? completions == 0 : completions == 1 && stage != "open-arm-accepted");
+    bool ok = markerValid && (good ? completions == 1 && stage == accepted :
+        mode == "none" || mode == "cancel" || mode == "unrelated" ? completions == 0 : completions == 1 && stage != accepted);
     if (good) ok = ok && gate.releaseAllowed() == (mode != "closed-before-release" && clock.elapsed() < 100);
     if (mode == "replacement") QDir(root.path()+"-old").removeRecursively();
     std::printf("%s stage=%s completions=%d %s\n", mode.constData(), qPrintable(stage), completions, ok ? "PASS" : "FAIL");

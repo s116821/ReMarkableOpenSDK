@@ -16,7 +16,7 @@ fi
 $compiler -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
   tools/qt_qml_creation_fixture.cpp tools/qt_qml_creation_bridge.cpp tools/qt_page_open.cpp \
   $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/creation-fixture"
-for case in target-config dev-target-success dev-target-count dev-target-order dev-ready-success repeat; do
+for case in target-config dev-target-success dev-target-seven dev-target-count dev-target-order dev-ready-success repeat; do
   if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
       -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

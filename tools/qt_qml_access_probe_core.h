@@ -27,6 +27,7 @@
 #include <functional>
 #include <array>
 #include <cstring>
+#include <time.h>
 
 namespace qml_access {
 inline constexpr char helper[] =
@@ -40,10 +41,13 @@ struct CreationConfig {
     QStringList pageIds;
     bool enabled = false, developmentExplicitFixture = false;
     QString targetPageId = {};
+    bool developmentAfterOpen = false;
+    QString setupDirectory = {}, setupNonce = {};
     bool valid() const {
         static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
         const bool explicitTarget = !targetPageId.isEmpty();
-        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != (explicitTarget ? 6 : 5)) return false;
+        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != (developmentAfterOpen ? 7 : explicitTarget ? 6 : 5)) return false;
+        if (developmentAfterOpen && (!explicitTarget || !developmentExplicitFixture)) return false;
         if (explicitTarget && (!developmentExplicitFixture || !uuid.match(targetPageId).hasMatch() ||
             targetPageId == QStringLiteral("00000000-0000-0000-0000-000000000000") ||
             targetPageId == documentId || pageIds.contains(targetPageId))) return false;
@@ -724,6 +728,11 @@ public:
         connect(&timer_, &QTimer::timeout, this, [this] { (void)expired(); });
         connect(app, &QCoreApplication::aboutToQuit, this, [this] { cancel(); });
         elapsed_.start();
+        if (creationConfig_.developmentAfterOpen) {
+            struct timespec boot{};
+            if (::clock_gettime(CLOCK_BOOTTIME, &boot) == 0)
+                creationSetupDeadlineUptimeMs_ = static_cast<qint64>(boot.tv_sec) * 1000 + boot.tv_nsec / 1000000 + 40000;
+        }
         timer_.start(readinessMs);
         app->installEventFilter(this);
         queueAttempt();
@@ -764,6 +773,8 @@ private:
         }
     }
     qint64 deadlineAtMs() const {
+        if (creationConfig_.developmentAfterOpen && creationArmGate_)
+            return creationArmAcceptedAtMs_ < 0 ? 40000 : creationArmAcceptedAtMs_ + rootSummary_.accessBudgetMs;
         if (pageOpenConfig_.enabled && pageOpenConfig_.developmentSetupGate)
             return rootSummary_.pageOpenArmAcceptedAtMs < 0 ? rootSummary_.readinessBudgetMs :
                 rootSummary_.pageOpenArmAcceptedAtMs + rootSummary_.accessBudgetMs;
@@ -1047,7 +1058,30 @@ private:
             } else queuePageOpen();
             return;
         }
-        if (creationConfig_.enabled) { queueCreation(); return; }
+        if (creationConfig_.enabled) {
+            if (!creationConfig_.valid()) { finish("creation-config"); return; }
+            if (!creationConfig_.developmentAfterOpen) { queueCreation(); return; }
+            const QPointer<Probe> self = this;
+            creationArmGate_ = new PageOpenArmGate(this, creationConfig_.setupDirectory, creationConfig_.setupNonce,
+                [self] { return self && !self->done_ && !self->cancelPending_ && !self->pendingStage_ &&
+                    self->engine_ && self->owned_ && self->observedController_ &&
+                    self->elapsed_.elapsed() < self->deadlineAtMs(); },
+                [self](const char *stage) {
+                    if (!self || self->done_) return;
+                    if (QByteArrayView(stage) != QByteArrayView("creation-arm-accepted")) { self->finish(stage); return; }
+                    if (!self->creationArmGate_->releaseAllowed() || !self->engineContext()) {
+                        self->finish("creation-arm-context-refused"); return;
+                    }
+                    self->creationArmAcceptedAtMs_ = self->elapsed_.elapsed();
+                    self->timer_.start(self->rootSummary_.accessBudgetMs);
+                    self->queueCreation();
+                }, PageOpenArmGate::Operation::Creation, creationSetupDeadlineUptimeMs_);
+            const qint64 remaining = deadlineAtMs() - elapsed_.elapsed();
+            if (remaining <= 0) { finish("creation-arm-expired"); return; }
+            timer_.start(static_cast<int>(remaining));
+            creationArmGate_->begin();
+            return;
+        }
         const QPointer<QQmlEngine> producer = engine_;
         const unsigned epoch = eventEpoch_;
         QMetaObject::invokeMethod(this, [this, producer, epoch] {
@@ -1097,6 +1131,9 @@ private:
             return false;
         }
         if (!engineContext() || expired()) return false;
+        if (creationConfig_.developmentAfterOpen && (!creationArmGate_ || !creationArmGate_->releaseAllowed())) {
+            finish("creation-arm-context-refused"); return false;
+        }
         if (!owned_ || !observedController_) { finish("creation-object-lost"); return false; }
         if (owned_->thread() != app_->thread() || observedController_->thread() != app_->thread() ||
             qmlEngine(owned_) != engine_) { finish("creation-affinity"); return false; }
@@ -1129,9 +1166,10 @@ private:
                 auto &trial = self->rootSummary_.creation;
                 if (trial.libraryReadyAcceptedAtMs >= 0) return true;
                 const qint64 acceptedAt = self->elapsed_.elapsed();
-                if (acceptedAt >= self->rootSummary_.readinessBudgetMs) { self->expired(); return false; }
+                if (acceptedAt >= (self->creationConfig_.developmentAfterOpen ? self->deadlineAtMs() : self->rootSummary_.readinessBudgetMs)) { self->expired(); return false; }
                 trial.libraryReadyAcceptedAtMs = acceptedAt;
-                self->timer_.start(self->rootSummary_.accessBudgetMs);
+                // After-open access is anchored to arm acceptance, never LibraryReady.
+                self->timer_.start(static_cast<int>(self->deadlineAtMs() - acceptedAt));
                 return true;
             };
             bridge->progress = [self](const QString &stage, const QString &readiness) {
@@ -1257,6 +1295,7 @@ private:
             return; // No deferred deletion can run inside a nested Qt loop.
         }
         done_ = true;
+        if (creationArmGate_) creationArmGate_->disarm();
         retryArmed_ = false;
         ++eventEpoch_;
         timer_.stop();
@@ -1311,7 +1350,19 @@ private:
             rootSummary_.metadata.navigation.location = "not-checked";
             rootSummary_.metadata.navigation.located = false;
         }
+        if (creationConfig_.developmentAfterOpen) {
+            QJsonObject extra = diagnostic_.isEmpty() ? QJsonObject{} : QJsonDocument::fromJson(diagnostic_).object();
+            extra.insert(QStringLiteral("creation_after_open_gate"), true);
+            extra.insert(QStringLiteral("creation_arm_accepted_at_ms"), creationArmAcceptedAtMs_);
+            extra.insert(QStringLiteral("creation_setup_cutoff_ms"), 40000);
+            diagnostic_ = QJsonDocument(extra).toJson(QJsonDocument::Compact);
+        }
         diagnostic_ = runtimeSnapshot(diagnostic_, attempts_, compileAttempts_, admittedPostFailureEvents_, status, stage, elapsedMs, rootSummary_);
+        if (creationConfig_.developmentAfterOpen) {
+            auto finalSummary = QJsonDocument::fromJson(diagnostic_).object();
+            finalSummary.insert(QStringLiteral("access_anchor"), QStringLiteral("creation-arm-observation"));
+            diagnostic_ = QJsonDocument(finalSummary).toJson(QJsonDocument::Compact) + '\n';
+        }
         receipt_(stage, appThread_, engineThread_, helperFound_, controller_, diagnostic_);
     }
     bool settlePending() {
@@ -1347,6 +1398,8 @@ private:
     PageOpenConfig pageOpenConfig_;
     QPointer<PageOpenSession> pageOpenSession_;
     QPointer<PageOpenArmGate> pageOpenArmGate_;
+    QPointer<PageOpenArmGate> creationArmGate_;
+    qint64 creationArmAcceptedAtMs_ = -1, creationSetupDeadlineUptimeMs_ = 0;
     unsigned pageOpenCallDepth_ = 0;
     CreationBridge *bridge_ = nullptr;
     bool libraryContinuationQueued_ = false;
