@@ -100,6 +100,26 @@ int main(int argc, char **argv) {
     QStringList pages;
     for (int i = 0; i < 5; ++i) pages.append(QStringLiteral("00000000-0000-4000-8000-00000000000") + QString::number(i + 2));
     qml_access::CreationConfig config{documentId, pages, true, mode.startsWith("dev-")};
+    const bool explicitTarget = mode.startsWith("dev-target-");
+    if (explicitTarget || mode == "target-config") {
+        pages.append(QStringLiteral("00000000-0000-4000-8000-000000000007"));
+        config.pageIds = pages;
+        config.developmentExplicitFixture = true;
+        config.targetPageId = QStringLiteral("00000000-0000-4000-8000-000000000008");
+    }
+    if (mode == "target-config") {
+        assert(config.valid());
+        for (const auto &invalid : QStringList{QStringLiteral("bad"), QStringLiteral("00000000-0000-0000-0000-000000000000"), documentId, pages[0]}) {
+            auto candidate = config; candidate.targetPageId = invalid; assert(!candidate.valid());
+        }
+        auto candidate = config; candidate.developmentExplicitFixture = false; assert(!candidate.valid());
+        candidate = config; candidate.pageIds.removeLast(); assert(!candidate.valid());
+        candidate = config; candidate.pageIds[5] = candidate.pageIds[0]; assert(!candidate.valid());
+        candidate = config; candidate.targetPageId.clear(); assert(!candidate.valid());
+        candidate.pageIds.removeLast(); assert(candidate.valid());
+        puts("creation-target-config: explicit target/profile/baseline refusals and legacy default passed");
+        return 0;
+    }
     QByteArray encodedPages = QJsonDocument(QJsonArray::fromStringList(pages)).toJson(QJsonDocument::Compact);
     const auto libraryUrl = write("Library.qml", QByteArray(R"QML(pragma Singleton
 import QtQml
@@ -116,12 +136,12 @@ QtObject {
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
         property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : fixtureMode === "dev-export-absent" ? undefined : false
-        property var pageCount: (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
+        property var pageCount: fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
         property var ids: )QML") + encodedPages + R"QML(
         function idForPage(i) {
             if (fixtureMode === "getter-throw") throw new Error("private getter details");
             if (fixtureMode === "page0" && i === 0) return "wrong";
-            if ((fixtureMode === "later-page" || fixtureMode === "dev-page-order") && i === 4) return ids[3];
+            if ((fixtureMode === "later-page" || fixtureMode === "dev-page-order" || fixtureMode === "dev-target-order") && i === 4) return ids[3];
             if (fixtureMode === "reorder" && i === 2) return ids[3];
             return ids[i];
         }
@@ -170,11 +190,12 @@ QtObject {
     property bool argumentsCorrect: false
     property var retainedCallback: null
     property Timer delayed: Timer { interval: 10; onTriggered: retainedCallback() }
-    function addPageWithTemplateAndPageSize(nativeId,index,template,paper,callback) {
+    function addPageWithTemplateAndPageSize(nativeId,index,template,paper,callback,targetPageId) {
         calls += 1; arity = arguments.length; callbackArity = callback.length;
         argumentsCorrect = nativeId === Library.doc.id && typeof nativeId === "object" && index === 1 &&
             template === (fixtureMode === "empty-template" ? "" : "SyntheticBackground") &&
-            paper.width === 1404 && paper.height === 1872;
+            paper.width === 1404 && paper.height === 1872 &&
+            (fixtureMode.startsWith("dev-target-") ? targetPageId === "00000000-0000-4000-8000-000000000008" : targetPageId === undefined);
         retainedCallback = callback;
         if (fixtureMode === "dev-ready-success") fixtureHooks.progressNoise();
         if (fixtureMode === "foreign-bridge") fixtureHooks.foreign();
@@ -330,7 +351,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(!QJsonDocument(trial).toJson().contains("private attacker"));
     } else assert(!trial.contains("create_once_enter_ms") && !trial.contains("initial_readiness_observation"));
     const bool libraryBoundaryRefusal = mode == "dev-library-absent" || mode == "dev-library-provider" || mode == "dev-library-method" || mode == "dev-ready-absent" || mode == "dev-ready-type" || mode == "dev-ready-late" || mode == "dev-ready-queued-deadline" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel" || mode == "dev-ready-still-false" || mode == "dev-lookup-error" || mode.startsWith("dev-error-");
-    const bool preCall = libraryBoundaryRefusal || mode == "dev-claim-expiry" || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
+    const bool preCall = libraryBoundaryRefusal || mode == "dev-target-count" || mode == "dev-target-order" || mode == "dev-claim-expiry" || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
         mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent" || mode == "dev-count" || mode == "dev-reverse" || mode == "dev-template" || mode == "dev-claim-cancel" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
@@ -346,7 +367,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     if (!mode.startsWith("dev-")) assert(summary.value("access_anchor").toString() == "component-ready-observation");
     assert(trial.value("effect_requires_reconciliation").toBool() == !preCall);
     if (!preCall) {
-        assert(controller->property("arity").toInt() == 5 && controller->property("callbackArity").toInt() == 0);
+        assert(controller->property("arity").toInt() == (explicitTarget ? 6 : 5) && controller->property("callbackArity").toInt() == 0);
         assert(controller->property("argumentsCorrect").toBool());
     }
     assert(trial.value("com_remarkable_import_selected").toBool() == !mode.startsWith("dev-"));

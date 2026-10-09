@@ -69,7 +69,12 @@ transport, name or packaging is not a substitute.
 
 The source amendment and focused argument/refusal checks are described in the
 [owning proposal](../../openspec/changes/establish-native-platform-contract/client-selected-insertion.md).
-No code, artifact, nonce, target UUID or device action is selected by this document.
+The optional-argument source and six focused owned-QML checks now exist, as recorded
+in that checkpoint. No target artifact, nonce, target UUID or device action is
+selected. Main identified a recovery prerequisite: the prior read-only actor's
+baseline included content/metadata prehashes and would refuse stock restart after
+legitimate insertion. Its packet cannot be reused unchanged; the insertion recovery
+contract remains under source review.
 Native capabilities, active-page authority and lifetime/shutdown qualification
 remain open. The old 0404 fault and all completed attempts remain preserved.
 

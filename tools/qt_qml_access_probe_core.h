@@ -39,10 +39,15 @@ struct CreationConfig {
     QString documentId;
     QStringList pageIds;
     bool enabled = false, developmentExplicitFixture = false;
+    QString targetPageId = {};
     bool valid() const {
         static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
-        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != 5) return false;
-        for (int i = 0; i < 5; ++i) {
+        const bool explicitTarget = !targetPageId.isEmpty();
+        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != (explicitTarget ? 6 : 5)) return false;
+        if (explicitTarget && (!developmentExplicitFixture || !uuid.match(targetPageId).hasMatch() ||
+            targetPageId == QStringLiteral("00000000-0000-0000-0000-000000000000") ||
+            targetPageId == documentId || pageIds.contains(targetPageId))) return false;
+        for (int i = 0; i < pageIds.size(); ++i) {
             if (!uuid.match(pageIds[i]).hasMatch()) return false;
             for (int j = 0; j < i; ++j) if (pageIds[i] == pageIds[j]) return false;
         }
@@ -56,6 +61,7 @@ inline QByteArray creationHelper(const CreationConfig &config) {
     for (const auto &id : config.pageIds) ids.append(id);
     const QByteArray document = QJsonDocument(QJsonArray{config.documentId}).toJson(QJsonDocument::Compact);
     const QByteArray pages = QJsonDocument(ids).toJson(QJsonDocument::Compact);
+    const QByteArray target = QJsonDocument(QJsonArray{config.targetPageId}).toJson(QJsonDocument::Compact);
     return QByteArray("import QtQml\n") + (config.developmentExplicitFixture ? QByteArray() : QByteArray("import com.remarkable\n")) + QByteArray(R"QML(import xofm.libs.library
 QtObject {
     id: ownedHelper
@@ -152,6 +158,7 @@ QtObject {
             }
             const expectedDocument = )QML") + document + R"QML([0];
             const expectedPages = )QML" + pages + R"QML(;
+            const targetPageId = )QML" + target + R"QML([0];
             operation = "library-lookup";
             if (developmentExplicitFixture) bridge.observeProgress("library_lookup_enter", "unobserved");
             const d = developmentExplicitFixture ? observedLibrary.entryForId(expectedDocument) : Library.entryForId(expectedDocument);
@@ -176,8 +183,8 @@ QtObject {
                     return bridge.refuse("status-refusal");
             }
             operation = "document-count-read";
-            if (d.pageCount !== 5) return bridge.refuse("count-mismatch");
-            for (let i = 0; i < 5; ++i) {
+            if (d.pageCount !== expectedPages.length) return bridge.refuse("count-mismatch");
+            for (let i = 0; i < expectedPages.length; ++i) {
                 operation = "page-id-read";
                 const key = d.idForPage(i);
                 if (typeof key !== "string" || key !== expectedPages[i])
@@ -204,7 +211,9 @@ QtObject {
             if (developmentExplicitFixture) bridge.observeProgress("mutation_claim_enter", "unobserved");
             if (!armed || !bridge || !bridge.claimMutation()) return;
             operation = "native-call";
-            const result = observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback);
+            const result = targetPageId.length === 0
+                ? observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback)
+                : observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback,targetPageId);
             operation = "return-observe";
             if (armed && bridge) bridge.observeReturn(typeof result === "boolean",result === true);
         } catch(e) {
