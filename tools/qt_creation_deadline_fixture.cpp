@@ -3,6 +3,28 @@
 #include <cstdio>
 using qml_access::CreationDeadline;
 int main() {
+    for (const qint64 budget : {qint64(40000), qint64(95000)}) {
+        qint64 clock = 123456;
+        const qint64 expiry = clock + budget;
+        CreationDeadline gate([&] { return clock; });
+        assert(gate.startSetup(budget) && gate.setupDeadlineMs() == expiry);
+        clock += 30000; // Delayed gate installation cannot move the anchor.
+        assert(!gate.startSetup(budget) && gate.setupDeadlineMs() == expiry);
+        clock = expiry - 1; assert(gate.accept(5000));
+        clock = expiry; assert(gate.remainingMs() == 4999 && !gate.accept(5000));
+        clock = expiry + 4999; assert(!gate.open());
+        clock = 123456;
+        CreationDeadline late([&] { return clock; });
+        assert(late.startSetup(budget));
+        clock = expiry; assert(!late.accept(5000));
+        clock += 100000; assert(!late.open() && !late.accept(5000));
+        clock = -1;
+        CreationDeadline invalid([&] { return clock; });
+        assert(!invalid.startSetup(budget));
+        clock = std::numeric_limits<qint64>::max() - budget + 1;
+        CreationDeadline overflowed([&] { return clock; });
+        assert(!overflowed.startSetup(budget));
+    }
     qint64 now = 1000;
     CreationDeadline setup([&] { return now; });
     assert(setup.startSetup(40000) && setup.setupDeadlineMs() == 41000);

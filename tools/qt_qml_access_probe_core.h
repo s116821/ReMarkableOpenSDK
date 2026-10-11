@@ -36,13 +36,24 @@ inline constexpr char helper[] =
 
 
 struct CreationConfig {
+    enum class SetupVariant { Legacy40s, AfterOpen95s };
     QString documentId;
     QStringList pageIds;
     bool enabled = false, developmentExplicitFixture = false;
     QString targetPageId = {};
     bool developmentAfterOpen = false;
     QString setupDirectory = {}, setupNonce = {};
+    SetupVariant setupVariant = SetupVariant::Legacy40s;
+    qint64 setupBudgetMs() const {
+        switch (setupVariant) {
+        case SetupVariant::Legacy40s: return 40000;
+        case SetupVariant::AfterOpen95s: return 95000;
+        }
+        return 0;
+    }
     bool valid() const {
+        if (setupBudgetMs() == 0 || (setupVariant == SetupVariant::AfterOpen95s &&
+            (!enabled || !developmentExplicitFixture || !developmentAfterOpen))) return false;
         static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
         const bool explicitTarget = !targetPageId.isEmpty();
         if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != (developmentAfterOpen ? 7 : explicitTarget ? 6 : 5)) return false;
@@ -728,7 +739,7 @@ public:
         connect(&timer_, &QTimer::timeout, this, [this] { (void)expired(); });
         connect(app, &QCoreApplication::aboutToQuit, this, [this] { cancel(); });
         elapsed_.start();
-        if (creationConfig_.developmentAfterOpen) (void)creationDeadline_.startSetup(40000);
+        if (creationConfig_.developmentAfterOpen) (void)creationDeadline_.startSetup(creationConfig_.setupBudgetMs());
         timer_.start(readinessMs);
         app->installEventFilter(this);
         queueAttempt();
@@ -770,7 +781,7 @@ private:
     }
     qint64 deadlineAtMs() const {
         if (creationConfig_.developmentAfterOpen && creationArmGate_)
-            return creationArmAcceptedAtMs_ < 0 ? 40000 : creationArmAcceptedAtMs_ + rootSummary_.accessBudgetMs;
+            return creationArmAcceptedAtMs_ < 0 ? creationConfig_.setupBudgetMs() : creationArmAcceptedAtMs_ + rootSummary_.accessBudgetMs;
         if (pageOpenConfig_.enabled && pageOpenConfig_.developmentSetupGate)
             return rootSummary_.pageOpenArmAcceptedAtMs < 0 ? rootSummary_.readinessBudgetMs :
                 rootSummary_.pageOpenArmAcceptedAtMs + rootSummary_.accessBudgetMs;
@@ -1356,7 +1367,7 @@ private:
             QJsonObject extra = diagnostic_.isEmpty() ? QJsonObject{} : QJsonDocument::fromJson(diagnostic_).object();
             extra.insert(QStringLiteral("creation_after_open_gate"), true);
             extra.insert(QStringLiteral("creation_arm_accepted_at_ms"), creationArmAcceptedAtMs_);
-            extra.insert(QStringLiteral("creation_setup_cutoff_ms"), 40000);
+            extra.insert(QStringLiteral("creation_setup_cutoff_ms"), creationConfig_.setupBudgetMs());
             diagnostic_ = QJsonDocument(extra).toJson(QJsonDocument::Compact);
         }
         diagnostic_ = runtimeSnapshot(diagnostic_, attempts_, compileAttempts_, admittedPostFailureEvents_, status, stage, elapsedMs, rootSummary_);

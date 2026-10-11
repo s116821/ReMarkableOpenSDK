@@ -516,3 +516,15 @@ original event ordering and observation/recovery/sample bounds SHALL remain inta
 #### Scenario: Readiness or a later sample is absent
 - **WHEN** readiness refuses, is dropped, arrives too late, or no later sampled render exists within the unchanged limits
 - **THEN** the result remains inconclusive and independent recovery runs without extending a deadline, forcing events or admitting page requests.
+
+
+### Requirement: Fixed development after-open setup selection
+The development creation configuration SHALL default to a fixed 40-second setup budget and SHALL permit the fixed 95-second variant only for an enabled explicit after-open fixture satisfying existing document/target validation. Unknown selectors SHALL refuse.
+
+#### Scenario: Setup selection and independent acceptance
+- **WHEN** the reviewed 95-second variant starts
+- **THEN** its setup expiry is anchored once to Probe construction BOOTTIME, waiting installation cannot renew it, and acceptance strictly before expiry starts the unchanged five-second access permission independently of setup expiry.
+
+#### Scenario: Legacy or invalid selection
+- **WHEN** the caller omits the selector or supplies an invalid selector/context
+- **THEN** omission retains the original 40-second budget and invalid selection refuses creation; neither selection adds a native observer or changes the payload helper-readiness/access budgets.

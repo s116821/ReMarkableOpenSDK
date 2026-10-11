@@ -117,6 +117,18 @@ int main(int argc, char **argv) {
     }
     if (mode == "target-config") {
         assert(config.valid());
+        assert(config.setupVariant == qml_access::CreationConfig::SetupVariant::Legacy40s && config.setupBudgetMs() == 40000);
+        auto extended = config;
+        extended.setupVariant = qml_access::CreationConfig::SetupVariant::AfterOpen95s;
+        assert(extended.setupBudgetMs() == 95000 && !extended.valid());
+        extended.developmentAfterOpen = true;
+        extended.pageIds.append(QStringLiteral("00000000-0000-4000-8000-000000000009"));
+        assert(extended.valid());
+        auto invalidVariant = extended; invalidVariant.enabled = false; assert(!invalidVariant.valid());
+        invalidVariant = extended; invalidVariant.developmentExplicitFixture = false; assert(!invalidVariant.valid());
+        invalidVariant = extended; invalidVariant.developmentAfterOpen = false; assert(!invalidVariant.valid());
+        invalidVariant = extended; invalidVariant.setupVariant = static_cast<qml_access::CreationConfig::SetupVariant>(99);
+        assert(invalidVariant.setupBudgetMs() == 0 && !invalidVariant.valid());
         for (const auto &invalid : QStringList{QStringLiteral("bad"), QStringLiteral("00000000-0000-0000-0000-000000000000"), documentId, pages[0]}) {
             auto candidate = config; candidate.targetPageId = invalid; assert(!candidate.valid());
         }
@@ -285,6 +297,9 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         puts("creation-repeat: three actual createOnce entries, exactly one claim/native call, late callback inert");
         return 0;
     }
+    const bool setup95 = mode.startsWith("dev-target-seven-95");
+    qint64 selectedClock = 100000;
+    if (setup95) config.setupVariant = qml_access::CreationConfig::SetupVariant::AfterOpen95s;
     QTimer armPublisher;
     if (mode.startsWith("dev-target-seven")) {
         armPublisher.setInterval(1);
@@ -295,6 +310,10 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
             assert(controller && controller->property("calls").toInt() == 0);
             QByteArray bytes = marker.readAll();
             assert(bytes.contains(" waiting "));
+            if (setup95) {
+                assert(bytes.trimmed().split(' ').last() == "195000");
+                if (mode == "dev-target-seven-95-setup-expiry") selectedClock = 195000;
+            }
             bytes.replace(" waiting ", " create ");
             QFile arm(dir.filePath("creation-arm"));
             assert(arm.open(QIODevice::WriteOnly | QIODevice::NewOnly));
@@ -305,6 +324,10 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         armPublisher.start();
     }
     const qml_access::CreationDeadline::Now creationClock = [&]() -> qint64 {
+        if (setup95) {
+            if (mode == "dev-target-seven-95-access-expiry" && app.findChild<qml_access::CreationBridge *>()) return 105000;
+            return selectedClock;
+        }
         if (mode == "dev-target-seven-suspend" || mode == "dev-target-seven-clock-failure") {
             if (app.findChild<qml_access::CreationBridge *>())
                 return mode == "dev-target-seven-suspend" ? 107000 : -1;
@@ -344,12 +367,19 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
             }
             QTimer::singleShot(20, &app, &QCoreApplication::quit);
         });
-    }, 3000, mode == "nested-timeout" || mode == "dev-native-expiry" ? 150 : 400, config, {}, creationClock);
+    }, 3000, setup95 ? 5000 : mode == "nested-timeout" || mode == "dev-native-expiry" ? 150 : 400, config, {}, creationClock);
     QTimer::singleShot(5000, &app, [] { assert(false && "creation fixture timeout"); });
     assert(app.exec() == 0);
     assert(receipts == 1);
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
+    if (mode.startsWith("dev-target-seven")) assert(summary.value("creation_setup_cutoff_ms").toInteger() == (setup95 ? 95000 : 40000));
+    if (mode == "dev-target-seven-95-setup-expiry" || mode == "dev-target-seven-95-access-expiry") {
+        assert(controller->property("calls").toInt() == 0 && !trial.value("mutation_attempted").toBool());
+        assert((summary.value("creation_arm_accepted_at_ms").toInteger(-1) >= 0) == (mode == "dev-target-seven-95-access-expiry"));
+        std::printf("%s: fixed clock expiry prevents native call PASS\n", qPrintable(mode));
+        return 0;
+    }
     if (mode == "dev-target-seven-suspend" || mode == "dev-target-seven-clock-failure") {
         assert(terminal == "deadline" && controller->property("calls").toInt() == 0);
         assert(!trial.value("mutation_attempted").toBool());

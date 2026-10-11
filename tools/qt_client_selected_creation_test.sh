@@ -16,7 +16,14 @@ fi
 $compiler -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
   tools/qt_qml_creation_fixture.cpp tools/qt_qml_creation_bridge.cpp tools/qt_page_open.cpp \
   $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/creation-fixture"
-for case in target-config dev-target-success dev-target-seven dev-target-seven-suspend dev-target-seven-clock-failure dev-target-count dev-target-order dev-ready-success repeat; do
+$compiler -std=c++17 -Wall -Wextra -Werror -O2 -fPIC \
+  tools/qt_creation_deadline_fixture.cpp $(pkg-config --cflags --libs Qt6Core) -o "$work/deadline-fixture"
+if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
+  "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$work/deadline-fixture"
+else
+  "$work/deadline-fixture"
+fi
+for case in target-config dev-target-success dev-target-seven dev-target-seven-suspend dev-target-seven-clock-failure dev-target-seven-95 dev-target-seven-95-setup-expiry dev-target-seven-95-access-expiry dev-target-count dev-target-order dev-ready-success repeat; do
   if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
       -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

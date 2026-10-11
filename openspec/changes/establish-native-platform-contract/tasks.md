@@ -110,3 +110,11 @@ expansion or check off target qualification based on the host-only collector.
 - [x] 9.3 Verify owned readiness, refusal, later-frame evidence, post-ready request exclusion and ordinary equivalence; freeze closure/MOC/compiler receipts.
 - [ ] 9.4 Independently review SDK and consumer engine-ready proof before any fresh native nonce/artifact selection.
 - [ ] 9.5 Interpret any later selected result without treating markers as lifetime fences or closing native qualification/sync/archive prematurely.
+
+
+## 10. Fixed after-open setup variant
+
+- [x] 10.1 Bind the selected precode contract to Docs243683d and define the fixed selector, legacy default and independent clock anchors.
+- [x] 10.2 Implement the selector and three setup-budget consumers without changing payload readiness/access durations or native operations.
+- [x] 10.3 Verify focused selector, legacy, setup-expiry, accepted-access and clock-boundary fixtures (ARM emulator, 12 QML cases plus deadline boundary fixture; no tablet execution).
+- [ ] 10.4 Independently review SDK and consumer bindings before fresh artifact selection. Native qualification, canonical sync and archive remain open.
