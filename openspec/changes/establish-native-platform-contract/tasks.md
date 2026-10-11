@@ -118,3 +118,12 @@ expansion or check off target qualification based on the host-only collector.
 - [x] 10.2 Implement the selector and three setup-budget consumers without changing payload readiness/access durations or native operations.
 - [x] 10.3 Verify focused selector, legacy, setup-expiry, accepted-access and clock-boundary fixtures (ARM emulator, 12 QML cases plus deadline boundary fixture; no tablet execution).
 - [ ] 10.4 Independently review SDK and consumer bindings before fresh artifact selection. Native qualification, canonical sync and archive remain open.
+
+## 11. Explicit preserved-eight development inventory
+
+- [x] 11.1 Assess and bind the authorized consumer precode contract at Docs `c496326`, [preserved-eight fixture adaptation](https://github.com/s116821/RemarkableBuddiesDocs/blob/c496326/openspec/changes/qualify-open-pdf-capture/preserved-eight-fixture-contract.md).
+- [x] 11.2 Append the default-Legacy inventory selector; admit only the exact preserved-eight document/order with explicit after-open95 mode and a fresh target. Preserve legacy configuration behavior and native helper/callback/clocks.
+- [x] 11.3 Verify focused configuration compatibility/refusals and owned-QML eight-page invocation/clock boundaries: 16 ARM-emulated QML/config cases plus deadline fixture passed; strict OpenSpec and diff checks passed. These are synthetic controls, not tablet qualification.
+- [ ] 11.4 Independently review the exact nine-file source export with Main before consumer selection.
+
+No new native execution or completed same-running display gate follows from this adaptation. Task 2.3 remains open; Main owns consumer preparation and any later device selection after gesture qualification.

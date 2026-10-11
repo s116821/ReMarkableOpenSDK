@@ -23,7 +23,7 @@ if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
 else
   "$work/deadline-fixture"
 fi
-for case in target-config dev-target-success dev-target-seven dev-target-seven-suspend dev-target-seven-clock-failure dev-target-seven-95 dev-target-seven-95-setup-expiry dev-target-seven-95-access-expiry dev-target-count dev-target-order dev-ready-success repeat; do
+for case in eight-config dev-target-eight dev-target-eight-setup-expiry dev-target-eight-access-expiry target-config dev-target-success dev-target-seven dev-target-seven-suspend dev-target-seven-clock-failure dev-target-seven-95 dev-target-seven-95-setup-expiry dev-target-seven-95-access-expiry dev-target-count dev-target-order dev-ready-success repeat; do
   if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
       -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

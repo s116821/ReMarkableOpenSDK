@@ -37,6 +37,7 @@ inline constexpr char helper[] =
 
 struct CreationConfig {
     enum class SetupVariant { Legacy40s, AfterOpen95s };
+    enum class InventoryVariant { Legacy, PreservedEightAfter9005 };
     QString documentId;
     QStringList pageIds;
     bool enabled = false, developmentExplicitFixture = false;
@@ -44,6 +45,7 @@ struct CreationConfig {
     bool developmentAfterOpen = false;
     QString setupDirectory = {}, setupNonce = {};
     SetupVariant setupVariant = SetupVariant::Legacy40s;
+    InventoryVariant inventoryVariant = InventoryVariant::Legacy;
     qint64 setupBudgetMs() const {
         switch (setupVariant) {
         case SetupVariant::Legacy40s: return 40000;
@@ -56,7 +58,27 @@ struct CreationConfig {
             (!enabled || !developmentExplicitFixture || !developmentAfterOpen))) return false;
         static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
         const bool explicitTarget = !targetPageId.isEmpty();
-        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != (developmentAfterOpen ? 7 : explicitTarget ? 6 : 5)) return false;
+        int expectedCount = developmentAfterOpen ? 7 : explicitTarget ? 6 : 5;
+        switch (inventoryVariant) {
+        case InventoryVariant::Legacy: break;
+        case InventoryVariant::PreservedEightAfter9005:
+            if (!enabled || !developmentExplicitFixture || !developmentAfterOpen ||
+                setupVariant != SetupVariant::AfterOpen95s ||
+                documentId != QStringLiteral("e7f661f1-db6f-4dfc-854a-b38aff7f75de") ||
+                pageIds != QStringList{
+                    QStringLiteral("a7181850-3f03-4bb0-8b9e-01acfc20032e"),
+                    QStringLiteral("4c8a847e-0eb8-4cf3-a747-77952d56445a"),
+                    QStringLiteral("5aef884d-d3fc-4635-895a-28237568823d"),
+                    QStringLiteral("d1261cb9-a8c0-4e15-ab24-7a9172b2027b"),
+                    QStringLiteral("f39ae285-3e0c-43dd-b27c-866dff7a24cd"),
+                    QStringLiteral("028b118f-474a-4886-a469-7273b290320c"),
+                    QStringLiteral("fd5afbe2-a79c-461b-8b15-96907d181ab7"),
+                    QStringLiteral("1692961d-ec5c-4f0f-9635-8e6081111dab")}) return false;
+            expectedCount = 8;
+            break;
+        default: return false;
+        }
+        if (!enabled || !uuid.match(documentId).hasMatch() || pageIds.size() != expectedCount) return false;
         if (developmentAfterOpen && (!explicitTarget || !developmentExplicitFixture)) return false;
         if (explicitTarget && (!developmentExplicitFixture || !uuid.match(targetPageId).hasMatch() ||
             targetPageId == QStringLiteral("00000000-0000-0000-0000-000000000000") ||
