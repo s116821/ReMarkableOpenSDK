@@ -132,12 +132,22 @@ int main(int argc, char **argv) {
     };
     if (mode.startsWith("dev-target-eight")) {
         config = preservedEight(); pages = config.pageIds;
+        if (mode.startsWith("dev-target-eight-source5"))
+            config.inventoryVariant = qml_access::CreationConfig::InventoryVariant::PreservedEightAfter9005Source5;
         config.setupDirectory = dir.path();
         config.setupNonce = QStringLiteral("0123456789abcdef0123456789abcdef");
         ::chmod(QFile::encodeName(dir.path()).constData(), 0700);
     }
-    if (mode == "eight-config") {
-        const auto good = preservedEight(); assert(good.valid());
+    if (mode == "eight-config" || mode == "eight-source5-config") {
+        auto good = preservedEight();
+        if (mode == "eight-source5-config") good.inventoryVariant = qml_access::CreationConfig::InventoryVariant::PreservedEightAfter9005Source5;
+        assert(good.valid());
+        assert(good.setupBudgetMs() == 95000);
+        const auto helper = qml_access::creationHelper(good);
+        const bool source5 = mode == "eight-source5-config";
+        assert(helper.contains(source5 ? "templateForPage(5)" : "templateForPage(0)"));
+        assert(helper.contains(source5 ? "nativeId,6,template,paper,callback)" : "nativeId,1,template,paper,callback)"));
+        assert(helper.contains(source5 ? "nativeId,6,template,paper,callback,targetPageId)" : "nativeId,1,template,paper,callback,targetPageId)"));
         auto c = good; c.enabled = false; assert(!c.valid());
         c = good; c.developmentExplicitFixture = false; assert(!c.valid());
         c = good; c.developmentAfterOpen = false; assert(!c.valid());
@@ -159,7 +169,7 @@ int main(int argc, char **argv) {
             c = good; c.targetPageId = target; assert(!c.valid());
         }
         assert(config.valid() && config.inventoryVariant == qml_access::CreationConfig::InventoryVariant::Legacy);
-        puts("creation-eight-config: exact preserved inventory and flag/order/target refusals passed");
+        std::printf("%s: exact preserved inventory and flag/order/target refusals passed\n", qPrintable(mode));
         return 0;
     }
     if (mode == "target-config") {
@@ -207,22 +217,22 @@ QtObject {
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
         property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : fixtureMode === "dev-export-absent" ? undefined : false
-        property var pageCount: fixtureMode.startsWith("dev-target-eight") ? 8 : fixtureMode.startsWith("dev-target-seven") ? 7 : fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
+        property var pageCount: fixtureMode.startsWith("dev-target-eight") ? (fixtureMode === "dev-target-eight-source5-count" ? 9 : 8) : fixtureMode.startsWith("dev-target-seven") ? 7 : fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
         property var ids: )QML") + encodedPages + R"QML(
         function idForPage(i) {
             if (fixtureMode === "getter-throw") throw new Error("private getter details");
             if (fixtureMode === "page0" && i === 0) return "wrong";
-            if ((fixtureMode === "later-page" || fixtureMode === "dev-page-order" || fixtureMode === "dev-target-order") && i === 4) return ids[3];
+            if ((fixtureMode === "later-page" || fixtureMode === "dev-page-order" || fixtureMode === "dev-target-order" || fixtureMode === "dev-target-eight-source5-order") && i === 4) return ids[3];
             if (fixtureMode === "reorder" && i === 2) return ids[3];
             return ids[i];
         }
-        function pageForId(key) { if (fixtureMode === "index-getter-throw") throw new Error("private reverse getter details"); if ((fixtureMode === "roundtrip" || fixtureMode === "dev-reverse")) return 4; return ids.indexOf(key); }
+        function pageForId(key) { if (fixtureMode === "index-getter-throw") throw new Error("private reverse getter details"); if ((fixtureMode === "roundtrip" || fixtureMode === "dev-reverse" || fixtureMode === "dev-target-eight-source5-reverse")) return 4; return ids.indexOf(key); }
         function templateForPage(i) {
             if (fixtureMode === "dev-claim-expiry") fixtureHooks.stall();
-            if (i !== 0) throw new Error("wrong template page");
+            if (i !== (fixtureMode.startsWith("dev-target-eight-source5") ? 5 : 0)) throw new Error("wrong template page");
             if ((fixtureMode === "preclaim-cancel" || fixtureMode === "dev-claim-cancel")) fixtureHooks.cancel();
             if (fixtureMode === "template-throw") throw new Error("private template details");
-            return (fixtureMode === "template" || fixtureMode === "dev-template") ? undefined : fixtureMode === "empty-template" ? "" : "SyntheticBackground";
+            return (fixtureMode === "template" || fixtureMode === "dev-template") ? undefined : fixtureMode === "empty-template" ? "" : fixtureMode.startsWith("dev-target-eight-source5") ? "SyntheticSource5" : "SyntheticBackground";
         }
     }
     function entryForId(key) {
@@ -258,15 +268,18 @@ QtObject {
     property int calls: 0
     property int arity: 0
     property int callbackArity: -1
+    property var resultingOrder: []
     property bool argumentsCorrect: false
     property var retainedCallback: null
     property Timer delayed: Timer { interval: 10; onTriggered: retainedCallback() }
     function addPageWithTemplateAndPageSize(nativeId,index,template,paper,callback,targetPageId) {
         calls += 1; arity = arguments.length; callbackArity = callback.length;
-        argumentsCorrect = nativeId === Library.doc.id && typeof nativeId === "object" && index === 1 &&
-            template === (fixtureMode === "empty-template" ? "" : "SyntheticBackground") &&
+        argumentsCorrect = nativeId === Library.doc.id && typeof nativeId === "object" && index === (fixtureMode.startsWith("dev-target-eight-source5") ? 6 : 1) &&
+            template === (fixtureMode === "empty-template" ? "" : fixtureMode.startsWith("dev-target-eight-source5") ? "SyntheticSource5" : "SyntheticBackground") &&
             paper.width === 1404 && paper.height === 1872 &&
-            (fixtureMode.startsWith("dev-target-") ? targetPageId === "00000000-0000-4000-8000-000000000008" : targetPageId === undefined);
+            (fixtureMode.startsWith("dev-target-") && fixtureMode !== "dev-target-eight-source5-no-target-generated" ? targetPageId === "00000000-0000-4000-8000-000000000008" : targetPageId === undefined);
+        resultingOrder = Library.doc.ids.slice();
+        resultingOrder.splice(index,0,targetPageId === undefined ? "synthetic-generated-target" : targetPageId);
         retainedCallback = callback;
         if (fixtureMode === "dev-ready-success") fixtureHooks.progressNoise();
         if (fixtureMode === "foreign-bridge") fixtureHooks.foreign();
@@ -314,7 +327,11 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     }
     QWindow window;
     QQmlEngine::setContextForObject(&window, engine.rootContext());
-    if (mode == "repeat") {
+    if (mode == "repeat" || mode == "dev-target-eight-source5-no-target-generated") {
+        if (mode != "repeat") {
+            assert(config.valid()); config.targetPageId.clear();
+            assert(!config.valid()); // Generated-branch fixture only, never Probe admission.
+        }
         QQmlComponent component(&engine);
         component.setData(qml_access::creationHelper(config), QUrl());
         assert(component.isReady());
@@ -323,6 +340,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         qml_access::CreationBridge bridge(&app);
         int claims = 0, callbacks = 0, returns = 0, observations = 0;
         bridge.progress = [&](const QString &, const QString &) { ++observations; };
+        bridge.libraryAdmission = [] { return true; };
         bridge.check = [&](bool claim) { if (claim) return ++claims == 1; return true; };
         bridge.refusal = [](const QString &) { assert(false && "unexpected repeat guard refusal"); };
         bridge.exception = [](const QString &) { assert(false && "unexpected repeat exception"); };
@@ -335,13 +353,20 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(claims == 1 && returns == 1 && callbacks == 1 && controller->property("calls").toInt() == 1);
         auto late = controller->property("retainedCallback").value<QJSValue>();
         assert(helper->property("callbackCount").toInt() == 1);
+        const int priorObservations = observations;
+        assert(controller->property("argumentsCorrect").toBool());
+        assert(controller->property("arity").toInt() == 5);
+        if (mode != "repeat") {
+            auto expected = config.pageIds; expected.insert(6, QStringLiteral("synthetic-generated-target"));
+            assert(controller->property("resultingOrder").value<QJSValue>().toVariant().toStringList() == expected);
+        }
         bridge.disarm();
         bridge.observeProgress(QStringLiteral("ready_signal"), QStringLiteral("true"));
-        assert(observations == 0);
+        assert(observations == priorObservations);
         assert(!late.call().isError() && helper->property("callbackCount").toInt() == 1 && callbacks == 1);
         delete helper.data(); assert(!helper);
         assert(!late.call().isError() && callbacks == 1);
-        puts("creation-repeat: three actual createOnce entries, exactly one claim/native call, late callback inert");
+        std::printf("%s: three actual createOnce entries, exactly one claim/native call, late callback inert\n", qPrintable(mode));
         return 0;
     }
     const bool setup95 = mode.startsWith("dev-target-seven-95") || mode.startsWith("dev-target-eight");
@@ -358,8 +383,9 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
             QByteArray bytes = marker.readAll();
             assert(bytes.contains(" waiting "));
             if (setup95) {
+                if (mode == "dev-target-eight-source5-before-expiry") selectedClock = 194999;
                 assert(bytes.trimmed().split(' ').last() == "195000");
-                if ((mode == "dev-target-seven-95-setup-expiry" || mode == "dev-target-eight-setup-expiry")) selectedClock = 195000;
+                if ((mode == "dev-target-seven-95-setup-expiry" || (mode.startsWith("dev-target-eight") && mode.endsWith("-setup-expiry")))) selectedClock = 195000;
             }
             bytes.replace(" waiting ", " create ");
             QFile arm(dir.filePath("creation-arm"));
@@ -372,7 +398,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     }
     const qml_access::CreationDeadline::Now creationClock = [&]() -> qint64 {
         if (setup95) {
-            if ((mode == "dev-target-seven-95-access-expiry" || mode == "dev-target-eight-access-expiry") && app.findChild<qml_access::CreationBridge *>()) return 105000;
+            if ((mode == "dev-target-seven-95-access-expiry" || (mode.startsWith("dev-target-eight") && mode.endsWith("-access-expiry"))) && app.findChild<qml_access::CreationBridge *>()) return 105000;
             return selectedClock;
         }
         if (mode == "dev-target-seven-suspend" || mode == "dev-target-seven-clock-failure") {
@@ -421,9 +447,9 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
     if (mode.startsWith("dev-target-seven") || mode.startsWith("dev-target-eight")) assert(summary.value("creation_setup_cutoff_ms").toInteger() == (setup95 ? 95000 : 40000));
-    if ((mode == "dev-target-seven-95-setup-expiry" || mode == "dev-target-eight-setup-expiry") || (mode == "dev-target-seven-95-access-expiry" || mode == "dev-target-eight-access-expiry")) {
+    if ((mode == "dev-target-seven-95-setup-expiry" || (mode.startsWith("dev-target-eight") && mode.endsWith("-setup-expiry"))) || (mode == "dev-target-seven-95-access-expiry" || (mode.startsWith("dev-target-eight") && mode.endsWith("-access-expiry")))) {
         assert(controller->property("calls").toInt() == 0 && !trial.value("mutation_attempted").toBool());
-        assert((summary.value("creation_arm_accepted_at_ms").toInteger(-1) >= 0) == ((mode == "dev-target-seven-95-access-expiry" || mode == "dev-target-eight-access-expiry")));
+        assert((summary.value("creation_arm_accepted_at_ms").toInteger(-1) >= 0) == ((mode == "dev-target-seven-95-access-expiry" || (mode.startsWith("dev-target-eight") && mode.endsWith("-access-expiry")))));
         std::printf("%s: fixed clock expiry prevents native call PASS\n", qPrintable(mode));
         return 0;
     }
@@ -478,13 +504,18 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         assert(!QJsonDocument(trial).toJson().contains("private attacker"));
     } else assert(!trial.contains("create_once_enter_ms") && !trial.contains("initial_readiness_observation"));
     const bool libraryBoundaryRefusal = mode == "dev-library-absent" || mode == "dev-library-provider" || mode == "dev-library-method" || mode == "dev-ready-absent" || mode == "dev-ready-type" || mode == "dev-ready-late" || mode == "dev-ready-queued-deadline" || mode == "dev-ready-cancel" || mode == "dev-ready-queued-cancel" || mode == "dev-ready-still-false" || mode == "dev-lookup-error" || mode.startsWith("dev-error-");
-    const bool preCall = libraryBoundaryRefusal || mode == "dev-target-count" || mode == "dev-target-order" || mode == "dev-claim-expiry" || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
+    const bool preCall = mode == "dev-target-eight-source5-order" || mode == "dev-target-eight-source5-count" || mode == "dev-target-eight-source5-reverse" || libraryBoundaryRefusal || mode == "dev-target-count" || mode == "dev-target-order" || mode == "dev-claim-expiry" || mode == "enum" || mode == "missing" || mode == "identity" || mode == "type" ||
         mode == "exporting" || mode == "status" || mode == "count" || mode == "page0" || mode == "later-page" ||
         mode == "reorder" || mode == "roundtrip" || mode == "template" || mode == "getter-throw" ||
         mode == "template-throw" || mode == "lookup-throw" || mode == "preclaim-cancel" || mode == "bad-config" || mode == "method-missing" || mode == "entry-absent" || mode == "library-absent" || (mode.endsWith("-throw") && mode != "native-throw") || mode == "dev-export-true" || mode == "dev-export-type" || mode == "dev-export-absent" || mode == "dev-count" || mode == "dev-reverse" || mode == "dev-template" || mode == "dev-claim-cancel" || mode == "dev-identity" || mode == "dev-page-order" || mode == "import-missing" || (mode == "import-collision" && collisionSelected != 1);
     assert(trial.value("mutation_attempted").toBool() == !preCall);
     assert(controller->property("calls").toInt() == (preCall ? 0 : 1));
     assert(!trial.value("durable_success").toBool());
+    if (mode.startsWith("dev-target-eight-source5") && !preCall) {
+        auto expected = config.pageIds; expected.insert(6, config.targetPageId);
+        const auto actual = controller->property("resultingOrder").value<QJSValue>().toVariant().toStringList();
+        assert(actual == expected && actual.size() == 9 && actual[1] == config.pageIds[1] && actual[7] == config.pageIds[6]);
+    }
     if (mode.startsWith("dev-") && trial.value("library_ready_accepted_at_ms").isDouble()) {
         const qint64 anchor = trial.value("library_ready_accepted_at_ms").toInteger();
         assert(anchor >= 0 && anchor < summary.value("readiness_budget_ms").toInteger());

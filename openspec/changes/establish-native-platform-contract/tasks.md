@@ -127,3 +127,10 @@ expansion or check off target qualification based on the host-only collector.
 - [x] 11.4 Main independently reviewed SDK `7e3cca6fa15491a32a01b71f7f209a1d0d5dfec9`: all nine exported files equal Git blobs, only config core differs from `39e386d`, helper/clock files unchanged, and test-log hash verified. This accepts the source freeze only; consumer selection, gesture qualification and native execution remain separate gates.
 
 No new native execution or completed same-running display gate follows from this adaptation. Task 2.3 remains open; Main owns consumer preparation and any later device selection after gesture qualification.
+
+## 12. Closed source5 development insertion
+
+- [x] 12.1 Assess and bind [Docs79f31b3](https://github.com/s116821/ReMarkableBuddiesDocs/blob/79f31b3/openspec/changes/qualify-open-pdf-capture/source5-insertion-navigation-contract.md); define enum-only fixed5/6 and unchanged earlier variants/95+5/receipt semantics.
+- [x] 12.2 Implement the minimal appended enum and both generated overload positions.
+- [x] 12.3 Verify owned-QML invocation, exact inventory/target refusals, old controls and strict deadline boundaries: 25 ARM-emulated QML/config cases plus the unchanged deadline fixture PASS; strict OpenSpec and diff checks PASS. No tablet execution.
+- [ ] 12.4 Obtain independent exported-source/consumer review before any artifact or native selection; native/product qualification, canonical sync and archive remain open.

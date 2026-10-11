@@ -37,7 +37,7 @@ inline constexpr char helper[] =
 
 struct CreationConfig {
     enum class SetupVariant { Legacy40s, AfterOpen95s };
-    enum class InventoryVariant { Legacy, PreservedEightAfter9005 };
+    enum class InventoryVariant { Legacy, PreservedEightAfter9005, PreservedEightAfter9005Source5 };
     QString documentId;
     QStringList pageIds;
     bool enabled = false, developmentExplicitFixture = false;
@@ -62,6 +62,7 @@ struct CreationConfig {
         switch (inventoryVariant) {
         case InventoryVariant::Legacy: break;
         case InventoryVariant::PreservedEightAfter9005:
+        case InventoryVariant::PreservedEightAfter9005Source5:
             if (!enabled || !developmentExplicitFixture || !developmentAfterOpen ||
                 setupVariant != SetupVariant::AfterOpen95s ||
                 documentId != QStringLiteral("e7f661f1-db6f-4dfc-854a-b38aff7f75de") ||
@@ -93,6 +94,9 @@ struct CreationConfig {
 // Native QJSValue callbacks must be delivered on the originating engine thread.
 // The C++ bridge guard cannot make foreign-thread QML/JS execution safe.
 inline QByteArray creationHelper(const CreationConfig &config) {
+    const bool source5 = config.inventoryVariant == CreationConfig::InventoryVariant::PreservedEightAfter9005Source5;
+    const QByteArray sourceIndex = source5 ? "5" : "0";
+    const QByteArray insertionIndex = source5 ? "6" : "1";
     QJsonArray ids;
     for (const auto &id : config.pageIds) ids.append(id);
     const QByteArray document = QJsonDocument(QJsonArray{config.documentId}).toJson(QJsonDocument::Compact);
@@ -229,7 +233,7 @@ QtObject {
                 if (d.pageForId(key) !== i) return bridge.refuse("page-map-mismatch");
             }
             operation = "template-read";
-            const template = d.templateForPage(0);
+            const template = d.templateForPage()QML" + sourceIndex + R"QML();
             if (typeof template !== "string") return bridge.refuse("template-unavailable");
             operation = "paper-size";
             const paper = Qt.size(1404,1872);
@@ -248,8 +252,8 @@ QtObject {
             if (!armed || !bridge || !bridge.claimMutation()) return;
             operation = "native-call";
             const result = targetPageId.length === 0
-                ? observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback)
-                : observedController.addPageWithTemplateAndPageSize(nativeId,1,template,paper,callback,targetPageId);
+                ? observedController.addPageWithTemplateAndPageSize(nativeId,)QML" + insertionIndex + R"QML(,template,paper,callback)
+                : observedController.addPageWithTemplateAndPageSize(nativeId,)QML" + insertionIndex + R"QML(,template,paper,callback,targetPageId);
             operation = "return-observe";
             if (armed && bridge) bridge.observeReturn(typeof result === "boolean",result === true);
         } catch(e) {

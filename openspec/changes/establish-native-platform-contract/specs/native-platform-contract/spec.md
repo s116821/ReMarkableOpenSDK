@@ -528,3 +528,14 @@ The development creation configuration SHALL default to a fixed 40-second setup 
 #### Scenario: Legacy or invalid selection
 - **WHEN** the caller omits the selector or supplies an invalid selector/context
 - **THEN** omission retains the original 40-second budget and invalid selection refuses creation; neither selection adds a native observer or changes the payload helper-readiness/access budgets.
+
+### Requirement: Closed preserved-eight source5 development selection
+The SDK SHALL admit the explicitly selected source5 development variant only for its exact preserved-eight document/order with enabled explicit after-open95 mode and a distinct nonzero canonical target. The variant SHALL derive template5/insertion6 without arbitrary index fields and preserve earlier variants at template0/insertion1.
+
+#### Scenario: Explicit source5 selection
+- **WHEN** the valid closed source5 variant reaches its one permitted native call
+- **THEN** generated QML selects template5 and insertion6 in either overload, preserving native identity, callback and paper arguments, fixed setup/acceptance clocks and non-durable receipt semantics.
+
+#### Scenario: Missing or inconsistent selection
+- **WHEN** the selector is unknown or the document/order/flags/setup/explicit target disagree
+- **THEN** configuration refuses before mutation; the default and prior variants retain their original validation and positions, and no-target after-open configuration remains invalid.
