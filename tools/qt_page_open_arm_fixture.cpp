@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
     if (mode == "stopping") writeFile("stop.request", "old");
     if (mode == "restoring") writeFile("restore.claim", "old");
     if (mode == "directory-mode") ::chmod(QFile::encodeName(root.path()).constData(), 0755);
+    qint64 bootNow = mode == "boot-expired" ? 123456 : mode == "boot-failed" ? -1 : 123000;
     bool progress = true;
     int completions = 0;
     QString stage;
@@ -40,7 +41,7 @@ int main(int argc, char **argv) {
             ++completions; stage=QString::fromLatin1(value);
             if (mode == "closed-before-release") writeFile("entry.closed", "closed");
             if (mode != "duplicate") app.quit();
-        }, creation ? PageOpenArmGate::Operation::Creation : PageOpenArmGate::Operation::PageOpen, creation ? 123456 : 0);
+        }, creation ? PageOpenArmGate::Operation::Creation : PageOpenArmGate::Operation::PageOpen, creation ? 123456 : 0, [&] { return bootNow; });
     gate.begin(); gate.begin(); // A duplicate begin cannot publish/reopen the gate.
     bool markerValid = !creation || (!QFile::exists(root.filePath("open-waiting")) &&
         gate.armBytes().endsWith(" create 123456\n"));
@@ -59,7 +60,9 @@ int main(int argc, char **argv) {
             ::symlink(QFile::encodeName(root.filePath("other")).constData(), QFile::encodeName(root.filePath(arm)).constData());
         } else writeFile(arm, bytes, mode == "token-mode" ? 0644 : 0600);
     };
-    if (mode == "immediate") publish();
+    if (mode == "boot-jump") { bootNow = 123456; publish(); }
+    else if (mode == "boot-fail-queued") { bootNow = -1; publish(); }
+    else if (mode == "immediate") publish();
     else if (mode == "good" || mode == "closed-before-release" || mode == "duplicate" || mode == "wrong" || mode == "wrong-process" || mode == "partial" || mode == "oversized" || mode == "token-mode" || mode == "symlink")
         QTimer::singleShot(10, &app, publish);
     else if (mode == "unrelated") QTimer::singleShot(10, &app, [&] { writeFile("unrelated", "ignored"); });

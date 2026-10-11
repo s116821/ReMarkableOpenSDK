@@ -17,6 +17,14 @@ independent restoration, without granting production native authority.
 - **WHEN** post-restoration evidence finds a created page whose UUID differs from the supplied target
 - **THEN** the experiment records the mismatch without issuing another insertion or constructing a native committed receipt
 
+#### Scenario: After-open permission expires across suspend
+- **WHEN** the explicitly selected after-open creation setup or accepted access deadline expires in CLOCK_BOOTTIME, or that clock cannot be read, before mutation
+- **THEN** the development probe refuses mutation even if its elapsed-time timer has not expired, without renewing either deadline or affecting the legacy page-open protocol
+
+#### Scenario: Accepted access crosses the setup cutoff
+- **WHEN** after-open permission is accepted strictly before setup expiry and its separately anchored access budget is still valid
+- **THEN** the original guarded single call may proceed within that access budget, while Library readiness and duplicate permission do not renew it
+
 ### Requirement: Explicit ordinary gesture mapping
 The SDK SHALL map logical Next/Previous to ordinary gesture geometry only for an
 explicitly admitted implemented tablet/orientation pair, without granting native

@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
         config.developmentExplicitFixture = true;
         config.targetPageId = QStringLiteral("00000000-0000-4000-8000-000000000008");
     }
-    if (mode == "dev-target-seven") {
+    if (mode.startsWith("dev-target-seven")) {
         pages.append(QStringLiteral("00000000-0000-4000-8000-000000000009"));
         config.pageIds = pages;
         config.developmentAfterOpen = true;
@@ -148,7 +148,7 @@ QtObject {
         property var type: fixtureMode === "type" ? 2 : 1
         property var status: fixtureMode === "exporting" ? 9 : fixtureMode === "status" ? "unknown" : 0
         property var isExporting: fixtureMode === "dev-export-true" ? true : fixtureMode === "dev-export-type" ? "false" : fixtureMode === "dev-export-absent" ? undefined : false
-        property var pageCount: fixtureMode === "dev-target-seven" ? 7 : fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
+        property var pageCount: fixtureMode.startsWith("dev-target-seven") ? 7 : fixtureMode.startsWith("dev-target-") ? (fixtureMode === "dev-target-count" ? 5 : 6) : (fixtureMode === "count" || fixtureMode === "dev-count") ? 6 : 5
         property var ids: )QML") + encodedPages + R"QML(
         function idForPage(i) {
             if (fixtureMode === "getter-throw") throw new Error("private getter details");
@@ -286,7 +286,7 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         return 0;
     }
     QTimer armPublisher;
-    if (mode == "dev-target-seven") {
+    if (mode.startsWith("dev-target-seven")) {
         armPublisher.setInterval(1);
         QObject::connect(&armPublisher, &QTimer::timeout, &app, [&] {
             QFile marker(dir.filePath("creation-waiting"));
@@ -304,6 +304,14 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
         });
         armPublisher.start();
     }
+    const qml_access::CreationDeadline::Now creationClock = [&]() -> qint64 {
+        if (mode == "dev-target-seven-suspend" || mode == "dev-target-seven-clock-failure") {
+            if (app.findChild<qml_access::CreationBridge *>())
+                return mode == "dev-target-seven-suspend" ? 107000 : -1;
+            return 100000;
+        }
+        return qml_access::CreationDeadline::boottimeMs();
+    };
     QPointer<qml_access::Probe> probe;
     int receipts = 0;
     QJsonObject summary;
@@ -336,14 +344,21 @@ QtObject { property int calls: 0; property var retainedCallback: null })QML");
             }
             QTimer::singleShot(20, &app, &QCoreApplication::quit);
         });
-    }, 3000, mode == "nested-timeout" || mode == "dev-native-expiry" ? 150 : 400, config);
+    }, 3000, mode == "nested-timeout" || mode == "dev-native-expiry" ? 150 : 400, config, {}, creationClock);
     QTimer::singleShot(5000, &app, [] { assert(false && "creation fixture timeout"); });
     assert(app.exec() == 0);
     assert(receipts == 1);
     auto *controller = engine.singletonInstance<QObject *>(controllerType);
     const auto trial = summary.value("creation_trial").toObject();
+    if (mode == "dev-target-seven-suspend" || mode == "dev-target-seven-clock-failure") {
+        assert(terminal == "deadline" && controller->property("calls").toInt() == 0);
+        assert(!trial.value("mutation_attempted").toBool());
+        assert(summary.value("creation_arm_accepted_at_ms").toInteger(-1) >= 0);
+        std::printf("%s: arm accepted, expired/failed boot clock prevents native call PASS\n", qPrintable(mode));
+        return 0;
+    }
     if (mode.startsWith("dev-")) {
-        assert(summary.value("access_anchor").toString() == (mode == "dev-target-seven" ? "creation-arm-observation" : "library-ready-observation"));
+        assert(summary.value("access_anchor").toString() == (mode.startsWith("dev-target-seven") ? "creation-arm-observation" : "library-ready-observation"));
         const auto stamp = [&](const char *stage) { return trial.value(QString::fromLatin1(stage) + "_ms"); };
         const auto observed = [&](const char *stage) { assert(stamp(stage).isDouble() && stamp(stage).toInteger() >= 0); };
         const auto absent = [&](const char *stage) { assert(stamp(stage).isNull()); };

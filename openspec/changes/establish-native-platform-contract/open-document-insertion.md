@@ -138,9 +138,7 @@ Wire format (ASCII, exactly one trailing LF):
 
 ```text
 creation-waiting: <nonce> <pid> <start_ticks> waiting <expiry_uptime_ms>
-
 creation-arm:     <nonce> <pid> <start_ticks> create <same_expiry_uptime_ms>
-
 ```
 
 The expiry is computed once from CLOCK_BOOTTIME at Probe startup plus 40000 ms;
@@ -167,3 +165,38 @@ without enabling legacy packets; only then assess target artifact, current state
 complete backup and available recovery allowance. Main's current utility-only
 consumer deliberately refuses the new runtime mode. No tablet action or claimed
 native after-open result exists at this checkpoint.
+
+
+## October 10 clock repair
+
+Independent Main review and author inspection found that revision 8410f85 published
+CLOCK_BOOTTIME expiry but enforced only QElapsedTimer locally. Suspend could
+therefore leave queued admission or an accepted access window alive after its
+boot-clock deadline. Host publication checks alone did not close that gap.
+
+The creation-only repair uses an injectable `CreationDeadline` with production
+CLOCK_BOOTTIME reads. Setup admission compares current boot time strictly below
+published expiry before and after reading the token. The Probe then accepts once
+and establishes its five-second boot-clock access deadline. Queued dispatch,
+mutation checks and terminal completion require this budget as well as the original
+elapsed-time guards. Accepted access can legitimately cross the setup expiry;
+Library readiness and duplicate acceptance never renew either origin. Failed
+clock reads or expiry refuse, including simulated boot-clock jumps while local
+elapsed time has not advanced. Legacy page-open mode does not read the new clock.
+
+Focused additions cover equality and clock failure at admission, queued-token
+expiry after a boot-clock jump, post-arm access expiry, no renewal and overflow.
+The actual owned Probe fixture also injects a boot-clock jump or failure after
+arm acceptance and before mutation, requiring zero native calls. These are host/
+ARM-QEMU observations, not real device suspend qualification. Token format and
+consumer units remain unchanged; Main must still intersect its stage/recovery
+budget with the advertised milliseconds conservatively.
+
+
+Final author checks for this repair: all 37 permission cases, the injected
+setup/access deadline fixture and all nine focused creation cases passed under the
+pinned vendor ARM/QEMU image. The two new Probe cases recorded accepted permission
+but zero native calls after injected post-arm boot-clock expiry/failure. Strict
+OpenSpec validation and diff whitespace checks passed. A test-only QString printf
+format error was corrected before the final creation run. Independent review and
+consumer integration remain pending; these results do not select a device run.

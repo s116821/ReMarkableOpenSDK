@@ -1,4 +1,5 @@
 #pragma once
+#include "qt_creation_deadline.h"
 #include <QObject>
 #include <QFileSystemWatcher>
 #include <QFile>
@@ -20,9 +21,9 @@ public:
     enum class Operation { PageOpen, Creation };
     PageOpenArmGate(QObject *parent, QString directory, QString nonce,
                     std::function<bool()> progress, std::function<void(const char *)> completed,
-                    Operation operation = Operation::PageOpen, qint64 setupDeadlineUptimeMs = 0)
+                    Operation operation = Operation::PageOpen, qint64 setupDeadlineUptimeMs = 0, CreationDeadline::Now now = CreationDeadline::boottimeMs)
         : QObject(parent), directory_(std::move(directory)), nonce_(std::move(nonce)),
-          progress_(std::move(progress)), completed_(std::move(completed)), watcher_(this), operation_(operation), setupDeadlineUptimeMs_(setupDeadlineUptimeMs) {}
+          progress_(std::move(progress)), completed_(std::move(completed)), watcher_(this), operation_(operation), setupDeadlineUptimeMs_(setupDeadlineUptimeMs), now_(std::move(now)) {}
     ~PageOpenArmGate() override { disarm(); if (directoryFd_ >= 0) ::close(directoryFd_); }
     static QByteArray processIdentity() {
         QFile stat(QStringLiteral("/proc/self/stat"));
@@ -54,7 +55,7 @@ public:
     void begin() {
         if (begun_) return;
         begun_ = true;
-        if (operation_ == Operation::Creation && setupDeadlineUptimeMs_ <= 0) { finish("open-arm-context-refused"); return; }
+        if (!setupTimeAllowed()) { finish("open-arm-context-refused"); return; }
         static const QRegularExpression noncePattern(QStringLiteral("^[0-9a-f]{32}$"));
         if (!noncePattern.match(nonce_).hasMatch() || !directory_.startsWith('/') ||
             QDir::cleanPath(directory_) != directory_ || !progress_()) { finish("open-arm-context-refused"); return; }
@@ -76,7 +77,7 @@ public:
         });
         if (!watcher_.addPath(directory_)) { finish("open-arm-observer-refused"); return; }
         armed_ = true;
-        if (!progress_() || !sameDirectory() || !admissionOpen()) { finish("open-arm-context-refused"); return; }
+        if (!setupTimeAllowed() || !progress_() || !sameDirectory() || !admissionOpen()) { finish("open-arm-context-refused"); return; }
         // Observer precedes the marker; immediate check closes its publish race.
         const int marker = ::openat(directoryFd_, waitingName(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         const QByteArray bytes = waitingBytes();
@@ -91,6 +92,11 @@ private:
     const char *armName() const { return operation_ == Operation::Creation ? "creation-arm" : "open-arm"; }
     const char *waitingName() const { return operation_ == Operation::Creation ? "creation-waiting" : "open-waiting"; }
     const char *temporaryName() const { return operation_ == Operation::Creation ? "creation-arm.tmp" : "open-arm.tmp"; }
+    bool setupTimeAllowed() const {
+        if (operation_ != Operation::Creation) return true;
+        const qint64 now = now_();
+        return now >= 0 && now < setupDeadlineUptimeMs_;
+    }
     bool admissionOpen() const {
         if (directoryFd_ < 0) return false;
         struct stat guard{};
@@ -117,7 +123,7 @@ private:
         if (!QMetaObject::invokeMethod(this, [this] {
             queued_ = false;
             if (!armed_) return;
-            if (!progress_() || !sameDirectory() || !admissionOpen()) { finish("open-arm-context-refused"); return; }
+            if (!setupTimeAllowed() || !progress_() || !sameDirectory() || !admissionOpen()) { finish("open-arm-context-refused"); return; }
             struct stat before{}, after{};
             if (::fstatat(directoryFd_, armName(), &before, AT_SYMLINK_NOFOLLOW) != 0) {
                 if (errno != ENOENT) finish("open-arm-token-refused");
@@ -142,7 +148,7 @@ private:
             if (!stable || count != expected.size() || QByteArray(buffer, static_cast<int>(count)) != expected) {
                 finish("open-arm-token-refused"); return;
             }
-            if (!progress_() || !sameDirectory() || !admissionOpen()) { finish("open-arm-context-refused"); return; }
+            if (!setupTimeAllowed() || !progress_() || !sameDirectory() || !admissionOpen()) { finish("open-arm-context-refused"); return; }
             finish("open-arm-accepted");
         }, Qt::QueuedConnection)) finish("open-arm-dispatch-refused");
     }
@@ -174,6 +180,7 @@ private:
     QFileSystemWatcher watcher_;
     Operation operation_;
     qint64 setupDeadlineUptimeMs_;
+    CreationDeadline::Now now_;
     int directoryFd_ = -1;
     struct stat directoryStat_{};
     bool begun_ = false, armed_ = false, queued_ = false, finished_ = false, accepted_ = false;
