@@ -124,6 +124,6 @@ expansion or check off target qualification based on the host-only collector.
 - [x] 11.1 Assess and bind the authorized consumer precode contract at Docs `c496326`, [preserved-eight fixture adaptation](https://github.com/s116821/RemarkableBuddiesDocs/blob/c496326/openspec/changes/qualify-open-pdf-capture/preserved-eight-fixture-contract.md).
 - [x] 11.2 Append the default-Legacy inventory selector; admit only the exact preserved-eight document/order with explicit after-open95 mode and a fresh target. Preserve legacy configuration behavior and native helper/callback/clocks.
 - [x] 11.3 Verify focused configuration compatibility/refusals and owned-QML eight-page invocation/clock boundaries: 16 ARM-emulated QML/config cases plus deadline fixture passed; strict OpenSpec and diff checks passed. These are synthetic controls, not tablet qualification.
-- [ ] 11.4 Independently review the exact nine-file source export with Main before consumer selection.
+- [x] 11.4 Main independently reviewed SDK `7e3cca6fa15491a32a01b71f7f209a1d0d5dfec9`: all nine exported files equal Git blobs, only config core differs from `39e386d`, helper/clock files unchanged, and test-log hash verified. This accepts the source freeze only; consumer selection, gesture qualification and native execution remain separate gates.
 
 No new native execution or completed same-running display gate follows from this adaptation. Task 2.3 remains open; Main owns consumer preparation and any later device selection after gesture qualification.
