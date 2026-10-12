@@ -36,8 +36,9 @@ comparisons exclude it. The release owner must reconcile both checks:
 - Immutable Git consumers retain tag/revision and exact locked commit identity;
   Cargo's default package version must not be presented as release identity.
 
-This is a proposed ownership handoff pending SCRAPPY confirmation, not a claim
-that its existing verifier already supports the generated-lock exception. Official
+[SCRAPPY confirmed this exact ownership/source contract](https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6129296488).
+That acknowledgement does not claim its currently published verifier already
+supports the generated-lock exception. Official
 tag-before-build, maintained upstream tooling, docs-only exclusion, source identity,
 native qualification and publication gates remain unchanged.
 
@@ -50,7 +51,7 @@ Reuse ordinary locked/offline consumers on Rust 1.88 and the existing source/pac
 checks; demonstrate immutable Git dependency resolution without creating official
 tags, packages or releases. SCRAPPY owns all release/staging/workflow changes.
 
-- [ ] Confirm precise generated-lock/staging contract with REM-50 owner.
+- [x] Confirm precise generated-lock/staging contract with REM-50 owner at the published acknowledgement above; its implementation/verification remains a separate release-owner increment.
 - [x] Remove source placeholders and verify generated defaults/unchanged locks: four focused checks and the ordinary Rust 1.88 path consumer PASS; both lockfiles, LICENSE and notice bundle remain byte-identical.
 - [x] Verify ordinary immutable Git consumer and supported Rust 1.88 behavior at exact source `161b29ab3274dfe9bb40281ccacf02bf5ee7262d`: the public Git revision resolves to that same locked commit, with no SDK features, omitted source version and Cargo-generated 0.0.0 metadata. The ordinary consumer runs under --locked --offline with exit0 and unchanged caller lock (SHA-256 `63d6c897764394e1a1728e53a98eaa90ab0e12ebccbbcea776de2c74ed2c2eb0`).
 - [x] Existing Sol independently accepted the narrow source increment with no blocking finding and reran all four focused checks (PASS 1.214s); exact source relay follows publication. Combined REM-50 staging is outside this acceptance.
