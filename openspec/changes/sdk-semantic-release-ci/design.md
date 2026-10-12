@@ -213,3 +213,35 @@ Workflow parses and retains application-only PR control, exact checkout, explici
 prefetch, offline checker and unchanged tracked-file verification. Strict
 OpenSpec passes. Hosted jobs and independent CI-delta review remain pending;
 earlier author/Sol Windows checks are separate attributed upstream evidence.
+
+## Supported dependency and explicit crate inventory follow-up
+
+After accepted b1966b2 consumer-CI review, apply the supported transitive
+Handlebars4.7.9→4.7.10 lock update. Retain direct tool pins and the failing
+high advisory gate. No forced downgrade, override or publisher activation.
+Use the final SDK owner a3c2037e2c33fb219a64e7d4021c74b17219a665
+explicit Cargo/lock/README/eight-source-module inventory to separate all tagged
+build-input hashes from selected crate input hashes. Qualify only literal rooted
+include paths in this first integration, not an invented Cargo glob engine.
+Still verify every staged input; package verification must require declared
+source bytes plus normalized Cargo metadata/lock and refuse undeclared members.
+Generated VCS metadata, if present, must match clean root exact source SHA.
+Legacy minimal owned-fixture behavior stays explicitly non-production.
+
+Source CI transition: first checkout the actual PR merge candidate. If its
+SDK Cargo.toml exists, require both checker/fixture and package-list contract,
+verify HEAD equals the event merge SHA and execute existing checkers on that
+checkout. Missing tools in a candidate SDK fail; do not fall back. While this
+release branch has no SDK crate, explicitly select named historical source
+a3c2037 in the same job, log that candidate coverage is unavailable and verify
+that frozen source identity. Refuse partial SDK source without a manifest.
+After PR1 source merges to the base, the same workflow automatically switches
+to candidate/current-source execution and fails incoming boundary regressions;
+no permanently pinned job is substituted for current-source checks. Required
+shipping integration remains open until actual candidate mode runs in CI.
+
+Run the package list-only regression on Rust1.98.1; ordinary-consumer boundary
+runs on1.88.0 and1.98.1. No actual SDK archive/build/publish or native operation
+is selected. The real source still has prototype version and unresolved license
+(including gesture provenance), target/native and publication prerequisites.
+Public prospective verifier plan preceded implementation at PR3 comment6127283836.

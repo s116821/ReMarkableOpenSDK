@@ -69,3 +69,25 @@ prefetch. These host checks SHALL NOT imply shipping or native qualification.
 #### Scenario: Frozen research consumer boundary
 - **WHEN** an application PR invokes the consumer job before research source merges to main
 - **THEN** CI checks out and verifies the existing immutable accepted snapshot, runs the ordinary consumer on the declared minimum and maintained toolchains, and retains older compiler and release gates without copying broad research work into the release branch.
+
+### Requirement: Declared crate contents retain exact source identity
+Packaging SHALL distinguish all tagged staging inputs from the explicitly
+reviewed crate inventory. It SHALL verify every staged source input unchanged
+and require selected crate inputs and Cargo metadata/dependency lock to match
+that exact source. Missing, changed and undeclared archive inputs SHALL refuse.
+The first integration SHALL refuse unsupported package patterns rather than
+reimplement Cargo selection. Native and licensing gates SHALL remain separate.
+
+#### Scenario: Research sources are not crate inputs
+- **WHEN** the exact tagged tree contains tracked research files excluded by its reviewed literal package inventory
+- **THEN** crate verification accepts the selected exact source bytes without including those research files, while any staged-source drift or unexpected archived research/tool input refuses.
+
+### Requirement: Incoming SDK changes use the current candidate
+Consumer CI SHALL test the actual PR merge candidate when SDK sources exist
+there and SHALL fail if its required checkers or fixtures are missing. An SDK-free
+release branch MAY explicitly qualify a named immutable historical snapshot,
+but SHALL NOT describe that success as current-source or shipping integration.
+
+#### Scenario: SDK source reaches the candidate branch
+- **WHEN** the candidate contains the integrated SDK crate
+- **THEN** CI verifies that candidate's exact event SHA and runs the ordinary consumer and package-list check there without retaining a frozen-source substitute.

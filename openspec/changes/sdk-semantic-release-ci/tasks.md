@@ -33,4 +33,12 @@
 - [x] Refresh issue/comments/review and reconcile PR1 e408a55 vs PR3 7fb824e source before workflow edits.
 - [x] Integrate the existing locked/offline checker into the existing workflow at exact e408a55, preserving all older compiler/release/advisory lanes.
 - [x] Verify actual host consumer gate on Rust1.88.0 and1.98.1 and exact source/lock preservation.
-- [ ] Obtain exact-delta independent review and hosted gate results; retain full shipping/native/lifecycle gates.
+- [x] Obtain exact-delta independent review and hosted gate results at b1966b2; retain full shipping/native/lifecycle gates.
+
+## Supported remediation and package/source follow-up
+- [x] Recheck exact hosted npm findings and current upstream versions; qualify supported Handlebars4.7.10 without waiving remaining advisories.
+- [x] Reconcile SDK owner final a3c2037 literal package inventory; publish prospective verifier plan before code.
+- [ ] Implement separate full-stage vs declared-crate identity verification and owned boundary fixtures.
+- [ ] Implement automatic current-PR source coverage with explicit historical-only mode until PR1 source integrates; verify historical package-list and consumer checks.
+- [ ] Verify actual integrated SDK candidate mode after source merge; historical success is not current-source coverage.
+- [ ] Obtain focused independent follow-up review and current hosted evidence; preserve full release/license/native/lifecycle gates.
