@@ -59,3 +59,7 @@
 - [x] Normalize all staged filesystem-relative keys to POSIX and preserve inventory/traversal checks.
 - [x] Require complete recognized SDK-input absence before historical fallback and prove partial-source cases refuse.
 - [ ] Run one original tagged portable-stage fixture on hosted Windows and focused selector controls; obtain successor review.
+
+##334716d staged lock refusal repair
+- [ ] Require regular mandatory staged lock in default verified-build phase and distinguish explicit source-only verification.
+- [ ] Prove deletion/nonregular expected lock refuses after positive regeneration; obtain exact repair review and hosted evidence.

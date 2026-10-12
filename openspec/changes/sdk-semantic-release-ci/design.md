@@ -396,3 +396,17 @@ A new reusable qualification tool repeats the same source-tree construction and
 upstream Cargo commands; local invocation against the existing original tree
 fixture passes. Hosted check and distinct successor review pending. The P2
 06291cc review target remains immutable and its acceptance cannot transfer.
+
+##334716d missing staged lock review repair
+
+Independent source-owner review reproduced a P2: after source-default/tag
+regeneration verified positively, deletion of ONLY staged Cargo.lock succeeds
+because existence guards skip mandatory lock checks. Require the default
+locked-build verification path to have a regular, non-symlink lock before
+reading it; missing/directory/symlink/FIFO inputs refuse. Source own-node
+optionality is unchanged. Explicit source_only verification may inspect just
+source bytes, but returns source-only/lock-unverified markers and cannot serve
+as package verification. Package verifier always calls default locked mode.
+Add actual GeneratedLock positive-regenerate/deletion and nonregular controls.
+No new cumulative source/native/provider/license matrix or claim of publication
+bypass; archive verification already required its lock.
