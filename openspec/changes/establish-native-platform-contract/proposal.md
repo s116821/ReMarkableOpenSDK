@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Verify the ordinary feature-disabled build-time dependency boundary through a
+  standalone consumer for existing REM-50 CI; see [consumer build boundary](consumer-build-boundary.md).
+  Existing consumer pins and native qualification remain unchanged.
+
 - Propose the untested caller-selected identity argument on the original native
   creation path; see [client-selected-insertion.md](client-selected-insertion.md).
   This is separate from the rejected diagnostic and does not qualify shutdown.

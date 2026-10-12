@@ -37,6 +37,7 @@ Buddy acquisition/reuse/adoption/binding and Manager installation are downstream
 - [ ] 3.6b Independently review the exact mapping revision and integrate Reader's real emitter with explicit current source orientation admission; pin coordinated consumer revisions. Other tablet/orientation mappings and native completion remain unfinished under 3.6.
 
 ## 4. Verification and delivery
+- [x] 4.1a Implement and independently verify the [ordinary consumer build boundary](consumer-build-boundary.md), callable by existing REM-50 CI. Windows Rust 1.88.0/1.98.1 positive consumer and both exact compiler-refusal checks PASS; Sol independently reviewed and reran 1.88.0. This closes only the build-time feature-isolation increment, not hosted integration, native adapter, consumer pin, release or task 3.4.
 - [x] 3.7 Implement the fixed default-off input observer/end/one-grab source mode and run focused synthetic Qt fixtures; see input-observation-proposal.md October 6 checkpoint. Source only, no target artifact selection.
 - [ ] 3.8 Independently review the exact input observation implementation and coordinated consumer revisions before separate artifact/packet/device gates.
 - [ ] 4.1 Run contract/mock checks, ELF architecture/float ABI/interpreter/NEEDED/versioned-import comparisons against exact qualified providers, and independent SDK review; record toolchain/sysroot provenance and evidence scope.

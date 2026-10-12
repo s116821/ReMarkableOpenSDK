@@ -85,6 +85,10 @@ existing clocks or interpret a facts-request as observation end.
 ### Requirement: Independent semantic capability contract
 The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
 
+#### Scenario: Ordinary feature-disabled dependency
+- **WHEN** a standalone consumer builds the SDK with default features disabled and no enabled features
+- **THEN** the existing semantic and unsupported capability APIs compile and execute without a native adapter, while mock and development-capture imports fail specifically because their modules are unavailable; SDK unit-test configuration cannot satisfy this check.
+
 #### Scenario: Observational capability report
 - **WHEN** a consumer queries the experimental Rust platform's capabilities
 - **THEN** it receives a snapshot with separate semantic-contract and profile revisions, an explicitly unknown-native or synthetic-model profile, and per-operation unsupported reasons or SyntheticOnly status, without acquiring execution authority or changing platform state.

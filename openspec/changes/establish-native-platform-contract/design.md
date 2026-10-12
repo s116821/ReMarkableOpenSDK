@@ -82,6 +82,11 @@ Every activation restart creates a fresh runtime/adapter scope and invalidates o
 
 ### Tests and releases
 
+The [ordinary consumer build boundary](consumer-build-boundary.md) adds a separate
+non-test dependency build with no SDK features and expected-diagnostic checks for
+unavailable development APIs. REM-50 retains CI/release workflow ownership;
+this callable check adds no native payloads, publication or dependency changes.
+
 Use deterministic mocks of the same contract with injected clocks, input, stale observations and uncertain native outcomes. Synthetic receipts are labeled and must never appear in production qualification manifests. Cross-builds test architecture/linking only. Actual RM2 fixtures establish native support; Paper Pro native coverage remains REM-29 and is reported unqualified until completed.
 
 Package the SDK target into the Buddy build. Independent third-party SDK releases can contain multiple target artifacts. Pin exact dependency/contract revisions and publish checksums/provenance and supported capability matrices. License/publication review precedes distributing any implementation derived from third-party materials.

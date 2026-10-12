@@ -1,0 +1,25 @@
+[package]
+name = "sdk-consumer-boundary"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+autobins = false
+
+# Deliberately a separate workspace: SDK cfg(test)/dev features cannot leak in.
+[workspace]
+
+[dependencies]
+remarkable-open-sdk = { path = "../../..", default-features = false }
+
+[[bin]]
+name = "consumer"
+path = "main.rs"
+
+[[bin]]
+name = "forbidden-mock"
+path = "forbidden_mock.rs"
+
+[[bin]]
+name = "forbidden-development-capture"
+path = "forbidden_development_capture.rs"
