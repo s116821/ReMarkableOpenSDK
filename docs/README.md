@@ -12,6 +12,7 @@ remain workflow records, not a shipping capability declaration.
 | Research | [Native-platform ledger](research/native-platform-ledger.md) | Attributed static/runtime findings, pinned prior art, positive/refused observations and unresolved limits |
 | Native insertion | [Caller-selected identity result](experiments/caller-selected-insertion-result.md) | One exact-ID insertion and native stroke persisted with originals preserved; deadline recovery and unexpected-close UI keep lifecycle qualification open |
 | Input coordinates | [Protocol-B retention and remaining evidence gap](research/input-coordinate-evidence-limits.md) | Ordinary release retains axes; fresh-handler and actual-event attribution remain unresolved |
+| Stock presentation | [Screen Share witness assessment](research/stock-screenshare-witness-assessment.md) | Distinct stock-service candidate does not establish the current source witness; account/start-path and exact-firmware evidence limits |
 | Ordinary gestures | [RM2 portrait component result](experiments/rm2-portrait-gesture-component.md) | One Next/Previous round trip with unchanged source files and owned cleanup; product/native navigation remains unqualified |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
