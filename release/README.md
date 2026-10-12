@@ -233,3 +233,8 @@ No SDK owner's allowlist or consumer pin is edited.
 The supported normal audit refresh changes only Handlebars4.7.9→4.7.10. This
 removes critical findings but retains the failing high advisory gate; see the
 dated [audit evidence](upstream-audit.md).
+
+Package list-only checks additionally need a separate `cargo fetch --locked
+--manifest-path Cargo.toml` prefetch, because the minimal consumer lock subset
+does not cache optional SDK dependencies such as serde. Both checkers stay
+offline/locked; a previously warm cache is not cold-run preparation evidence.

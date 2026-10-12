@@ -205,6 +205,9 @@ jobs:
         run: python tools/check_consumer_boundary.py --toolchain ${{ matrix.toolchain }}
         env:
           PYTHONDONTWRITEBYTECODE: '1'
+      - name: Prefetch complete selected SDK package lock
+        if: matrix.toolchain == '1.98.1'
+        run: cargo +${{ matrix.toolchain }} fetch --locked --manifest-path Cargo.toml
       - name: Verify source package list-only containment
         if: matrix.toolchain == '1.98.1'
         run: python tools/test_package_contents.py -v

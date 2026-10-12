@@ -263,3 +263,15 @@ PR1 sources exist on the PR merge candidate.
 Prior b1966b2 acceptance was forwarded by Main/Root from the existing independent
 Sol chat; that forwarding has no public review transcript link. It does not
 accept this new implementation delta or waive the known advisory gates.
+
+Hosted0f1e91e failure is preserved: new declared-inventory packaging fixtures
+PASS and both ordinary consumer boundaries PASS, but1.98.1 package-list tests
+fail because consumer-only prefetch does not cache optional SDK serde dependency
+metadata. Local cache was already populated. Add a separate locked SDK-root
+fetch before its offline package-list tests; do not weaken the checker or make
+it online. This is cache preparation only, without actual SDK packaging/native
+build or source change. Recheck in a fresh owned Cargo cache and current CI.
+Cold-cache proof: an owned empty Cargo cache plus locked consumer-subset fetch
+reproduces the missing-serde package-list failure. After locked SDK-root fetch,
+the same two unchanged offline package-list tests PASS. No cache-dependent
+check relaxation or SDK source/lock edit.
