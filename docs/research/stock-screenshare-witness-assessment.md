@@ -1,8 +1,17 @@
 # Stock Screen Share as a source witness
 
-Assessed October 12, 2026. **Do not select this route as a replacement for the
-source5 footer-then-fresh-body gate.** This is a bounded source assessment, not a
+Assessed October 12, 2026. **Do not select this route as a source5 witness
+replacement.** This is a bounded source assessment, not a
 tablet test or a finding that Screen Share fails on firmware 3.28.0.172.
+
+Chronology correction: the 57ee result below describes its selected historical
+footer policy. The later, separately assessed
+[stable-body-idle contract](https://github.com/s116821/ReMarkableBuddiesDocs/blob/024a4db4992e461f71c7f82a098145702aa465e3/openspec/changes/qualify-open-pdf-capture/source5-stable-source-witness-contract.md)
+explicitly removes that ordinal witness for its own closed selection, retains
+two distinct BODY observations and full idle/context checks, and disclaims native
+current-page authority. Its local implementation is accepted; native qualification
+is unfinished. The original assessment should not be read as making footer
+capture mandatory for that later variant. Neither policy changes here.
 
 ## Question and distinction
 
@@ -10,7 +19,7 @@ Can the stock presentation stream independently establish the displayed source
 page, avoiding the transient-footer capture dependency? The
 [source5 result](https://github.com/s116821/ReMarkableBuddiesDocs/blob/20d56a28f713637370c4d9e7c91ad7e8bcfa54df/openspec/changes/qualify-open-pdf-capture/source5-runtime-preparation-result.md)
 records two 57ee frames without the Page6of8 footer and no creation permission.
-Its gate requires the source witness before another native selection.
+Its selected gate required the source witness before native creation.
 
 This candidate would consume an existing stock presentation service from the
 host. It would not transfer or activate a native payload, restart xochitl, or
@@ -54,11 +63,11 @@ fork, protocol probe, or firmware change was attempted.
 
 ## Decision and remaining requirement
 
-Reject this candidate for the current source-witness dependency. No supported
+Reject this candidate as a source-witness replacement. No supported
 start path within the current no-account-change/no-menu-automation workflow has
 been established. Even a successful presentation would not, by itself, prove
-the transient footer, actual active page identity, or current visit required by
-the existing gate. Distinguishing printed PDF page2 from logical Page6of8 and
+the historical transient-footer predicate or a general actual active-page/current
+visit claim. Distinguishing printed PDF page2 from logical Page6of8 and
 binding it to the current source remain necessary; a plausible canvas image or
 stored last-opened index is insufficient.
 
