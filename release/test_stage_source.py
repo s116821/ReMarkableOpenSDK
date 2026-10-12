@@ -47,7 +47,7 @@ class SourceStaging(unittest.TestCase):
         self.assertFalse(self.out.exists())
 
     def test_source_version_field_refuses(self):
-        (self.repo/'Cargo.toml').write_text('[package]\nname="owned_fixture"\nversion="0.0.0"\n')
+        (self.repo/'Cargo.toml').write_text('[package]\nname="owned_fixture"\nversion="0.3.7"\n')
         self.git('add','.');self.git('commit','-m','chore: rejected fixture');sha=self.git('rev-parse','HEAD');self.git('tag','v0.3.8')
         with self.assertRaises(Refusal):stage(self.repo,'v0.3.8',sha,self.out)
         self.assertFalse(self.out.exists())
@@ -59,7 +59,7 @@ class SourceStaging(unittest.TestCase):
         self.assertFalse(self.out.exists())
 
     def test_source_root_lock_version_refuses(self):
-        (self.repo/'Cargo.lock').write_text('version=4\n[[package]]\nname="owned_fixture"\nversion="0.0.0"\n')
+        (self.repo/'Cargo.lock').write_text('version=4\n[[package]]\nname="owned_fixture"\nversion="0.3.7"\n')
         self.git('add','.');self.git('commit','-m','chore: rejected fixture');sha=self.git('rev-parse','HEAD');self.git('tag','v0.3.8')
         with self.assertRaises(Refusal):stage(self.repo,'v0.3.8',sha,self.out)
         self.assertFalse(self.out.exists())

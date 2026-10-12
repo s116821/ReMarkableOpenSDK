@@ -252,3 +252,23 @@ reuses them without generating another grant/notice bundle. Artifact identity
 also verifies normalized license/license-file/publish metadata and selected
 license/notice bytes. Actual candidate mode and remaining version-free-source,
 advisory/native/publication gates remain open.
+
+## Generated own lock defaults and actual source qualification
+
+Source manifest/workspace release versions remain absent. The unique optional
+own Cargo.lock node may contain only generated implicit0.0.0/name/dependencies,
+without source/checksum. It is development resolution metadata, not release
+authority. Preserve every external lock entry. In new staging only, generate
+the manifest from the exact existing tag, run upstream Cargo's offline lock
+generation, and require the own node match that tag and external entries remain
+unchanged before verification/package. Source/consumer lock bytes do not change.
+
+Current explicit historical source71325818 includes the reviewed161b29 version
+removals plus documentation-only results; tests do not call it actual PR source
+coverage when this release branch has no crate. `qualify_sdk_stage.py` constructs
+a marked temporary original Git fixture with an exact source-tree comparison
+and an isolated fixture tag, builds/verifies the real SDK source crate and
+prints original source SHA/tree separately from fixture SHA/tag. It does not
+mint an official tag, select a public SDK version, publish or grant native
+compatibility. The existing workflow performs that qualified host check only
+after source selection/identity and locked graph prefetch.

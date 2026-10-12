@@ -165,7 +165,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         if: steps.source.outputs.mode == 'historical'
         with:
-          ref: 6e45c091d5ca2294f170930d6a25141f1c7fea25
+          ref: 71325818b0374b86f332460935a02506903a7292
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -179,7 +179,7 @@ jobs:
             test "$(git rev-parse HEAD)" = "$CHECK_CANDIDATE_SHA"
           else
             test "$CHECK_SOURCE_MODE" = historical
-            test "$(git rev-parse HEAD)" = 6e45c091d5ca2294f170930d6a25141f1c7fea25
+            test "$(git rev-parse HEAD)" = 71325818b0374b86f332460935a02506903a7292
           fi
         env:
           CHECK_SOURCE_MODE: ${{ steps.source.outputs.mode }}
@@ -213,5 +213,55 @@ jobs:
           python-version: '3.12'
       - name: Verify original version-free tagged staging with Windows paths
         run: python -m unittest discover -s release -p 'test_portable_stage.py' -v
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+
+  actual-sdk-source-staging:
+    name: Actual selected SDK source-tree staging fixture
+    needs: title-and-paths
+    if: github.event_name == 'pull_request' && needs.title-and-paths.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: qualification-tools
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: selected-source
+          persist-credentials: false
+      - name: Select actual candidate or explicit historical SDK source
+        id: source
+        working-directory: selected-source
+        run: bash ../qualification-tools/release/select_consumer_source.sh
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: steps.source.outputs.mode == 'historical'
+        with:
+          ref: 71325818b0374b86f332460935a02506903a7292
+          path: selected-source
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: '1.98.1'
+      - name: Verify selected identity and prefetch complete locked source graph
+        working-directory: selected-source
+        run: |
+          if test "$MODE" = candidate; then
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          else
+            test "$MODE" = historical
+            test "$(git rev-parse HEAD)" = 71325818b0374b86f332460935a02506903a7292
+          fi
+          cargo +1.98.1 fetch --locked --manifest-path Cargo.toml
+        env:
+          MODE: ${{ steps.source.outputs.mode }}
+          CANDIDATE_SHA: ${{ github.sha }}
+      - name: Qualify exact selected tree in isolated tag-staging fixture
+        run: |
+          source_sha=$(git -C selected-source rev-parse HEAD)
+          python qualification-tools/release/qualify_sdk_stage.py --source selected-source --expected-source "$source_sha"
         env:
           PYTHONDONTWRITEBYTECODE: '1'

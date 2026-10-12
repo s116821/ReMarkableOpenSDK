@@ -10,6 +10,35 @@ import tomllib
 
 class Refusal(ValueError): pass
 
+def lock_inventory(lock, name):
+    """Own node is generated metadata; every external entry remains exact."""
+    entries=lock.get('package', [])
+    roots=[p for p in entries if p.get('name')==name]
+    if len(roots)>1: raise Refusal('Ambiguous own-package lock identity')
+    root=roots[0] if roots else None
+    if root is not None and (set(root)-{'name','version','dependencies'} or
+            not isinstance(root.get('dependencies', []), list) or
+            any(not isinstance(d, str) for d in root.get('dependencies', []))):
+        raise Refusal('Own lock node must be generated unsourced metadata')
+    return root,[p for p in entries if p.get('name')!=name]
+
+def source_lock_inventory(lock, name):
+    root,external=lock_inventory(lock,name)
+    if root is not None and root.get('version')!='0.0.0':
+        raise Refusal('Source own lock node must use Cargo implicit default')
+    return root,external
+
+def staged_lock_inventory(lock, identity):
+    root,external=lock_inventory(lock,identity['package_name'])
+    if root is None or root.get('version')!=identity['build_version']:
+        raise Refusal('Staged own lock identity must match verified tag')
+    original=identity.get('generated_root_lock')
+    if original is not None and root!={**original,'version':identity['build_version']}:
+        raise Refusal('Staged own dependency links changed')
+    if external!=identity['dependency_lock']:
+        raise Refusal('External dependency lock changed')
+    return external
+
 def stage(repo, tag, expected_sha, destination):
     repo, destination = Path(repo).resolve(), Path(destination)
     if not re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', tag):
@@ -29,8 +58,7 @@ def stage(repo, tag, expected_sha, destination):
         raise Refusal('Source must not maintain a project version')
     if git('ls-tree','--name-only',expected_sha,'--','Cargo.lock').strip():
         lock=tomllib.loads(git('show',f'{expected_sha}:Cargo.lock').decode())
-        if any(p.get('name')==package['name'] and 'version' in p for p in lock.get('package',[])):
-            raise Refusal('Source lockfile must not maintain the project version')
+        source_lock_inventory(lock,package['name'])
     header=re.compile(r'(?m)^\[package\][ \t]*(?:#[^\r\n]*)?\r?$')
     if len(header.findall(manifest))!=1: raise Refusal('Unsupported package manifest structure')
     version=tag[1:]
@@ -44,7 +72,7 @@ def stage(repo, tag, expected_sha, destination):
     destination.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as source: source.extractall(destination,filter='data')
     (destination/'Cargo.toml').write_bytes(generated.encode('utf-8'))
-    inputs={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file() and p.name!='Cargo.lock'}
+    inputs={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file() and p.relative_to(destination).as_posix()!='Cargo.lock'}
     # First shipping integration supports the owner's explicit literal include list.
     # Do not implement Cargo's glob/exclude semantics in this identity verifier.
     declared = package.get('include')
@@ -76,8 +104,8 @@ def stage(repo, tag, expected_sha, destination):
             if path.is_symlink() or any(p.is_symlink() for p in path.parents if p != destination.parent) or not path.is_file() or name not in inputs:
                 raise Refusal('Declared package input is missing or not a regular source')
             package_inputs[name] = inputs[name]
-    source_lock=tomllib.loads((destination/'Cargo.lock').read_text()).get('package',[]) if (destination/'Cargo.lock').exists() else []
-    identity={'build_inputs':inputs,'package_inputs':package_inputs,'package_inventory_explicit':declared is not None,'dependency_lock':source_lock,'package_name':package['name'],'schema':1,'git_tag':tag,'source_sha':expected_sha,'build_version':version,
+    generated_root,source_lock=source_lock_inventory(tomllib.loads((destination/'Cargo.lock').read_text()),package['name']) if (destination/'Cargo.lock').exists() else (None,[])
+    identity={'build_inputs':inputs,'package_inputs':package_inputs,'package_inventory_explicit':declared is not None,'dependency_lock':source_lock,'generated_root_lock':generated_root,'package_name':package['name'],'schema':1,'git_tag':tag,'source_sha':expected_sha,'build_version':version,
               'qualification':{'native_operations':'unsupported','source_authority':False}}
     (destination/'build-identity.json').write_text(json.dumps(identity,indent=2)+'\n')
     return identity
@@ -108,8 +136,7 @@ def verify_staged_source(destination):
     if actual!=expected: raise Refusal('Staged source changed after exact-tag preparation')
     if (destination/'Cargo.lock').exists():
         lock=tomllib.loads((destination/'Cargo.lock').read_text())
-        dependencies=[p for p in lock.get('package',[]) if p.get('name')!=identity['package_name']]
-        if dependencies!=identity['dependency_lock']:raise Refusal('Staged dependency lock changed')
+        staged_lock_inventory(lock,identity)
     return identity
 
 def distribution_manifest(destination, artifact):
@@ -161,8 +188,7 @@ def distribution_manifest(destination, artifact):
                     raise Refusal('Crate source differs from tagged staging')
             # Lockfile identity is checked for the packaged copy as well as staging.
             lock=tomllib.loads(entries['Cargo.lock'].decode())
-            dependencies=[p for p in lock.get('package',[]) if p.get('name')!=identity['package_name']]
-            if dependencies!=identity['dependency_lock']: raise Refusal('Crate dependency lock differs')
+            staged_lock_inventory(lock,identity)
     except (tarfile.TarError,KeyError,UnicodeError,tomllib.TOMLDecodeError,json.JSONDecodeError) as error:
         raise Refusal('Invalid or incomplete source crate') from error
     return {'schema':1,'git_tag':identity['git_tag'],'source_sha':identity['source_sha'],
@@ -183,8 +209,8 @@ def sdk_build_environment(metadata, package_name, repository_url, tag, source_sh
     if manifest.is_symlink():raise Refusal('Consumed package manifest must be a regular source file')
     parsed=tomllib.loads(manifest.read_text())
     source_lock=manifest.parent/'Cargo.lock'
-    if source_lock.exists() and any(p.get('name')==package_name and 'version' in p for p in tomllib.loads(source_lock.read_text()).get('package',[])):
-        raise Refusal('Consumed source lock must not maintain the project version')
+    if source_lock.exists():
+        source_lock_inventory(tomllib.loads(source_lock.read_text()),package_name)
     if parsed.get('package',{}).get('name')!=package_name:
         raise Refusal('Consumed package manifest identity differs')
     if 'version' in parsed.get('package',{}) or 'version' in parsed.get('workspace',{}).get('package',{}):

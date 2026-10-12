@@ -373,3 +373,26 @@ injected manifest bytes without OS double-newline translation, preserving the
 source header line ending. Explicit LF/CRLF original fixture controls exercise
 both inventory and target exclusion on each host. This is a concrete Windows
 manifest portability repair, not weakened inventory/traversal or version rules.
+
+Generated-default implementation successor after06291cc: four new owned
+Cargo/Git tests plus12 staging/5 consumer/8 inventory/2 portable tests PASS
+(31 unique focused methods). Unique optional unsourced own0.0 metadata validates
+separately; source manifest/workspace versions remain refused. Tagged staged
+own identity and every external node validate after upstream regeneration;
+source nested Cargo.lock bytes remain hashed. No runtime/source-owner API edit.
+
+Existing workflow adds one host source-tree staging qualification, explicitly
+selecting actual candidate when crate exists or reviewed historical71325818
+otherwise, while recording the selected real commit/tree separately from the
+isolated temporary fixture commit/tag. The real reviewed161b29 exact source
+tree24d498f9f278f88f8ae58aecf31d662e65b0f85f previously packaged/compiled/verified
+in that marked fixture with all38 external entries and license/source metadata
+unchanged.14 staged package members are expected because a Git-export build
+directory has no optional Cargo VCS file. No official SDK version/tag/publication
+or native compatibility follows. Current71325818 is doc-only successor but
+this new hosted source qualification must record its real71325818 identity.
+
+A new reusable qualification tool repeats the same source-tree construction and
+upstream Cargo commands; local invocation against the existing original tree
+fixture passes. Hosted check and distinct successor review pending. The P2
+06291cc review target remains immutable and its acceptance cannot transfer.

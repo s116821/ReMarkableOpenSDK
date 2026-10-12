@@ -52,7 +52,7 @@
 
 ## Version-free source handoff
 - [x] Supply SDK owner exact source/staging/refusal contract and distinguish generated Cargo default metadata from tag authority.
-- [ ] Implement narrowly validated generated-root-lock handling and upstream Cargo regeneration proofs in PR3.
+- [x] Implement narrowly validated generated-root-lock handling and upstream Cargo regeneration proofs in PR3.
 - [ ] Verify actual SDK source staging/package at the owner's reviewed version-free freeze; preserve separate native/publication gates.
 
 ## Sol6008083 review repairs
