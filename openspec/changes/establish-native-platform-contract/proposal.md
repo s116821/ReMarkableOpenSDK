@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Contain the experimental Rust source package to its traced module closure and
+  explicit metadata; see [package content boundary](package-content-boundary.md).
+  This does not select a license or authorize distribution.
+
 - Verify the ordinary feature-disabled build-time dependency boundary through a
   standalone consumer for existing REM-50 CI; see [consumer build boundary](consumer-build-boundary.md).
   Existing consumer pins and native qualification remain unchanged.

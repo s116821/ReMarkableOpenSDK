@@ -47,6 +47,13 @@ check covers the actual SDK module boundary instead. The owner can add the comma
 above to its existing checks; no new workflow or hosted outcome is claimed here.
 Its unresolved release/advisory gates are neither changed nor waived.
 
+Subsequent [REM-50 coordination](https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6127131882)
+reports both hosted compiler jobs passing for the exact `e408a55` research snapshot
+at PR3 `b1966b2d69c6721a582136aef09354a09f653d54`. That owner-reported result does
+not cover later source changes. Before required incoming-PR or shipping coverage,
+the owner must change the job to verify/run the actual candidate checkout;
+historical pinned-snapshot qualification is not a substitute.
+
 Main's existing Buddy SDK pins are unchanged. Newer SDK capability APIs tested
 here must not be attributed to an older consumer revision. The native adapter,
 full production build-time integration and qualified support matrix remain open.

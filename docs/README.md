@@ -21,6 +21,7 @@ remain workflow records, not a shipping capability declaration.
 | Model completeness | [Tasks 3.1/3.2 coverage](reference/model-task-coverage.md) | Existing model coverage and bounded capability report; qualified native profiles remain unfinished |
 | Rust compatibility | [Minimum-compiler verification](reference/rust-minimum-verification.md) | Locked dependencies tested with Rust 1.88.0 on Windows; native and other target gates remain open |
 | Consumer build | [Ordinary dependency boundary](reference/consumer-build-boundary.md) | Actual SDK with no enabled features; expected compiler refusals for development modules; REM-50 owns hosted integration |
+| Distribution | [License, provenance and API gaps](reference/distribution-license-gaps.md) | Exact dependency inventory, Buddy adaptation, package-content gap and explicit maintainer choices; no license selected |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

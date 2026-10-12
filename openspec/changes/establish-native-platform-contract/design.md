@@ -82,6 +82,11 @@ Every activation restart creates a fresh runtime/adapter scope and invalidates o
 
 ### Tests and releases
 
+The [source-package content boundary](package-content-boundary.md) explicitly
+lists required Rust modules/metadata and checks Cargo's prospective membership.
+Untracked private tools cannot become source-package inputs by directory discovery.
+License/native/distribution approval remains separate.
+
 The [ordinary consumer build boundary](consumer-build-boundary.md) adds a separate
 non-test dependency build with no SDK features and expected-diagnostic checks for
 unavailable development APIs. REM-50 retains CI/release workflow ownership;

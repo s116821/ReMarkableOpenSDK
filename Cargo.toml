@@ -4,6 +4,12 @@ version = "0.0.0"
 edition = "2024"
 rust-version = "1.88"
 publish = false
+include = [
+    "/Cargo.toml", "/Cargo.lock", "/README.md",
+    "/src/lib.rs", "/src/capabilities.rs", "/src/capture.rs",
+    "/src/development_capture.rs", "/src/evidence.rs", "/src/mock.rs",
+    "/src/navigation.rs", "/src/navigation/gesture.rs",
+]
 description = "Experimental semantic reMarkable platform contract; no native adapter yet"
 
 [features]

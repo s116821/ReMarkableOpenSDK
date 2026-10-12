@@ -11,6 +11,8 @@ Buddy acquisition/reuse/adoption/binding and Manager installation are downstream
 - [x] 1.2 Bootstrap SDK repository guidance and active proposal/design/deltas.
 - [x] 1.3 Independently review identity/capture/receipt semantics with consumer/REM-37 owner, including native-assigned IDs with durable operation correlation and its consumer journal amendment; record exact revisions. Root and consumer owner accepted active design e63010ef4dd91fc180658750f2de78c0734910c9; no native qualification or journal amendment is implied.
 - [ ] 1.4 Settle SDK license, dependency/publication policy and minimal Rust API details before implementation distribution.
+- [x] 1.4a Prepare the October 12 [distribution/API/license gap report](../../../docs/reference/distribution-license-gaps.md) and exact dependency notice inventory. Maintainer grant/ownership, selected contents/notices and release approval remain open under 1.4; inventory is not legal clearance.
+- [x] 1.4b Implement and independently verify [Rust package-content containment](package-content-boundary.md); both list-only regressions independently PASS, private historical tools and publish=false preserved. REM-50 confirmed scope; its declared-inventory verifier integration, license and actual distribution remain unapproved.
 
 ## 2. Native research
 - [ ] 2.1 Inventory passive IPC/service/interface evidence and firmware/runtime fingerprints through the coordinated tablet owner.

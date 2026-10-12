@@ -85,6 +85,10 @@ existing clocks or interpret a facts-request as observation end.
 ### Requirement: Independent semantic capability contract
 The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
 
+#### Scenario: Experimental Rust source-package containment
+- **WHEN** Cargo lists the experimental Rust package in a checkout containing unrelated tracked or untracked development tools
+- **THEN** only the explicitly selected Rust module closure and metadata are package members; private/native tools remain excluded without their removal or compilation, and license/distribution qualification is not inferred.
+
 #### Scenario: Ordinary feature-disabled dependency
 - **WHEN** a standalone consumer builds the SDK with default features disabled and no enabled features
 - **THEN** the existing semantic and unsupported capability APIs compile and execute without a native adapter, while mock and development-capture imports fail specifically because their modules are unavailable; SDK unit-test configuration cannot satisfy this check.
