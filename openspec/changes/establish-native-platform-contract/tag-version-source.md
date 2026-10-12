@@ -52,5 +52,20 @@ tags, packages or releases. SCRAPPY owns all release/staging/workflow changes.
 
 - [ ] Confirm precise generated-lock/staging contract with REM-50 owner.
 - [x] Remove source placeholders and verify generated defaults/unchanged locks: four focused checks and the ordinary Rust 1.88 path consumer PASS; both lockfiles, LICENSE and notice bundle remain byte-identical.
-- [ ] Verify ordinary immutable Git consumer and supported Rust 1.88 behavior.
+- [x] Verify ordinary immutable Git consumer and supported Rust 1.88 behavior at exact source `161b29ab3274dfe9bb40281ccacf02bf5ee7262d`: the public Git revision resolves to that same locked commit, with no SDK features, omitted source version and Cargo-generated 0.0.0 metadata. The ordinary consumer runs under --locked --offline with exit0 and unchanged caller lock (SHA-256 `63d6c897764394e1a1728e53a98eaa90ab0e12ebccbbcea776de2c74ed2c2eb0`).
 - [x] Existing Sol independently accepted the narrow source increment with no blocking finding and reran all four focused checks (PASS 1.214s); exact source relay follows publication. Combined REM-50 staging is outside this acceptance.
+
+The Git-consumer proof used a temporary original consumer with no local path or
+patch override. Its source URI and Cargo.lock both contain the exact public
+repository/revision/commit above. Registry package names/versions/checksums were
+verified against the SDK lock. A fresh initial caller resolution selected uncached
+libc0.2.190, causing the full offline metadata query to fail despite the Windows
+executable succeeding; the caller used Cargo's supported --precise0.2.189 to match
+the reviewed pin before the final metadata/run check. This is ordinary consumer
+lock ownership: a Git library's own lock does not constrain its callers. Both
+committed SDK/fixture locks remained unchanged. No new canonical release version,
+official tag, source archive/package or native artifact was created.
+
+Later documentation-only successors do not replace the exact source attribution
+of this proof. REM-50 must use the actual future candidate/tag SHA for its own
+staging and generated VCS identity; this result is not combined release acceptance.
