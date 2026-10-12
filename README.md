@@ -16,6 +16,12 @@ SDK specifications and workflow live in this repository. [ReMarkableBuddiesDocs]
 
 Buddy consumes the SDK at build time. Manager selects a compatible Buddy release artifact, without separately installing an SDK runtime. The SDK must remain independently consumable and mockable.
 
+Git tags are the canonical SDK release versions. Source manifests omit an own
+version; Cargo generates `0.0.0` development metadata and lock entries, which are
+not release identity. REM-50's official build staging derives its version only
+from a verified existing tag and exact source commit. No version bump is committed.
+See the [source/tag contract](openspec/changes/establish-native-platform-contract/tag-version-source.md).
+
 Prefer robust direct/native integration. Supervised, session-scoped lazy XOVI is an allowed candidate where necessary under the October 1 lifecycle refinement, not a selected or qualified production dependency. See the [mechanism comparison and acceptance gates](docs/research/runtime-mechanism-comparison.md). Cold boot must remain stock, recovery must survive runtime/supervisor failure, and restart invalidates old source handles. Proprietary firmware binaries and reconstructed proprietary source must not be committed. Interface discovery is not proof of safe native operation.
 
 Start with [SDK technical knowledge](docs/README.md) for research, reference

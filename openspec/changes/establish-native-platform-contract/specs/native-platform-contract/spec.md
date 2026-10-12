@@ -85,6 +85,10 @@ existing clocks or interpret a facts-request as observation end.
 ### Requirement: Independent semantic capability contract
 The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
 
+#### Scenario: Version-free source and generated development locks
+- **WHEN** ordinary Cargo builds the SDK or standalone consumer from source without an own manifest version
+- **THEN** locked dependency resolution preserves Cargo's generated 0.0.0 own-package metadata, which is not release authority; official version stamping remains derived only from a verified existing Git tag and exact source in release-owner staging, without a source version bump.
+
 #### Scenario: Selected SDK license and complete notices
 - **WHEN** the experimental SDK's source package is listed
 - **THEN** Cargo declares GPL-3.0-only, canonical unmodified GPLv3 text and complete applicable dependency/provenance notices are explicit members, third-party grants remain unchanged, and publication stays disabled until the separate technical release gates pass.

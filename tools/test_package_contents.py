@@ -34,6 +34,24 @@ def listed(root):
 
 
 class PackageContents(unittest.TestCase):
+    def test_development_version_is_generated_not_declared(self):
+        for root in (ROOT, ROOT / "tests/fixtures/consumer-boundary"):
+            manifest = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
+            self.assertNotIn("version", manifest["package"])
+            self.assertNotIn("version", manifest.get("workspace", {}).get("package", {}))
+            lock = tomllib.loads((root / "Cargo.lock").read_text(encoding="utf-8"))
+            own = [p for p in lock["package"] if p["name"] == manifest["package"]["name"]]
+            self.assertEqual(len(own), 1)
+            self.assertEqual(own[0]["version"], "0.0.0")
+            self.assertNotIn("source", own[0])
+            self.assertNotIn("checksum", own[0])
+            result = subprocess.run(
+                ["cargo", "metadata", "--format-version", "1", "--no-deps", "--locked", "--offline"],
+                cwd=root, capture_output=True, text=True, encoding="utf-8", check=True, timeout=60,
+            )
+            package = next(p for p in json.loads(result.stdout)["packages"] if p["name"] == own[0]["name"])
+            self.assertEqual(package["version"], "0.0.0")
+
     def test_license_metadata_and_complete_original_notices(self):
         self.assertEqual(
             hashlib.sha256((ROOT / "LICENSE").read_bytes()).hexdigest(),

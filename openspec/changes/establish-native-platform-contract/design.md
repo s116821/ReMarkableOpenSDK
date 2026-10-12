@@ -82,6 +82,11 @@ Every activation restart creates a fresh runtime/adapter scope and invalidates o
 
 ### Tests and releases
 
+The [source/tag contract](tag-version-source.md) removes own version declarations.
+Cargo's required generated development lock value is not project version authority;
+official staging uses only the verified existing tag and exact source SHA. REM-50
+owns the corresponding staging validation, with no source version-bump commits.
+
 The [October 12 licensing decision](licensing-decision.md) grants SDK material
 under GPL-3.0-only, retains third-party terms and includes canonical LICENSE and
 complete dependency notices in the exact source-package list. Public APIs remain

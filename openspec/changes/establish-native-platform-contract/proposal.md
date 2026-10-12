@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Remove explicit prototype source versions while preserving Cargo-generated
+  locks; coordinate verified-tag build stamping with REM-50 through the
+  [source/tag contract](tag-version-source.md), without a new version mechanism.
+
 - Implement the maintainer-selected GPL-3.0-only grant and preserve dependency
   notices/provenance in the contained source package; see [licensing decision](licensing-decision.md).
   Publication and native support remain separate technical gates.

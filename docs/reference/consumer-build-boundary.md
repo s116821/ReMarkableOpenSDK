@@ -21,7 +21,8 @@ binary targets. Each must fail with E0432 for its exact unavailable SDK module:
 `mock` or `development_capture`. Unrelated errors and successful imports fail the
 gate. Do not build every fixture binary together: two intentionally cannot build.
 
-The fixture's `0.0.0` Cargo version is not an SDK release/version declaration.
+Both source manifests omit their own version. Cargo's generated `0.0.0` metadata
+and lock entries are development resolution defaults, not SDK release authority.
 Its relative path dependency is intentional local test input, not an official
 consumer pin. No developer absolute path or alternate package source is committed.
 
