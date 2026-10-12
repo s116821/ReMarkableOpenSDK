@@ -102,3 +102,14 @@ grant or imply official publication.
 #### Scenario: License or notice drift in a crate
 - **WHEN** a crate omits or changes selected license/notices, or relabels normalized license/publication metadata while its original manifest remains correct
 - **THEN** verification refuses that artifact and retains the reviewed source contract.
+
+### Requirement: Generated Cargo defaults do not mint release identity
+Source package/workspace release-version declarations SHALL be refused. A
+unique generated unsourced own-package Cargo lock node at implicit0.0.0 MAY
+retain dependency reproducibility without becoming release authority. Staged
+package and own lock identity SHALL derive from the verified Git tag, with every
+external locked dependency unchanged and no source update.
+
+#### Scenario: Locked unversioned source stages from a tag
+- **WHEN** a clean unversioned tagged source has only Cargo's generated own-root default lock metadata
+- **THEN** upstream Cargo regenerates the own node in the new tagged build copy, external pins stay unchanged, and altered or ambiguous own metadata refuses.

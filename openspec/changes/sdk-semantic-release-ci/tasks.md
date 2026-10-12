@@ -49,3 +49,8 @@
 - [x] Integrate licensed historical contract and existing three owner checks into workflow without duplicating grant/notices.
 - [x] Verify normalized license/publication metadata and selected license/notice artifact tampering controls on owned fixtures.
 - [ ] Obtain exact local/hosted licensed-source evidence and independent REM-50 delta review; retain actual candidate/source-version/advisory/native/publication gates.
+
+## Version-free source handoff
+- [x] Supply SDK owner exact source/staging/refusal contract and distinguish generated Cargo default metadata from tag authority.
+- [ ] Implement narrowly validated generated-root-lock handling and upstream Cargo regeneration proofs in PR3.
+- [ ] Verify actual SDK source staging/package at the owner's reviewed version-free freeze; preserve separate native/publication gates.

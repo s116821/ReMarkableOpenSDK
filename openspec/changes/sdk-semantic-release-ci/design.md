@@ -313,3 +313,25 @@ Eight REM-50 inventory fixtures plus12 existing staging cases PASS, including
 license/notice omissions/changes and normalized grant/license-file/publish
 relabeling refusal. An initial test-rewriter optional-selector None error was
 corrected without product-check weakening. Hosted successor/review pending.
+
+## Generated Cargo lock metadata versus version authority
+
+Coordinate the version-free owner increment without deleting dependency pins.
+Manifest/workspace version declarations remain refused. A source lock may
+contain one unique unsourced/checksum-free own-package node at Cargo's implicit
+0.0.0, with only name/version/dependencies fields; it is generated development
+metadata, never release authority. Nondefault/ambiguous/foreign own nodes refuse.
+SDK Git-consumer identity retains exact tag/SHA and source-cleanliness checks.
+
+Stage the tagged source unchanged and inject tag version only in the build copy.
+Record external dependency entries separately from the validated own placeholder.
+The caller uses upstream cargo generate-lockfile --offline in staging; source
+verification then requires its own node match the injected tag version and
+external entries remain exactly unchanged. Package verification likewise checks
+packaged own lock identity. No generated version goes back to source; no custom
+Cargo resolver, bump/tag/release engine or schema-version interpretation.
+Add owned Cargo proofs for generated-default acceptance and tag regeneration,
+source immutability, nondefault/duplicate/source-marked placeholder refusal,
+registry drift and packaged lock identity. Actual SDK staging waits for its
+owner's reviewed source freeze; no source owner manifest/lock edit here.
+Public handoff before code: PR1 comment6129204263 / PR3 comment6129204437.
