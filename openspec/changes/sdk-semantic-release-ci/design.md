@@ -275,3 +275,30 @@ Cold-cache proof: an owned empty Cargo cache plus locked consumer-subset fetch
 reproduces the missing-serde package-list failure. After locked SDK-root fetch,
 the same two unchanged offline package-list tests PASS. No cache-dependent
 check relaxation or SDK source/lock edit.
+
+## Reviewed GPL package contract integration
+
+Human GPL-3.0-only selection and SDK owner implementation are complete at
+6e45c091d5ca2294f170930d6a25141f1c7fea25. Public independent/evidence receipt:
+https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6128065282 .
+No human license choice or general legal approval gate remains. Use the owner's
+exact13 selected inputs (including LICENSE and THIRD_PARTY_NOTICES.md) plus
+two Cargo-generated metadata members; keep publish=false. Root relayed bytes
+were independently compared with committed Git bytes here. Do not duplicate
+license/notice generation or alter owner files.
+
+Advance only the explicit historical fallback to this reviewed licensed source,
+retain automatic actual-candidate selection, and execute the existing owner's
+three list/metadata/notice regressions after complete locked root prefetch.
+Ordinary consumer stays locked/offline on1.88.0/1.98.1. Hashes and original notice
+mappings remain owned by that source checker. Package artifact verification
+additionally compares normalized license/license-file/publish metadata to exact
+staged manifest and proves selected LICENSE/notice missing/tampered refusal
+using original harmless owned test inputs, not another SDK license implementation.
+
+Actual research source still has prototype maintained own version fields; do
+not strip them or stage an official SDK artifact. Actual candidate-hosted mode
+requires PR1 source arrival, and advisory/native/public-tag/remote integrity
+gates remain distinct. Accepted SDK task1.4 licensing/dependency/experimental API
+policy is attributed to the owner receipt; REM-50 artifact integration remains
+its separate scope.

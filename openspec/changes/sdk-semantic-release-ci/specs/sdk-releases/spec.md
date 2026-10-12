@@ -91,3 +91,14 @@ but SHALL NOT describe that success as current-source or shipping integration.
 #### Scenario: SDK source reaches the candidate branch
 - **WHEN** the candidate contains the integrated SDK crate
 - **THEN** CI verifies that candidate's exact event SHA and runs the ordinary consumer and package-list check there without retaining a frozen-source substitute.
+
+### Requirement: Reviewed license inputs retain package identity
+The SDK package SHALL retain its reviewed grant and selected original notices.
+Artifact verification SHALL match normalized license/license-file/publication
+metadata to the exact staged source, and SHALL require the selected license and
+notice file bytes. Historical research verification SHALL NOT change the chosen
+grant or imply official publication.
+
+#### Scenario: License or notice drift in a crate
+- **WHEN** a crate omits or changes selected license/notices, or relabels normalized license/publication metadata while its original manifest remains correct
+- **THEN** verification refuses that artifact and retains the reviewed source contract.

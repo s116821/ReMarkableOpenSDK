@@ -42,3 +42,9 @@
 - [x] Implement automatic current-PR source coverage with explicit historical-only mode until PR1 source integrates; verify historical package-list and consumer checks.
 - [ ] Verify actual integrated SDK candidate mode after source merge; historical success is not current-source coverage.
 - [ ] Obtain focused independent follow-up review and current hosted evidence; preserve full release/license/native/lifecycle gates.
+
+## Reviewed license/notice input integration
+- [x] Verify final owner6e45c091 manifest, committed LICENSE/notice bytes and public review receipt; no license preference remains.
+- [ ] Integrate licensed historical contract and existing three owner checks into workflow without duplicating grant/notices.
+- [ ] Verify normalized license/publication metadata and selected license/notice artifact tampering controls on owned fixtures.
+- [ ] Obtain exact local/hosted licensed-source evidence and independent REM-50 delta review; retain actual candidate/source-version/advisory/native/publication gates.
