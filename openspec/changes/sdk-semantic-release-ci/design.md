@@ -365,3 +365,11 @@ and nonregular/symlink manifest inputs. No traversal/member rule weakened.
 The additional generated-root-default plan remains prospective, not a claim
 that this P2 source already fixes lock handling; stage/runtime owned-version
 refusals at6008083 remain until that separately identified implementation.
+
+Hostedc3f7dba Windows portability fixture fails before inventory at the original
+regex's unsupported-structure refusal for valid CRLF manifest. Preserve that
+failed run38285057113. Follow-up recognizes CRLF package headers and writes
+injected manifest bytes without OS double-newline translation, preserving the
+source header line ending. Explicit LF/CRLF original fixture controls exercise
+both inventory and target exclusion on each host. This is a concrete Windows
+manifest portability repair, not weakened inventory/traversal or version rules.

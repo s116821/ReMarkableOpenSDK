@@ -31,15 +31,19 @@ def stage(repo, tag, expected_sha, destination):
         lock=tomllib.loads(git('show',f'{expected_sha}:Cargo.lock').decode())
         if any(p.get('name')==package['name'] and 'version' in p for p in lock.get('package',[])):
             raise Refusal('Source lockfile must not maintain the project version')
-    header=re.compile(r'(?m)^\[package\][ \t]*(?:#.*)?$')
+    header=re.compile(r'(?m)^\[package\][ \t]*(?:#[^\r\n]*)?\r?$')
     if len(header.findall(manifest))!=1: raise Refusal('Unsupported package manifest structure')
     version=tag[1:]
-    generated=header.sub(lambda m:m.group(0)+'\nversion = '+json.dumps(version),manifest,count=1)
+    def inject(match):
+        original=match.group(0)
+        suffix='\r' if original.endswith('\r') else ''
+        return original+'\nversion = '+json.dumps(version)+suffix
+    generated=header.sub(inject,manifest,count=1)
     if destination.exists(): raise Refusal('Build staging destination already exists')
     archive=git('archive','--format=tar',expected_sha)
     destination.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as source: source.extractall(destination,filter='data')
-    (destination/'Cargo.toml').write_text(generated)
+    (destination/'Cargo.toml').write_bytes(generated.encode('utf-8'))
     inputs={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file() and p.name!='Cargo.lock'}
     # First shipping integration supports the owner's explicit literal include list.
     # Do not implement Cargo's glob/exclude semantics in this identity verifier.
