@@ -56,6 +56,6 @@
 - [ ] Verify actual SDK source staging/package at the owner's reviewed version-free freeze; preserve separate native/publication gates.
 
 ## Sol6008083 review repairs
-- [ ] Normalize all staged filesystem-relative keys to POSIX and preserve inventory/traversal checks.
-- [ ] Require complete recognized SDK-input absence before historical fallback and prove partial-source cases refuse.
+- [x] Normalize all staged filesystem-relative keys to POSIX and preserve inventory/traversal checks.
+- [x] Require complete recognized SDK-input absence before historical fallback and prove partial-source cases refuse.
 - [ ] Run one original tagged portable-stage fixture on hosted Windows and focused selector controls; obtain successor review.

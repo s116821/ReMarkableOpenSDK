@@ -40,7 +40,7 @@ def stage(repo, tag, expected_sha, destination):
     destination.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as source: source.extractall(destination,filter='data')
     (destination/'Cargo.toml').write_text(generated)
-    inputs={str(p.relative_to(destination)):hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file() and p.name!='Cargo.lock'}
+    inputs={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file() and p.name!='Cargo.lock'}
     # First shipping integration supports the owner's explicit literal include list.
     # Do not implement Cargo's glob/exclude semantics in this identity verifier.
     declared = package.get('include')
@@ -97,10 +97,10 @@ def verify_staged_source(destination):
     destination=Path(destination)
     identity=json.loads((destination/'build-identity.json').read_text())
     expected=identity['build_inputs']
-    actual={str(p.relative_to(destination)):hashlib.sha256(p.read_bytes()).hexdigest()
+    actual={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
             for p in destination.rglob('*') if p.is_file()
-            and str(p.relative_to(destination)).split('/')[0]!='target'
-            and str(p.relative_to(destination)) not in ['Cargo.lock','build-identity.json']}
+            and p.relative_to(destination).as_posix().split('/')[0]!='target'
+            and p.relative_to(destination).as_posix() not in ['Cargo.lock','build-identity.json']}
     if actual!=expected: raise Refusal('Staged source changed after exact-tag preparation')
     if (destination/'Cargo.lock').exists():
         lock=tomllib.loads((destination/'Cargo.lock').read_text())

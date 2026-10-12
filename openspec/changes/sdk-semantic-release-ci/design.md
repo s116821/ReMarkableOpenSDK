@@ -355,3 +355,13 @@ reviewer's three partial cases plus valid candidate/SDK-free controls. Keep
 6008083 and its failing Windows/selector review evidence identifiable; final
 successor review covers repairs plus separately identified future generated-lock
 work, not silently inherited acceptance.
+
+P2 implementation local proof: one original tagged portable stage case PASS
+on Linux (genuine Windows hosted counterpart pending), direct actual selector
+three test methods PASS including every reproduced partial input and valid
+SDK-free/candidate controls. Source-relative keys and target exclusions now use
+as_posix throughout. Selector's complete absence guard also includes root lock
+and nonregular/symlink manifest inputs. No traversal/member rule weakened.
+The additional generated-root-default plan remains prospective, not a claim
+that this P2 source already fixes lock handling; stage/runtime owned-version
+refusals at6008083 remain until that separately identified implementation.

@@ -159,22 +159,7 @@ jobs:
           persist-credentials: false
       - name: Select current candidate or explicitly historical qualification
         id: source
-        run: |
-          if test -f Cargo.toml; then
-            test -f tools/check_consumer_boundary.py
-            test -f tools/test_package_contents.py
-            test -f tests/fixtures/consumer-boundary/Cargo.toml
-            test -f tests/fixtures/consumer-boundary/Cargo.lock
-            echo 'mode=candidate' >> "$GITHUB_OUTPUT"
-            echo 'Consumer checks cover the actual SDK PR merge candidate.' >> "$GITHUB_STEP_SUMMARY"
-          else
-            if test -e src/lib.rs || test -e tools/check_consumer_boundary.py; then
-              echo 'Partial SDK source without Cargo.toml; refusing historical fallback.' >&2
-              exit 1
-            fi
-            echo 'mode=historical' >> "$GITHUB_OUTPUT"
-            echo 'HISTORICAL QUALIFICATION ONLY: SDK crate absent from candidate; current-source integration remains open.' >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash release/select_consumer_source.sh
       # Only the SDK-free release branch uses this named research fallback.
       # Once PR1 integrates, current SDK changes are checked automatically above.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -215,3 +200,18 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
       - name: Keep tracked selected source and locks unchanged
         run: git diff --exit-code HEAD --
+
+  portable-package-paths:
+    name: Windows portable staging path regression
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify original version-free tagged staging with Windows paths
+        run: python -m unittest discover -s release -p 'test_portable_stage.py' -v
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
