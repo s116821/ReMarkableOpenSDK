@@ -6,6 +6,10 @@ The October 1 architecture decision commits ReMarkableOpenSDK as an independent 
 
 ## What Changes
 
+- Implement the maintainer-selected GPL-3.0-only grant and preserve dependency
+  notices/provenance in the contained source package; see [licensing decision](licensing-decision.md).
+  Publication and native support remain separate technical gates.
+
 - Contain the experimental Rust source package to its traced module closure and
   explicit metadata; see [package content boundary](package-content-boundary.md).
   This does not select a license or authorize distribution.

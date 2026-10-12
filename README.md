@@ -4,6 +4,12 @@ An independent, unofficial reMarkable hardware and native-runtime SDK, intended 
 
 **Status: active research, contract design and an unpublished experimental Rust model. No native adapter, supported firmware matrix or shipping page-creation capability is implemented here yet.**
 
+This SDK is licensed under **GNU GPL version 3 only (GPL-3.0-only)**. See the
+unmodified [license text](LICENSE) and [third-party notices and provenance](THIRD_PARTY_NOTICES.md).
+Commercial use is permitted under the license's terms. There is no requirement
+to have contributions merged upstream. Third-party material retains its stated
+licenses; the SDK grant does not relicense dependencies or other repositories.
+
 The first change is [establish-native-platform-contract](openspec/changes/establish-native-platform-contract/proposal.md). It targets a capability-oriented boundary for page identity, evidence-bound capture, navigation and safe native page creation. RM2/ARMv7 is the first qualification target. Paper Pro/AArch64 is an adapter target whose native qualification remains later work; cross-builds do not imply hardware support.
 
 SDK specifications and workflow live in this repository. [ReMarkableBuddiesDocs](https://github.com/s116821/ReMarkableBuddiesDocs) owns Buddy and Manager product/integration requirements and references exact SDK contract revisions. SDK definitions are not duplicated there.

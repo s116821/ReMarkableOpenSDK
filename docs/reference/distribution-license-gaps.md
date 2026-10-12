@@ -17,7 +17,7 @@ explicitly requires accepted shipping source/license/API from the source owner.
 SCRAPPY retains release/CI/packaging ownership; its unresolved advisory and
 publication gates are unchanged.
 
-No approved SDK license choice was found in those sources, task 1.4, the current
+At the initial inventory checkpoint, no approved SDK license choice was found in those sources, task 1.4, the current
 REM-50 issue and latest five comments, or Main's current handoff. This is a bounded
 reconciliation, not a claim to have searched every historical decision.
 
@@ -96,19 +96,29 @@ Its [current staging verifier expects the entire tracked tree](https://github.co
 so adapting that verifier to distinguish build sources from declared crate contents
 remains REM-50 work. Do not widen the allowlist to satisfy that mismatch.
 
-## Decisions for the maintainer and release owner
+## Resolved license decision and remaining technical delivery
 
-1. **Choose the SDK's intended grant and confirm ownership.** GPLv3 is the concrete
-   project precedent: [Buddy](https://github.com/s116821/ReMarkableBuddies/blob/ff8ad75bec45fca403d55a7b6d93eb83ab732e3d/LICENSE)
-   and [Docs](https://github.com/s116821/ReMarkableBuddiesDocs/blob/7686a67c2303cc675d544e2edf635c4f580b6a4c/LICENSE)
-   carry that license text. Confirm `GPL-3.0-only` versus `GPL-3.0-or-later` explicitly;
-   the standard license's example boilerplate alone does not settle that choice.
-   If permissive licensing for unrelated consumers is desired instead, first
-   resolve the Buddy adaptation and contributor rights. No option is selected here.
-2. **Select first distribution scope.** An experimental Rust source crate using
+1. **License selected and implemented: GPL-3.0-only.** On October 12 the maintainer
+   authorized a standard license and then explicitly confirmed GPL-3.0-only;
+   Root's implementation direction matches the
+   Buddy direction and retaining the adapted gesture under GPLv3. The
+   [licensing implementation](../../openspec/changes/establish-native-platform-contract/licensing-decision.md)
+   uses the unmodified GNU text (SHA-256
+   `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986`), explicit
+   Cargo/readme grant and gesture SPDX/provenance. There is no mandatory upstream
+   merge clause. Dependency grants remain their original terms; no permissive
+   relicensing or contributor-rights exception is asserted.
+2. **Source scope and notices are concrete.** LICENSE and THIRD_PARTY_NOTICES.md
+   are explicit package members, alongside the existing eight Rust files,
+   manifest/lock and README: 13 selected inputs plus two Cargo-generated metadata
+   members in the actual list. The notice bundle maps all 79 inventoried files
+   to 39 byte-distinct complete original texts, including copyright notices and
+   Unicode's additional terms. .gitattributes preserves exact license/notice bytes
+   across hosts. These files resolve the initial missing-license/notice gap.
+   An experimental Rust source crate using
    the existing synthetic/unsupported API can be described truthfully, but cannot
-   be advertised as a supported native SDK. Keep `publish = false` until owner
-   decisions, approved contents/notices and REM-50 release gates are complete.
+   be advertised as a supported native SDK. Keep `publish = false` until REM-50's
+   actual-candidate verification and technical release gates are complete.
 3. **Freeze the intended API/support promise.** Existing UUID/opaque observation
    equality/page/order/origin is sufficient for Main's historical Store projection.
    A native current observation/guard, adapter and integrated effect admission
@@ -119,7 +129,9 @@ Source basis: current checked-in code and published Git trees, current project
 issue/comments and Main coordination, cached exact Cargo package metadata/texts,
 existing attributed prior-art research, and primary license texts linked above.
 Adaptation treatment and recommended release gates are engineering judgments.
-No maintainer license choice, legal approval or new native access is inferred.
+The maintainer choice is now explicitly authorized in current project coordination
+and implemented. No independent counsel review or new native access is claimed;
+neither is invented as an additional approval gate for this licensing increment.
 
 Independent factual review by the existing Sol reviewer verified all 38 package
 instances and 79 notice-file hashes against cached published crates, Cargo.lock,
@@ -130,3 +142,11 @@ snapshot, and docs.rs links identify published paths rather than verified browse
 accessibility. The review is not a full copy/proprietary-code/legal audit. Internal
 review coordination has no public transcript link. Package-fix source review is
 recorded separately in its owning plan.
+
+The subsequent licensing increment independently passed all three focused checks:
+declared GPL-3.0-only/publish=false metadata, all current dependency pins and original
+notice texts/mappings, and exact package contents plus the leak regression. The
+reviewer verified staged/local license and notice bytes, but its fresh GNU download
+failed; canonical GNU retrieval is the author's successful source evidence. Task
+1.4 is now complete for the authorized license/dependency/experimental API policy.
+Remaining native and REM-50 technical release obligations are separate.

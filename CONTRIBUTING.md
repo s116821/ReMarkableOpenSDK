@@ -2,7 +2,7 @@
 
 This repository is currently a research/design bootstrap. Public GitHub discussion and the checked-in requirements are sufficient; Linear, Mem, Codex and private device exports are optional maintainer tools.
 
-The experimental Rust model declares Rust 1.88 as its minimum; the exact source/lockfile now passes all-feature and no-default-feature suites on Windows Rust 1.88.0, alongside prior 1.98.1 verification. See [minimum-compiler evidence and limits](docs/reference/rust-minimum-verification.md). Direct dependencies are pinned to image 0.25.10 (default features disabled, PNG enabled) and sha2 0.10.9, both MIT OR Apache-2.0; Cargo.lock records the resolved graph. Run `cargo fmt --all -- --check`, `cargo test --all-features`, and `cargo clippy --all-targets --all-features -- -D warnings`. It is unpublished (`publish = false`) pending the full contract/native/license gates.
+The experimental Rust model declares Rust 1.88 as its minimum; the exact source/lockfile now passes all-feature and no-default-feature suites on Windows Rust 1.88.0, alongside prior 1.98.1 verification. See [minimum-compiler evidence and limits](docs/reference/rust-minimum-verification.md). Direct dependencies are pinned to image 0.25.10 (default features disabled, PNG enabled) and sha2 0.10.9, both MIT OR Apache-2.0; Cargo.lock records the resolved graph. Run `cargo fmt --all -- --check`, `cargo test --all-features`, and `cargo clippy --all-targets --all-features -- -D warnings`. It is unpublished (`publish = false`) pending the full contract/native/technical release gates.
 
 Use a topic branch and read AGENTS.md. The active SDK change records planned behavior, not an implemented baseline. No native capability is advertised before its acceptance evidence exists. Preserve unfinished work and use isolated checkouts.
 
@@ -16,7 +16,14 @@ openspec validate --all --strict --no-interactive
 
 The manual equivalent is to check every proposed requirement has an observable WHEN/THEN scenario, trace every task to the design, and report unresolved implementation/hardware gates. A structural validator does not qualify an adapter or prove interface safety.
 
-Do not publish proprietary firmware, extracted QML/source bodies, credentials or personal documents. Prefer original implementations of independently observed interoperability contracts. Track source licenses and publication constraints before incorporating third-party code. The first implementation must settle the SDK license and dependency policy with the maintainer; this bootstrap does not relicense any prior-art source.
+Do not publish proprietary firmware, extracted QML/source bodies, credentials or personal documents. Prefer original implementations of independently observed interoperability contracts. Track source licenses and publication constraints before incorporating third-party code.
+
+The maintainer selected GPL-3.0-only for the SDK on October 12, 2026. Retain
+applicable original copyright/license notices and document adapted material in
+THIRD_PARTY_NOTICES.md. Dependencies retain their own terms. Contributions to SDK
+material use the declared GPL-3.0-only grant unless separately agreed and clearly
+recorded; no upstream merge is required by this license. Do not relicense prior
+art or another repository through an SDK contribution.
 
 SDK changes that affect Buddy consumption need coordinated consumer integration changes in ReMarkableBuddiesDocs and ReMarkableBuddies. Manager installs Buddy artifacts; it must not infer compatibility from matching version numbers. Record exact revisions, evidence limits and merge order in PR comments. Keep a single unfinished delivery rather than marking an independent planning-only PR as completion of native page creation.
 

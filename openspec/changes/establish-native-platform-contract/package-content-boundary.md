@@ -41,3 +41,9 @@ fit that unfinished verifier. Its frozen-snapshot consumer CI is historical
 qualification and must transition to the actual candidate before claiming
 current-source/shipping coverage. License/notice file inclusion and publication
 approval remain explicit release prerequisites.
+
+The subsequent [authorized licensing increment](licensing-decision.md) adds the
+selected LICENSE and THIRD_PARTY_NOTICES.md explicitly: current membership is
+13 selected files plus two generated metadata files. The earlier 13-member result
+above describes the pre-license containment checkpoint, not the current list.
+License selection is resolved; REM-50 technical release integration remains open.

@@ -44,3 +44,14 @@ Root and consumer accepted contract 9b61d7284edabe6a1fea61c3f621049300b3bc32 aga
 Observation, receipt and capture facts now expose original scope/identity/order/revision and full capture descriptor lineage through private immutable historical types. Canonical UUID output, exact integer/duration/geometry-bit access, stable schema names and pre-copy aggregate bounds are implemented. Synthetic fixture-local clock interpretation and absent native qualification are explicit. Saved facts cannot be passed to operational capture/creation APIs. Exact image media remains on the original batch and must be persisted alongside descriptors.
 
 This supplies SDK facts APIs, not a complete consumer persistence container or storage/reopen test. Task 5.3 remains open until complete consumer mapping, lossless persistence and exact revision integration are verified. Native acquisition, freshness, durable creation, Reader integration and release gates remain open.
+
+
+## October 12 licensing implementation
+
+The maintainer selected GPL-3.0-only. The [licensing increment](licensing-decision.md)
+adds canonical GNU GPLv3 LICENSE, explicit Cargo/readme grant, Buddy gesture
+provenance and all original dependency notices, with both files explicitly included
+in the contained Rust package. This resolves the earlier license-selection and
+notice gaps; dependencies keep their original grants. Public Rust APIs remain
+experimental and publish=false. Technical release integration, native adapter
+qualification and full delivery remain open; no new legal-approval gate is added.

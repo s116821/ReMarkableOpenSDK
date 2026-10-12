@@ -85,6 +85,10 @@ existing clocks or interpret a facts-request as observation end.
 ### Requirement: Independent semantic capability contract
 The SDK SHALL expose versioned semantic operations through device/firmware adapters, SHALL keep product conversation/storage policy outside its API, and SHALL report unsupported operations explicitly for unknown or unqualified runtime combinations.
 
+#### Scenario: Selected SDK license and complete notices
+- **WHEN** the experimental SDK's source package is listed
+- **THEN** Cargo declares GPL-3.0-only, canonical unmodified GPLv3 text and complete applicable dependency/provenance notices are explicit members, third-party grants remain unchanged, and publication stays disabled until the separate technical release gates pass.
+
 #### Scenario: Experimental Rust source-package containment
 - **WHEN** Cargo lists the experimental Rust package in a checkout containing unrelated tracked or untracked development tools
 - **THEN** only the explicitly selected Rust module closure and metadata are package members; private/native tools remain excluded without their removal or compilation, and license/distribution qualification is not inferred.

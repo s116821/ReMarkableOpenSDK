@@ -4,8 +4,10 @@ version = "0.0.0"
 edition = "2024"
 rust-version = "1.88"
 publish = false
+license = "GPL-3.0-only"
 include = [
     "/Cargo.toml", "/Cargo.lock", "/README.md",
+    "/LICENSE", "/THIRD_PARTY_NOTICES.md",
     "/src/lib.rs", "/src/capabilities.rs", "/src/capture.rs",
     "/src/development_capture.rs", "/src/evidence.rs", "/src/mock.rs",
     "/src/navigation.rs", "/src/navigation/gesture.rs",

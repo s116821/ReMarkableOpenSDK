@@ -82,6 +82,12 @@ Every activation restart creates a fresh runtime/adapter scope and invalidates o
 
 ### Tests and releases
 
+The [October 12 licensing decision](licensing-decision.md) grants SDK material
+under GPL-3.0-only, retains third-party terms and includes canonical LICENSE and
+complete dependency notices in the exact source-package list. Public APIs remain
+experimental, capability/profile revisions are separate from release tags, and
+publish=false continues until the existing technical release gates pass.
+
 The [source-package content boundary](package-content-boundary.md) explicitly
 lists required Rust modules/metadata and checks Cargo's prospective membership.
 Untracked private tools cannot become source-package inputs by directory discovery.

@@ -1,4 +1,7 @@
 //! Ordinary gesture geometry, not native observation or completion authority.
+// SPDX-License-Identifier: GPL-3.0-only
+// Adapted from ReMarkableBuddies ded1caddccd30d6452fc2613a017f0118b0c575b,
+// src/workflow/xochitl_integration.rs. See THIRD_PARTY_NOTICES.md for provenance.
 use super::LogicalDirection;
 use std::time::Duration;
 

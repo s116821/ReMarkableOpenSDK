@@ -1,9 +1,12 @@
 """List-only source-package containment regressions; never build/archive/publish."""
 from pathlib import Path
+import hashlib
+import json
 import re
 import shutil
 import subprocess
 import tempfile
+import tomllib
 import unittest
 
 
@@ -13,7 +16,7 @@ SOURCES = {
     "src/development_capture.rs", "src/evidence.rs", "src/mock.rs",
     "src/navigation.rs", "src/navigation/gesture.rs",
 }
-REQUIRED = SOURCES | {"Cargo.toml", "Cargo.lock", "README.md"}
+REQUIRED = SOURCES | {"Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"}
 GENERATED = {"Cargo.toml.orig", ".cargo_vcs_info.json"}
 
 
@@ -31,6 +34,48 @@ def listed(root):
 
 
 class PackageContents(unittest.TestCase):
+    def test_license_metadata_and_complete_original_notices(self):
+        self.assertEqual(
+            hashlib.sha256((ROOT / "LICENSE").read_bytes()).hexdigest(),
+            "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+            "LICENSE must remain the unmodified canonical GNU GPLv3 text",
+        )
+        manifest = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["package"]["license"], "GPL-3.0-only")
+        self.assertIs(manifest["package"]["publish"], False)
+        result = subprocess.run(
+            ["cargo", "metadata", "--format-version", "1", "--no-deps", "--locked", "--offline"],
+            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True, timeout=60,
+        )
+        package = next(p for p in json.loads(result.stdout)["packages"] if p["name"] == "remarkable-open-sdk")
+        self.assertEqual(package["license"], "GPL-3.0-only")
+        self.assertEqual(package["publish"], [])
+        inventory = json.loads((ROOT / "docs/reference/dependency-license-inventory.json").read_text(encoding="utf-8"))
+        lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
+        current_pins = {(p["name"], p["version"], p["checksum"])
+                        for p in lock["package"] if p.get("source")}
+        notice_pins = {(p["name"], p["version"], p["registry_checksum"])
+                       for p in inventory["packages"]}
+        self.assertEqual(current_pins, notice_pins, "Dependency changes require a refreshed notice inventory")
+        bundle = (ROOT / "THIRD_PARTY_NOTICES.md").read_bytes()
+        chunks = re.findall(
+            rb"### SHA-256 ([0-9a-f]{64})\n\nOriginal bytes: ([0-9]+)\n\n```text\n(.*?)```",
+            bundle, re.S,
+        )
+        hashes = []
+        for digest, size, payload in chunks:
+            length = int(size)
+            self.assertIn(payload[length:], (b"", b"\n"))
+            self.assertEqual(hashlib.sha256(payload[:length]).hexdigest().encode(), digest)
+            hashes.append(digest.decode())
+        expected = {n["sha256"] for p in inventory["packages"] for n in p["license_notice_files"]}
+        self.assertEqual(len(hashes), len(set(hashes)))
+        self.assertEqual(set(hashes), expected)
+        for p in inventory["packages"]:
+            for n in p["license_notice_files"]:
+                row = f"| {p['name']} {p['version']} | {p['declared_license']} | [{n['path']}]({n['url']}) | [{n['sha256']}](#notice-{n['sha256']}) |"
+                self.assertIn(row.encode(), bundle)
+
     def assert_contents(self, paths):
         self.assertTrue(REQUIRED <= paths, REQUIRED - paths)
         self.assertFalse(paths - REQUIRED - GENERATED, paths - REQUIRED - GENERATED)
