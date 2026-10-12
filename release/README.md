@@ -189,3 +189,20 @@ It does not download, delete, tag, publish or manage release state. Upstream
 download/recovery/finalization and remote immutability/concurrency remain separate
 production qualification. Caller-provided expected metadata must come from the
 verified build, never from the downloaded release's self-reported manifest.
+
+## Distinct ordinary SDK consumer check
+
+The existing release qualification workflow additionally checks PR1 source
+[e408a55](https://github.com/s116821/ReMarkableOpenSDK/commit/e408a55f447bfba893842d8bf4527b4fc2a0ac51)
+as an ordinary feature-disabled dependency, on host Rust1.88.0 and1.98.1.
+Its [canonical guide](https://github.com/s116821/ReMarkableOpenSDK/blob/e408a55f447bfba893842d8bf4527b4fc2a0ac51/docs/reference/consumer-build-boundary.md)
+owns the commands and checker. Explicit locked prefetch is followed by the
+locked/offline positive consumer and separate exact E0432/exit101 negatives.
+The workflow verifies exact checkout identity and unchanged tracked files/locks.
+
+This source is separate from the preserved f6b7dc experimental compiler matrix
+and synthetic release/version fixtures. PR3 does not copy broad PR1 WIP, update
+Buddy pins or activate shipping CI. No PR1-before-PR3 merge is required for the
+frozen checkout to exist; shipping source integration remains its own gate.
+These results qualify only the identified source and host boundary. They do not
+waive advisory failures or qualify any native operation/model/firmware/release.

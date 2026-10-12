@@ -143,3 +143,35 @@ jobs:
         run: cargo build --locked --all-features --lib --target ${{ matrix.target }}
       - name: Keep research source unchanged
         run: test -z "$(git status --porcelain)"
+
+  ordinary-sdk-consumer:
+    name: Ordinary SDK consumer / Rust ${{ matrix.toolchain }} / source e408a55
+    needs: title-and-paths
+    if: github.event_name == 'pull_request' && needs.title-and-paths.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ['1.88.0', '1.98.1']
+    steps:
+      # Distinct PR1 boundary source; older experimental compiler lanes stay frozen.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: e408a55f447bfba893842d8bf4527b4fc2a0ac51
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: Verify exact ordinary-consumer source snapshot
+        run: test "$(git rev-parse HEAD)" = e408a55f447bfba893842d8bf4527b4fc2a0ac51
+      - name: Prefetch committed ordinary-consumer dependency pins
+        run: cargo +${{ matrix.toolchain }} fetch --locked --manifest-path tests/fixtures/consumer-boundary/Cargo.toml
+      - name: Verify actual ordinary consumer and forbidden SDK imports offline
+        run: python tools/check_consumer_boundary.py --toolchain ${{ matrix.toolchain }}
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+      - name: Keep tracked research source and locks unchanged
+        run: git diff --exit-code HEAD --

@@ -203,3 +203,13 @@ After source integration, refresh the checkout policy in a separately reviewed
 delta. The current job qualifies the frozen snapshot only, not later PR1 edits
 or the consumer's current SDK pin. Existing advisory failures, source-version
 policy, license/API/distribution, native and public release gates stay open.
+
+Integration verification October12: local Linux Rust1.88.0 and1.98.1 both
+pass the exact existing positive consumer plus separate E0432/exit101 targets.
+All152 tracked snapshot files, including both lockfiles, remain byte-identical
+to e408a55. Fixture lock SHA256 is
+192ad860fa77a0a68a346f1e006e41190c81bc5e9853f70ffaa7a1dd69b06d73.
+Workflow parses and retains application-only PR control, exact checkout, explicit
+prefetch, offline checker and unchanged tracked-file verification. Strict
+OpenSpec passes. Hosted jobs and independent CI-delta review remain pending;
+earlier author/Sol Windows checks are separate attributed upstream evidence.
