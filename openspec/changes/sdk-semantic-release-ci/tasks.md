@@ -24,7 +24,8 @@
 - [x] Verify actual Cargo tag/locked-commit identity and reversible local overrides in owned consumer fixtures.
 - [x] Reproduce missing tag-to-package-version inference and qualify separate build-time runtime identity/cache invalidation in actual Cargo fixtures.
 - [ ] Integrate and verify the real SDK dependency/distribution contract with consumer owner.
-- [ ] Resolve first SDK version, license/API/dependency and real distribution gates before publication.
+- [x] Reconcile reviewed GPL-3.0-only/dependency/experimental API policy at owner6e45c091; no further human license decision.
+- [ ] Resolve first SDK version and actual version-free source/distribution gates before publication.
 - [ ] Obtain independent review and required hosted CI; sync/archive only completed delivery.
 
 - [ ] Verify expanded hosted fixtures and obtain independent review of the actual packaging/recovery diff.
@@ -45,6 +46,6 @@
 
 ## Reviewed license/notice input integration
 - [x] Verify final owner6e45c091 manifest, committed LICENSE/notice bytes and public review receipt; no license preference remains.
-- [ ] Integrate licensed historical contract and existing three owner checks into workflow without duplicating grant/notices.
-- [ ] Verify normalized license/publication metadata and selected license/notice artifact tampering controls on owned fixtures.
+- [x] Integrate licensed historical contract and existing three owner checks into workflow without duplicating grant/notices.
+- [x] Verify normalized license/publication metadata and selected license/notice artifact tampering controls on owned fixtures.
 - [ ] Obtain exact local/hosted licensed-source evidence and independent REM-50 delta review; retain actual candidate/source-version/advisory/native/publication gates.

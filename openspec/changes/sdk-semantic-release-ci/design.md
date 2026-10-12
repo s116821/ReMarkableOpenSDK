@@ -302,3 +302,14 @@ requires PR1 source arrival, and advisory/native/public-tag/remote integrity
 gates remain distinct. Accepted SDK task1.4 licensing/dependency/experimental API
 policy is attributed to the owner receipt; REM-50 artifact integration remains
 its separate scope.
+
+Licensed-input local verification: exact owner6e45c091 ordinary consumer PASS
+on Linux1.88.0 and1.98.1; all three existing owner package/metadata/notice tests
+PASS on1.98.1. No owner files were edited. All160 tracked owner source/lock bytes
+remain unchanged; canonical LICENSE and full notice-bundle hashes match the
+public review receipt. Plain export has no Git-generated VCS member; the owner's
+Git checkout15-member result is attributed until hosted checkout verification.
+Eight REM-50 inventory fixtures plus12 existing staging cases PASS, including
+license/notice omissions/changes and normalized grant/license-file/publish
+relabeling refusal. An initial test-rewriter optional-selector None error was
+corrected without product-check weakening. Hosted successor/review pending.

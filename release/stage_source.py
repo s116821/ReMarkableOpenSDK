@@ -129,6 +129,9 @@ def distribution_manifest(destination, artifact):
             if package['name']!=identity['package_name'] or package['version']!=identity['build_version']:
                 raise Refusal('Crate package identity differs')
             source_manifest=tomllib.loads((destination/'Cargo.toml').read_text())
+            for field in ['license', 'license-file', 'publish']:
+                if package.get(field) != source_manifest['package'].get(field):
+                    raise Refusal('Normalized crate license/publication metadata differs')
             def dependency_tables(value):
                 return {name: {'version': spec} if isinstance(spec, str) else spec
                         for name, spec in value.items()}

@@ -180,7 +180,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         if: steps.source.outputs.mode == 'historical'
         with:
-          ref: a3c2037e2c33fb219a64e7d4021c74b17219a665
+          ref: 6e45c091d5ca2294f170930d6a25141f1c7fea25
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -194,7 +194,7 @@ jobs:
             test "$(git rev-parse HEAD)" = "$CHECK_CANDIDATE_SHA"
           else
             test "$CHECK_SOURCE_MODE" = historical
-            test "$(git rev-parse HEAD)" = a3c2037e2c33fb219a64e7d4021c74b17219a665
+            test "$(git rev-parse HEAD)" = 6e45c091d5ca2294f170930d6a25141f1c7fea25
           fi
         env:
           CHECK_SOURCE_MODE: ${{ steps.source.outputs.mode }}

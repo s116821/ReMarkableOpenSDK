@@ -238,3 +238,17 @@ Package list-only checks additionally need a separate `cargo fetch --locked
 --manifest-path Cargo.toml` prefetch, because the minimal consumer lock subset
 does not cache optional SDK dependencies such as serde. Both checkers stay
 offline/locked; a previously warm cache is not cold-run preparation evidence.
+
+## Reviewed licensed source inputs
+
+Current historical qualification source is
+[6e45c091](https://github.com/s116821/ReMarkableOpenSDK/commit/6e45c091d5ca2294f170930d6a25141f1c7fea25),
+superseding a3c2037. GPL-3.0-only and owner license/dependency/experimental API
+policy are resolved; [owner review receipt](https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6128065282)
+records13 selected inputs plus two generated Cargo members, with LICENSE and
+THIRD_PARTY_NOTICES.md included. Existing owner checks verify canonical LICENSE
+bytes, all notice texts/mappings and current lock-inventory freshness; REM-50
+reuses them without generating another grant/notice bundle. Artifact identity
+also verifies normalized license/license-file/publish metadata and selected
+license/notice bytes. Actual candidate mode and remaining version-free-source,
+advisory/native/publication gates remain open.

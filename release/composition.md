@@ -32,7 +32,9 @@ release state machine, source version commit or patched publisher fork is added.
    domain evidence. Current synthetic fixtures explicitly mark every tablet
    unqualified and native operations unsupported; they cannot ship as production
    SDK compatibility evidence. The current experimental SDK's source version,
-   source/license/API and real packaging/consumer acceptance remain owner gates.
+   version-free source and real packaging/consumer acceptance remain owner gates.
+   License/dependency/experimental API policy is now resolved at SDK6e45c091;
+   REM-50 must verify those selected package inputs, not ask for another choice.
 5. For an absent release, run maintained `gh release create "$TAG" --verify-tag
    --draft --notes-file "$NOTES" --repo "$REPOSITORY"` **without assets**.
    The default auto-publish path deletes a failed draft and is not used. For
@@ -87,8 +89,10 @@ compatibility. No production tag/release is created.
   advisory gate remains failing until a supported fix or explicit reviewed gate
   policy is committed; functional success does not silently waive it. See the
   decision-ready assessment in [upstream-audit.md](upstream-audit.md).
-- SDK source owners provide version-free accepted shipping source, license/API,
-  dependency/consumer contract, target packaging and compatibility evidence.
+- SDK source owners provide version-free accepted shipping source, actual
+  consumer integration, target packaging and compatibility evidence. GPL-3.0-only
+  and dependency/experimental API policy are resolved at reviewed6e45c091;
+  retain its exact license/notice inputs during packaging.
   Main/REM-35 owns initial/public release policy and final delivery acceptance.
 - Repository owner qualifies protected tag/immutable release enforcement and
   actual recovery/concurrency/finalization before production activation.

@@ -14,7 +14,7 @@ class PackageInventory(unittest.TestCase):
     setUp = test_stage_source.SourceStaging.setUp
     git = test_stage_source.SourceStaging.git
 
-    def prepare(self, include=None):
+    def prepare(self, include=None, license_inputs=False):
         (self.repo/'src/main.rs').unlink()
         (self.repo/'README.md').write_text('Owned fixture only\n')
         (self.repo/'research').mkdir()
@@ -22,13 +22,18 @@ class PackageInventory(unittest.TestCase):
         (self.repo/'tools').mkdir()
         (self.repo/'tools/private-decoy.txt').write_text('Original harmless text\n')
         paths = include if include is not None else ['/Cargo.toml','/Cargo.lock','/README.md','/src/lib.rs']
+        if license_inputs:
+            for name in ['LICENSE','THIRD_PARTY_NOTICES.md']:
+                (self.repo/name).write_text('Original harmless owned license/notice fixture text\n')
+                paths.append('/'+name)
         with (self.repo/'Cargo.toml').open('a') as f:
             f.write('include = '+json.dumps(paths)+'\n')
+            if license_inputs: f.write('publish = false\n')
         self.git('add','.'); self.git('commit','-m','test: owned explicit package inputs')
         self.sha=self.git('rev-parse','HEAD'); self.git('tag','v0.3.8')
 
-    def packaged(self):
-        self.prepare()
+    def packaged(self, license_inputs=False):
+        self.prepare(license_inputs=license_inputs)
         identity=stage(self.repo,'v0.3.8',self.sha,self.out)
         cargo=os.environ['SDK_FIXTURE_CARGO']
         for args in [('generate-lockfile','--offline'),('package','--locked','--offline')]:
@@ -42,8 +47,19 @@ class PackageInventory(unittest.TestCase):
                 name=member.name.removeprefix('owned_fixture-0.3.8/')
                 if name==drop: continue
                 data=src.extractfile(member).read() if member.isfile() else None
-                if name==change:
-                    data=data+b'\n[dependencies]\nunknown = \"9.9.9\"\n' if name=='Cargo.toml' else b'changed source'
+                if name==change or (isinstance(change,str) and change.startswith('metadata-') and name=='Cargo.toml'):
+                    if change=='metadata-license':
+                        assert b'license = "MIT"' in data
+                        data=data.replace(b'license = "MIT"',b'license = "Apache-2.0"')
+                    elif change=='metadata-publish':
+                        assert b'publish = false' in data
+                        data=data.replace(b'publish = false',b'publish = true')
+                    elif change=='metadata-license-file':
+                        data=data.replace(b'license = "MIT"',b'license = "MIT"\nlicense-file = "unselected.txt"')
+                    elif name=='Cargo.toml':
+                        data+=b'\n[dependencies]\nunknown = "9.9.9"\n'
+                    else:
+                        data=b'changed source'
                     member.size=len(data)
                 dst.addfile(member,io.BytesIO(data) if data is not None else None)
             if append:
@@ -88,6 +104,21 @@ class PackageInventory(unittest.TestCase):
                     json.dumps({'git':{'sha1':self.sha,'dirty':True},'path_in_vcs':''}).encode()]:
             with self.subTest(bad=bad),self.assertRaises(Refusal):
                 distribution_manifest(self.out,self.rewrite(artifact,append='.cargo_vcs_info.json',append_data=bad))
+
+    def test_selected_license_and_notice_files_must_be_present_and_unchanged(self):
+        identity, artifact=self.packaged(license_inputs=True)
+        self.assertTrue({'LICENSE','THIRD_PARTY_NOTICES.md'} <= set(identity['package_inputs']))
+        self.assertEqual(distribution_manifest(self.out,artifact)['source_sha'],self.sha)
+        for name in ['LICENSE','THIRD_PARTY_NOTICES.md']:
+            for args in [{'drop':name},{'change':name}]:
+                with self.subTest(args=args),self.assertRaises(Refusal):
+                    distribution_manifest(self.out,self.rewrite(artifact,**args))
+
+    def test_normalized_license_cannot_relabel_the_original_source(self):
+        _,artifact=self.packaged(license_inputs=True)
+        for change in ['metadata-license','metadata-license-file','metadata-publish']:
+            with self.subTest(change=change),self.assertRaises(Refusal):
+                distribution_manifest(self.out,self.rewrite(artifact,change=change))
 
 
 if __name__=='__main__':unittest.main()
