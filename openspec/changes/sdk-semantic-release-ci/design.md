@@ -177,3 +177,29 @@ restricted release-command source scans reporting no affected calls/imports.
 Severity is unspecified in the primary advisory; no high/critical classification
 or waiver is inferred. Owner security policy/remediation, protected immutable
 remote publication and accepted shipping SDK source/compatibility remain gates.
+
+## Ordinary-consumer feature boundary integration
+
+The distinct accepted checker belongs to PR1 exact research source
+`e408a55f447bfba893842d8bf4527b4fc2a0ac51`, not PR3's version-free release
+fixtures or its older compiler snapshot. Keep the existing f6b7dc host/MSRV/ARM
+lanes unchanged. Add a separate job to the existing release-qualification
+workflow, using the same application-only PR gate and read-only permissions.
+Checkout the full immutable e408a55 snapshot without copying or cherry-picking
+broad research WIP into this branch; verify HEAD before executing it.
+
+Run host Rust1.88.0 and the existing maintained-toolchain pin1.98.1, with
+Python3.12. Prefetch the committed fixture lock separately via cargo fetch
+--locked; then call its existing checker, which stays locked/offline. Require
+exact SDK path resolution, no SDK features, positive ordinary consumer execution
+and separate negative targets with exact E0432/exit101. Never build all fixture
+bins together or skip failures. Check tracked source/locks remain unchanged;
+untracked target output is build output. No new workflow or release scripts.
+
+This job can run before PR1 merges because checkout references an existing exact
+commit, not nonexistent PR3 files. It links PR1 and PR3 without imposing broad
+source merge order; shipping integration still needs accepted sources on main.
+After source integration, refresh the checkout policy in a separately reviewed
+delta. The current job qualifies the frozen snapshot only, not later PR1 edits
+or the consumer's current SDK pin. Existing advisory failures, source-version
+policy, license/API/distribution, native and public release gates stay open.

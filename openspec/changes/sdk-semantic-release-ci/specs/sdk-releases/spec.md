@@ -57,3 +57,15 @@ shipping builds SHALL separately require integrated source and tag-derived stagi
 #### Scenario: Experimental source check
 - **WHEN** CI compiles an exact experimental source snapshot
 - **THEN** it records source/toolchain/target identity, runs applicable host checks, and makes no native capability, official version or release claim.
+
+### Requirement: Ordinary consumer feature isolation is checked separately
+Research CI SHALL verify an exactly identified SDK checkout as an ordinary
+dependency without default SDK features or SDK dev dependencies. It SHALL run
+the positive consumer and separately require forbidden mock and development
+imports to fail with their exact unresolved-import diagnostic and compiler exit.
+The checker SHALL use committed registry pins locked/offline after explicit
+prefetch. These host checks SHALL NOT imply shipping or native qualification.
+
+#### Scenario: Frozen research consumer boundary
+- **WHEN** an application PR invokes the consumer job before research source merges to main
+- **THEN** CI checks out and verifies the existing immutable accepted snapshot, runs the ordinary consumer on the declared minimum and maintained toolchains, and retains older compiler and release gates without copying broad research work into the release branch.

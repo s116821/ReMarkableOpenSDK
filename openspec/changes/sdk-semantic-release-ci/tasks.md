@@ -28,3 +28,9 @@
 - [ ] Obtain independent review and required hosted CI; sync/archive only completed delivery.
 
 - [ ] Verify expanded hosted fixtures and obtain independent review of the actual packaging/recovery diff.
+
+## Accepted ordinary-consumer CI follow-up
+- [x] Refresh issue/comments/review and reconcile PR1 e408a55 vs PR3 7fb824e source before workflow edits.
+- [ ] Integrate the existing locked/offline checker into the existing workflow at exact e408a55, preserving all older compiler/release/advisory lanes.
+- [ ] Verify actual host consumer gate on Rust1.88.0 and1.98.1 and exact source/lock preservation.
+- [ ] Obtain exact-delta independent review and hosted gate results; retain full shipping/native/lifecycle gates.
