@@ -272,3 +272,10 @@ prints original source SHA/tree separately from fixture SHA/tag. It does not
 mint an official tag, select a public SDK version, publish or grant native
 compatibility. The existing workflow performs that qualified host check only
 after source selection/identity and locked graph prefetch.
+
+Verified-build source checks now require a regular non-symlink staged Cargo.lock
+and its tag-derived own/external identity; deleting or substituting it refuses.
+An explicit `source_only=True` byte-inspection phase returns
+`verification_phase=source-only` and `lock_verified=false`, and cannot replace
+default locked-build/package verification. Optional source own-node metadata is
+unchanged; it does not make the staged build lock optional.

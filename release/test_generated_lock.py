@@ -46,6 +46,29 @@ class GeneratedLock(unittest.TestCase):
         (self.out/'tests/fixture/Cargo.lock').write_text('changed nested input')
         with self.assertRaises(Refusal):verify_staged_source(self.out)
 
+    def test_missing_or_nonregular_staged_lock_refuses_after_positive_verification(self):
+        cargo,_=self.source();identity=stage(self.repo,'v0.3.8',self.sha,self.out)
+        subprocess.check_output([cargo,'generate-lockfile','--offline'],cwd=self.out,env=self.env,stderr=subprocess.PIPE,timeout=60)
+        lock=self.out/'Cargo.lock';before=lock.read_bytes()
+        self.assertEqual(verify_staged_source(self.out),identity)
+        lock.unlink()
+        with self.assertRaises(Refusal):verify_staged_source(self.out)
+        partial=verify_staged_source(self.out,source_only=True)
+        self.assertEqual(partial['verification_phase'],'source-only');self.assertIs(partial['lock_verified'],False)
+        lock.mkdir()
+        with self.assertRaises(Refusal):verify_staged_source(self.out)
+        lock.rmdir()
+        target=self.root/'owned-lock-target';target.write_bytes(before)
+        lock.symlink_to(target)
+        with self.assertRaises(Refusal):verify_staged_source(self.out)
+        lock.unlink()
+        if hasattr(os,'mkfifo'):
+            os.mkfifo(lock)
+            with self.assertRaises(Refusal):verify_staged_source(self.out)
+            lock.unlink()
+        lock.write_bytes(before)
+        self.assertEqual(verify_staged_source(self.out),identity)
+
     def test_only_unique_unsourced_generated_default_is_accepted(self):
         good={'name':'owned_fixture','version':'0.0.0','dependencies':['external']}
         external={'name':'external','version':'1.2.3','source':'registry+fixture','checksum':'a'*64}

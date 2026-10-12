@@ -5,6 +5,7 @@ import json
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
+import stat
 import tarfile
 import tomllib
 
@@ -124,8 +125,8 @@ def verify_sdk_dependency(metadata, package_name, repository_url, tag, source_sh
         raise Refusal('SDK tag, repository or locked commit differs')
     return {'git_tag':tag,'source_sha':source_sha,'repository_url':repository_url}
 
-def verify_staged_source(destination):
-    """Refuse source drift and dependency changes before packaging/publication."""
+def verify_staged_source(destination, *, source_only=False):
+    """Default requires a regular tag-verified lock; source_only is unverified."""
     destination=Path(destination)
     identity=json.loads((destination/'build-identity.json').read_text())
     expected=identity['build_inputs']
@@ -134,9 +135,17 @@ def verify_staged_source(destination):
             and p.relative_to(destination).as_posix().split('/')[0]!='target'
             and p.relative_to(destination).as_posix() not in ['Cargo.lock','build-identity.json']}
     if actual!=expected: raise Refusal('Staged source changed after exact-tag preparation')
-    if (destination/'Cargo.lock').exists():
-        lock=tomllib.loads((destination/'Cargo.lock').read_text())
-        staged_lock_inventory(lock,identity)
+    if source_only:
+        return {**identity,'verification_phase':'source-only','lock_verified':False}
+    lock_path=destination/'Cargo.lock'
+    try:
+        mode=lock_path.lstat().st_mode
+    except FileNotFoundError:
+        raise Refusal('Verified build requires staged Cargo.lock') from None
+    if not stat.S_ISREG(mode):
+        raise Refusal('Staged Cargo.lock must be a regular non-symlink file')
+    lock=tomllib.loads(lock_path.read_text())
+    staged_lock_inventory(lock,identity)
     return identity
 
 def distribution_manifest(destination, artifact):

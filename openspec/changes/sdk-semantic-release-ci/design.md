@@ -410,3 +410,15 @@ as package verification. Package verifier always calls default locked mode.
 Add actual GeneratedLock positive-regenerate/deletion and nonregular controls.
 No new cumulative source/native/provider/license matrix or claim of publication
 bypass; archive verification already required its lock.
+
+Focused local repair proof: exact334716d default verifier succeeds after deleting
+only the positively regenerated original fixture lock; successor refuses that
+same fixture. Six generated-lock/portable methods PASS, including positive lock
+validation followed by deletion, directory, symlink to owned valid outside lock
+and FIFO refusals, restored identical regular-lock success, and explicit
+source-only/lock_verified=false markers. Both LF/CRLF portable tests deliberately
+use source-only mode and also prove default mode refuses their ungenerated lock.
+Archive verification still always uses strict default, not source-only.
+The reviewer separately reproduced the symlink acceptance in334716d; this same
+repair covers it. No publication bypass or new native/source-license acceptance
+is inferred. Hosted exact successor and incremental review pending.
