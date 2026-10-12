@@ -335,3 +335,23 @@ source immutability, nondefault/duplicate/source-marked placeholder refusal,
 registry drift and packaged lock identity. Actual SDK staging waits for its
 owner's reviewed source freeze; no source owner manifest/lock edit here.
 Public handoff before code: PR1 comment6129204263 / PR3 comment6129204437.
+
+## Sol6008083 P2 repair plan
+
+Independent review final requires two fixes: use POSIX relative inventory keys
+in stage and verification, including target exclusions, because Windows string
+keys use backslashes; refuse partial candidate package-checker/other src module/
+consumer fixture inputs when Cargo.toml is absent. Normalize filesystem-derived
+keys with as_posix, without loosening declared traversal/member protections.
+Move the existing source selector into one owned bash script for actual direct
+fixtures and require the entire SDK src tree, both checker paths and consumer
+fixture subtree absent before historical fallback. Existing unrelated research
+tools are not SDK crate inputs.
+
+Add one genuine Windows hosted original tagged/version-free fixture exercising
+stage, selected /src/lib.rs, target exclusion, source drift and unchanged source.
+Do not rerun an SDK Windows matrix. Add Linux direct-selector fixtures for the
+reviewer's three partial cases plus valid candidate/SDK-free controls. Keep
+6008083 and its failing Windows/selector review evidence identifiable; final
+successor review covers repairs plus separately identified future generated-lock
+work, not silently inherited acceptance.
