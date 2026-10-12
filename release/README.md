@@ -206,3 +206,30 @@ Buddy pins or activate shipping CI. No PR1-before-PR3 merge is required for the
 frozen checkout to exist; shipping source integration remains its own gate.
 These results qualify only the identified source and host boundary. They do not
 waive advisory failures or qualify any native operation/model/firmware/release.
+
+## Current-source transition and declared crate inputs
+
+The consumer job now first checks out the current PR merge candidate. If its
+SDK crate exists, required boundary tools/fixtures must exist there and HEAD
+must equal the event SHA; tests run on that candidate. Missing required files
+fail rather than selecting historical source. Until PR1 integrates the crate,
+this SDK-free release branch explicitly logs HISTORICAL QUALIFICATION ONLY and
+checks owner snapshot
+[a3c2037](https://github.com/s116821/ReMarkableOpenSDK/commit/a3c2037e2c33fb219a64e7d4021c74b17219a665).
+Partial SDK source without a manifest refuses. Rust1.98.1 additionally runs the
+owner's package-list containment regression. It lists files only, without
+creating a real SDK archive/build or clearing license/distribution gates.
+Successful historical mode does not close current-source integration.
+
+Staging still verifies every tagged build input. An explicit literal rooted
+Cargo include list defines the distinct crate source inventory; unsupported
+patterns/excludes, noncanonical/missing/duplicate paths refuse. Package checks
+require selected source bytes, normalized manifest identity, original manifest
+and dependency lock, reject undeclared members and verify generated VCS metadata
+if present. The existing minimal owned-fixture default remains non-production;
+real SDK packaging is gated on accepted source/license/version-free inputs.
+No SDK owner's allowlist or consumer pin is edited.
+
+The supported normal audit refresh changes only Handlebars4.7.9→4.7.10. This
+removes critical findings but retains the failing high advisory gate; see the
+dated [audit evidence](upstream-audit.md).

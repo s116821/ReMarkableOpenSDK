@@ -245,3 +245,21 @@ runs on1.88.0 and1.98.1. No actual SDK archive/build/publish or native operation
 is selected. The real source still has prototype version and unresolved license
 (including gesture provenance), target/native and publication prerequisites.
 Public prospective verifier plan preceded implementation at PR3 comment6127283836.
+
+Local follow-up verification: six explicit-inventory fixtures and12 existing
+staging fixtures PASS after normalized dependency/feature/target declaration
+checks were added; five Cargo consumer fixtures also PASS before that isolated
+package-only strengthening. Changed normalized dependency declarations refuse
+as well as missing/changed source and unexpected archive entries. Four actual
+workflow selection controls PASS: candidate, explicit historical, missing-tools
+refusal and partial-source refusal. Exact a3c2037 consumer gates PASS on Linux
+Rust1.88.0/1.98.1; its two list-only package regressions PASS on1.98.1. All156
+tracked source/lock files remain byte-identical. Strict OpenSpec/diff checks PASS.
+Supported Handlebars lock-only correction separately passed17 policy/lifecycle
+checks after a clean install. Hosted follow-up and independent delta review
+remain pending; actual integrated SDK candidate mode cannot be claimed until
+PR1 sources exist on the PR merge candidate.
+
+Prior b1966b2 acceptance was forwarded by Main/Root from the existing independent
+Sol chat; that forwarding has no public review transcript link. It does not
+accept this new implementation delta or waive the known advisory gates.

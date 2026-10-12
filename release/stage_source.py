@@ -2,7 +2,7 @@
 import hashlib
 import io
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tarfile
@@ -41,8 +41,39 @@ def stage(repo, tag, expected_sha, destination):
     with tarfile.open(fileobj=io.BytesIO(archive)) as source: source.extractall(destination,filter='data')
     (destination/'Cargo.toml').write_text(generated)
     inputs={str(p.relative_to(destination)):hashlib.sha256(p.read_bytes()).hexdigest() for p in destination.rglob('*') if p.is_file() and p.name!='Cargo.lock'}
+    # First shipping integration supports the owner's explicit literal include list.
+    # Do not implement Cargo's glob/exclude semantics in this identity verifier.
+    declared = package.get('include')
+    if declared is None:
+        package_inputs = inputs.copy()  # retained owned minimal-fixture scope
+    else:
+        if not isinstance(declared, list) or not declared or package.get('exclude'):
+            raise Refusal('An explicit package inventory without excludes is required')
+        names = []
+        for entry in declared:
+            if not isinstance(entry, str) or not entry.startswith('/'):
+                raise Refusal('Package inputs must use explicit rooted paths')
+            name = entry[1:]
+            if not name or PurePosixPath(name).as_posix() != name or any(
+                part in ('', '.', '..') for part in name.split('/')
+            ) or any(c in name for c in '*?[]{}!\\'):
+                raise Refusal('Package patterns or noncanonical paths are not qualified')
+            if name in names:
+                raise Refusal('Duplicate package input')
+            names.append(name)
+        if 'Cargo.toml' not in names or 'Cargo.lock' not in names or not any(n.startswith('src/') for n in names):
+            raise Refusal('Manifest and Rust source must be declared')
+        package_inputs = {}
+        for name in names:
+            path = destination / name
+            if name == 'Cargo.lock':
+                # Verified separately after Cargo regenerates the own-package entry.
+                continue
+            if path.is_symlink() or any(p.is_symlink() for p in path.parents if p != destination.parent) or not path.is_file() or name not in inputs:
+                raise Refusal('Declared package input is missing or not a regular source')
+            package_inputs[name] = inputs[name]
     source_lock=tomllib.loads((destination/'Cargo.lock').read_text()).get('package',[]) if (destination/'Cargo.lock').exists() else []
-    identity={'build_inputs':inputs,'dependency_lock':source_lock,'package_name':package['name'],'schema':1,'git_tag':tag,'source_sha':expected_sha,'build_version':version,
+    identity={'build_inputs':inputs,'package_inputs':package_inputs,'package_inventory_explicit':declared is not None,'dependency_lock':source_lock,'package_name':package['name'],'schema':1,'git_tag':tag,'source_sha':expected_sha,'build_version':version,
               'qualification':{'native_operations':'unsupported','source_authority':False}}
     (destination/'build-identity.json').write_text(json.dumps(identity,indent=2)+'\n')
     return identity
@@ -93,10 +124,31 @@ def distribution_manifest(destination, artifact):
                     if relative in entries: raise Refusal('Duplicate crate member')
                     entries[relative]=crate.extractfile(member).read()
                 elif not member.isdir(): raise Refusal('Unsupported crate member')
-            package=tomllib.loads(entries['Cargo.toml'].decode())['package']
+            normalized=tomllib.loads(entries['Cargo.toml'].decode())
+            package=normalized['package']
             if package['name']!=identity['package_name'] or package['version']!=identity['build_version']:
                 raise Refusal('Crate package identity differs')
-            for name,digest in identity['build_inputs'].items():
+            source_manifest=tomllib.loads((destination/'Cargo.toml').read_text())
+            def dependency_tables(value):
+                return {name: {'version': spec} if isinstance(spec, str) else spec
+                        for name, spec in value.items()}
+            for section in ['dependencies','dev-dependencies','build-dependencies']:
+                if dependency_tables(normalized.get(section, {})) != dependency_tables(source_manifest.get(section, {})):
+                    raise Refusal('Normalized crate dependency declaration differs')
+            if normalized.get('features', {}) != source_manifest.get('features', {}) or normalized.get('target', {}) != source_manifest.get('target', {}):
+                raise Refusal('Normalized crate feature/target declaration differs')
+            selected = identity.get('package_inputs', identity['build_inputs'])
+            allowed = set(selected) - {'Cargo.toml'}
+            allowed.update({'Cargo.toml', 'Cargo.toml.orig', 'Cargo.lock', '.cargo_vcs_info.json'})
+            if identity.get('package_inventory_explicit') and set(entries) - allowed:
+                raise Refusal('Unexpected crate member outside declared package inputs')
+            if '.cargo_vcs_info.json' in entries:
+                vcs = json.loads(entries['.cargo_vcs_info.json'])
+                if not isinstance(vcs, dict) or not isinstance(vcs.get('git'), dict):
+                    raise Refusal('Invalid crate VCS metadata')
+                if vcs.get('git', {}).get('sha1') != identity['source_sha'] or vcs.get('path_in_vcs') != '' or vcs.get('git', {}).get('dirty', False):
+                    raise Refusal('Crate VCS identity differs from exact source')
+            for name,digest in selected.items():
                 packaged_name='Cargo.toml.orig' if name=='Cargo.toml' else name
                 if hashlib.sha256(entries[packaged_name]).hexdigest()!=digest:
                     raise Refusal('Crate source differs from tagged staging')
@@ -104,7 +156,7 @@ def distribution_manifest(destination, artifact):
             lock=tomllib.loads(entries['Cargo.lock'].decode())
             dependencies=[p for p in lock.get('package',[]) if p.get('name')!=identity['package_name']]
             if dependencies!=identity['dependency_lock']: raise Refusal('Crate dependency lock differs')
-    except (tarfile.TarError,KeyError,UnicodeError,tomllib.TOMLDecodeError) as error:
+    except (tarfile.TarError,KeyError,UnicodeError,tomllib.TOMLDecodeError,json.JSONDecodeError) as error:
         raise Refusal('Invalid or incomplete source crate') from error
     return {'schema':1,'git_tag':identity['git_tag'],'source_sha':identity['source_sha'],
             'version':identity['build_version'],

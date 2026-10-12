@@ -141,3 +141,28 @@ calls when a local tag has no remote authority. All API identities and tokens ar
 synthetic. Modeled immutability is not live GitHub enforcement; production
 tag/asset concurrency, attestation verification and accepted SDK source remain
 separate gates. See [the concrete composition](composition.md).
+
+## Supported npm remediation — October 12, 2026
+
+Exact b1966b2 hosted/local audit:13 vulnerable-package findings
+(1critical/10high/2moderate), not13 distinct advisories. Normal
+`npm audit fix --package-lock-only --ignore-scripts` in an owned isolated copy
+changes only Handlebars4.7.9→4.7.10. Fresh clean installation and17 affected
+semantic policy/lifecycle tests PASS. Audit then reports0critical/10high/2moderate;
+`npm audit --audit-level=high` still fails. Direct tool pins, gate and production
+permissions remain unchanged. Official [4.7.10 release](https://github.com/handlebars-lang/handlebars.js/releases/tag/v4.7.10)
+and [patched advisory](https://github.com/advisories/GHSA-p8wg-vrv2-v86f) identify
+the supported correction. No exploit or all-tool security acceptance is inferred.
+
+Current stable registry latest remains semantic-release25.0.9/analyzer13.0.1.
+[braces3.0.3 advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) still
+has no patched release. @semantic-release/npm13.2.0 supports npm^11.6.2;
+latest supported11.21.0 ships affected bundled http-cache-semantics4.2.0,
+brace-expansion, undici, ip-address and postcss-selector-parser. The now
+released standalone http-cache-semantics4.3.0 does not replace those bundled
+bytes through a normal dependency refresh. npm12.2.0 lies outside the plugin's
+supported range. No forced major override, downgrade, patched bundle or ignored
+advisory is introduced. Upstream supported fixes remain the external blocker.
+Official package metadata: [plugin](https://registry.npmjs.org/%40semantic-release%2fnpm/13.2.0),
+[npm11](https://registry.npmjs.org/npm/11.21.0). Preserve the prior dated snapshots
+above as historical evidence rather than treating their counts as current.
