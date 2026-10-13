@@ -1,0 +1,7 @@
+release/node_modules/
+__pycache__/
+*.pyc
+target/
+build/
+.private/
+*.core
