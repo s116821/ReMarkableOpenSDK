@@ -22,6 +22,7 @@ remain workflow records, not a shipping capability declaration.
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
 | Parent discriminator | [Exact Loader candidate](research/passive-parent-loader-finding.md) | One pinned static parent pair and the unresolved application containment needed before more admissions |
 | Reader selection | [Application scene wiring](research/reader-scene-selection-wiring.md) | Reader scopes contain descendant native views; note-page focus gating and explicit current-versus-prefetched selection |
+| Reader discovery | [Named owners and current reference](research/reader-current-reference-discovery.md) | Concrete application anchors, public Qt access, and the separate passive name/alias representation gap |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
 | Shutdown investigation | [0404 upstream lifecycle evidence](research/shutdown-0404-prior-art.md) | Rendering fault, QImage backing-storage limits, pinned prior art and dated experiment boundaries |
 | Lifecycle comparison | [8287 versus 0404 entrypoints](research/shutdown-entrypoint-comparison.md) | Verified source provenance, completed creation cleanup versus early restoration, and limits on regression attribution |

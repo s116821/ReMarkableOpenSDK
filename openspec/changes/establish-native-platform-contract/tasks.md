@@ -182,3 +182,7 @@ unchanged combined refusal without new reads or admission changes.
 See [unknown focus-parent provider reporting](passive-parent-provider-diagnostic.md)
 for a proposed discriminator using the already-read vptr and existing maps;
 the parent's type and any host successor remain unqualified and unselected.
+
+See [owned public-Qt reader-reference assessment](reader-reference-owned-fixture.md)
+for the local fixture increment. Native root discovery, execution entry and
+application qualification remain outside that owned proof.
