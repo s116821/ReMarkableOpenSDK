@@ -1,7 +1,7 @@
 # sdk-source-publisher-composition Specification
 
 ## Purpose
-TBD - created by archiving change sdk-source-publisher-composition. Update Purpose after archive.
+Define controlled qualification of maintained tagger, tag-derived build and source-built publisher recovery, preserving separate production publication and native gates.
 ## Requirements
 ### Requirement: Maintained tag-to-build publisher composition
 Qualification SHALL bind an existing remote intended tag/source to actual compiled/package identity and maintained source-built publisher recovery without retagging/rebuilding retained output.
