@@ -94,11 +94,16 @@ Window { visible:true; width:400; height:400
     if(mode=="owner-topology-queue" || mode=="topology-boundary-queue")for(int i=0;i<(mode=="owner-topology-queue" ? 4094:4093);++i)new QQuickItem(window->contentItem());
     qint64 time=0;int callbacks=0,grabs=0,mappings=0;bool inGrab=false,held=true,acquired=false;FactsEntryResult result;
     QByteArray external(400*400*4,char(0xff));
-    receiver->evidence=[&]{if(acquired && mode=="external-buffer")external.fill(char(0));return scene->hasActiveFocus();};
-    FactsEntry entry(&app,config,[&](FactsEntryResult value){++callbacks;held=held && !inGrab;result=std::move(value);},[&]{
+    receiver->evidence=[&]{if(acquired && (mode=="external-buffer" || mode=="order-owned-pixels"))external.fill(char(0));return scene->hasActiveFocus();};
+    std::function<qint64()> fixtureClock=[&]{
         if((mode=="completion-late" || mode=="order-write-deadline") && QFileInfo::exists(root+"/capture-observation-complete.json"))time=5000;
         return time;
-    });
+    };
+    const bool actualWindow=mode=="order-window-grab";
+    const bool realClock=mode=="order-real-clock" || actualWindow;
+    if(actualWindow)window->setColor(QColor("#123456"));
+    if(realClock)fixtureClock={};
+    FactsEntry entry(&app,config,[&](FactsEntryResult value){++callbacks;held=held && !inGrab;result=std::move(value);},fixtureClock);
     document.hook=[&]{
         ++mappings;
         if(mode=="order-binding-drift" && mappings==19)document.ids.swapItemsAt(1,2);
@@ -107,7 +112,7 @@ Window { visible:true; width:400; height:400
         if(mode=="source-facts-deadline" || mode=="order-deadline")time=5000;
     };
     if(mode=="temporary-unlink")CaptureObservationFixtureAccess::temporary(entry,[&]{QFile::remove(root+"/capture-observation-request.tmp");});
-    CaptureObservationFixtureAccess::grab(entry,[&]{
+    if(!actualWindow)CaptureObservationFixtureAccess::grab(entry,[&]{
         ++grabs;inGrab=true;
         if(mode=="order-drift")document.ids.swapItemsAt(1,2);
         if(mode=="order-queued-drift")QMetaObject::invokeMethod(&app,[&]{document.ids.swapItemsAt(1,2);},Qt::QueuedConnection);
@@ -127,7 +132,7 @@ Window { visible:true; width:400; height:400
         if(mode=="completion-epoch")QMetaObject::invokeMethod(&app,[&]{emit scene->viewportChanged();},Qt::QueuedConnection);
         QImage image;
         if(mode!="empty") {image=QImage(400,400,QImage::Format_ARGB32);image.fill(Qt::white);}
-        if(mode=="external-buffer")image=QImage(reinterpret_cast<uchar *>(external.data()),400,400,QImage::Format_ARGB32);
+        if(mode=="external-buffer" || mode=="order-owned-pixels")image=QImage(reinterpret_cast<uchar *>(external.data()),400,400,QImage::Format_ARGB32);
         if(mode=="dimension-mismatch")image=QImage(200,400,QImage::Format_ARGB32);
         acquired=true;
         inGrab=false;return image;
@@ -285,19 +290,38 @@ Window { visible:true; width:400; height:400
     if(mode=="foreign-temporary")put(root+"/capture-observation-request.tmp",token);
     drain();
     if(orderCase) {
-        const bool success=mode=="order-good";
+        const bool success=mode=="order-good" || mode=="order-real-clock" || mode=="order-owned-pixels" || actualWindow;
         QFile complete(root+"/capture-observation-complete.json");
         if(complete.open(QIODevice::ReadOnly)!=success || !held || result.observed)return 45;
         if(success) {
             const auto value=QJsonDocument::fromJson(complete.readAll()).object();
             QFile image(root+"/capture-window.png");
-            if(value.size()!=39 || value["version"].toInt()!=3 || value["discovery_scope"]!="receiver-capture-order-unqualified-v1" ||
+            if(value.size()!=40 || value["version"].toInt()!=4 || value["discovery_scope"]!="receiver-capture-order-unqualified-v1" ||
                 value["order"].toArray()!=QJsonArray::fromStringList(document.ids) || value["page_count"].toInt()!=6 ||
-                !value["observed_order"].toBool() || mappings!=24 || grabs!=1 || callbacks ||
+                !value["observed_order"].toBool() || mappings!=24 || grabs!=(actualWindow ? 0:1) || callbacks ||
                 value["native_authority"].toBool(true) || value["render_authority"].toBool(true) ||
                 value["atomic_snapshot"].toBool(true) || value["ui_acknowledged"].toBool(true) ||
                 !image.open(QIODevice::ReadOnly) || value["png_sha256"].toString().toLatin1()!=
                     QCryptographicHash::hash(image.readAll(),QCryptographicHash::Sha256).toHex())return 46;
+            const QJsonObject semantics{{"version",1},{"origin","DevelopmentUnqualifiedCaptureOrder"},
+                {"acquisition",actualWindow ? "QQuickWindowGrab":"InjectedImageCallback"},{"ownership","DeepCopiedPixelsEncodedOwnedPng"},
+                {"clock",realClock ? "QElapsedTimerEntryRelativeMilliseconds":"InjectedEntryRelativeMilliseconds"},
+                {"clock_scope","ThisEntryAttemptOnly"},{"render_binding","UnverifiedWindowToSource"},
+                {"coordinate_space","FullWindowImagePixels"},{"epoch_scope","LocalObservedInvalidationOnly"}};
+            if(value["evidence_semantics"].toObject()!=semantics)return 49;
+            const qint64 accepted=value["accepted_ms"].toInteger(),baseline=value["baseline_ms"].toInteger(),
+                grabStart=value["grab_start_ms"].toInteger(),grabEnd=value["grab_end_ms"].toInteger(),
+                postRead=value["post_read_ms"].toInteger(),completed=value["completed_ms"].toInteger();
+            if(!(0<=accepted && accepted<=baseline && baseline<=grabStart && grabStart<=grabEnd &&
+                grabEnd<=postRead && postRead<=completed && completed<accepted+5000 && completed<120000))return 50;
+            if(mode=="order-owned-pixels") {
+                image.seek(0);
+                if(external.at(0)!=char(0) || QImage::fromData(image.readAll(),"png").pixelColor(0,0)!=QColor(Qt::white))return 51;
+            }
+            if(actualWindow) {
+                image.seek(0);
+                if(QImage::fromData(image.readAll(),"png").pixelColor(0,0)!=QColor("#123456"))return 52;
+            }
             entry.cancel();drain();
         } else {
             const bool postGrab=mode=="order-drift" || mode=="order-queued-drift" || mode=="order-queued-deadline" || mode=="order-binding-drift" || mode=="order-write-deadline";

@@ -567,3 +567,15 @@ The SDK SHALL keep explicitly selected six-page capture-order correspondence unq
 #### Scenario: Changed, incomplete or cross-purpose evidence
 - WHEN mapping fails, scope changes, the original deadline expires, or a different request purpose is present
 - THEN the entry refuses usable successful completion without retry or deadline reset.
+
+### Requirement: Development capture producer provenance
+
+The development capture-order producer SHALL emit version 4 with explicit acquisition, ownership, clock, render and coordinate semantics as defined in [the provenance amendment](../../capture-order-provenance.md). Historical version 3 remains a distinct schema.
+
+#### Scenario: Injected versus actual entry timing
+- WHEN an injected image callback runs with either an injected clock or QElapsedTimer
+- THEN the receipt records each actual mechanism independently and grants no native authority.
+
+#### Scenario: No page-plane or render proof
+- WHEN a full-window PNG has matching source/order checks
+- THEN metadata explicitly describes unverified window-to-source rendering, local invalidation epoch and full-window image coordinates; no page transform, native generation or live admission is fabricated.

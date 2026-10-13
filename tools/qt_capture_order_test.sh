@@ -10,7 +10,8 @@ for file in qt_page_facts qt_page_facts_entry; do "$moc" "tools/$file.h" -o "$wo
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
  tools/qt_capture_observation_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/fixture"
-for case in order-good order-stale order-cancel order-binding-drift order-write-deadline order-reverse order-drift order-queued-drift order-invalidate order-deadline order-queued-deadline order-cross-capture order-cross-source order-wrong-token order-legacy-reject order-source-reject good completion-diagnostic-success source-facts-good source-facts-reverse; do
+for case in ${CAPTURE_ORDER_CASES:-order-good order-real-clock order-owned-pixels order-window-grab order-stale order-cancel order-binding-drift order-write-deadline order-reverse order-drift order-queued-drift order-invalidate order-deadline order-queued-deadline order-cross-capture order-cross-source order-wrong-token order-legacy-reject order-source-reject good completion-diagnostic-success source-facts-good source-facts-reverse}; do
+ if [ "$case" = order-window-grab ]; then export QT_QUICK_BACKEND=software; fi
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
   /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
    -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \

@@ -149,3 +149,5 @@ No new native execution or completed same-running display gate follows from this
 - [ ] 12.5 Finish coordinated consumer/helper source and artifact review, then Main's fresh source5 device selection and required native/display/write/persistence/recovery evidence. The consumer tuple/pin reinterpretation fix and packet arithmetic were independently accepted; current helper/control integration remains WIP. Product acceptance, canonical sync and archive remain open.
 
 See [capture-order correspondence amendment](capture-order-correspondence.md) for the default-off six-page combined capture contract and open verification tasks.
+
+See [capture-order producer provenance](capture-order-provenance.md) for explicit version-4 semantics and compatibility with historical v3 evidence.

@@ -101,6 +101,10 @@ lifecycle qualification remains open. The 771 ms remaining in one old
 capture is not a future timing guarantee, and checks around native calls do not
 prove a hard call execution bound. No native startup configuration or activation
 is included.
+The [provenance amendment](../../openspec/changes/establish-native-platform-contract/capture-order-provenance.md)
+subsequently advances completion to version 4 with explicit actual acquisition,
+pixel ownership, attempt-local clock, unverified render and full-window coordinate
+semantics. It adds no qualified native facts or consumer constructor.
 
 Even that combined read would address only source/order correspondence. It would
 not establish the render, geometry, scope or recovery rows above, and could not

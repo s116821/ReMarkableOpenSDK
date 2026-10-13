@@ -2,6 +2,10 @@
 
 Status: source implemented, owned ARM-emulated fixtures verified, and independent source review accepted; native qualification and coordinated merge remain open.
 
+The subsequent [producer-provenance amendment](capture-order-provenance.md) emits
+version 4. The version-3 description and 20-case receipt below remain historical
+evidence for exact source `29bcfaa`, not a new-source test claim.
+
 ## Proposal
 
 Add default-off six-page `developmentCaptureOrder` selection to the existing

@@ -112,6 +112,9 @@ public:
             config_.developmentReceiverSourceFacts || config_.facts.expectedOrder.size()!=6 || config_.facts.pageCap!=6)) {
             finish("capture-order-config-refused");return;
         }
+        if(config_.developmentCaptureOrder && !clock_ && !QElapsedTimer::isMonotonic()) {
+            finish("capture-order-clock-refused");return;
+        }
         if(config_.developmentReceiverSourceFacts && (!config_.developmentReceiverSubtreeCaptureEntryIdConversion || config_.facts.expectedOrder.size()!=6 || config_.facts.pageCap!=6)){finish("receiver-source-facts-config-refused");return;}
         if(config_.developmentCaptureCompletionRefusalDiagnostics && !config_.developmentReceiverSubtreeCaptureEntryIdConversion){finish("capture-observation-config-refused");return;}
         if(config_.developmentReceiverSubtreeCaptureEntryIdConversion && (!config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics || !config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics || !config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea || !config_.developmentReceiverSubtreeCapture || config_.developmentReceiverSubtreeItemCap!=4096 || config_.developmentReceiverSubtreeDepthCap!=32 || config_.developmentReceiverSubtreeCapture512 || config_.developmentFocusAncestry)){finish("capture-observation-config-refused");return;}
@@ -781,11 +784,18 @@ QtObject {
             {"native_authority",false},{"render_authority",false},{"ui_acknowledged",false},{"observed_order",false}};
         if(config_.developmentReceiverSubtreeCapture)object.insert("discovery_scope",config_.developmentReceiverSubtreeCaptureEntryIdConversion ? "receiver-subtree-capture-unqualified-v11":config_.developmentReceiverSubtreeCaptureDocumentIdTypeDiagnostics ? "receiver-subtree-capture-unqualified-v10":config_.developmentReceiverSubtreeCaptureDetailedIdentityDiagnostics ? "receiver-subtree-capture-unqualified-v9":config_.developmentReceiverSubtreeCaptureAllowUnfocusedArea ? "receiver-subtree-capture-unqualified-v8":config_.developmentReceiverSubtreeDepthCap==32 ? "receiver-subtree-capture-unqualified-v7":config_.developmentReceiverSubtreeItemCap==4096 ? "receiver-subtree-capture-unqualified-v6":config_.developmentReceiverSubtreeDepthCap==16 ? "receiver-subtree-capture-unqualified-v5":config_.developmentReceiverSubtreeItemCap==2048 ? "receiver-subtree-capture-unqualified-v4":config_.developmentReceiverSubtreeItemCap ? "receiver-subtree-capture-unqualified-v3":(config_.developmentReceiverSubtreeCapture512 ? "receiver-subtree-capture-unqualified-v2":"receiver-subtree-capture-unqualified-v1"));
         if (config_.developmentCaptureOrder) {
-            object["version"]=3;
+            object["version"]=4;
             object["discovery_scope"]="receiver-capture-order-unqualified-v1";
             object["observed_order"]=true;
             object["order"]=QJsonArray::fromStringList(captureOrder_);
             object["page_count"]=captureOrder_.size();
+            object["evidence_semantics"]=QJsonObject{
+                {"version",1},{"origin","DevelopmentUnqualifiedCaptureOrder"},
+                {"acquisition",captureGrabForFixture_ ? "InjectedImageCallback":"QQuickWindowGrab"},
+                {"ownership","DeepCopiedPixelsEncodedOwnedPng"},
+                {"clock",clock_ ? "InjectedEntryRelativeMilliseconds":"QElapsedTimerEntryRelativeMilliseconds"},
+                {"clock_scope","ThisEntryAttemptOnly"},{"render_binding","UnverifiedWindowToSource"},
+                {"coordinate_space","FullWindowImagePixels"},{"epoch_scope","LocalObservedInvalidationOnly"}};
         }
         QMetaObject::invokeMethod(this,[this,object,epoch,baseline,postRead]() mutable {
             const Scope completionScope(this);
