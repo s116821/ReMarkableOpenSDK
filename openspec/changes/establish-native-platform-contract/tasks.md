@@ -178,3 +178,7 @@ operational selection remain Main-owned and open.
 See [item-guard operand reporting](passive-item-guard-diagnostic.md) for the
 reporting-only variant that retains existing equality/flag booleans at the
 unchanged combined refusal without new reads or admission changes.
+
+See [unknown focus-parent provider reporting](passive-parent-provider-diagnostic.md)
+for a proposed discriminator using the already-read vptr and existing maps;
+the parent's type and any host successor remain unqualified and unselected.
