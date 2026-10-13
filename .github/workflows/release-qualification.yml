@@ -106,7 +106,7 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
 
   actual-sdk-research:
-    name: Actual experimental SDK / ${{ matrix.target }} / Rust ${{ matrix.toolchain }}
+    name: SDK candidate or historical / ${{ matrix.target }} / Rust ${{ matrix.toolchain }}
     needs: title-and-paths
     if: github.event_name == 'pull_request' && needs.title-and-paths.outputs.application == 'true'
     runs-on: ubuntu-latest
@@ -121,6 +121,13 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
+      - name: Select exact compiler candidate or historical source
+        id: source
+        run: bash release/select_consumer_source.sh
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: steps.source.outputs.mode == 'historical'
+        with:
           ref: f6b7dc8954ba9f5a284d56568765e05c38483924
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
@@ -128,8 +135,17 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           targets: ${{ matrix.target }}
           components: rustfmt,clippy
-      - name: Verify exact source snapshot
-        run: test "$(git rev-parse HEAD)" = f6b7dc8954ba9f5a284d56568765e05c38483924
+      - name: Verify exact selected compiler source
+        run: |
+          if test "$MODE" = candidate; then
+            test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          else
+            test "$MODE" = historical
+            test "$(git rev-parse HEAD)" = f6b7dc8954ba9f5a284d56568765e05c38483924
+          fi
+        env:
+          MODE: ${{ steps.source.outputs.mode }}
+          CANDIDATE_SHA: ${{ github.sha }}
       - name: Host formatting, tests and warnings
         if: matrix.target == 'x86_64-unknown-linux-gnu' && matrix.toolchain == '1.98.1'
         run: |
