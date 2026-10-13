@@ -1,6 +1,6 @@
 # Capture and native order correspondence amendment
 
-Status: source implemented and owned ARM-emulated fixtures verified; independent review and native qualification remain open.
+Status: source implemented, owned ARM-emulated fixtures verified, and independent source review accepted; native qualification and coordinated merge remain open.
 
 ## Proposal
 
@@ -41,7 +41,8 @@ transfer, activation or consumer import is provided by this amendment.
 - [x] Verify six-page success with exactly one grab and actual mapping reads.
 - [x] Verify reverse mismatch, post-grab drift, reentrant invalidation and deadline refusal.
 - [x] Verify purpose separation and legacy capture/source-only controls.
-- [ ] Obtain independent review and required CI before coordinated merge.
+- [x] Obtain independent source review and verify available exact-commit CI.
+- [ ] Complete coordinated merge, then canonical specification sync in the parent delivery; do not archive unfinished native gates.
 - [ ] Native lifecycle/qualification remains open; fixtures cannot satisfy it.
 
 ## Requirement delta
@@ -82,3 +83,20 @@ No packages were installed; no desktop runtime pass is claimed. The final source
 was tested using the existing vendor SDK and owned fixtures only. No tablet,
 proprietary application lifecycle, hard native-call bound, or render generation
 was verified. Full SDK/native/release gates remain open.
+
+## Independent review and CI receipt
+
+The existing Sol reviewer accepted exact base `2093f82e995d2bf51eff59bbdca1a82e74eeccb8`
+to source `29bcfaaf25f21e5c8f30d295f8e943c305f30f19` with no concrete correctness or
+contract regression. Review covered purpose/config isolation, getter-stack scope,
+shared mapping/parser, original deadline and epoch, four capture boundaries,
+held file/token/hash validation, completion withdrawal and default-mode controls.
+The reviewer inspected source/assertions and did not independently rerun the
+reported 20 ARM cases. The internal review receipt has no public link.
+
+Both available GitHub checks passed on that exact source:
+[owned-fixtures](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/38339297722/job/115106456152)
+and [owned-metadata-fixtures](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/38339297739/job/115106456102).
+These RM1 checks do not replace the targeted ARM/Qt execution or qualify native
+lifecycle. Consumer integration, full native/profile/release gates and the
+parent OpenSpec delivery remain open.

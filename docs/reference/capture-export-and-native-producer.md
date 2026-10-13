@@ -81,21 +81,26 @@ the combined source/capture path or shutdown lifecycle. See the existing
 
 | Qualified contract requirement | Existing evidence | Missing producer work |
 | --- | --- | --- |
-| Current native source and actual page order under one guard | v11 checks a source tuple against expected fixture order; source-only helper reads actual mappings separately | A reviewed single-acquisition path must bind the actual mapping and pixels to the same retained owner and continuous invalidation interval |
+| Current native source and actual page order under one guard | v11 checks a source tuple against expected fixture order; source-only helper reads actual mappings separately | The opt-in source amendment binds actual mapping and pixels within one guarded attempt in owned fixtures; source review and native validation remain required |
 | Runtime session, visit, input and content/order revision scope | Local entry epoch, process/root binding, selected observers and relative times | Define and qualify what changes invalidate each native scope; an equal local epoch is not a content revision or proof of complete input coverage |
 | Logical rendered content matches the source | One window grab, copied pixels, matching identity checks, visual inspection | Demonstrate the vendor render-to-acquisition relationship; no existing native render generation is available to copy into synthetic generation fields |
 | Image coordinates describe the page plane | Window dimensions and device-pixel ratio | Observe the page viewport/transform and valid page region, including chrome, zoom, scrolling and orientation; dividing full-window coordinates by width/height is insufficient |
 | Clock and qualification provenance | Entry-relative elapsed measurements and exact development profile bindings | Define the actual clock origin/scope and native adapter/procedure qualification, without inventing cross-attempt comparability |
 | Safe retained operation and recovery | Weak ownership, stack-aware cancellation and bounded development recovery evidence | Native lifecycle and future live-admission validity remain unqualified, including the unresolved shutdown fault |
 
-The smallest source-order integration candidate would reuse the existing native
-mapping read inside the retained capture lifetime and original deadline, while
-leaving v11 unchanged. It is **not a mechanical call insertion**: the current
-source-only mode has a different request purpose, terminal completion and exclusion
-rules. A combined flow requires a reviewed lifecycle/purpose amendment and an
-actual runtime result. The 771 ms remaining in one old capture does not establish
-that added getters fit. No combined mode, new diagnostic module or speculative
-native constructor is implemented by this assessment.
+The source amendment in SDK `29bcfaaf25f21e5c8f30d295f8e943c305f30f19`
+now implements that narrow correspondence candidate. Its default-off six-page
+`developmentCaptureOrder` mode reads actual forward/reverse mapping at the
+existing capture checkpoints under the original owner/epoch/deadline, uses a
+separate token purpose, and emits version 3 with false native/render/atomic/UI
+authority. It preserves v11 and source-only contracts. See the
+[capture-order amendment and verification](../../openspec/changes/establish-native-platform-contract/capture-order-correspondence.md).
+Twenty focused owned ARM-emulated cases passed, independent source review accepted
+the candidate, and both available exact-source GitHub checks passed. Native
+lifecycle qualification remains open. The 771 ms remaining in one old
+capture is not a future timing guarantee, and checks around native calls do not
+prove a hard call execution bound. No native startup configuration or activation
+is included.
 
 Even that combined read would address only source/order correspondence. It would
 not establish the render, geometry, scope or recovery rows above, and could not
