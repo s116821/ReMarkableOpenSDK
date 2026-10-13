@@ -162,3 +162,7 @@ See [capture-order producer provenance](capture-order-provenance.md) for explici
 See the [first-window diagnostic amendment](passive-window-diagnostic.md) for
 the separately reviewed reporting-only successor and its Main-owned open tasks.
 It does not expand the frozen admission table or read policy.
+
+See the [one-candidate QML window admission proposal](passive-qml-window-admission.md)
+for the separate exact-manifest successor following the actual diagnostic
+equality. Its host implementation, review and operational selection remain open.
