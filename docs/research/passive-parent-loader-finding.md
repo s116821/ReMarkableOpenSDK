@@ -79,6 +79,10 @@ justified selection mechanism. A source-only binary/QML relationship gap should
 be routed to Root's designated analysis lane with this concrete question, rather
 than broad type enumeration or another blind tablet cycle.
 
+Subsequent [retained reader-resource inspection](reader-scene-selection-wiring.md)
+establishes the application containment and focus restriction, plus an explicit
+current-view reference. It does not identify the sampled live component instance.
+
 No new admission manifest, Loader field read, provider, guard relaxation,
 observer implementation or target operation follows from this finding. All
 current limits/refusals and held 8112/equivalent/spent 0404 exclusions remain.
