@@ -57,11 +57,19 @@ result supplies a root candidate, not document/page identity or a render fence.
 
 ## Entry comparison against the current exclusions
 
+Restriction clarification, October 13: Root relayed Main's authority record
+version 49: held 8112 transfer/activation/equivalent replay remains excluded,
+and spent 0404 is never replayed or repackaged. These are not a blanket ban on
+independently distinct useful diagnostics. Classify the requested operations,
+effects and failure surface, not merely the presence of activation. No direct
+read of that authority note is claimed here; this clarification is attributed
+to Root's current-chat instruction.
+
 | Entry or operation | Evidence and disposition |
 | --- | --- |
 | Already resident, independently permitted typed bridge | Could queue this small observation without replacing the process. No such endpoint or permission is established by the retained evidence. Process/service identity alone does not prove module presence or absence. |
-| Direct preload plus public startup callback | Development entry has executed before. A new transfer/activation is still a new in-process deployment; calling it a root observer does not release held 8112 or an equivalent workflow. Not selected. |
-| XOVI no-override extension | Eligible architectural candidate, but also needs loading/activation and shares the process failure domain. It cannot be used to reroute the held operation. Not selected. |
+| Direct preload plus public startup callback | Development entry has executed before. Sharing this deployment mechanism does not by itself make a distinct observation equivalent to 8112. The exact observation and whole deployment/recovery packet require their own review; none is selected here. |
+| XOVI no-override extension | Eligible architectural candidate sharing the process failure domain. Changing loaders cannot make a held operation permissible, and sharing a loader does not make all operations equivalent. No loader switch or deployment is selected here. |
 | Current passive SFTP reader | Can retain bounded memory observations, but cannot execute public Qt calls. Adding a callback or private QML decoder changes its contract. No such expansion is selected. |
 | Stock IPC or screenshot | Existing research has not demonstrated a current-reader QObject endpoint. A screenshot cannot supply an in-process root. No claim that all possible vendor interfaces are exhausted. |
 
@@ -72,9 +80,39 @@ with creation enabled, candidate 130 seconds, absolute 360 seconds and recovery
 reserve 185 seconds. Main's retained packet includes staged ready/open/trigger/
 result/stop control, library navigation and guardian release/fence. The proposed root
 observation has no insertion, source witness, native page getter or capture.
-That purpose difference does not make its transfer/activation permissible.
+That purpose difference warrants independent operation review; it does not by
+itself grant deployment permission or qualify recovery.
 Spent 0404's FactsEntry startup and failed restoration cannot be replayed, and
 its unexplained rendering fault remains relevant to any process replacement.
+
+### Concrete operation and effect comparison
+
+| Dimension | Held 8112 source5 insertion packet | Proposed root census |
+| --- | --- | --- |
+| Question | Insert at a specified source in the preserved eight-page fixture and assess the selected workflow | Determine whether the current window's bounded QObject domain contains one consistent reader-anchor pair |
+| Application operations | Creation-enabled configuration, source5 witness, staged open/trigger/result flow and library navigation | One GUI callback, window/engine association, names/children/parent/window/effective flags and declared property metadata only |
+| Document effects | Native page insertion is intended; target/order/preservation/persistence matter | No document mutation, page opening, navigation, insertion, capture, rendering request or application document/page/controller property-value read |
+| Data and output | Explicit document/page inventory, source/target identity and operation evidence | Capped counts, fixed booleans and refusal stage; no document IDs, pointers or arbitrary names; no current-page authority |
+| Process effects | Payload loading, setup/trigger machinery and eventual candidate shutdown/restoration | In-process callback, Qt calls/list allocations and owned receipt I/O; any chosen load/restart still changes process state and timing |
+| Shared failure surface | ABI/loading, GUI stalls, native lifetime/reentrancy and shutdown/rendering hazards, host/actor loss | Those hazards remain where the chosen entry/recovery uses them; cooperative time limits do not contain a native fault or drain display work |
+
+At the proposed operation level, the census is substantively distinct from the
+source5 insertion workflow: it tests root containment without invoking or
+preparing the held insertion. It is read-only with respect to document state,
+not effect-free or universally safe. Smaller output alone is not the reason for
+the distinction. The exact future implementation must enforce the exclusions:
+do not instantiate the creation Probe or FactsEntry, include the 8112 creation
+configuration/publisher, replay its source witness or navigate to recreate its
+workflow under a new label. Do not change executor, model or loader to evade
+review. A packet that restores those operations must be reassessed as potentially
+equivalent and remain held if it is materially the restricted operation.
+
+No current census implementation or deployable packet is selected. The
+comparison supports ordinary independent review of a distinct diagnostic; it
+does not release 8112, authorize transfer/activation, establish a resident entry,
+or resolve 0404. The existing reviewer must assess the actual source and whole
+packet before Main selects any deployment. Successful insertion/ink/reopen
+evidence remains separate from this root/lifecycle uncertainty.
 
 Main's retained postchecks identify a stock xochitl process and no service jobs;
 the locally inspected passive preparation snapshot corroborates its recorded
