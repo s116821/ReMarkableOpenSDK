@@ -48,6 +48,45 @@ vendor changes, focus leaf depth, pooled views and overlays require explicit
 qualification or conservative refusal. Keyboard focus is not page/render/UI
 acknowledgment. Endpoint equality cannot detect an unobserved change-away-and-back.
 
+## October 13: an invisible selected item is permitted
+
+The [Qt 6.10.3 Item documentation](https://doc.qt.io/qt-6.10/qml-qtquick-item.html#visible-prop)
+explicitly permits a hidden item to retain keyboard focus and key events.
+Disabling it removes focus. In pinned
+[item source](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/items/qquickitem.cpp#L6182-L6225),
+effective visibility depends on explicit visibility, a visual parent and that
+parent's effective visibility. Visibility propagation removes pointer grabbers;
+it does not itself clear the selected keyboard focus. Opacity, clipping or
+being off-screen are separate from this property.
+
+The delivery agent's selection path cited above follows enabled scoped-focus
+descendants without a visibility predicate. Consequently same-window ownership,
+enabled true and effective-visible false can be a legitimate Qt state. It does
+not by itself demonstrate an incorrect byte offset or corrupt object.
+
+Main's actual selected-item-guard-r1 report has those three operands at
+focus-current, with both values read, but remains refused and pre-read-only;
+CLOSE and remote cleanup are unconfirmed. This lane has not yet received the
+separate refreshed screen/fixture context. Library, modal UI, an open document
+or a hidden retained document branch must therefore remain hypotheses, not
+attributed facts about that attempt.
+
+The unchanged graph needs a suitable document UI context **and** a selected
+effectively visible/enabled focus path containing exactly one SceneView, followed
+by the same viewport/manager/worker association. An open document or screenshot
+alone cannot prove that keyboard focus supplies this path. The smallest next
+discriminator is Main's already scoped screen refresh: establish current UI and
+fixture first. If Library or an overlay replaces the intended document context,
+that context is unsuitable; if a document is visible, hidden keyboard focus remains
+possible. Neither finding justifies removing the visibility guard or replacing
+the focus pointer by a guessed view. Any visible-document/focus-selection change
+needs a separate exact proposal and Main-owned selection. No new ABI/type work,
+provider, read definition or tablet operation follows from this source result.
+
+Source basis: pinned primary Qt documentation/source and Main's directly
+reported operand receipt. Actual screen context remains pending; no screenshot
+or live layout was independently verified here.
+
 ## Why cumulative tree scanning refused
 
 The independently hash-checked 9453 version2 receipt (854 bytes,
