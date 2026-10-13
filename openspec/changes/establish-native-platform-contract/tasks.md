@@ -195,3 +195,11 @@ application qualification remain outside that owned proof.
 - [ ] 14.4 Main reviews/selects a complete fresh source/artifact/provider/current-state/fixture/independent-recovery packet, including exact receipt validation and numerical stop/restoration bounds. No deployment is selected by 14.1–14.3.
 - [ ] 14.5 Interpret any independently permitted observation as structural metadata evidence only. Current-page values, native lifetime/render/recovery qualification and overall delivery remain open; insertion/ink/reopen evidence stays preserved.
 - [x] 14.5a Record the October13 [actual bounded refusal and recovery findings](../../../docs/experiments/reader-metadata-census-result.md), including unreached default fields, unbound candidate UI interval, failed original automatic actors and separate stock restoration/cleanup. This completes only that evidence interpretation;14.4/14.5 and overall native delivery remain open.
+
+## 15. Independent visual-only Qt diagnostic
+
+- [x] 15.1 Define and independently review the [separate visual entry/output lifecycle](visual-only-capture-entry.md), exact quotas, non-preemptible allocation/grab risks and whole-packet consumer/recovery requirements before implementation. Sol accepted the bounded contract; source/artifact/native packet qualification remains separate.
+- [ ] 15.2 Implement only the separate one-request/public GUI grab/bounded sink/publication source; leave metadata entry, FactsEntry, application values and native capability authority unchanged.
+- [ ] 15.3 Verify focused owned window/context/sink/quota/cancel/publication controls and exact source/artifact binding; source and emulator evidence do not qualify native rendering or recovery.
+- [ ] 15.4 Main reviews/selects any complete fresh provider/state/fixture/image/decode/clock/transport/independent-recovery/cleanup packet. No device action follows from source preparation.
+- [ ] 15.5 Interpret any visual-only result with Main's visual confirmation and explicit unknown/refusal boundaries; full current-page/render/lifetime/lifecycle qualification remains open.
