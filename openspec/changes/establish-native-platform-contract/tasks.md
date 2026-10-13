@@ -166,3 +166,7 @@ It does not expand the frozen admission table or read policy.
 See the [one-candidate QML window admission proposal](passive-qml-window-admission.md)
 for the separate exact-manifest successor following the actual diagnostic
 equality. Its host implementation, review and operational selection remain open.
+
+See [scheduled object refusal diagnostics](passive-object-diagnostic.md) for
+the reporting-only successor that identifies the actual validation callsite
+without another admission or read-scope expansion.
