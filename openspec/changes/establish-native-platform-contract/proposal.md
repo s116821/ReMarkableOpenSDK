@@ -116,3 +116,9 @@ The [frozen consumer contract](https://github.com/s116821/ReMarkableBuddiesDocs/
 See [capture-order correspondence amendment](capture-order-correspondence.md) for the default-off six-page combined capture contract and open verification tasks.
 
 See [capture-order producer provenance](capture-order-provenance.md) for explicit version-4 semantics and compatibility with historical v3 evidence.
+
+The [passive visual SFTP method](passive-visual-sftp-method.md) proposes an exact-profile,
+host-owned read of focused visual-object associations through the existing SFTP
+subsystem. It requires no native calls or transferred observer. The source manifest
+is prepared; host implementation, independent review and operational selection
+remain open. It supplies no page/render/lifetime authority.

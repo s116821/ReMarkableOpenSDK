@@ -579,3 +579,22 @@ The development capture-order producer SHALL emit version 4 with explicit acquis
 #### Scenario: No page-plane or render proof
 - WHEN a full-window PNG has matching source/order checks
 - THEN metadata explicitly describes unverified window-to-source rendering, local invalidation epoch and full-window image coordinates; no page transform, native generation or live admission is fabricated.
+
+### Requirement: Bounded passive visual association observation
+
+The proposed passive SFTP observer SHALL, if implemented and independently
+selected, follow [the fixed method](../../passive-visual-sftp-method.md), exact private
+profile, read-only access, finite budgets, complete reread and terminal refusal
+rules. It SHALL report sampled association only, with no native effect authority.
+
+#### Scenario: Complete matching visual chain
+- WHEN the exact typed focused-window, root, visual ancestry, viewport, manager and worker relationships match before and after the bounded read
+- THEN the observer may report a non-atomic sampled association, without asserting page identity, render completion, accepted-request history or lifetime retention.
+
+#### Scenario: Unsupported graph or changing evidence
+- WHEN any type, count, root, relationship, read, deadline, process or mapping check fails or required verification is incomplete
+- THEN the attempt refuses a matched sample without traversal expansion, partial-read repair, retry, alternate memory access or target process modification.
+
+#### Scenario: Host observer times out
+- WHEN the independent host deadline expires during an SFTP operation
+- THEN only the owned host observer/session is terminated, and server-side cleanup or target continuity not independently established remains explicitly unknown.

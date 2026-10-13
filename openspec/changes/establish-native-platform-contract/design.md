@@ -261,3 +261,12 @@ Verification: `tools/qt_client_selected_creation_test.sh` passed 25 owned QML/co
 See [capture-order correspondence amendment](capture-order-correspondence.md) for the default-off six-page combined capture contract and open verification tasks.
 
 See [capture-order producer provenance](capture-order-provenance.md) for explicit version-4 semantics and compatibility with historical v3 evidence.
+
+## Passive visual association candidate
+
+Follow [the fixed SFTP method](passive-visual-sftp-method.md): exact image/GOT/type
+checks, primary-delivery-agent focus ancestry, typed viewport adjustment and
+manager/worker equality, with full bounded reread and no fallback. SDK owns the
+profile and semantic limits; Main owns the host observer, existing transport
+verification, independent cancellation and sole tablet selection. No new producer
+schema or public native capability is introduced.

@@ -151,3 +151,10 @@ No new native execution or completed same-running display gate follows from this
 See [capture-order correspondence amendment](capture-order-correspondence.md) for the default-off six-page combined capture contract and open verification tasks.
 
 See [capture-order producer provenance](capture-order-provenance.md) for explicit version-4 semantics and compatibility with historical v3 evidence.
+
+## 13. Passive visual association through existing SFTP
+
+- [x] 13.1 Record precode method, exact static profile/allowlist and typed visual edges in passive-visual-sftp-method.md; preserve no-call and unqualified scope.
+- [ ] 13.2 Independently review exact proposal/private manifest and Main-owned host observer, transport behavior and independent timeout/cleanup before selection.
+- [ ] 13.3 Main alone selects any fresh permitted observation after current identity/provider/access checks; no held/spent replay or alternative access after refusal.
+- [ ] 13.4 Interpret only sampled visual association; document/page binding, render/request history, lifetime/recovery qualification, canonical sync and archive remain open.
