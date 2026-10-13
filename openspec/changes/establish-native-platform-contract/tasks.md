@@ -174,3 +174,7 @@ without another admission or read-scope expansion.
 See [one exact QML focus-scope admission](passive-qml-focus-admission.md) for
 the separately justified fifteen-entry successor; host implementation and
 operational selection remain Main-owned and open.
+
+See [item-guard operand reporting](passive-item-guard-diagnostic.md) for the
+reporting-only variant that retains existing equality/flag booleans at the
+unchanged combined refusal without new reads or admission changes.
