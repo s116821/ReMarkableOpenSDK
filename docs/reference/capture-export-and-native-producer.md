@@ -116,6 +116,14 @@ labels or use caller assertions to select a qualified origin. Main owns the
 sealed `ReaderSourceAdmission` consumer binding and validity checks for each
 selected effect; SDK owns the qualified producer.
 
+The subsequent [scene-tile investigation](../research/scene-tile-render-geometry.md)
+identifies concrete manager/request/viewport relationships and a proposed
+correspondence/geometry discriminator. Initial readiness and pending=false are
+insufficient: the former disconnects its initial observer and cancellation can
+clear the latter. Native transforms include rounded translation and still need
+viewport-to-window placement, clipping and a justified page domain. These static
+findings add no qualified render facts to the producer.
+
 The current selected route needs an executing native candidate to measure these
 facts. Held8112 or equivalent activation is excluded, and spent0404 cannot be
 replayed. Any necessary access review stays with Main and the original platform

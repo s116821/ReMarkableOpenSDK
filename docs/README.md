@@ -14,6 +14,7 @@ remain workflow records, not a shipping capability declaration.
 | Input coordinates | [Protocol-B retention and remaining evidence gap](research/input-coordinate-evidence-limits.md) | Ordinary release retains axes; fresh-handler and actual-event attribution remain unresolved |
 | Stock presentation | [Screen Share witness assessment](research/stock-screenshare-witness-assessment.md) | Distinct stock-service candidate does not establish the current source witness; account/start-path and exact-firmware evidence limits |
 | Source5 witness | [Stock diagnostic sufficiency](research/source5-stock-diagnostic-assessment.md) | Later stable-body policy, distinct 57ee/092c outcomes, retained-fixture visual assessment and the missing native candidate scope |
+| Render and geometry | [Scene tile relationship](research/scene-tile-render-geometry.md) | Request identity, cancellation versus readiness, tile painting, rounded viewport transforms and a bounded proposed discriminator |
 | Ordinary gestures | [RM2 portrait component result](experiments/rm2-portrait-gesture-component.md) | One Next/Previous round trip with unchanged source files and owned cleanup; product/native navigation remains unqualified |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
