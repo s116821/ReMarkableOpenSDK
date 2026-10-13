@@ -1,0 +1,46 @@
+name: Maintained source-built publisher qualification
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+permissions:
+  contents: read
+jobs:
+  source-publisher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: softprops/action-gh-release
+          ref: efb35369e0ad2afab669f228072c1b0d510eae64
+          path: .upstream/source-publisher
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify actual source and lock refusal guards
+        run: python -m unittest discover -s release -p test_source_publisher.py -v
+        env:
+          SDK_PUBLISHER_SOURCE: ${{ github.workspace }}/.upstream/source-publisher
+      - name: Build exact maintained source with supported clean dependency lock
+        run: python release/qualify_source_publisher.py --source .upstream/source-publisher --output "$RUNNER_TEMP/source-built-publisher"
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+      - name: Exercise actual rebuilt publisher draft recovery and retained assets
+        run: node --test release/recovery.test.mjs
+        env:
+          GH_RELEASE_ACTION: ${{ runner.temp }}/source-built-publisher/publisher/dist/index.js
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: source-built-publisher-provenance
+          path: |
+            ${{ runner.temp }}/source-built-publisher/source-built-receipt.json
+            ${{ runner.temp }}/source-built-publisher/publisher/dist/index.js
+            release/vendor-locks/softprops-action-gh-release.package-lock.json
+            ${{ runner.temp }}/source-built-publisher/publisher/LICENSE
+          if-no-files-found: error

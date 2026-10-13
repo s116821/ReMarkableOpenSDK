@@ -1,0 +1,59 @@
+name: GitHub CLI publisher qualification
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  push:
+    branches: [ci/rem-50-sdk-releases]
+permissions:
+  contents: read
+jobs:
+  publisher-composition:
+    name: Maintained publisher and tag-build recovery fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: '1.98.1'
+      - name: Install hash-pinned version candidate and audit its complete environment
+        run: |
+          python -m venv "$RUNNER_TEMP/python-tools"
+          "$RUNNER_TEMP/python-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/python-tools/bin/pip-audit"
+      - name: Install checksum-pinned upstream publisher
+        run: |
+          curl --fail --silent --show-error --location https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz --output "$RUNNER_TEMP/gh.tar.gz"
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check
+          tar --extract --gzip --file "$RUNNER_TEMP/gh.tar.gz" --directory "$RUNNER_TEMP"
+      - name: Qualify actual CLI recovery and compiled tag-to-distribution composition
+        run: |
+          python -m unittest discover -s release -p 'github_cli_fixtures.py' -v
+          python -m unittest discover -s release -p 'composition_fixtures.py' -v
+        env:
+          SDK_GITHUB_CLI: ${{ runner.temp }}/gh_2.102.0_linux_amd64/bin/gh
+          PYTHON_SEMANTIC_RELEASE: ${{ runner.temp }}/python-tools/bin/semantic-release
+          SDK_FIXTURE_CARGO: cargo
+          PYTHONDONTWRITEBYTECODE: '1'
+  publisher-security:
+    name: Publisher binary advisory gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Install maintained scanner and checksum-pinned publisher
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          curl --fail --silent --show-error --location https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz --output "$RUNNER_TEMP/gh.tar.gz"
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check
+          tar --extract --gzip --file "$RUNNER_TEMP/gh.tar.gz" --directory "$RUNNER_TEMP"
+      - name: Require publisher binary advisory resolution or explicit owner policy decision
+        run: govulncheck -mode binary -show verbose "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin/gh"
+        # No ignored advisory, continue-on-error, or success conversion. GO-2026-5932
+        # currently fails this candidate gate; command reachability is separate evidence.

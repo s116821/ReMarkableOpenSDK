@@ -1,0 +1,30 @@
+name: Python release alternative qualification
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  push:
+    branches: [ci/rem-50-sdk-releases]
+permissions:
+  contents: read
+jobs:
+  python-alternative:
+    name: Python maintained-tool candidate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install hash-pinned candidate and auditor in isolated environment
+        run: |
+          python -m venv .python-tools
+          .python-tools/bin/python -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+      - name: Require clean candidate dependency audit
+        run: .python-tools/bin/pip-audit
+      - name: Qualify candidate policy and remote build identity
+        run: python -m unittest discover -s release -p 'python_semantic_release_fixtures.py' -v
+        env:
+          PYTHON_SEMANTIC_RELEASE: ${{ github.workspace }}/.python-tools/bin/semantic-release
+          PYTHONDONTWRITEBYTECODE: '1'
