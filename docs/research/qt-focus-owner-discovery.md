@@ -66,26 +66,38 @@ not by itself demonstrate an incorrect byte offset or corrupt object.
 
 Main's actual selected-item-guard-r1 report has those three operands at
 focus-current, with both values read, but remains refused and pre-read-only;
-CLOSE and remote cleanup are unconfirmed. This lane has not yet received the
-separate refreshed screen/fixture context. Library, modal UI, an open document
-or a hidden retained document branch must therefore remain hypotheses, not
-attributed facts about that attempt.
+CLOSE and remote cleanup are unconfirmed. The initial source assessment preceded
+the separate screen refresh; the UI context of that memory attempt was unknown.
+
+Main subsequently retrieved a qualified screenshot showing the My files Library
+grid, with no open document or visible modal. This lane independently checked
+the 179,159-byte image's SHA-256
+`a707694a419482cbf95eed5e49d4e9cac7baac32fe303ca01443084a9156dce7`
+and visually inspected it. Main reports unchanged stock PID/start and no input,
+navigation or service change during capture. The private image is retained as
+main-context-20261013.png and has no public download link. This establishes
+current Library context; it does not identify the earlier focus object or prove
+the UI stayed unchanged between the memory sample and screenshot.
 
 The unchanged graph needs a suitable document UI context **and** a selected
 effectively visible/enabled focus path containing exactly one SceneView, followed
 by the same viewport/manager/worker association. An open document or screenshot
 alone cannot prove that keyboard focus supplies this path. The smallest next
-discriminator is Main's already scoped screen refresh: establish current UI and
-fixture first. If Library or an overlay replaces the intended document context,
-that context is unsuitable; if a document is visible, hidden keyboard focus remains
-possible. Neither finding justifies removing the visibility guard or replacing
-the focus pointer by a guessed view. Any visible-document/focus-selection change
-needs a separate exact proposal and Main-owned selection. No new ABI/type work,
-provider, read definition or tablet operation follows from this source result.
+discriminator was the screen refresh, which now verifies that the current
+document-view prerequisite is absent. A legitimate hidden focus item remains a
+source-supported explanation consistent with Library, not a demonstrated object
+identity or historical cause. The next useful operator scope is to establish a
+known disposable document's foreground context through a separately reviewed
+ordinary path and visually verify it before considering another passive sample.
+Opening or focus selection is Main-owned; no such operation is selected here.
+Even a visible document would still need the existing focus/ancestry checks.
+No guard weakening, guessed view, new ABI/type work, provider or read definition
+is justified by this result.
 
-Source basis: pinned primary Qt documentation/source and Main's directly
-reported operand receipt. Actual screen context remains pending; no screenshot
-or live layout was independently verified here.
+Source basis: pinned primary Qt documentation/source, Main's directly reported
+operand receipt and capture operation, plus independent local screenshot hash
+and visual inspection. Current UI context is verified; live layout, historical
+focus ownership and source association remain unqualified.
 
 ## Why cumulative tree scanning refused
 
