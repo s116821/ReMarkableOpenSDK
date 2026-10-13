@@ -22,6 +22,21 @@ reviewed whole-packet recovery and consumer contract before native selection.
 - **WHEN** grab, allocation, codec or IO cannot be preempted by the entry deadline
 - **THEN** independent whole-packet process recovery remains required and no owned fixture or successful image qualifies native lifetime, freshness, timer expiry, host loss or fallback recovery
 
+### Requirement: Explicit passive frame-stage development mode
+The SDK SHALL keep passive frame-stage observation default-off, explicitly declared
+in the selected source/artifact, and limited to one guarded observation of a public
+queued signal and one bounded nonauthoritative marker. It SHALL retain the original
+entry deadline, one request/grab and context/cancel/publication guards. Internal
+queued-event allocations and vendor signal emission SHALL remain unqualified.
+
+#### Scenario: A queued signal cannot admit an already-present request
+- **WHEN** a frame callback is delivered before watcher notification of a request already present before marker admission
+- **THEN** the entry consumes/refuses that request before latching or publishing readiness and never grabs or rearms from later callbacks
+
+#### Scenario: Missing signal does not renew readiness
+- **WHEN** no qualifying delivery is observed before original expiry or guarded context is lost
+- **THEN** the entry terminates without a grab, never forces rendering or substitutes historical state, and emits no native/UI/page authority
+
 ### Requirement: Explicit-fixture caller-selected allocation experiment
 The development creation probe SHALL permit a separately selected single-call
 caller-selected identity experiment only with a fresh exact fixture baseline and

@@ -31,8 +31,8 @@ inline QByteArray selfIdentity() {
 }
 class Entry final : public QObject {
 public:
-    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr)
-        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)) {
+    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr, bool passiveFrame = false)
+        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)), frameMode_(passiveFrame) {
         elapsed_.start();
     }
     ~Entry() override { if (root_ >= 0) ::close(root_); }
@@ -52,6 +52,8 @@ public:
         if (!absent("visual-ready") || !absent("visual-result") ||
             !absent(".pending-ready") || !absent(".pending-result") ||
             !absent("visual-image.png") || !absent(".pending-image")) return terminal_ = true, false;
+        if (frameMode_ && (!absent("visual-frame-ready") || !absent(".pending-frame-ready")))
+            return terminal_ = true, false;
         connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, [this] { queue(); });
         connect(&timer_, &QTimer::timeout, this, [this] { Result r; r.stage = "setup-expired"; finish(r); });
         connect(app_, &QCoreApplication::aboutToQuit, this, [this] { stop(); });
@@ -61,6 +63,11 @@ public:
         if (remaining <= 0) { stop(); return false; }
         timer_.start(int(remaining));
         if (!publish("visual-ready", ".pending-ready", nonce_ + ' ' + identity_, {})) { stop(); return false; }
+        if (frameMode_) {
+            focusConnection_ = connect(app_, &QGuiApplication::focusWindowChanged, this,
+                [this](QWindow *) { bindFrameWindow(); }, Qt::QueuedConnection);
+            bindFrameWindow();
+        }
         queue();
         return true;
     }
@@ -71,6 +78,62 @@ public:
     void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
 #endif
 private:
+    bool frameContext() const {
+        if (terminal_ || now() >= 60000 || !trusted() || !frameWindow_ || !frameEngine_ || !frameRoot_) return false;
+        const bool ok = QThread::currentThread() == app_->thread() && frameEngine_->thread() == app_->thread() &&
+            frameWindow_->thread() == app_->thread() && QGuiApplication::focusWindow() == frameWindow_ &&
+            frameWindow_->isVisible() && frameWindow_->isActive() && qmlEngine(frameWindow_) == frameEngine_ &&
+            frameWindow_->contentItem() == frameRoot_;
+        return !terminal_ && now() < 60000 && trusted() && frameWindow_ && frameEngine_ && frameRoot_ && ok;
+    }
+    void bindFrameWindow() {
+        if (terminal_ || frameBound_) return;
+        if (now() >= 60000 || !trusted()) { stop(); return; }
+        const auto raw = QGuiApplication::allWindows();
+        if (raw.size() > 16) { stop(); return; }
+        QList<QPointer<QWindow>> windows;
+        for (auto *w : raw) windows.append(w);
+        QPointer<QQmlEngine> engine;
+        for (const auto &w : windows) {
+            if (!trusted() || !w || w->thread() != app_->thread()) { stop(); return; }
+            QPointer<QQmlEngine> e = qmlEngine(w);
+            if (!trusted() || !w || (e && engine && e != engine)) { stop(); return; }
+            if (e) engine = e;
+        }
+        QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
+        if (!window || !engine || !window->isVisible() || !window->isActive()) return;
+        frameWindow_ = window; frameEngine_ = engine; frameRoot_ = window->contentItem();
+        if (!frameContext()) { stop(); return; }
+        frameBound_ = true;
+        QObject::disconnect(focusConnection_);
+        frameConnection_ = connect(window, &QQuickWindow::afterFrameEnd, this, [this] {
+            if (terminal_ || frameSeen_) return;
+            if (!frameContext()) { stop(); return; }
+            // A queued frame delivery must not outrun notification of an
+            // already-created request. Presence before marker admission consumes
+            // the attempt even when the directory watcher has not run yet.
+            if (!absent("visual-request")) {
+                consumed_ = true;
+                Result r; r.stage = "frame-not-admitted"; finish(r); return;
+            }
+            frameSeen_ = true;
+            QObject::disconnect(frameConnection_);
+            const auto id = identity_.trimmed().split(' ');
+            const QJsonObject marker{{"schema", 1}, {"nonce", QString::fromLatin1(nonce_)},
+                {"pid", QString::fromLatin1(id[0])}, {"start", QString::fromLatin1(id[1])},
+                {"stage", "frame-stage-observed"}, {"signal", "afterFrameEnd"},
+                {"gui_delivery_observed", true}, {"native_authority", false}};
+            frameMarker_ = QJsonDocument(marker).toJson(QJsonDocument::Compact) + '\n';
+            if (frameMarker_.size() > 512 || !publish("visual-frame-ready", ".pending-frame-ready", frameMarker_,
+                [this] { return frameContext() && absent("visual-request"); })) stop();
+        }, Qt::QueuedConnection);
+        destructionConnection_ = connect(window, &QObject::destroyed, this, [this] { stop(); });
+    }
+    bool imagePermit() const {
+        return !terminal_ && now() < 60000 && trusted() && (!frameMode_ ||
+            (frameSeen_ && frameContext() && absent(".pending-frame-ready") &&
+             !frameMarker_.isEmpty() && readExact("visual-frame-ready", frameMarker_, 512)));
+    }
     qint64 now() const {
 #ifdef VISUAL_CAPTURE_TESTING
         return elapsed_.elapsed() + testOffset_;
@@ -90,13 +153,14 @@ private:
             a.st_ctim.tv_sec == b.st_ctim.tv_sec && a.st_ctim.tv_nsec == b.st_ctim.tv_nsec;
     }
     bool readExact(const char *name, const QByteArray &expected, int cap) const {
+        if (cap < 0 || cap > 512 || expected.size() > cap) return false;
         const int fd = ::openat(root_, name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
         if (fd < 0) return false;
         struct stat before{}, after{};
         bool ok = ::fstat(fd, &before) == 0 && S_ISREG(before.st_mode) &&
             (before.st_mode & 07777) == 0600 && before.st_uid == rootStat_.st_uid && before.st_nlink == 1 &&
             before.st_size == expected.size() && before.st_size <= cap;
-        char bytes[76];
+        char bytes[513];
         const ssize_t n = ok ? ::read(fd, bytes, size_t(cap + 1)) : -1;
         ok = ok && n == expected.size() && QByteArray(bytes, n) == expected &&
             ::fstat(fd, &after) == 0 && sameFile(before, after);
@@ -159,9 +223,9 @@ private:
         Sink sink(fd);
         if (good) {
 #ifdef VISUAL_CAPTURE_TESTING
-            r = capture([this] { return !terminal_ && now() < 60000 && trusted(); }, sink, grab_);
+            r = capture([this] { return imagePermit(); }, sink, grab_);
 #else
-            r = capture([this] { return !terminal_ && now() < 60000 && trusted(); }, sink);
+            r = capture([this] { return imagePermit(); }, sink);
 #endif
         }
         const bool bound = ::fstat(fd, &final) == 0 && final.st_dev == original.st_dev &&
@@ -175,6 +239,9 @@ private:
     }
     void stop() {
         terminal_ = true; timer_.stop();
+        QObject::disconnect(focusConnection_);
+        QObject::disconnect(frameConnection_);
+        QObject::disconnect(destructionConnection_);
         const auto paths = watcher_.directories();
         if (!paths.isEmpty()) watcher_.removePaths(paths);
     }
@@ -218,6 +285,7 @@ private:
             r.stage = "request-refused"; finish(r); return;
         }
         consumed_ = true;
+        if (frameMode_ && !imagePermit()) { r.stage = "frame-not-admitted"; finish(r); return; }
         r = image();
         finish(r);
     }
@@ -230,6 +298,12 @@ private:
     QFileSystemWatcher watcher_;
     QTimer timer_;
     bool started_ = false, terminal_ = false, queued_ = false, consumed_ = false, finishing_ = false;
+    bool frameMode_ = false, frameBound_ = false, frameSeen_ = false;
+    QPointer<QQuickWindow> frameWindow_;
+    QPointer<QQmlEngine> frameEngine_;
+    QPointer<QQuickItem> frameRoot_;
+    QByteArray frameMarker_;
+    QMetaObject::Connection focusConnection_, frameConnection_, destructionConnection_;
 #ifdef VISUAL_CAPTURE_TESTING
     qint64 testOffset_ = 0;
     std::function<void()> postLink_;

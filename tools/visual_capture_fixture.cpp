@@ -7,6 +7,7 @@
 #include <QTextStream>
 #include <memory>
 #include <cstdlib>
+#include <thread>
 static void require(bool ok, const char *why) {
     if (!ok) { QTextStream(stderr) << "FAIL " << why << '\n'; std::exit(1); }
 }
@@ -19,14 +20,15 @@ static void put(const QString &p, const QByteArray &b) {
 static QByteArray read(const QString &p) { QFile f(p); require(f.open(QIODevice::ReadOnly), "fixture read"); return f.readAll(); }
 static QImage pixels() { QImage i(100, 100, QImage::Format_RGB32); i.fill(Qt::white); return i; }
 int main(int argc, char **argv) {
-    const bool startupTrial = argc == 2 && QByteArray(argv[1]) == "owned-startup";
+    const bool frameStartup = argc == 2 && QByteArray(argv[1]) == "owned-frame-startup";
+    const bool startupTrial = frameStartup || (argc == 2 && QByteArray(argv[1]) == "owned-startup");
     const QString startupRoot = "/run/rmb-visual-capture-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     if (startupTrial) {
         require(!QDir(startupRoot).exists() && QDir().mkdir(startupRoot), "fresh owned startup root");
         require(::chmod(startupRoot.toLocal8Bit().constData(), 0700) == 0, "startup root mode");
         const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
         put(startupRoot + "/owner", nonce); put(startupRoot + "/attempt.identity", id);
-        put(startupRoot + "/visual-request", nonce + ' ' + id);
+        if (!frameStartup) put(startupRoot + "/visual-request", nonce + ' ' + id);
     }
     QGuiApplication app(argc, argv);
     QQmlEngine engine; QQmlComponent component(&engine);
@@ -34,14 +36,41 @@ int main(int argc, char **argv) {
     std::unique_ptr<QObject> object(component.create());
     auto *window = qobject_cast<QQuickWindow *>(object.get());
     require(window, "original owned QtWindow"); window->requestActivate(); pump();
+    if (argc == 2 && QByteArray(argv[1]) == "frame-interleaving-only") {
+        QTemporaryDir root; require(::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "interleaving root");
+        const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
+        put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", id);
+        visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true); int grabs = 0;
+        entry.grabForTest([&](QQuickWindow *) { ++grabs; return pixels(); });
+        require(entry.start(), "interleaving entry setup"); pump(); // initial check sees no request
+        std::thread emitter([window] { window->afterFrameEnd(); }); emitter.join(); // queued before watcher
+        put(root.path() + "/visual-request", nonce + ' ' + id);
+        pump();
+        require(entry.terminal() && grabs == 0 && !QFile::exists(root.path() + "/visual-frame-ready") &&
+            !QFile::exists(root.path() + "/visual-image.png") &&
+            QJsonDocument::fromJson(read(root.path() + "/visual-result")).object().value("stage").toString() == "frame-not-admitted",
+            "queued signal before watcher cannot admit premature request");
+        window->afterFrameEnd(); pump(); require(grabs == 0, "interleaving refusal sticky");
+        QTextStream(stdout) << "PASS deterministic frame delivery queued before request watcher: premature request refused/no marker/no grab\n";
+        return 0;
+    }
     if (startupTrial) {
+        if (frameStartup) {
+            // Signal injection is fixture-only; the preloaded entry has no test hooks.
+            std::thread emitter([window] { window->afterFrameEnd(); }); emitter.join(); pump();
+            const auto marker = QJsonDocument::fromJson(read(startupRoot + "/visual-frame-ready")).object();
+            require(marker.size() == 8 && marker["gui_delivery_observed"].toBool() &&
+                !marker["native_authority"].toBool(true), "actual passive preload bounded marker");
+            put(startupRoot + "/visual-request", QByteArray(32, 'a') + ' ' + visual_capture::selfIdentity()); pump();
+        }
         const auto j = QJsonDocument::fromJson(read(startupRoot + "/visual-result")).object();
         const auto png = read(startupRoot + "/visual-image.png");
         require(j["stage"] == "visual-image-observed" && !j["native_authority"].toBool(true) &&
             j["png_sha256"].toString().toLatin1() == QCryptographicHash::hash(png, QCryptographicHash::Sha256).toHex(),
             "actual owned preload/startup public grab receipt");
         require(QDir(startupRoot).removeRecursively(), "exact owned startup cleanup");
-        QTextStream(stdout) << "PASS actual owned preload/startup public GUI capture\n";
+        QTextStream(stdout) << (frameStartup ? "PASS actual owned passive preload/queued synthetic frame/public GUI grab\n" :
+            "PASS actual owned preload/startup public GUI capture\n");
         return 0;
     }
     QTemporaryDir sinkRoot;
@@ -148,5 +177,92 @@ int main(int argc, char **argv) {
         window->show(); window->requestActivate(); pump();
     };
     for (auto mode : {"valid", "null", "dimensions", "storage", "pixel-cap", "encoded-cap", "context", "expiry", "bad-request", "post-link-cancel", "scalar-link-cancel", "path-substitution"}) trial(mode);
+    const auto frameTrial = [&](const char *mode) {
+        QTemporaryDir root; require(root.isValid() && ::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "frame fixture root");
+        const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
+        put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", id);
+        visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true); int grabs = 0;
+        entry.grabForTest([&](QQuickWindow *) { ++grabs; return pixels(); });
+        if (QByteArray(mode) == "marker-cancel") entry.postLinkForTest([&] { put(root.path() + "/visual-cancel", "x"); });
+        require(entry.start(), "passive frame start");
+        if (QByteArray(mode) == "premature") {
+            put(root.path() + "/visual-request", nonce + ' ' + id); pump();
+            require(entry.terminal() && grabs == 0 &&
+                QJsonDocument::fromJson(read(root.path() + "/visual-result")).object()["stage"] == "frame-not-admitted",
+                "premature request consumed without grab");
+            window->afterFrameEnd(); pump();
+            require(!QFile::exists(root.path() + "/visual-frame-ready"), "no rearm after premature request");
+            return;
+        }
+        if (QByteArray(mode) == "no-signal") {
+            pump(); require(!QFile::exists(root.path() + "/visual-frame-ready"), "no historical flag substitute");
+            entry.expireForTest(); pump(); require(entry.terminal() && grabs == 0, "original expiry without signal");
+            return;
+        }
+        if (QByteArray(mode) == "cancel") put(root.path() + "/visual-cancel", "x");
+        if (QByteArray(mode) == "context") window->hide();
+        // Fixture-only signal injection from another thread; producer grabs only on GUI.
+        std::thread emitter([window] { window->afterFrameEnd(); window->afterFrameEnd(); window->afterFrameEnd(); });
+        emitter.join();
+        require(!QFile::exists(root.path() + "/visual-frame-ready"), "queued delivery is not synchronous rendering-thread work");
+        pump();
+        if (QByteArray(mode) == "cancel" || QByteArray(mode) == "context" || QByteArray(mode) == "marker-cancel") {
+            require(entry.terminal() && grabs == 0 && !QFile::exists(root.path() + "/visual-image.png"), "frame guard loss no grab");
+            if (QByteArray(mode) == "marker-cancel") {
+                struct stat st{}; require(::stat((root.path() + "/visual-frame-ready").toLocal8Bit().constData(), &st) == 0 &&
+                    st.st_nlink == 2 && QFile::exists(root.path() + "/.pending-frame-ready"), "canceled marker invalid two-link output");
+            }
+        } else {
+            const auto bytes = read(root.path() + "/visual-frame-ready");
+            const auto marker = QJsonDocument::fromJson(bytes).object();
+            require(bytes.size() <= 512 && marker.size() == 8 && marker["stage"] == "frame-stage-observed" &&
+                marker["signal"] == "afterFrameEnd" && marker["gui_delivery_observed"].toBool() &&
+                !marker["native_authority"].toBool(true), "exact bounded ordering-only frame marker");
+            put(root.path() + "/visual-request", nonce + ' ' + id); pump();
+            require(entry.terminal() && grabs == 1 &&
+                QJsonDocument::fromJson(read(root.path() + "/visual-result")).object()["stage"] == "visual-image-observed",
+                "one latched signal admits one grab");
+            window->afterFrameEnd(); pump(); require(grabs == 1, "already queued/late signals cannot redispatch");
+        }
+        window->show(); window->requestActivate(); pump();
+    };
+    for (auto mode : {"no-signal", "premature", "valid", "cancel", "context", "marker-cancel"}) frameTrial(mode);
+    {
+        QTemporaryDir root; require(::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "late-focus root");
+        const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
+        put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", id);
+        QWindow other; other.resize(20, 20); other.show(); other.requestActivate(); pump();
+        require(QGuiApplication::focusWindow() == &other, "owned non-Quick focus transition established");
+        visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true);
+        require(entry.start(), "no initial eligible window waits for focus event");
+        window->requestActivate(); pump();
+        window->afterFrameEnd(); pump();
+        require(QFile::exists(root.path() + "/visual-frame-ready"), "public focus event binds first eligible window");
+        put(root.path() + "/visual-cancel", "x"); pump(); require(entry.terminal(), "late-focus fixture stop");
+    }
+    {
+        QQmlComponent other(&engine); other.setData("import QtQuick\nWindow { width: 20; height: 20; visible: true }", QUrl("owned-destroyed.qml"));
+        std::unique_ptr<QObject> doomed(other.create()); auto *w = qobject_cast<QQuickWindow *>(doomed.get());
+        require(w, "owned disposable window"); w->requestActivate(); pump();
+        QTemporaryDir root; require(::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "destruction root");
+        const QByteArray nonce(32, 'a'); put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", visual_capture::selfIdentity());
+        visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true);
+        require(entry.start(), "bound disposable window");
+        w->afterFrameEnd(); doomed.reset(); pump();
+        require(entry.terminal() && !QFile::exists(root.path() + "/visual-frame-ready"), "queued callback inert after window destruction");
+        window->requestActivate(); pump();
+    }
+    {
+        QTemporaryDir root; require(::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "natural frame root");
+        const QByteArray nonce(32, 'a'); put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", visual_capture::selfIdentity());
+        visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true);
+        require(entry.start(), "owned natural signal observation setup");
+        window->setColor(Qt::black); pump(); // Only the owned fixture changes scene state.
+        const bool observed = QFile::exists(root.path() + "/visual-frame-ready");
+        QTextStream(stdout) << (observed ? "OBSERVED owned software natural afterFrameEnd (no native freshness claim)\n" :
+            "NOT OBSERVED owned software natural afterFrameEnd; original expiry remains permitted\n");
+        entry.expireForTest(); pump(); require(entry.terminal(), "natural observation original expiry");
+    }
     QTextStream(stdout) << "PASS visual core/sink/original public grab and focused entry quotas/context/nested expiry/publication\n";
+    QTextStream(stdout) << "PASS passive queued frame marker/early-request/expiry/context/cancel/one-grab controls (synthetic signal delivery)\n";
 }

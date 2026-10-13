@@ -16,6 +16,14 @@ constexpr bool validNonce() {
     return true;
 }
 static_assert(validNonce(), "Frozen nonce must be 32 lowercase hexadecimal characters");
+#ifdef VISUAL_CAPTURE_PASSIVE_FRAME_READY
+#if VISUAL_CAPTURE_PASSIVE_FRAME_READY != 1
+#error Passive frame readiness must be explicitly enabled with value 1.
+#endif
+constexpr bool passiveFrame = true;
+#else
+constexpr bool passiveFrame = false;
+#endif
 std::atomic_flag scheduled = ATOMIC_FLAG_INIT;
 void startup() {
     if (scheduled.test_and_set(std::memory_order_relaxed)) return;
@@ -25,7 +33,7 @@ void startup() {
         auto *gui = qobject_cast<QGuiApplication *>(app);
         if (!gui || QThread::currentThread() != gui->thread() || ::geteuid() != 0) return;
         auto *entry = new visual_capture::Entry(gui,
-            QStringLiteral("/run/rmb-visual-capture-") + QString::fromLatin1(nonce), QByteArray(nonce));
+            QStringLiteral("/run/rmb-visual-capture-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr, passiveFrame);
         entry->start();
     }, Qt::QueuedConnection);
 }

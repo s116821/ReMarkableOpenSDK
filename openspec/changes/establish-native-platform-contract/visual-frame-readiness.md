@@ -1,8 +1,9 @@
 # Passive frame-stage readiness: source-only proposal
 
-Status: independently accepted source-only readiness design. No source
-implementation, build, nonce, device action or selection. Existing visual entry
-00fac00d remains unchanged. Main owns any future whole packet and recovery.
+Status: independently accepted passive-mode source and focused owned verification;
+no repaired native artifact, nonce, device action or selection. Mode is default-off
+and must be explicitly compiled with VISUAL_CAPTURE_PASSIVE_FRAME_READY=1.
+Main owns any future whole packet and recovery.
 
 ## Measured question and limits
 
@@ -115,6 +116,25 @@ remain open and prior insertion/ink/reopen milestones remain preserved.
 
 ## Design review checkpoint
 
+### Narrow pinned software-loop source check
+
+Qtv6.10.3's
+[software renderWindow](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/scenegraph/adaptations/software/qsgsoftwarerenderloop.cpp#L155)
+explicitly emits afterFrameEnd after its render/optional-flush path. The
+[threaded software path](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/scenegraph/adaptations/software/qsgsoftwarethreadedrenderloop.cpp#L461)
+also emits it, including after a renderer-not-ready skip; an earlier no-change
+branch returns before emission. The owned fixture's missing natural observation
+does not establish that software backends never emit. Its short event-pumping
+observation did not measure completion of a new render cycle; scheduling,
+exposure or missed delivery remain possible, not diagnosed causes.
+
+Existing backend findings establish vendor singleton-image-copy and embedded
+EPRenderLoop candidates, not an observed active standard software loop or vendor
+signal emission. Setting software in an owned fixture does not identify the RM2
+runtime loop. Native emission remains unqualified, and a signal still cannot
+certify rendered content or physical-panel/page completion. This source check
+changes no implementation, guard, fixture, backend or native selection.
+
 Root's existing Sol reviewer independently verified the frozen four-file manifest
 eb57133ae2ff4b850ae6a637881ce3dc480e925dc87477b6e024aedd4b92918b,
 checked versioned Qt signal/connection/focus semantics and accepted the result
@@ -124,3 +144,66 @@ event-memory limitation now explicitly recorded above; it adds no queue-bound
 claim or connection-model workaround. Internal review messages have no public
 transcript link. Concrete implementation and Main amendments require their own
 focused review; no native build/selection follows from this publication.
+
+## Implemented source and focused verification
+
+Entry/startup now implement the separate mode. Default builds keep the ordinary
+visual entry behavior. Discovery and frame callbacks use GUI queued delivery;
+first binding/first latch are sticky. The marker is the fixed eight-field512-byte
+schema above, with no native/UI authority. Exact retained-file marker checks and
+same-window/engine/root context remain required through image admission.
+Unreached/premature requests produce frame-not-admitted with no grab or rearm.
+Original60s/32-check limits and output1050187 remain; no forced rendering, polling,
+timer renewal, second grab or internal queued-memory bound is added.
+
+Author-run vendorSDK5.8.203/GCC13.4.0/Qt6.10.3 ARM/QEMU offscreen/software controls
+passed for synthetic render-thread signal→GUI delivery, multiple already queued
+signals/one latch, no-signal original expiry, premature request, context/cancel loss,
+invalid two-link marker, event-only focus binding and window destruction with
+queued delivery. Actual owned default and passive startup/preload/public-grab
+paths passed; passive preload uses a fixture-only signal emission, not a natural
+native frame. Startup test hooks and invalid explicit mode value compile-refuse.
+Default affected-source visual/sink/publication regression controls also passed.
+
+An owned scene-color change did not yield an observed natural afterFrameEnd in
+the short fixture observation. That negative observation is preserved and is not
+evidence of a backend that never emits; see the pinned source check above.
+The initial hidden-window late-focus fixture did not establish eligible binding;
+an explicit owned non-Quick→Quick focus transition and queued discovery made the
+control meaningful without polling/forced rendering/deadline extension.
+Compiler emitted Qt-header ABI notes, not suppressed strict warnings; the existing
+encoded-quota test retained the expected libpng write-error diagnostic.
+
+Independent review found a P2 in the initial r3 source: a frame delivery queued
+before watcher notification could admit a request created before marker publication.
+The existing early-request test handled refusal before signaling and missed that
+ordering. Repaired r4 consumes/refuses an already-present request before latching;
+request absence is also sampled through marker write/link/post-link guards.
+Publication remains non-atomic; Main must collect the valid committed marker
+before creating its request, and late ambiguity remains unknown.
+
+Only the new deterministic repair control was compiled/run after that finding:
+initial check sees no request → synthetic frame queued → request created → GUI
+delivery precedes watcher → terminal refusal, no marker/image/grab, later signal
+inert. No prior matrix or native/shared-object rebuild was repeated for the repair.
+An initial CRLF shell setup error occurred before the compiler/control; it was
+preserved and the owned script normalized to LF. The actual repaired control passed.
+
+Root's existing Sol reviewer verified all20 files in repaired source/control
+receipt SHA256
+`8a21f356c7332c93ad26e2fdfb860fc208aa1032df012924e93f3f57faa048bc`,
+inspected the sole production delta versus r3, strict ARM control and deterministic
+output, and accepted r4 with the P2 resolved. Broader initial control execution is
+the author's evidence; neither source review nor synthetic delivery qualifies
+vendor emission, rendered content, page/owner or independent recovery. Internal
+reports/receipts have no public transcript link. The earlier r3 default/passive
+shared objects are historical test artifacts and do not bind repaired r4 source.
+
+Main's separate marker/scalar/collector integration remains its responsibility.
+Owned Linux collector controls establish file/stream guard behavior only. The
+initial binary-image refusal appended20 diagnostic bytes after1MiB stdout; Main
+changed image-mode diagnostics to bounded stderr, with the three affected branches
+checked separately. This is not native PNG/UI/decoder/recovery evidence or an SDK
+producer stderr bound. Exact new source/artifact/providers/current state/fixture/
+decode/transport/recovery/cleanup packet review precedes any selection. Tasks15.4/
+15.5 and full readiness/content/lifecycle gates remain open.

@@ -137,10 +137,13 @@ does not claim to repeat that full review. Private records/review messages have
 no public transcript link. The readiness design review accepted this bounded
 result wording while preserving the original closeout failure.
 
-The [passive frame-readiness proposal](../../openspec/changes/establish-native-platform-contract/visual-frame-readiness.md)
-is source-only. It does not modify the accepted producer or select another native
-attempt; a frame-stage observation cannot by itself repair blank pixels or supply
-page/render authority.
+The later [passive frame-readiness increment](../../openspec/changes/establish-native-platform-contract/visual-frame-readiness.md)
+is default-off source/owned verification only, including its repaired request-order
+guard. It does not select another native attempt; a frame-stage observation cannot
+by itself repair blank pixels or supply page/render authority. Initial r3 shared
+objects do not bind the repaired r4 source, and natural vendor emission remains
+unqualified. See the linked checkpoint for positive synthetic controls, preserved
+natural-signal absence and the source-review P2/repair.
 
 Main owns the separate binary-image/scalar collector, decode resource limits,
 visual confirmation, current providers/fixture/process state, transport/error/
