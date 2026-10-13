@@ -170,3 +170,7 @@ equality. Its host implementation, review and operational selection remain open.
 See [scheduled object refusal diagnostics](passive-object-diagnostic.md) for
 the reporting-only successor that identifies the actual validation callsite
 without another admission or read-scope expansion.
+
+See [one exact QML focus-scope admission](passive-qml-focus-admission.md) for
+the separately justified fifteen-entry successor; host implementation and
+operational selection remain Main-owned and open.
