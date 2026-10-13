@@ -20,6 +20,7 @@ remain workflow records, not a shipping capability declaration.
 | Render and geometry | [Scene tile relationship](research/scene-tile-render-geometry.md) | Request identity, cancellation versus readiness, tile painting, rounded viewport transforms and a bounded proposed discriminator |
 | Ordinary gestures | [RM2 portrait component result](experiments/rm2-portrait-gesture-component.md) | One Next/Previous round trip with unchanged source files and owned cleanup; product/native navigation remains unqualified |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
+| Parent discriminator | [Exact Loader candidate](research/passive-parent-loader-finding.md) | One pinned static parent pair and the unresolved application containment needed before more admissions |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
 | Shutdown investigation | [0404 upstream lifecycle evidence](research/shutdown-0404-prior-art.md) | Rendering fault, QImage backing-storage limits, pinned prior art and dated experiment boundaries |
 | Lifecycle comparison | [8287 versus 0404 entrypoints](research/shutdown-entrypoint-comparison.md) | Verified source provenance, completed creation cleanup versus early restoration, and limits on regression attribution |
