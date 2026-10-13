@@ -43,8 +43,11 @@ int main(int argc,char **argv) {
     config.facts={document.id(),{QStringLiteral("00000000-0000-4000-8000-000000000002")},6,5000};document.ids=config.facts.expectedOrder;
     config.setupBudgetMs=120000;config.developmentSetup120=true;config.developmentCaptureObservation=true;config.setupSelection=QStringLiteral("main-dev-facts-120s");
     const bool completionDiagnostic=mode.startsWith("completion-diagnostic-");
-    const bool sourceFacts=mode.startsWith("source-facts-");
-    if(completionDiagnostic || sourceFacts) {
+    const bool orderCase=mode.startsWith("order-");
+    const bool captureOrder=orderCase && mode!="order-legacy-reject" && mode!="order-source-reject";
+    const bool sourceFacts=mode.startsWith("source-facts-") || mode=="order-source-reject";
+    config.developmentCaptureOrder=captureOrder;
+    if(completionDiagnostic || sourceFacts || captureOrder) {
         config.developmentReceiverSubtreeCapture=true;
         config.developmentReceiverSubtreeItemCap=4096;config.developmentReceiverSubtreeDepthCap=32;
         config.developmentReceiverSubtreeCaptureAllowUnfocusedArea=true;
@@ -53,11 +56,11 @@ int main(int argc,char **argv) {
         config.developmentReceiverSubtreeCaptureEntryIdConversion=true;
         config.developmentCaptureCompletionRefusalDiagnostics=mode!="completion-diagnostic-default-off";
     }
-    if(sourceFacts) {
-        config.developmentReceiverSourceFacts=true;
+    if(sourceFacts || captureOrder) {
+        config.developmentReceiverSourceFacts=sourceFacts;
         for(int i=3;i<=7;++i)config.facts.expectedOrder.append(QStringLiteral("00000000-0000-4000-8000-%1").arg(i,12,10,QLatin1Char('0')));
         document.ids=config.facts.expectedOrder;
-        document.reverseWrong=mode=="source-facts-reverse";
+        document.reverseWrong=mode=="source-facts-reverse" || mode=="order-reverse";
     }
     IncompleteDocument incomplete;
     QQmlApplicationEngine engine;engine.rootContext()->setContextProperty("ownedDocument",mode=="owner-observer" ? static_cast<QObject *>(&incomplete):static_cast<QObject *>(&document));
@@ -93,17 +96,22 @@ Window { visible:true; width:400; height:400
     QByteArray external(400*400*4,char(0xff));
     receiver->evidence=[&]{if(acquired && mode=="external-buffer")external.fill(char(0));return scene->hasActiveFocus();};
     FactsEntry entry(&app,config,[&](FactsEntryResult value){++callbacks;held=held && !inGrab;result=std::move(value);},[&]{
-        if(mode=="completion-late" && QFileInfo::exists(root+"/capture-observation-complete.json"))time=5000;
+        if((mode=="completion-late" || mode=="order-write-deadline") && QFileInfo::exists(root+"/capture-observation-complete.json"))time=5000;
         return time;
     });
     document.hook=[&]{
         ++mappings;
-        if(mode=="source-facts-invalidate") {emit scene->viewportChanged();QCoreApplication::processEvents();}
-        if(mode=="source-facts-deadline")time=5000;
+        if(mode=="order-binding-drift" && mappings==19)document.ids.swapItemsAt(1,2);
+        if(mode=="order-cancel") {entry.cancel();QCoreApplication::processEvents();held=held && callbacks==0;}
+        if(mode=="source-facts-invalidate" || mode=="order-invalidate") {emit scene->viewportChanged();QCoreApplication::processEvents();held=held && callbacks==0;}
+        if(mode=="source-facts-deadline" || mode=="order-deadline")time=5000;
     };
     if(mode=="temporary-unlink")CaptureObservationFixtureAccess::temporary(entry,[&]{QFile::remove(root+"/capture-observation-request.tmp");});
     CaptureObservationFixtureAccess::grab(entry,[&]{
         ++grabs;inGrab=true;
+        if(mode=="order-drift")document.ids.swapItemsAt(1,2);
+        if(mode=="order-queued-drift")QMetaObject::invokeMethod(&app,[&]{document.ids.swapItemsAt(1,2);},Qt::QueuedConnection);
+        if(mode=="order-queued-deadline")QMetaObject::invokeMethod(&app,[&]{time=5000;},Qt::QueuedConnection);
         if(mode=="grab-epoch")emit scene->viewportChanged();
         if(mode=="grab-late")time=5000;
         if(mode=="grab-cancel"){entry.cancel();QCoreApplication::processEvents();}
@@ -125,7 +133,12 @@ Window { visible:true; width:400; height:400
         inGrab=false;return image;
     });
     const auto drain=[] {for(int i=0;i<25;++i)QCoreApplication::processEvents();};
+    if(mode=="order-stale")put(root+"/capture-order-observation-request","stale");
     entry.start();drain();
+    if(mode=="order-stale") {
+        if(callbacks!=1 || result.stage!="capture-observation-stale-refused" || grabs || mappings)return 48;
+        std::printf("PASS order-stale no acquisition\n");return 0;
+    }
     if(mode=="topology-visited-scalar"){
         const auto value=QJsonDocument::fromJson(CaptureObservationFixtureAccess::visitedScalar(entry)).object();
         if(value.size()!=33 || value["version"].toInt()!=2 || value["visited_items"].toInt()!=4097 || value["topology_limit"]!="visited" ||
@@ -152,9 +165,13 @@ Window { visible:true; width:400; height:400
     }
     QFile waiting(root+"/facts-waiting");if(!waiting.open(QIODevice::ReadOnly))return 5;
     const auto fields=waiting.readAll().trimmed().split(' ');
-    auto token=fields.mid(0,5).join(' ')+(sourceFacts ? " receiver-source-facts 120000 main-dev-facts-120s\n":" capture-observation 120000 main-dev-facts-120s\n");
+    auto token=fields.mid(0,5).join(' ')+(captureOrder ? " capture-order-observation 120000 main-dev-facts-120s\n":sourceFacts ? " receiver-source-facts 120000 main-dev-facts-120s\n":" capture-observation 120000 main-dev-facts-120s\n");
     if(mode=="wrong-token")token[0]='f';
     if(mode=="early-facts")put(root+"/facts-request.tmp","early");
+    if(mode=="order-cross-capture")put(root+"/capture-observation-request.tmp",token);
+    if(mode=="order-cross-source")put(root+"/receiver-source-facts-request",token);
+    if(mode=="order-legacy-reject" || mode=="order-source-reject")put(root+"/capture-order-observation-request.tmp",token);
+    if(mode=="order-wrong-token")token.replace("capture-order-observation", "capture-observation");
     if(mode=="cross-purpose")put(root+"/input-observation-end.tmp","wrong");
     if(mode=="setup-near")time=119999;
     if(mode.startsWith("owner-")) {
@@ -263,10 +280,31 @@ Window { visible:true; width:400; height:400
 #else
         return 6;
 #endif
-    }else put(root+(sourceFacts ? "/receiver-source-facts-request":"/capture-observation-request"),token);
+    }else put(root+(captureOrder ? "/capture-order-observation-request":sourceFacts ? "/receiver-source-facts-request":"/capture-observation-request"),token);
     if((mode=="publication-alias" || mode=="temporary-unlink") && ::link((root+"/capture-observation-request").toUtf8().constData(),(root+"/capture-observation-request.tmp").toUtf8().constData())!=0)return 6;
     if(mode=="foreign-temporary")put(root+"/capture-observation-request.tmp",token);
     drain();
+    if(orderCase) {
+        const bool success=mode=="order-good";
+        QFile complete(root+"/capture-observation-complete.json");
+        if(complete.open(QIODevice::ReadOnly)!=success || !held || result.observed)return 45;
+        if(success) {
+            const auto value=QJsonDocument::fromJson(complete.readAll()).object();
+            QFile image(root+"/capture-window.png");
+            if(value.size()!=39 || value["version"].toInt()!=3 || value["discovery_scope"]!="receiver-capture-order-unqualified-v1" ||
+                value["order"].toArray()!=QJsonArray::fromStringList(document.ids) || value["page_count"].toInt()!=6 ||
+                !value["observed_order"].toBool() || mappings!=24 || grabs!=1 || callbacks ||
+                value["native_authority"].toBool(true) || value["render_authority"].toBool(true) ||
+                value["atomic_snapshot"].toBool(true) || value["ui_acknowledged"].toBool(true) ||
+                !image.open(QIODevice::ReadOnly) || value["png_sha256"].toString().toLatin1()!=
+                    QCryptographicHash::hash(image.readAll(),QCryptographicHash::Sha256).toHex())return 46;
+            entry.cancel();drain();
+        } else {
+            const bool postGrab=mode=="order-drift" || mode=="order-queued-drift" || mode=="order-queued-deadline" || mode=="order-binding-drift" || mode=="order-write-deadline";
+            if(grabs!=(postGrab ? 1:0) || callbacks!=1)return 47;
+        }
+        std::printf("PASS %s mappings=%d grabs=%d unqualified=true\n",argv[1],mappings,grabs);return 0;
+    }
     if(sourceFacts) {
         const bool success=mode=="source-facts-good";
         QFile output(root+"/receiver-source-facts.json");

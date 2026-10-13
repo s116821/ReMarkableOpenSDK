@@ -112,3 +112,5 @@ retains the fences and recovery bounds; source preparation is not native selecti
 ## Source5 development selector
 
 The [frozen consumer contract](https://github.com/s116821/ReMarkableBuddiesDocs/blob/79f31b3/openspec/changes/qualify-open-pdf-capture/source5-insertion-navigation-contract.md) selects a closed preserved-eight source5/template5/insertion6 development variant. This SDK-only increment preserves earlier variants, explicit target validation and fixed95+5 clocks. Host reconciliation, navigation, product acquisition and native qualification remain separate unfinished work.
+
+See [capture-order correspondence amendment](capture-order-correspondence.md) for the default-off six-page combined capture contract and open verification tasks.

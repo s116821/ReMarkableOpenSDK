@@ -41,8 +41,8 @@ struct PageFactsResult {
     std::optional<ObservedFacts> facts;
 };
 
-inline QByteArray pageFactsHelper() {
-    return R"QML(import QtQml
+inline QByteArray pageFactsHelper(bool capture = false) {
+    QByteArray helper = R"QML(import QtQml
 QtObject {
     property QtObject receiver: null
     property QtObject scene: null
@@ -89,6 +89,21 @@ QtObject {
         } catch (ignored) { return "!exception"; }
     }
 })QML";
+    if (capture) helper.replace("bridge.allowed()", "bridge.captureAllowed()");
+    return helper;
+}
+
+inline bool parsePageFacts(const QByteArray &bytes, const PageFactsConfig &config,
+                           QStringList &order, int &index) {
+    if (bytes.startsWith('!') || bytes.size()>16384) return false;
+    const auto json=QJsonDocument::fromJson(bytes);
+    const auto object=json.object();
+    order.clear();
+    for (const auto &id:object.value("order").toArray()) order.append(id.toString());
+    index=object.value("index").toInt(-1);
+    return json.isObject() && order==config.expectedOrder &&
+        object.value("documentId").toString()==config.documentId && index>=0 &&
+        index<order.size() && object.value("pageId").toString()==order[index];
 }
 
 // Single-use, locally owned session. No QObject parent can delete it mid-getter.
@@ -138,14 +153,11 @@ public:
             !allowed() || epoch_!=baseline || result.metaType()!=QMetaType::fromType<QString>()) { finish("facts-changed-or-context-refused"); return; }
         const QByteArray bytes=result.toString().toUtf8();
         if (bytes.startsWith('!') || bytes.size()>16384) { finish("facts-values-refused"); return; }
-        const auto json=QJsonDocument::fromJson(bytes);
-        const auto object=json.object();
         QStringList order;
-        for (const auto &id:object.value("order").toArray()) order.append(id.toString());
-        const int index=object.value("index").toInt(-1);
-        if (!json.isObject() || order!=config_.expectedOrder || object.value("documentId").toString()!=config_.documentId ||
-            index<0 || index>=order.size() || object.value("pageId").toString()!=order[index] ||
-            !allowed() || epoch_!=baseline) { finish("facts-final-boundary-refused"); return; }
+        int index=-1;
+        if (!parsePageFacts(bytes,config_,order,index) || !allowed() || epoch_!=baseline) {
+            finish("facts-final-boundary-refused"); return;
+        }
         result_.facts=ObservedFacts{config_.documentId,order[index],order,index,instance_,baseline,epoch_,began,elapsed_.elapsed(),false,false,false};
         finish("facts-observed-no-change-during-read");
     }

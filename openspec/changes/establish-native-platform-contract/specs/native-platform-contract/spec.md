@@ -555,3 +555,15 @@ The SDK SHALL admit the explicitly selected source5 development variant only for
 #### Scenario: Missing or inconsistent selection
 - **WHEN** the selector is unknown or the document/order/flags/setup/explicit target disagree
 - **THEN** configuration refuses before mutation; the default and prior variants retain their original validation and positions, and no-target after-open configuration remains invalid.
+
+### Requirement: Development capture-order purpose isolation
+
+The SDK SHALL keep explicitly selected six-page capture-order correspondence unqualified and isolated from legacy capture and source-only requests, as specified in [the amendment](../../capture-order-correspondence.md).
+
+#### Scenario: Complete mapping and image correspondence
+- WHEN actual forward/reverse order matches at all existing guarded capture boundaries before the original deadline
+- THEN version 3 completion may publish actual order with one image and false native, render, atomic and UI authority.
+
+#### Scenario: Changed, incomplete or cross-purpose evidence
+- WHEN mapping fails, scope changes, the original deadline expires, or a different request purpose is present
+- THEN the entry refuses usable successful completion without retry or deadline reset.
