@@ -67,8 +67,12 @@ mandatory. No borrowed pointer crosses an asynchronous boundary except QPointer.
 Take one allWindows snapshot, maximum16. Require current GUI thread, one
 unambiguous associated engine, focused QQuickWindow visible/active on that
 engine/thread, retained content root, and repeat governing identity checks at
-the endpoint. Traverse only its QObject children, at most128 objects, depth12,
-64 children per object. Collect exact DocumentView.ToolSettings and
+the endpoint. Traverse one breadth-first deduplicated union of QObject children
+and QQuickItem visual childItems, at most128 distinct enqueued/visited objects,
+first-discovery depth12, and64 unique combined children per object (not64+64).
+Immediately guard snapshots; reject lost nodes and visual nodes belonging to
+another window. Nonvisual children are reached only through included ownership;
+crosslink duplicates neither consume another node nor duplicate anchors. Collect exact DocumentView.ToolSettings and
 SceneViewsRoot names; require one each. Helper remains nonvisual QObject;
 container, reader and device are QQuickItems. Require helper parent=reader,
 container parentItem=device, device parentItem=reader and those visual owners
@@ -82,8 +86,19 @@ QObject-pointer domains for pointer declarations. Report the two page-key
 QString declarations as a boolean observation, without interpreting any value or
 claiming a native page representation. No QMetaProperty::read/QObject::property.
 
-census-ready and census-result use exclusive no-follow mode0600 creation,
-single bounded writes and checked close; no overwrite or retry. Ready contains
+census-ready and census-result are published from exclusive no-follow mode0600
+.pending-ready/.pending-result files after one bounded full write and checked
+close. Recheck root/cancel/restore, then linkat to the final absent name,
+recheck root/cancel/restore after linking while pending still exists, and only
+then unlink the pending name to commit. A failed post-link guard leaves a
+fully formed two-link file plus pending; it is unknown, not a published result.
+No overwrite or retry; final files must be single-link
+regular mode0600 with exact expected identity. Pending or double-link files are
+invalid/unknown and retained for Main's exact cleanup. This makes close failure
+observable as missing final publication, rather than a full-looking final file.
+At most one ready payload (75bytes) and one result (1024bytes), with at most two
+names per payload during publication. The entry emits no deliberate log/stderr;
+Qt runtime diagnostics still require Main's independent external stderr cap. Ready contains
 exact nonce/pid/start binding. Result is one JSON object no larger than1024bytes:
 schema1, nonce, pid/start as strings, fixed stage, application_thread,
 current_window, visited, helper_count, container_count, owner_links, metadata,
@@ -111,3 +126,56 @@ actor, numeric observation/stop/restoration/outer bounds and preserved original
 service policy before deployment selection. Reusing generic recovery machinery
 requires applicability review, not reuse of held behavior or old timing proof.
 Main remains sole operator; no target action follows from tests or source review.
+
+Implementation finding: the first original real QML Window fixture refused
+anchor uniqueness under a QObject-only content-root walk. Its visual reader
+children were not QObject children of contentItem. Preserve that negative result.
+Sol accepted the single bounded union traversal above before the core change,
+with unchanged caps and no artificial fixture reparenting. The positive original
+Window fixture now also asserts crosslink deduplication; native topology remains
+unmeasured.
+
+The focused fixture also found that renaming the watched root need not promptly
+notify this Qt watcher. Root identity is checked on every subsequent queued
+check, admission and publication; the real setup deadline remains active. The
+root-replacement test uses a fixture-only elapsed-clock offset to exercise the
+next deadline check and output suppression, not to claim immediate notification.
+The production shared object excludes that test hook.
+
+Publication is not an atomic cancellation/ownership fence. Main's packet
+consumer must bracket receipt collection with the original root device/inode,
+nonce, current PID/start and owner/attempt records, cancel/restore absence,
+pending-name absence and exact final regular-file UID/mode/single-link/size
+checks. A fully formed JSON object alone is not success. Cancellation after the
+sampled post-link guard, including the final unlink interval, cannot be excluded
+by this protocol. Root or guard loss/IO ambiguity remains unknown. The focused
+post-link cancellation regression leaves final and pending with two links and
+asserts that this complete-looking object is invalid; it never becomes authority.
+
+## Source/artifact checkpoint
+
+The focused ARM-owned suite and actual owned-app preload/startup path passed
+using SDK5.8.203, GCC13.4.0, vendor Qt6.10.3 and qemu/offscreen/software. All
+instrumented application-value getters stayed at zero. Sol independently
+accepted source/assertions, including the repaired post-link guard; execution
+is the SDK author's test evidence, not an independent reviewer rerun.
+The startup source also compile-refuses READER_METADATA_TESTING so fixture
+clock/publication hooks cannot enter that artifact; its exact expected compiler
+refusal was checked.
+
+Retained r3 test-only shared object SHA256:
+`5c6e9d611267f603a170b05d934dc04384816ca465d92950ca860a056a30852c`.
+It is ELF32 little-endian ARM EABI5 hard-float DYN. Direct NEEDED entries are
+Qt6Quick, Qt6Gui, Qt6Qml, Qt6Network, Qt6Core, libstdc++, libm, libgcc_s and libc.
+QtNetwork linkage is a build dependency, not a diagnostic network operation.
+Version requirements include Qt_6/Qt_6.10, GLIBC_2.4/2.34,
+GLIBCXX_3.4/3.4.14, CXXABI_1.3/1.3.9 and GCC_3.5.
+Private source/artifact and SDK-provider hash receipts accompany the ELF.
+These are build-sysroot providers, not a fresh tablet provider inventory.
+
+The fixed all-a nonce and r3 artifact are owned-test inputs only, never a native
+selection. A separately frozen nonce/artifact/provider closure and Main's
+independent full process/fixture/recovery/transport/cleanup packet remain open.
+The entry stays resident and inert after termination; unload requires process
+exit, not deleting a library while Qt callbacks/types remain registered.
+No device was accessed and no deployment or native qualification is implied.

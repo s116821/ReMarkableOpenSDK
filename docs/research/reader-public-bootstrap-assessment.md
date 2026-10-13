@@ -6,6 +6,14 @@ Public Qt supplies a usable in-process dispatch and discovery surface. It does
 not supply an external attachment transport or a vendor-supported reMarkable
 extension contract. No currently permitted running bridge has been established.
 
+Later implementation checkpoint: the [independent metadata entry](../../openspec/changes/establish-native-platform-contract/reader-metadata-census-entry.md)
+implements this distinct diagnostic. Its original real QML Window fixture
+showed QObject-only traversal misses visual children; the reviewed successor
+uses one deduplicated QObject/visual-child union with unchanged distinct-node,
+combined-child, depth and time bounds. The initial proposal below preserves its
+chronology; the linked contract governs the concrete implementation. Owned
+tests are not native deployment selection or qualification.
+
 ## Reuse what is already demonstrated
 
 The SDK's `tools/qt_startup_probe.cpp` registers a Qt startup callback and queues

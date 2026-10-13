@@ -186,3 +186,11 @@ the parent's type and any host successor remain unqualified and unselected.
 See [owned public-Qt reader-reference assessment](reader-reference-owned-fixture.md)
 for the local fixture increment. Native root discovery, execution entry and
 application qualification remain outside that owned proof.
+
+## 14. Independent reader metadata census
+
+- [x] 14.1 Define and review the distinct [metadata entry contract](reader-metadata-census-entry.md), exact file/identity bounds and held-operation exclusions before implementation.
+- [x] 14.2 Implement the separate public Qt entry, one bounded request and structural metadata census, with no application property-value reads or held executors.
+- [x] 14.3 Verify original owned QML topology, zero instrumented value getters, bounded refusals, request/publication guards and actual owned preload startup under ARM emulation; independently review source/assertions and repair the post-link publication ambiguity.
+- [ ] 14.4 Main reviews/selects a complete fresh source/artifact/provider/current-state/fixture/independent-recovery packet, including exact receipt validation and numerical stop/restoration bounds. No deployment is selected by 14.1–14.3.
+- [ ] 14.5 Interpret any independently permitted observation as structural metadata evidence only. Current-page values, native lifetime/render/recovery qualification and overall delivery remain open; insertion/ink/reopen evidence stays preserved.
