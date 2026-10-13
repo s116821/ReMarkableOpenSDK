@@ -179,3 +179,22 @@ independent full process/fixture/recovery/transport/cleanup packet remain open.
 The entry stays resident and inert after termination; unload requires process
 exit, not deleting a library while Qt callbacks/types remain registered.
 No device was accessed and no deployment or native qualification is implied.
+
+## October 13 actual observation checkpoint
+
+The preceding source/artifact checkpoint is historical. Main subsequently
+selected one fresh metadata-only packet and obtained the
+[measured census refusal](../../../docs/experiments/reader-metadata-census-result.md):
+25 visited objects, zero named anchors, `anchor-uniqueness`. Owner-link and
+metadata fields remained unreached defaults. Candidate UI context was not
+visually bound. Original automatic recovery failed on unsupported BusyBox
+`flock -w`; separate bounded `-n` restoration and manual cleanup succeeded.
+Preserve both outcomes and the original unknown/cleanup-false operator record.
+
+The unchanged entry samples at request time within its original construction-based
+60-second and 32-check limits. Ready/open/request do not reset those limits.
+The linked reusable findings define applicability of a future separately reviewed
+same-process ordinary fixture-open sequence without selecting it or modifying
+the entry. This nonce is spent. Tasks14.4/14.5 remain open for complete packet,
+native context and recovery qualification; prior insertion/ink/reopen evidence
+remains credited. No canonical sync or archive follows from this checkpoint.

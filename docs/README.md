@@ -24,6 +24,7 @@ remain workflow records, not a shipping capability declaration.
 | Reader selection | [Application scene wiring](research/reader-scene-selection-wiring.md) | Reader scopes contain descendant native views; note-page focus gating and explicit current-versus-prefetched selection |
 | Reader discovery | [Named owners and current reference](research/reader-current-reference-discovery.md) | Concrete application anchors, public Qt access, and the separate passive name/alias representation gap |
 | Reader bootstrap | [Public entry and root assessment](research/reader-public-bootstrap-assessment.md) | Existing GUI dispatch, application-readiness versus reader identity, and a conditional bounded anchor observation |
+| Reader census | [Measured refusal and recovery findings](experiments/reader-metadata-census-result.md) | Real 25-node/zero-anchor refusal, unreached defaults, unbound UI interval and failed automatic versus separate stock restoration |
 | Mechanisms | [Runtime comparison](research/runtime-mechanism-comparison.md) | Direct/native and session-scoped candidates, lifecycle hazards and evidence boundaries |
 | Shutdown investigation | [0404 upstream lifecycle evidence](research/shutdown-0404-prior-art.md) | Rendering fault, QImage backing-storage limits, pinned prior art and dated experiment boundaries |
 | Lifecycle comparison | [8287 versus 0404 entrypoints](research/shutdown-entrypoint-comparison.md) | Verified source provenance, completed creation cleanup versus early restoration, and limits on regression attribution |
