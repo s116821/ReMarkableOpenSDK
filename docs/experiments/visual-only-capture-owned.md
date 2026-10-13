@@ -95,6 +95,53 @@ accompany the source checkpoint.
 
 ## Remaining delivery
 
+### First native visual result: valid blank pixels, incomplete packet closeout
+
+Main's separately selected fresh `c69` packet used producer source00fac00d and
+artifact SHA256
+`23f53f6a64cbf3e4636b2d98262807a8fd0fdfa5f101a9bd6b85be05d5ab853d`.
+It produced a11,957-byte1404×1872 PNG, SHA256
+`0a4385e6b501cd03098de51415aea258ae05558541ee7398c713a2b1accb713a`.
+The scalar reported visual-image-observed, application_thread/current_window true,
+storage10,513,152 bytes and native_authority=false. Main's guarded pair and
+complete RGB decode recorded7,884,864 decoded bytes. SDK directly read the scalar
+and both operator receipts, checked the saved PNG hash/size and visually inspected
+the image: blank white, with no visible Library/document content.
+
+This is measured native acquisition of valid blank pixels. It does not establish
+freshness, requested-window-only pixels, panel state, current page/owner, object
+lifetime or that the UI was ready. The cause of blankness remains unknown.
+
+Original operator receipt SHA256
+`e997f91e01dd1d098113681ba902dedb66ba8fb221bbc30e0e3caabdb72f8fcb`
+ended exit1 after35.406 seconds with restored=false, cleanup=false and
+recovery_unknown=PacketUnknown following restore-state verification exit1.
+Main reports the configured primary itself exited0 with a restored marker and
+inactive fallback; a subsequent exact read-only verification trace passed stock
+checks. These actor/verification observations do not rewrite the original receipt
+or explain why its earlier verification failed.
+
+A separate cleanup-only continuation, receipt SHA256
+`7339c674f8534f70c3332125f4ba57c4eaf3811c8b9aa883faa48675126b7d23`,
+records no activation/request, original clock preserved, original receipt unchanged,
+restored=true and cleanup=true. Main verified stock, preserved the final raw image
+as forensic evidence with accepted_image=false and removed task-owned units/root/
+drop-in/parent state. This is separately attributed Main execution evidence;
+the complete original packet/recovery gate did not pass. Independent timer expiry,
+host loss and fallback remain untested. The nonce is spent and no replay is selected.
+
+Root's existing Sol reviewer independently checked132 captured stream hashes,
+66 stopped-tree transport receipts and15 selected-source hashes, and inspected
+the blank image. SDK's direct image/scalar/operator inspection is narrower and
+does not claim to repeat that full review. Private records/review messages have
+no public transcript link. The readiness design review accepted this bounded
+result wording while preserving the original closeout failure.
+
+The [passive frame-readiness proposal](../../openspec/changes/establish-native-platform-contract/visual-frame-readiness.md)
+is source-only. It does not modify the accepted producer or select another native
+attempt; a frame-stage observation cannot by itself repair blank pixels or supply
+page/render authority.
+
 Main owns the separate binary-image/scalar collector, decode resource limits,
 visual confirmation, current providers/fixture/process state, transport/error/
 copy quotas and independently bounded recovery/cleanup. Complete exact source/

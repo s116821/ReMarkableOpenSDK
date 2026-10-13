@@ -155,3 +155,13 @@ and reviewer/execution attribution. The requirement admits grab before the
 original deadline and refuses successful publication after expiry; it does not
 promise Qt returns within that deadline. Main's collector/decoder/process policy
 and complete fresh native packet remain separate unfinished gates.
+
+## Actual native image checkpoint
+
+The [first native result](../../../docs/experiments/visual-only-capture-owned.md#first-native-visual-result-valid-blank-pixels-incomplete-packet-closeout)
+measured a valid1404×1872 blank white PNG and matching nonauthoritative scalar.
+It did not pass whole-packet closeout: original restored/cleanup false and
+PacketUnknown remain; later cleanup-only verification/preservation/teardown
+succeeded separately. Tasks15.4/15.5 remain open. The nonce is spent.
+The separate [passive signal-readiness design](visual-frame-readiness.md) is
+unimplemented and unselected, with no original-clock renewal or freshness claim.
