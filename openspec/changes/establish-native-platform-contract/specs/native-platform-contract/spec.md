@@ -3,8 +3,9 @@
 ### Requirement: Independent visual-only development capture
 The SDK SHALL isolate any visual-only development entry from creation, input,
 application-value reads and native Capture/PageObservation authority. It SHALL
-consume at most one purpose-bound request and perform at most one public GUI-thread
-window grab within its original entry lifetime, with bounded returned-image storage,
+consume at most one purpose-bound request, admit at most one public GUI-thread
+window grab before its original entry deadline and refuse successful publication
+after expiry, with bounded returned-image storage,
 encoded output and scalar receipts. Non-preemptible grab/codec/internal allocations
 and non-atomic publication SHALL remain explicit limitations requiring a separately
 reviewed whole-packet recovery and consumer contract before native selection.

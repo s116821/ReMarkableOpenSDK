@@ -199,7 +199,7 @@ application qualification remain outside that owned proof.
 ## 15. Independent visual-only Qt diagnostic
 
 - [x] 15.1 Define and independently review the [separate visual entry/output lifecycle](visual-only-capture-entry.md), exact quotas, non-preemptible allocation/grab risks and whole-packet consumer/recovery requirements before implementation. Sol accepted the bounded contract; source/artifact/native packet qualification remains separate.
-- [ ] 15.2 Implement only the separate one-request/public GUI grab/bounded sink/publication source; leave metadata entry, FactsEntry, application values and native capability authority unchanged.
-- [ ] 15.3 Verify focused owned window/context/sink/quota/cancel/publication controls and exact source/artifact binding; source and emulator evidence do not qualify native rendering or recovery.
+- [x] 15.2 Implement only the separate one-request/public GUI grab/bounded sink/publication source; leave metadata entry, FactsEntry, application values and native capability authority unchanged.
+- [x] 15.3 Verify and independently review focused owned window/context/sink/quota/cancel/publication controls and exact owned-only source/artifact binding; see [verification and limits](../../../docs/experiments/visual-only-capture-owned.md). Source and emulator evidence do not qualify native rendering or recovery; production artifact/Main whole-packet binding remains under15.4.
 - [ ] 15.4 Main reviews/selects any complete fresh provider/state/fixture/image/decode/clock/transport/independent-recovery/cleanup packet. No device action follows from source preparation.
 - [ ] 15.5 Interpret any visual-only result with Main's visual confirmation and explicit unknown/refusal boundaries; full current-page/render/lifetime/lifecycle qualification remains open.

@@ -1,7 +1,7 @@
 # Independent visual-only Qt entry
 
-Status: concrete precode for independent review; no implementation, artifact or
-device selection. Main owns integration, current state, transport, independent
+Status: independently accepted contract, source and owned verification; no native
+artifact or device selection. Main owns integration, current state, transport, independent
 recovery and any later device operation. This is one diagnostic image for Main's
 visual check. It cannot construct PageObservation, SDK Capture or native authority.
 
@@ -142,5 +142,16 @@ native ink and reopen milestones stay preserved.
 
 Source basis: existing capture-observation-plan and capture-contract, current
 metadata entry semantics, measured census/capture refusals and Main's conditional
-visual-only precode. Quotas and this separate entry are proposals pending review;
-no deployment follows from writing them.
+visual-only precode. Quotas and this separate entry are accepted only for the
+bounded source increment; no deployment follows from that acceptance.
+
+## Implemented source checkpoint
+
+The precode above was accepted before implementation. The independent source
+closure and focused owned controls are now accepted; see the
+[reusable source/verification record](../../../docs/experiments/visual-only-capture-owned.md)
+for quotas, fixed scalar semantics, initial failures, exact owned-only artifact
+and reviewer/execution attribution. The requirement admits grab before the
+original deadline and refuses successful publication after expiry; it does not
+promise Qt returns within that deadline. Main's collector/decoder/process policy
+and complete fresh native packet remain separate unfinished gates.
