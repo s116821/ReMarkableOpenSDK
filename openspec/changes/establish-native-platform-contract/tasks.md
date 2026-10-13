@@ -158,3 +158,7 @@ See [capture-order producer provenance](capture-order-provenance.md) for explici
 - [ ] 13.2 Independently review exact proposal/private manifest and Main-owned host observer, transport behavior and independent timeout/cleanup before selection.
 - [ ] 13.3 Main alone selects any fresh permitted observation after current identity/provider/access checks; no held/spent replay or alternative access after refusal.
 - [ ] 13.4 Interpret only sampled visual association; document/page binding, render/request history, lifetime/recovery qualification, canonical sync and archive remain open.
+
+See the [first-window diagnostic amendment](passive-window-diagnostic.md) for
+the separately reviewed reporting-only successor and its Main-owned open tasks.
+It does not expand the frozen admission table or read policy.
