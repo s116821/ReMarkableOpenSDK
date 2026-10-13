@@ -57,8 +57,8 @@ selected candidate, not a route around an earlier denied operation.
 ## Exact profile and manifest
 
 The private `passive-visual-sftp-v1-manifest.json` is generated from the saved
-firmware 3.28.0.172 xochitl and exact vendor SDK 5.8.203 libraries. Its 9,601 bytes
-have SHA-256 `7d81b33b34defffd807741ac6e8e705c76be4ef9e6dd1f7bf51296f1a47e8af5`.
+firmware 3.28.0.172 xochitl and exact vendor SDK 5.8.203 libraries. Its 14,107 bytes
+have SHA-256 `8bc489413a6cd6b1f301667717e87fed906928211a22c6876e8cfd6a9b850147`.
 Artifact addresses, type locators and raw
 evidence stay private; this document defines their meaning without creating a
 public fixed-address API. The manifest has no execution authorization.
@@ -109,6 +109,52 @@ graph traversal, metaObject calls or shape-based subclass inference are allowed.
 Unknown QML subclasses refuse. The actual focused-window and ancestor subtypes
 have not been observed through this method; a refusal is a useful precise limit,
 not permission to broaden the running attempt.
+
+### Address bases and field widths
+
+Every manifest `read_fields` entry names its base, byte offset, width and
+interpretation. Resolve the named base before adding that field's offset; never
+apply every offset to the public object or to its private data. `address_bases`
+defines the binding of each named base to the selected object. The base of a
+window, agent or visual-item private field is the pointer read from that exact
+typed object's `qobject_dptr` field, with its `qobjectdata_qptr` backlink checked.
+Native association fields below are in complete public objects instead.
+
+| Field | Base to which its manifest offset is added | Bytes / interpretation |
+| --- | --- | --- |
+| `public_vptr` | Current complete typed public object | 4 / pointer |
+| `qobject_dptr` | Current complete typed public object | 4 / pointer to its private data |
+| `qobjectdata_qptr` | That object's dereferenced private data | 4 / backlink pointer |
+| `window_content` | Selected window's private data | 4 / content-item pointer |
+| `window_delivery_agent` | Selected window's private data | 4 / agent pointer |
+| `window_visible` | Selected window's private data | 1 / visibility value |
+| `agent_private_root` | Selected agent's private data | 4 / root-item pointer |
+| `agent_private_focus` | Selected agent's private data | 4 / focus-item pointer |
+| `item_parent` | Current visual item's private data | 4 / parent-item pointer |
+| `item_children_descriptor` | Current visual item's private data | 12 / inline list descriptor |
+| `item_window` | Current visual item's private data | 4 / window pointer |
+| `item_flags_byte` | Current visual item's private data | 1 / masked flags |
+| `scene_worker` | Selected complete public SceneView | 4 / worker pointer |
+| `scene_manager` | Selected complete public SceneView | 4 / manager pointer |
+| `scene_viewport_interface` | Selected complete public SceneView | 4 / interface-subobject pointer |
+| `interface_vptr` | Referenced interface subobject itself | 4 / secondary vptr |
+| `viewport_manager` | Complete public viewport after verified adjustment | 4 / manager pointer |
+| `manager_worker` | Selected complete public manager | 4 / worker pointer |
+| `list_allocation` | Validated inline/global list descriptor | 4 / opaque allocation pointer; never dereferenced |
+| `list_pointer` | Same list descriptor | 4 / pointer-array address |
+| `list_signed_count` | Same list descriptor | 4 / signed count |
+| `vtable_offset_to_top` | Observed primary/secondary vptr value | 4 / signed displacement at its manifest negative offset |
+| `vtable_typeinfo` | Same observed vptr value | 4 / typeinfo pointer at its manifest negative offset |
+
+For each QtGui global, `got_read` explicitly uses the matched QtGui load bias
+plus its slot offset and reads four bytes. After target corroboration,
+`storage_read` uses that validated GOT pointer plus zero: twelve bytes for the
+window-list descriptor or four bytes for the focused-window pointer. Window-list
+and child-list pointer/count fields are relative to the descriptor, not its
+allocation pointer. The viewport base adjustment is arithmetic defined by the
+validated primary/secondary type pair, not another memory field or method call.
+This typed contract supersedes the unreviewed flat-offset manifest; the route,
+allowlist, actual offsets, widths and caps are unchanged.
 
 ## Minimal read sequence
 
