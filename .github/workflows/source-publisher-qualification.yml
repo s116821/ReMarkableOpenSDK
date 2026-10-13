@@ -31,6 +31,22 @@ jobs:
         run: python release/qualify_source_publisher.py --source .upstream/source-publisher --output "$RUNNER_TEMP/source-built-publisher"
         env:
           PYTHONDONTWRITEBYTECODE: '1'
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: '1.98.1'
+      - name: Install and audit unchanged maintained tagger
+        run: |
+          python -m venv "$RUNNER_TEMP/python-tools"
+          "$RUNNER_TEMP/python-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/python-tools/bin/pip-audit"
+      - name: Qualify actual maintained tag-build-clean-publisher composition
+        run: python -m unittest discover -s release -p source_action_composition.py -v
+        env:
+          PYTHON_SEMANTIC_RELEASE: ${{ runner.temp }}/python-tools/bin/semantic-release
+          SDK_FIXTURE_CARGO: cargo
+          SDK_FIXTURE_NODE: node
+          GH_RELEASE_ACTION: ${{ runner.temp }}/source-built-publisher/publisher/dist/index.js
+          PYTHONDONTWRITEBYTECODE: '1'
       - name: Exercise actual rebuilt publisher draft recovery and retained assets
         run: node --test release/recovery.test.mjs
         env:
