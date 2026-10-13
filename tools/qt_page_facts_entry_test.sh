@@ -53,13 +53,14 @@ ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \
  tools/qt_capture_observation_fixture.cpp tools/qt_page_facts_entry.cpp tools/qt_page_facts.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/capture-fixture"
 for case in order-good order-real-clock order-owned-pixels order-window-grab order-stale order-cancel order-binding-drift order-write-deadline order-reverse order-drift order-queued-drift order-invalidate order-deadline order-queued-deadline order-cross-capture order-cross-source order-wrong-token order-legacy-reject order-source-reject good duplicate wrong-token early-facts cross-purpose empty grab-epoch grab-late grab-cancel visual-epoch token-replaced png-replaced setup-expiry setup-near external-buffer dimension-mismatch completion-late completion-epoch nested-early nested-purpose visual-double-click publication-alias foreign-temporary temporary-reappears temporary-unlink; do
- if [ "$case" = order-window-grab ]; then export QT_QUICK_BACKEND=software; fi
+ case_backend="${QT_QUICK_BACKEND:-}"
+ if [ "$case" = order-window-grab ]; then case_backend=software; fi
  if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
-  /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
+  QT_QUICK_BACKEND="$case_backend" /opt/codex/rm2/5.8.203/sysroots/x86_64-codexsdk-linux/usr/bin/qemu-arm \
    -L "$SDKTARGETSYSROOT" -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen \
    -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
    -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/capture-fixture" "$case"
- else QT_QPA_PLATFORM=offscreen "$work/capture-fixture" "$case"; fi
+ else QT_QUICK_BACKEND="$case_backend" QT_QPA_PLATFORM=offscreen "$work/capture-fixture" "$case"; fi
 done
 if [ -n "${FACTS_BUDDY_SOURCE:-}" ]; then
  ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" \

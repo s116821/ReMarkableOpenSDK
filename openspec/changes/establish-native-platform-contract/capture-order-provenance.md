@@ -1,6 +1,6 @@
 # Capture-order producer provenance amendment
 
-Status: source implemented; focused verification and review in progress; no native qualification.
+Status: source implemented and independently reviewed; focused owned Qt verification passed; no native qualification.
 
 ## Proposal and design
 
@@ -38,7 +38,7 @@ evidence. This does not impose a hard execution bound on native calls.
 
 - [x] Implement producer descriptor and monotonic-clock admission for version 4 only.
 - [x] Check injected and actual QElapsedTimer cases, original PNG ownership and legacy controls.
-- [ ] Review the exact source and available CI; preserve native qualification gaps.
+- [x] Review the exact producer source and available CI; preserve native qualification gaps.
 - [ ] Coordinate consumer interpretation only when a real consumer requires it.
 
 ## Requirement delta
@@ -93,3 +93,22 @@ The earlier 20-case result remains attributed only to `29bcfaa`; it was not reru
 or promoted to native evidence here. Strict OpenSpec validation passed. The
 non-monotonic QElapsedTimer refusal is source-reviewed only: the available runtime
 reports monotonic support, so no false unavailable-clock execution is claimed.
+
+## Review and CI
+
+Independent source review accepted exact `211dddd33817c5b27d0083293f313c13e0fede1e`
+to `ad31eff02bd83aa354e8e14aa257c9717d4fd8a5`, including the owned actual-window
+branch, with no producer correctness/compatibility blocker. The reviewer inspected
+source/assertions and did not independently rerun the focused ARM cases. The
+internal review receipt has no public link. Both available exact-source checks
+passed: [owned-fixtures](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/38343299502/job/115118899285)
+and [owned-metadata-fixtures](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/38343299367/job/115118899312).
+These RM1 checks are separate from the focused Qt proof.
+
+A nonblocking test-isolation finding was repaired in the follow-up: select the
+software scenegraph only for the owned-window child invocation, preserving the
+incoming environment for later cases. The final script passed only the targeted
+`order-window-grab` then legacy `completion-diagnostic-success` sequence, without
+an externally forced backend. No producer or assertion changed in that repair.
+Native lifetime/recovery, vendor source-to-render correspondence, page-plane
+geometry, qualified consumer admission and parent delivery remain open.
