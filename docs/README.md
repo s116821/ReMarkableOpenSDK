@@ -16,6 +16,7 @@ remain workflow records, not a shipping capability declaration.
 | Source5 witness | [Stock diagnostic sufficiency](research/source5-stock-diagnostic-assessment.md) | Later stable-body policy, distinct 57ee/092c outcomes, retained-fixture visual assessment and the missing native candidate scope |
 | Document relationship | [SceneView to document and controller](research/scene-document-controller-relationship.md) | Wrapper/backing-document construction, worker association, controller library lookup and the missing fresh identity join |
 | SFTP observation | [Session identity and cleanup](research/sftp-session-identity-and-cleanup.md) | Exact saved-server read semantics, same-session attribution, proposed outside host ownership and remote cleanup limits |
+| Window admission | [Passive window refusal](research/passive-window-admission.md) | Missing concrete QML wrappers, exact pointer-base evidence and the unidentified runtime class |
 | Render and geometry | [Scene tile relationship](research/scene-tile-render-geometry.md) | Request identity, cancellation versus readiness, tile painting, rounded viewport transforms and a bounded proposed discriminator |
 | Ordinary gestures | [RM2 portrait component result](experiments/rm2-portrait-gesture-component.md) | One Next/Previous round trip with unchanged source files and owned cleanup; product/native navigation remains unqualified |
 | Focus ownership | [Qt focus ancestry](research/qt-focus-owner-discovery.md) | Pinned nested-focus semantics, conditional owner completeness and cumulative traversal refusal |
