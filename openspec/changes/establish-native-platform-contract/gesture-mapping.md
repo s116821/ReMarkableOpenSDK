@@ -44,3 +44,31 @@ independently checked all 40 model/orientation/direction combinations (two plans
 38 typed refusals). Its three focused checks passed. This review result was
 reported through the current project coordination tools; the internal report has
 no public link. Consumer integration/review and native qualification remain open.
+
+## Committed consumer source handoff
+
+The source integration is now committed in [Reader PR40](https://github.com/s116821/ReMarkableBuddies/pull/40)
+at `67c73e9c4a0a4a6ba5d4fb05eea8ef3d383629a6`, consuming the exact SDK
+`5c0bc303bb9b22e8e01bce9b2bd2a7fe47c8010e`. Its paired
+[Docs contract](https://github.com/s116821/ReMarkableBuddiesDocs/blob/0c1138e2fa133e0db0d268c83783097afc931357/openspec/changes/durable-conversation-context/sdk-gesture-integration.md)
+records the isolated consumer scope and retained native limits.
+
+SDK independently compared the committed emitter, Touch, native-page parser,
+navigation completion and backend against the previously reviewed working
+sources: all five match after line-ending normalization. The
+[earlier source review and six focused host checks](https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6150350493)
+therefore remain relevant to those exact implementation bodies; those checks
+were run on the working sources, not rerun on this commit. Hosted
+[build/lint and tests](https://github.com/s116821/ReMarkableBuddies/actions/runs/38434469227)
+passed for this committed Reader head. The separate diagnostic orientation
+arguments do not adopt the protected pen-stroke/tool work.
+
+This closes task3.6b's source handoff only. The observed document orientation is
+configuration evidence, not proof of the active native page or view. Current-page
+authority, native gesture/completion, process-crash release and lifecycle/recovery
+qualification remain open, as do other device/orientation mappings. No device
+operation, merge, canonical sync or archive follows from this checkpoint.
+
+Source basis: current Git blob comparisons, GitHub API head/check outputs and the
+linked source/host review receipt; Main's independent successor checks remain
+attributed to Main rather than represented as SDK execution.
