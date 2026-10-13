@@ -198,3 +198,11 @@ same-process ordinary fixture-open sequence without selecting it or modifying
 the entry. This nonce is spent. Tasks14.4/14.5 remain open for complete packet,
 native context and recovery qualification; prior insertion/ink/reopen evidence
 remains credited. No canonical sync or archive follows from this checkpoint.
+
+The same reusable record now includes the later `c828` context-margin refusal
+and `006` blank-frame refusal. Neither issued ordinary input or a census request,
+so neither adds a census result. Their live-host-started primary restoration and
+cleanup passed; independent timer expiry, host loss and fallback remain untested.
+Infrastructure readiness is not painted UI, and a proposed nonblank filter still
+requires Main's visual context confirmation within the original deadline.
+No entry/readiness/source or full lifecycle task closes from those outcomes.

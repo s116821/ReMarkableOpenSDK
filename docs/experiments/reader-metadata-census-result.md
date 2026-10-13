@@ -91,6 +91,47 @@ The same process generation must survive any ordinary fixture opening. Changes
 in focused windows or engines can refuse admission, and sampled before/after
 visuals do not establish continuous native page identity.
 
+## Two later context refusals: no new census result
+
+Main completed two fresh, separately reviewed follow-ups with the unchanged
+entry behavior and new nonce bindings. Neither reached ordinary input or a
+census request. The original deadline was retained, and both nonces are spent.
+
+| Follow-up | Measured outcome | Recovery scope |
+| --- | --- | --- |
+| `c828` | Activated entry, then exhausted the original context margin before ordinary input/request; no census result. Original operator outcome remains `PacketUnknown`, elapsed 85.922 seconds | Configured primary explicitly started by the live host completed stock restoration and task-owned unit/root cleanup |
+| `006` | Captured a blank frame 6.453 seconds after the before-launch anchor; Main refused the Library visual gate before ordinary input/request. No census result; original operator outcome remains `PacketUnknown`, elapsed 81.062 seconds | Live-host-started primary completed stock restoration, shared-image cleanup and task-owned unit/root cleanup |
+
+SDK directly read both operator receipts. Their SHA256 values are
+`08f4c74114603096fbf21f0ddfb7b017b5962e51fbc7fb3a09871f8c7ea8c98b`
+and `6ba015b6d3e900c467b3fd28d1b43f4ea663bf1a385453167316ba061319d973`.
+Both record activation, no request attempt and subsequent restoration/cleanup.
+Main's context-guard refusal in the first case is attributed to Main's execution
+report and supporting absence of input/request evidence; an independent captured
+stderr from that guard invocation was not available to the reviewer.
+
+For `006`, the captured image SHA256 is
+`65922aade00cfdb39c846d7bca1c71f9f58b58ae3c9c2ee857cb3b563a1b8c06`.
+Sol privately inspected the blank image and its same-process sample record.
+The blank frame's cause is unknown. It is not evidence of painted Library,
+a reader-anchor condition or an entry defect.
+
+`census-ready` is published after entry/root binding, watcher installation and
+timer setup. It checks neither painted UI nor Library/document presentation.
+Window/engine/census checks occur only after the one request. A proposed bounded
+nonblank-image filter can support the visual handoff, but Main must still inspect
+and confirm Library/context: nonblank pixels alone do not identify the UI or
+grant native page authority. Image filtering and human inspection must fit the
+original clock; neither permits a reset, rearm or automatic repeated request.
+
+The compatible primary's successful scripted recovery under a live host is
+useful actual evidence. Neither follow-up exercised independent timer expiry,
+host loss or the fallback recovery path. Those lifecycle cases remain open.
+These successes do not alter the first `2ef` packet's failed automatic actors
+and separate intervention. No readiness/source/lifecycle gate is closed from
+these context refusals, and this record does not gate Main's next independently
+permitted preparation.
+
 ## Evidence and remaining delivery
 
 Source basis: frozen SDK source and its
@@ -100,6 +141,11 @@ image and restoration records; and Sol's independent source/evidence review.
 Those private records and internal review messages have no public transcript
 link. Sol inspected all 240 captured streams and 20 preserved file hashes;
 SDK does not claim to have repeated that full inspection or any device execution.
+For the later follow-ups, Sol independently inspected 104 streams/52 transport
+receipts for `c828`, and 110 streams/55 transport receipts plus 14 frozen source
+hashes and the image for `006`. Root directly read the latter operator receipt
+and final stock record. These are separately attributed inspections, with
+operational details and original failure records retained privately.
 
 This result preserves the already demonstrated
 [insertion, native ink and reopen milestones](caller-selected-insertion-result.md).
