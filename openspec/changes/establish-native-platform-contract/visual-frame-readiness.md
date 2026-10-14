@@ -207,3 +207,13 @@ checked separately. This is not native PNG/UI/decoder/recovery evidence or an SD
 producer stderr bound. Exact new source/artifact/providers/current state/fixture/
 decode/transport/recovery/cleanup packet review precedes any selection. Tasks15.4/
 15.5 and full readiness/content/lifecycle gates remain open.
+
+## First native passive-mode checkpoint
+
+The [a6 result](../../../docs/experiments/visual-only-capture-owned.md#first-native-passive-mode-result-no-witnessed-frame-original-closeout-passed)
+recorded14 same-generation samples without an accepted frame marker and no
+request/image/result. Original operator live-host primary restoration/cleanup
+passed in56.890s; this does not qualify timer expiry/host loss/fallback or resolve
+the missing frame's cause. The nonce is spent. The separate
+[binding-stage witness proposal](visual-binding-witness.md) is unimplemented,
+with no clock renewal or identical retry. Full native gates remain open.

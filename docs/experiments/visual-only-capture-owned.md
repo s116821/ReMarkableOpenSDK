@@ -145,6 +145,57 @@ objects do not bind the repaired r4 source, and natural vendor emission remains
 unqualified. See the linked checkpoint for positive synthetic controls, preserved
 natural-signal absence and the source-review P2/repair.
 
+### First native passive-mode result: no witnessed frame, original closeout passed
+
+Main's fresh `a6` passive packet used source29a2e8d and producer artifact SHA256
+`fea402e9dd8dee26f0cdb5b2ce516e2b53fd58ce0c5ad4803678764ed6ee6155`.
+SDK directly inspected14 retained metadata samples: before/after process-generation
+checks were true, but frame_ready_hex was empty in every sample. No accepted
+frame marker, request, image or result scalar was recorded. Main stopped at the
+original host admission/margin cutoff without extending the entry clock. Direct
+transport timing places the first sample start4.250 seconds after activation
+attempt start and the last sample return14.109 seconds after it; restore-start
+began at14.359 seconds. This was not a full50s/60s no-signal observation.
+
+Original operator receipt SHA256
+`d65ba3ff782a619d020b6462614908b3df4bfb5dae3c1ec68c8bde8f74243b10`
+records activated=true, request_attempted=false, outcome_unknown=PacketUnknown,
+elapsed56.890 seconds and restored=true/cleanup=true in that same receipt.
+The executed operator source has distinct SHA256
+`9292b5bb6a3834d64301260b106bf6667e74bd75caceca067096fd53e48a2b8b`;
+it must not be confused with the result receipt's identity.
+
+Restore samples054–059 recorded RESTORE_PENDING, then060 recorded STOCK_VERIFIED
+with primary exit0/active-exited and fallback inactive-dead. This attempt did not
+exercise c69's precise STOCK_NOT_VERIFIED-under-restored-marker failure branch.
+Main's later read-only final stock record shows
+the original command/restart/kill policy, no pending job, unchanged PDF hash and
+all task-owned resources absent. This is successful original live-host-started
+primary restoration/cleanup; independent timer expiry, host loss, fallback and
+full production recovery remain untested. It does not retroactively change c69's
+failed observer closeout or earlier automatic-actor failures.
+
+Main reports140 streams/70 stopped-tree transport receipts and17 selected-source
+snapshots preserved; the subsequent read-only final check is separate. SDK's
+direct sample/receipt/stock-record inspection does not claim to repeat the full
+inventory or independently execute the device work. Private evidence has no
+public transcript link. Root's existing Sol reviewer independently verified those
+140 streams/70 stopped transports and17 snapshots, plus the separate final check's
+two streams/one stopped job, and accepted the bounded outcome. CLI exit1 is
+attributed to Main's owner tool output, not a separately saved CLI-exit transcript.
+
+Missing frame-ready output does not diagnose lack of window eligibility/binding,
+vendor emission, signal timing/delivery, callback context, publication or sufficient
+admission margin. It proves none of visible content, frame freshness, current
+owner/page or lifetime. This nonce is spent and no identical retry is selected.
+Infrastructure ready was published before focus-observer installation/binding,
+so it does not establish that either occurred. Frame and capture paths use the
+same public window/engine/root/focus/visible/active guards; the records do not
+support a new-stricter-engine-guard explanation. Earlier c69 window admission was
+a different process/time and cannot establish a6 startup binding.
+The new [binding-stage witness proposal](../../openspec/changes/establish-native-platform-contract/visual-binding-witness.md)
+is source-only and preserves those unknowns.
+
 Main owns the separate binary-image/scalar collector, decode resource limits,
 visual confirmation, current providers/fixture/process state, transport/error/
 copy quotas and independently bounded recovery/cleanup. Complete exact source/

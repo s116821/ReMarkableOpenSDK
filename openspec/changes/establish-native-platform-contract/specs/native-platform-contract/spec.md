@@ -37,6 +37,21 @@ queued-event allocations and vendor signal emission SHALL remain unqualified.
 - **WHEN** no qualifying delivery is observed before original expiry or guarded context is lost
 - **THEN** the entry terminates without a grab, never forces rendering or substitutes historical state, and emits no native/UI/page authority
 
+### Requirement: Declared bounded binding-stage witnesses
+The SDK SHALL keep binding witnesses default-off and require the passive mode.
+It MAY publish at most two additional exclusive512-byte historical-only scalars:
+initial waiting/rejected status and first bound/observer-installed status, with
+the fixed eight-field identity/type domain and total producer quota1051211.
+They SHALL NOT substitute for frame-ready/image guards or authorize capture.
+
+#### Scenario: Initial state is preserved rather than overwritten
+- **WHEN** initial deferred binding is later admitted
+- **THEN** the initial false/false status remains historical and a separate true/true bound witness may be committed without claiming current state or frame/content authority
+
+#### Scenario: Missing or invalid witness remains unknown
+- **WHEN** context/connection/root/cancel/expiry/publication guards fail or witness output is missing, partial, pending or replaced
+- **THEN** the entry makes no inferred binding/signal diagnosis, never overwrites/rearms/renews time, and any accepted witness remains nonauthoritative
+
 ### Requirement: Explicit-fixture caller-selected allocation experiment
 The development creation probe SHALL permit a separately selected single-call
 caller-selected identity experiment only with a fresh exact fixture baseline and
