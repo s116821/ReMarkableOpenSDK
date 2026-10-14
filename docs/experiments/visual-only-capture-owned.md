@@ -313,3 +313,63 @@ Prior insertion/ink/reopen milestones and full content/lifetime/Reader gates rem
 
 The [nonadmitting in-flight polling proposal](../../openspec/changes/establish-native-platform-contract/visual-fixed-signal-profile.md#proposed-main-only-nonadmitting-in-flight-poll-phase)
 addresses the concrete host phase mismatch without loosening final acceptance.
+
+## Native in-flight host repair result: normal capture of loading pixels
+
+Main's fresh, now-spent d1e03cc3ff3042d29897ee8c86468145 used unchanged accepted
+producer679d, fixed frameSwapped/all three flags1 and the distinct accepted
+nonadmitting polling repair. Exact [fresh artifact/packet receipt](https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6158984543)
+records source binding; no old d578 artifact/identity was replayed.
+
+Original execution1791942094423158700 receipt SHA256
+`8bf2fb628d48c368b1946826bea100cb72069c887f01f2d79ba4ad3c7ea074d7`
+records activation, one request, original restoration/cleanup true,59.859s and
+no unknown outcome. Main reports original CLI exit0; SDK read the receipt and
+verified82 recorded jobs all exit0/tree_gone/readers_stopped. Independent actual
+review accepted164 raw streams/19 selected snapshots,82 stopped jobs/86586 bytes
+with no actionable findings. No reviewer rerun or device operation occurred.
+
+Candidate16082/start46891849 delivered the198-byte selected frame marker SHA256
+`84410e0ac5a77b7a7b998375f6bca6064b9719b5c96f63dbf5cd919d0b236f5f`.
+The normal strict371-byte scalar SHA256
+`d420e123b4bc5ddc2aa9901159a74c7bcb86662be62673c81708452d261a3b2c`
+matches the21066-byte PNG SHA256
+`3a899156cd9084e093aed66260332968eae2c6447b8040e1591d3df8a79372f4`:
+1404x1872,DPR1,storage10513152,visual-image-observed,application-thread/current-
+window true,native_authority=false. The original normal-pair path completed and
+its separate bounded owned decoder reports full RGB7884864 bytes, matching hash/
+dimensions and complete_pixel_decode_verified=true. That final decode outcome is
+receipt-reported; no independently retained raw decoder transcript exists. The
+pair header's earlier
+false decode flag describes its pre-decode stage, not a conflicting final result.
+No decoder or native operation was repeated by SDK.
+
+Main and SDK visually inspected the normal image: reMarkable loading logo/text
+and progress line. This advances guarded capture/pair/full-decode integration;
+it does not establish useful document pixels, current page/owner, physical panel
+state or freshly produced content. Its identical hash to d578's forensic image
+does not prove caching, emission timing or freshness. d578's original failure
+remains a failure; d1's normal success does not retroactively accept it.
+
+Separate final receipt SHA256
+`64ff3ea992d138514a127592bc85482f1eb6282f459e7991025c8655060240e1`
+and final read-only output verify stockPID16402, original command/restart policy,
+no Job, three active checks, unchanged fixture PDF hash33244694... and all owned
+resources absent. Original live-host primary closeout and separate final checks
+are distinct; independent timer-expiry/host-loss/fallback qualification stays open.
+Private execution evidence has no public transcript link.
+
+The remaining content gate is a supported join between the observed window/frame,
+useful current-document pixels and an independently qualified document/page/owner
+and lifetime context. A first eligible window/first latched notification can be a
+loading scene; choosing another signal, waiting a guessed interval, replaying the
+spent packet or treating any nonblank image as a document would not supply that
+join. Existing bounded metadata/no-anchor findings do not prove global document
+absence. No producer repair, new getter/hook, forced input/render, clock extension,
+new build/nonce or fresh experiment follows from this source-only assessment.
+Prior insertion/ink/reopen milestones stay credited; full Reader gates stay open.
+
+Source basis: exact preserved Main receipt/scalar/PNG/decoder records, SDK local
+hash/readback and visual inspection, and current fixed-window/signal contracts.
+The distinction between capture plumbing and missing content/owner qualification
+is source interpretation, not a diagnosis of vendor loading/caching behavior.

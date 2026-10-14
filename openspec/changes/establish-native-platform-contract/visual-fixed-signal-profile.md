@@ -160,3 +160,15 @@ accepted after malformed-metadata WAIT cases were repaired. Its24 local assertio
 are owner-reported saved evidence, not independently executed raw/native results.
 No SDK producer source or artifact changed; fresh Main packet/source/artifact
 review and full native capture/content/owner/lifetime/recovery gates stay open.
+
+Main's [fresh d1 native result](../../../docs/experiments/visual-only-capture-owned.md#native-in-flight-host-repair-result-normal-capture-of-loading-pixels)
+completed the normal strict scalar/image pair and bounded full RGB decode with
+original live-host restoration/cleanup. The inspected pixels still show loading.
+This advances the host-repair capture integration milestone; it does not grant
+useful current-document/page/owner/fresh-pixel/panel/lifetime authority. Independent
+actual-evidence review accepted the original19 sources/164 streams/82 stopped
+jobs and separate final two streams/one job with no findings; final full decode
+is receipt-reported without independent raw decoder transcript. No reviewer
+rerun/device operation occurred. No new producer/profile/build/nonce or
+spent replay follows; missing content qualification cannot be replaced by a
+guessed wait, another signal or a nonblank-pixel heuristic.
