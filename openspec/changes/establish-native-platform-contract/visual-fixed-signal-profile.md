@@ -79,8 +79,9 @@ or tablet operation followed. Negative compiler logs were temporary and checked
 by the frozen runner, not separately retained; raw overall stdout/stderr remain.
 Qt-header GCC ABI notes are retained without warning suppression.
 
-The first owned run failed the opposite-signal assertion: natural software signal
-delivery during event pumping interfered with synthetic-only isolation. This is
+The first owned run failed the opposite-signal assertion. The author attributes
+the failed synthetic-only assumption to possible natural software emission during
+event pumping; that causal explanation was not independently measured. This is
 not a native delivery observation. The repaired owned fixture alone blocks natural
 window signals while pumping, unblocks for explicit injection, then reblocks
 before queued delivery. The producer never blocks signals. Initial raw exit1 and
