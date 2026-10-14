@@ -1,7 +1,8 @@
 # Bounded passive binding-stage witness
 
-Status: independently accepted source-only design. Existing29a2e8d producer
-is unchanged. No implementation/build/nonce/native attempt is selected. This is
+Status: independently accepted source/control increment. Binding witnesses are
+explicit and default-off; existing behavior remains when the flag is absent.
+No native artifact/nonce/attempt is selected. This is
 diagnostic separation of binding from frame delivery, not a remedy for missing
 signals or blank images. Main owns any future whole packet and device work.
 
@@ -121,4 +122,51 @@ rejection cases were inspected in source and owner-saved PASS JSON; execution is
 owner-attributed, without an independently retained raw execution/source-hash
 transcript or reviewer rerun. Internal review messages have no public transcript
 link. Concrete implementation/collector/cleanup amendments are the next increment
-to review; this acceptance selects no native artifact, nonce or experiment.
+to review at that historical design checkpoint; no native selection followed.
+
+## Implemented source/control checkpoint
+
+Entry/startup implement VISUAL_CAPTURE_BINDING_WITNESS=1 only together with
+VISUAL_CAPTURE_PASSIVE_FRAME_READY=1; missing dependency/invalid values refuse.
+The initial status and first bound witness use the fixed512-byte schema above,
+exclusive guarded publication and no overwrite. The valid frame connection
+precedes positive publication; callback latch waits for committed bound output.
+Premature-request consumption remains unchanged. Image admission still requires
+the separate valid frame marker and context; a bound witness alone never grabs.
+Default/passive modes without this flag retain their behavior. No core/image
+algorithm, forced render, traversal, clock or queued-memory bound is added.
+
+Author's new focused vendorSDK5.8.203/GCC13.4.0/Qt6.10.3 ARM/QEMU controls passed
+immediate bound/no invented waiting, bound-without-frame refusal, initial deferred
+status preserved through later focus binding, separate frame plus one request/grab,
+initial engine-ambiguity rejection, canceled two-link bound output, and runtime/
+compile passive-dependency refusal. Only binding-witness-only and startup syntax
+controls ran; no old matrix or native/shared artifact build was repeated.
+Strict compilation emitted1758 bytes of GCC9.1 parameter-passing ABI notes from
+Qt headers, not suppressed warnings.
+
+Main's new collector branches were compiled once with Linux host cc in an isolated
+network-disabled owned root. Seven controls passed: two retained diagnostics,
+bound-without-frame request refusal, pending/two-link diagnostics, cap513/symlink
+refusal and witness mutation after raw streaming began. The latter returned
+nonzero with at most1MiB stdout and20-byte stderr, invalidating all raw bytes.
+This is file/stream guard evidence, not Qt/native PNG/UI/recovery qualification.
+
+Root's existing Sol independently verified all20 producer receipt files
+(`555fbaf74168ed4ff7720b628e16905fa61eaa392a3acf41ff7bc5738892a394`),
+all23 collector evidence files
+(`3ef71803181ad07420c2b186a5f6aefbbb076a1f0ac89b466a3ccb6857b448d2`)
+and Main's new/carried integration source set, accepting no actionable findings.
+Source connection/publication/latch ordering, original quotas/clocks, optional
+diagnostic identity, forensic inventory and cleanup agree. Execution remains the
+authors' actual raw evidence; no reviewer rerun or device operation. Main's four
+host/ten parser controls are separately owner-reported saved assertions/source
+inspection without independently executed/source-bound raw transcripts.
+Internal receipts/review have no public transcript link.
+
+This closes the new source/control portion only. Exact fresh native producer/
+collector/provider binding and Main's current-state/fixture/transport/decode/
+independent-recovery/preservation/cleanup packet remain required before selection.
+No existing owned artifact, zero nonce, held/spent packet or previous no-marker
+result authorizes another attempt. Content/vendor delivery/current owner/lifetime/
+full Reader and timer/host-loss/fallback recovery gates stay open.

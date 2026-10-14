@@ -31,14 +31,17 @@ inline QByteArray selfIdentity() {
 }
 class Entry final : public QObject {
 public:
-    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr, bool passiveFrame = false)
-        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)), frameMode_(passiveFrame) {
+    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
+          bool passiveFrame = false, bool bindingWitness = false)
+        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
+          frameMode_(passiveFrame), witnessMode_(bindingWitness) {
         elapsed_.start();
     }
     ~Entry() override { if (root_ >= 0) ::close(root_); }
     bool start() {
         if (started_) return false;
         started_ = true;
+        if (witnessMode_ && !frameMode_) return terminal_ = true, false;
         if (!app_ || QThread::currentThread() != app_->thread() || thread() != app_->thread() || nonce_.size() != 32)
             return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
@@ -54,6 +57,8 @@ public:
             !absent("visual-image.png") || !absent(".pending-image")) return terminal_ = true, false;
         if (frameMode_ && (!absent("visual-frame-ready") || !absent(".pending-frame-ready")))
             return terminal_ = true, false;
+        if (witnessMode_ && (!absent("visual-binding-status") || !absent(".pending-binding-status") ||
+            !absent("visual-window-bound") || !absent(".pending-window-bound"))) return terminal_ = true, false;
         connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, [this] { queue(); });
         connect(&timer_, &QTimer::timeout, this, [this] { Result r; r.stage = "setup-expired"; finish(r); });
         connect(app_, &QCoreApplication::aboutToQuit, this, [this] { stop(); });
@@ -78,6 +83,20 @@ public:
     void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
 #endif
 private:
+    QByteArray bindingBytes(const char *stage, bool bound) const {
+        const auto id = identity_.trimmed().split(' ');
+        const QJsonObject json{{"schema", 1}, {"nonce", QString::fromLatin1(nonce_)},
+            {"pid", QString::fromLatin1(id[0])}, {"start", QString::fromLatin1(id[1])},
+            {"stage", QString::fromLatin1(stage)}, {"window_bound", bound},
+            {"frame_observer_installed", bound}, {"native_authority", false}};
+        return QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n';
+    }
+    bool initialStatus(bool initial, const char *stage) {
+        if (!witnessMode_ || !initial) return true;
+        const auto bytes = bindingBytes(stage, false);
+        return bytes.size() <= 512 && publish("visual-binding-status", ".pending-binding-status", bytes,
+            [this] { return !terminal_ && now() < 60000 && trusted(); });
+    }
     bool frameContext() const {
         if (terminal_ || now() >= 60000 || !trusted() || !frameWindow_ || !frameEngine_ || !frameRoot_) return false;
         const bool ok = QThread::currentThread() == app_->thread() && frameEngine_->thread() == app_->thread() &&
@@ -89,25 +108,31 @@ private:
     void bindFrameWindow() {
         if (terminal_ || frameBound_) return;
         if (now() >= 60000 || !trusted()) { stop(); return; }
+        const bool initial = !initialBindingAttempt_;
+        initialBindingAttempt_ = true;
         const auto raw = QGuiApplication::allWindows();
-        if (raw.size() > 16) { stop(); return; }
+        if (raw.size() > 16) { initialStatus(initial, "binding-rejected"); stop(); return; }
         QList<QPointer<QWindow>> windows;
         for (auto *w : raw) windows.append(w);
         QPointer<QQmlEngine> engine;
         for (const auto &w : windows) {
-            if (!trusted() || !w || w->thread() != app_->thread()) { stop(); return; }
+            if (!trusted() || !w || w->thread() != app_->thread()) { initialStatus(initial, "binding-rejected"); stop(); return; }
             QPointer<QQmlEngine> e = qmlEngine(w);
-            if (!trusted() || !w || (e && engine && e != engine)) { stop(); return; }
+            if (!trusted() || !w || (e && engine && e != engine)) { initialStatus(initial, "binding-rejected"); stop(); return; }
             if (e) engine = e;
         }
         QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
-        if (!window || !engine || !window->isVisible() || !window->isActive()) return;
+        if (!window || !engine || !window->isVisible() || !window->isActive()) {
+            if (!initialStatus(initial, "waiting-first-eligible-window")) stop();
+            return;
+        }
         frameWindow_ = window; frameEngine_ = engine; frameRoot_ = window->contentItem();
-        if (!frameContext()) { stop(); return; }
+        if (!frameContext()) { initialStatus(initial, "binding-rejected"); stop(); return; }
         frameBound_ = true;
         QObject::disconnect(focusConnection_);
         frameConnection_ = connect(window, &QQuickWindow::afterFrameEnd, this, [this] {
             if (terminal_ || frameSeen_) return;
+            if (witnessMode_ && !boundWitnessPublished_) { stop(); return; }
             if (!frameContext()) { stop(); return; }
             // A queued frame delivery must not outrun notification of an
             // already-created request. Presence before marker admission consumes
@@ -128,11 +153,20 @@ private:
                 [this] { return frameContext() && absent("visual-request"); })) stop();
         }, Qt::QueuedConnection);
         destructionConnection_ = connect(window, &QObject::destroyed, this, [this] { stop(); });
+        if (witnessMode_) {
+            if (!frameConnection_) { frameBound_ = false; initialStatus(initial, "binding-rejected"); stop(); return; }
+            boundWitness_ = bindingBytes("window-bound-observer-installed", true);
+            if (boundWitness_.size() > 512 || !publish("visual-window-bound", ".pending-window-bound", boundWitness_,
+                [this] { return frameContext(); })) { stop(); return; }
+            boundWitnessPublished_ = true;
+        }
     }
     bool imagePermit() const {
         return !terminal_ && now() < 60000 && trusted() && (!frameMode_ ||
             (frameSeen_ && frameContext() && absent(".pending-frame-ready") &&
-             !frameMarker_.isEmpty() && readExact("visual-frame-ready", frameMarker_, 512)));
+             !frameMarker_.isEmpty() && readExact("visual-frame-ready", frameMarker_, 512))) &&
+            (!witnessMode_ || (boundWitnessPublished_ && absent(".pending-binding-status") && absent(".pending-window-bound") &&
+                readExact("visual-window-bound", boundWitness_, 512)));
     }
     qint64 now() const {
 #ifdef VISUAL_CAPTURE_TESTING
@@ -299,6 +333,8 @@ private:
     QTimer timer_;
     bool started_ = false, terminal_ = false, queued_ = false, consumed_ = false, finishing_ = false;
     bool frameMode_ = false, frameBound_ = false, frameSeen_ = false;
+    bool witnessMode_ = false, initialBindingAttempt_ = false, boundWitnessPublished_ = false;
+    QByteArray boundWitness_;
     QPointer<QQuickWindow> frameWindow_;
     QPointer<QQmlEngine> frameEngine_;
     QPointer<QQuickItem> frameRoot_;

@@ -194,7 +194,9 @@ same public window/engine/root/focus/visible/active guards; the records do not
 support a new-stricter-engine-guard explanation. Earlier c69 window admission was
 a different process/time and cannot establish a6 startup binding.
 The new [binding-stage witness proposal](../../openspec/changes/establish-native-platform-contract/visual-binding-witness.md)
-is source-only and preserves those unknowns.
+now has independently accepted default-off source/control implementation and
+preserves those unknowns. It supplies historical stage evidence only and selects
+no native artifact, nonce or retry; see the linked source/control checkpoint.
 
 Main owns the separate binary-image/scalar collector, decode resource limits,
 visual confirmation, current providers/fixture/process state, transport/error/

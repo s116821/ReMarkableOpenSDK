@@ -36,6 +36,78 @@ int main(int argc, char **argv) {
     std::unique_ptr<QObject> object(component.create());
     auto *window = qobject_cast<QQuickWindow *>(object.get());
     require(window, "original owned QtWindow"); window->requestActivate(); pump();
+    if (argc == 2 && QByteArray(argv[1]) == "binding-witness-only") {
+        const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
+        const auto prepare = [&](QTemporaryDir &root) {
+            require(root.isValid() && ::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "witness fixture root");
+            put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", id);
+        };
+        const auto marker = [&](const QString &path, const char *stage, bool bound) {
+            const auto bytes = read(path); const auto j = QJsonDocument::fromJson(bytes).object();
+            require(bytes.size() <= 512 && j.size() == 8 && j.value("stage").toString() == stage &&
+                j["window_bound"].isBool() && j["window_bound"].toBool() == bound &&
+                j["frame_observer_installed"].isBool() && j["frame_observer_installed"].toBool() == bound &&
+                !j["native_authority"].toBool(true), "exact historical-only witness domain");
+        };
+        {
+            QTemporaryDir root; prepare(root);
+            visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true, true); int grabs = 0;
+            entry.grabForTest([&](QQuickWindow *) { ++grabs; return pixels(); });
+            require(entry.start(), "initial eligible witness");
+            marker(root.path() + "/visual-window-bound", "window-bound-observer-installed", true);
+            require(!QFile::exists(root.path() + "/visual-binding-status"), "immediate bound no invented waiting");
+            put(root.path() + "/visual-request", nonce + ' ' + id); pump();
+            require(entry.terminal() && grabs == 0 && !QFile::exists(root.path() + "/visual-frame-ready") &&
+                !QFile::exists(root.path() + "/visual-image.png"), "bound witness alone never admits grab");
+        }
+        {
+            QWindow other; other.resize(20, 20); other.show(); other.requestActivate(); pump();
+            require(QGuiApplication::focusWindow() == &other, "deferred witness non-Quick focus");
+            QTemporaryDir root; prepare(root);
+            visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true, true); int grabs = 0;
+            entry.grabForTest([&](QQuickWindow *) { ++grabs; return pixels(); });
+            require(entry.start(), "initial deferred witness");
+            marker(root.path() + "/visual-binding-status", "waiting-first-eligible-window", false);
+            const auto waiting = read(root.path() + "/visual-binding-status");
+            window->requestActivate(); pump();
+            marker(root.path() + "/visual-window-bound", "window-bound-observer-installed", true);
+            require(read(root.path() + "/visual-binding-status") == waiting, "waiting history not overwritten");
+            std::thread emitter([window] { window->afterFrameEnd(); }); emitter.join(); pump();
+            put(root.path() + "/visual-request", nonce + ' ' + id); pump();
+            require(entry.terminal() && grabs == 1 && QFile::exists(root.path() + "/visual-frame-ready"),
+                "separate frame marker remains necessary and sufficient for owned guarded grab");
+        }
+        window->requestActivate(); pump();
+        {
+            QQmlEngine secondEngine; QQmlComponent second(&secondEngine);
+            second.setData("import QtQuick\nWindow { width: 20; height: 20; visible: true }", QUrl("owned-rejected-binding.qml"));
+            std::unique_ptr<QObject> other(second.create()); require(bool(other), "owned second engine");
+            QTemporaryDir root; prepare(root);
+            visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true, true);
+            entry.start();
+            require(entry.terminal() && !QFile::exists(root.path() + "/visual-window-bound"), "initial ambiguous binding rejected");
+            marker(root.path() + "/visual-binding-status", "binding-rejected", false);
+        }
+        window->requestActivate(); pump();
+        {
+            QTemporaryDir root; prepare(root);
+            visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true, true);
+            entry.postLinkForTest([&] { put(root.path() + "/visual-cancel", "x"); });
+            entry.start();
+            struct stat st{};
+            require(entry.terminal() && ::stat((root.path() + "/visual-window-bound").toLocal8Bit().constData(), &st) == 0 &&
+                st.st_nlink == 2 && QFile::exists(root.path() + "/.pending-window-bound") &&
+                !QFile::exists(root.path() + "/visual-frame-ready"), "canceled bound witness invalid and terminal");
+        }
+        {
+            QTemporaryDir root; prepare(root);
+            visual_capture::Entry entry(&app, root.path(), nonce, nullptr, false, true);
+            require(!entry.start() && entry.terminal() && !QFile::exists(root.path() + "/visual-ready"),
+                "runtime witness cannot enable missing passive mode");
+        }
+        QTextStream(stdout) << "PASS NEW binding witness immediate/deferred/rejected/history/cancel/dependency/no-frame-authority controls\n";
+        return 0;
+    }
     if (argc == 2 && QByteArray(argv[1]) == "frame-interleaving-only") {
         QTemporaryDir root; require(::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "interleaving root");
         const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();

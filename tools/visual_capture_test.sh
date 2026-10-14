@@ -20,6 +20,10 @@ if $CXX -std=c++17 -DVISUAL_CAPTURE_PASSIVE_FRAME_READY=0 '-DVISUAL_CAPTURE_NONC
  $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick) -fsyntax-only tools/visual_capture_startup.cpp \
  > "$work/mode.stdout" 2> "$work/mode.stderr"; then exit 1; fi
 grep -q 'Passive frame readiness must be explicitly enabled' "$work/mode.stderr"
+if $CXX -std=c++17 -DVISUAL_CAPTURE_BINDING_WITNESS=1 '-DVISUAL_CAPTURE_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' \
+ $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick) -fsyntax-only tools/visual_capture_startup.cpp \
+ > "$work/witness.stdout" 2> "$work/witness.stderr"; then exit 1; fi
+grep -q 'Binding witness requires explicit value 1' "$work/witness.stderr"
 "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
  -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \
  -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
@@ -28,6 +32,10 @@ grep -q 'Passive frame readiness must be explicitly enabled' "$work/mode.stderr"
  -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \
  -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
  -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/fixture" frame-interleaving-only
+"$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
+ -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \
+ -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
+ -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/fixture" binding-witness-only
 "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
  -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \
  -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
