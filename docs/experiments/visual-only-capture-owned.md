@@ -250,3 +250,66 @@ vendor render freshness, current page/owner, native lifetime, independent timer,
 host-loss/fallback recovery, production capture or the full SDK delivery. Existing
 insertion/native ink/reopen milestones remain credited. No canonical sync/archive
 or merge follows from these checks.
+## Native fixed frameSwapped result: delivery observed, in-flight witness refusal
+
+Main's spent d578e98006d34a3ab3de22644af94020 packet used the independently
+accepted exact build/profile closure ([artifact receipt](https://github.com/s116821/ReMarkableOpenSDK/pull/1#issuecomment-6158725527)).
+Original execution1791940805365692800 receipt SHA256
+`2ccc40f5819727d0512fae65069227ac9cd7824321549fd6f04d8b5a629213ed`
+records activation, one request attempted, ValueError unknown outcome and original
+live-host primary restoration/cleanup true, elapsed56.532s. It is not replayed.
+
+Candidate14935/start46762940 produced initial waiting then bound witnesses and
+the exact198-byte GUI-delivered frameSwapped marker, SHA256
+`6e263dff6655fe36d048b401886a2f1de46608d4be998bf2daff1343aa1dc645`.
+This is a new observed diagnostic delivery milestone; it does not qualify active
+backend details, current useful pixels/document/page/owner or physical refresh.
+
+The last pre-restoration044 metadata SHA256
+`8fd4eb55d0fc2bf0214c61bb5e50d030b7b2a24efe9b0aadae2118f5b102138c`
+contains empty result bytes and null result/image metadata in both brackets,
+pending_image=true, pending_result=false, process_current=true and no cancel/
+restore. Host collect_visual_metadata invokes optional historical witness
+validation before returning to the result loop. That unchanged validator rejects
+pending_image; the result loop never parses an empty scalar. A narrow offline
+call of the exact original consumer against retained044 reproduced ValueError
+"witness pending/cancel ambiguity" for both witnesses. This demonstrates the
+concrete source/raw refusal path, not a separately captured original traceback.
+SDK assessment SHA256 `c2e8542343d7cc341bcef295024476a112546cd80b60518817931cf3f94923ee`
+also preserves initial offline dependency/import-alias setup errors; no original
+source or device state changed. Internal raw evidence has no public transcript link.
+
+Recovery-verified forensic retention produced a21066-byte PNG SHA256
+`3a899156cd9084e093aed66260332968eae2c6447b8040e1591d3df8a79372f4`.
+Main, Root and SDK visually inspected a reMarkable loading screen. It remains
+accepted_image=false: no accepted scalar/image pair or normal bounded decode was
+completed. Producer image-before-scalar publication is non-atomic; later context
+loss or publication refusal can leave orphan pixels. The record does not establish
+the scalar's exact publication time or why the image shows loading.
+
+Later post-STOCK_VERIFIED053 metadata SHA256
+`3bff2a09f2ba32e704138ad051db86064306abd2bdd95d84cf470202016d75ca`
+retains a371-byte success-shaped scalar SHA256
+`cfbf6685ed04d34daf28ddee1c941a08155d322a3e848f2b8d800c8bb8e52c5e`,
+stage visual-image-observed,1404x1872/DPR1/storage10513152 and the forensic PNG
+hash above. Both brackets have process_current=false and restore=true.
+Those bytes are forensic only, despite their matching hash and success-shaped
+fields: no normal accepted current scalar/image pair or decode followed. Thus
+empty044 does not establish that no scalar was ever published. No producer
+repair or replay is justified by the host's premature refusal alone.
+
+Separate final read-only verification shows stockPID15242, original
+/usr/bin/xochitl --system, Restarton-failure/direct/control-group, no Job, three
+active checks, fixture PDF SHA256332446943966f6c3111a09c2df05673a94282ea247bf78c946f2c6e6d479e1f6
+and all owned resources absent. Original closeout and separate final verification
+are distinct; timer-expiry/host-loss/fallback qualification remains open.
+Root's existing independent reviewer checked the original receipt,18 selected
+snapshots and156 streams/78 stopped jobs (53520 bytes), and the separate final
+receipt `88a58b25eeae2860690a888a4e66e8a2080b962062e5ffa55d6bfe11c0843753`
+with two streams/one stopped job. The concrete host P2 is confirmed; original
+closeout and separate final verification are verified without reviewer device
+operation, execution or rerun. Private review has no public transcript link.
+Prior insertion/ink/reopen milestones and full content/lifetime/Reader gates remain.
+
+The [nonadmitting in-flight polling proposal](../../openspec/changes/establish-native-platform-contract/visual-fixed-signal-profile.md#proposed-main-only-nonadmitting-in-flight-poll-phase)
+addresses the concrete host phase mismatch without loosening final acceptance.

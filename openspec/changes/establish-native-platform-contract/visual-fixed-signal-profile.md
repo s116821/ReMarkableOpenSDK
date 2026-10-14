@@ -102,3 +102,61 @@ or natural/native delivery was claimed. Main's distinct inert host delta and
 mandatory exact-profile consumer were also accepted separately. Fresh
 source/artifact/Main whole-packet review remains a separate requirement;
 synthetic plumbing does not qualify active backend/emission/content or recovery.
+
+## Proposed Main-only nonadmitting in-flight poll phase
+
+The [actual d578 result](../../../docs/experiments/visual-only-capture-owned.md#native-fixed-frameswapped-result-delivery-observed-in-flight-witness-refusal)
+delivered the selected frame marker and attempted one request. Retained044 shows
+an in-flight pending image and no scalar; optional historical-witness validation
+refused before metadata reached the result wait loop. Producer completion/cause
+remains unknown. This proposal changes Main's poll phase only, not SDK producer,
+collector, historical-witness/frame/scalar/pair validators or artifact identities.
+
+Before the sole request, freeze a complete strictly accepted metadata snapshot
+with pending-free root/owner/current-PID, ready, binding and exact selected frame
+proofs. The existing strict validators produce that baseline; no post-request
+observation may create or renew admission. Consume the request exactly once.
+
+A distinct helper may return only `WAIT` when the request is already consumed,
+result_hex is empty and result_meta is null in both brackets, and at least one
+literal Boolean pending_image or pending_result is true. Those two flags may vary
+as publication progresses; all other pending flags, cancel and restore must be
+literal false. Both root/owner/identity/current-process brackets and immutable
+ready/frame/binding bytes and their file metadata must equal the frozen accepted
+baseline. Missing/changed bytes, file proof, selected literal or identity refuse.
+Collector root/file/stream guards remain intact; any observed image is ignored
+for acceptance in WAIT. No catch-all exception suppression, truthy coercion,
+blind pending-byte acceptance or inferred current binding is allowed.
+
+WAIT is observation only: no marker re-admission, renewed lifetime, capture
+authorization, scalar/image transfer, decode, success or native authority. Retain
+raw metadata and continue only within the original result-wait clock/call cap,
+with the existing poll cadence and no second request/grab/image attempt.
+Timeout, missing result or ambiguity remains unknown/refusal.
+
+When the snapshot is settled/pending-free, use the unchanged strict diagnostic,
+selected-frame, scalar, image/pair and bounded decode validators. Pending state
+can never reach image acceptance. Never alter the historical validators globally
+or replace final proof with the cached baseline. The baseline grants no content/
+owner/current-page/panel authority; all existing guard and recovery gates remain.
+
+Independent review precedes Main implementation. Only meaningful new controls
+are needed: exact retained044 becomes nonadmitting WAIT; changed baseline bytes/
+metas, identity, current-process, other pending/cancel/restore and non-Boolean
+flags refuse; a local callback sequence exercises WAIT then settled strict
+validation without accepted pending pixels; opposite profile or incomplete final
+pair remains refused. Saved assertions are synthetic/local evidence, not native
+qualification. No old matrix, new build/nonce, clock extension or spent replay.
+
+Source basis: frozen actual/raw metadata, original Main host/validator source,
+SDK source inspection and scoped offline reproduction; the distinct phase and
+control requirements are proposed design. Main owns implementation and Root's
+existing reviewer owns independent contract/source acceptance.
+
+The existing independent reviewer accepted the exact three-file contract/reporting
+delta3654176f and covered later forensic-scalar correction with no findings.
+Main's distinct narrow typed repair manifest4d8ac5e0/helper9cdd4676 was separately
+accepted after malformed-metadata WAIT cases were repaired. Its24 local assertions
+are owner-reported saved evidence, not independently executed raw/native results.
+No SDK producer source or artifact changed; fresh Main packet/source/artifact
+review and full native capture/content/owner/lifetime/recovery gates stay open.
