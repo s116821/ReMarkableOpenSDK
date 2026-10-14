@@ -95,6 +95,45 @@ accompany the source checkpoint.
 
 ## Remaining delivery
 
+### Native binding-witness result: deferred then installed, no accepted frame marker
+
+Main's fresh `62416` packet used sourcedc8a4034 and producer artifact
+`73efaa5e20d95d35c87488cb2e5348c04c8856a1762aee6daf4bb7facc8097d3`.
+SDK directly decoded14 retained same-generation metadata samples. The208-byte
+initial waiting witness (SHA256
+`c0c76e5acfa15b454b262f9c497508b720d414f5ad62acc65d3be5cd03376f01`)
+was present in all14 with false/false fields. A separate208-byte bound witness
+(SHA256 `79dc886c0710ef0e84c57ac897d2094c396ed85a99eea70bd4723c228707fc8f`)
+was present in12 with true/true fields. Its first recorded positive collection
+interval was5.734–6.281 seconds after activation; this is not an exact creation
+timestamp or proof of current binding state across the interval.
+
+These files witness historical initial deferral followed by sampled successful
+public binding and observer installation. Initial waiting was not overwritten.
+No accepted frame marker appeared in the sampled budget; no request, image or
+result scalar followed. It is incorrect to say binding never occurred. It is
+also incorrect to infer the signal never emitted, that callback context stayed
+valid, or that content/panel/current-page/owner/lifetime was qualified.
+
+Original operator receipt SHA256
+`7e65dc1c29f9b1586b46451d013ee2ef717cd6e64225070c06a1d55987ccce34`
+records PacketUnknown/no request, elapsed60.907s and restored=true/cleanup=true.
+Main's live-host-started primary and original cleanup succeeded; subsequent
+read-only stock verification retained the original policy, no job, unchanged PDF
+and all owned resources absent. Timer expiry, host loss and fallback remain
+untested. Earlier failed actor/observer outcomes remain distinct.
+
+Root's existing Sol reviewer independently inspected160 raw streams/80 stopped
+jobs and18 selected-source snapshots, plus separate final2streams/1job, and
+accepted the retained outcome with no new evidence defect. SDK directly inspected
+the narrower sample/receipt/final-stock records; no device execution or full
+inventory rerun is claimed. Private records/reviews have no public transcript link.
+The nonce is spent; no unchanged experiment is repeated.
+
+The [pinned frame-signal applicability assessment](../research/vendor-frame-signal-applicability.md)
+uses retained/static evidence to compare documented public paths. It does not
+diagnose this missing marker or select a backend/signal implementation/native retry.
+
 ### First native visual result: valid blank pixels, incomplete packet closeout
 
 Main's separately selected fresh `c69` packet used producer source00fac00d and

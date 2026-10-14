@@ -170,3 +170,14 @@ independent-recovery/preservation/cleanup packet remain required before selectio
 No existing owned artifact, zero nonce, held/spent packet or previous no-marker
 result authorizes another attempt. Content/vendor delivery/current owner/lifetime/
 full Reader and timer/host-loss/fallback recovery gates stay open.
+
+## Native witness outcome
+
+The [62416 result](../../../docs/experiments/visual-only-capture-owned.md#native-binding-witness-result-deferred-then-installed-no-accepted-frame-marker)
+retained initial deferred status followed by successful binding/observer installation,
+but no accepted frame marker/request/image in the sampled budget. Original
+live-host primary restoration/cleanup passed; missing-marker cause and current
+content/signal/lifetime remain unqualified. The spent packet is not replayed.
+The [pinned source-path assessment](../../../docs/research/vendor-frame-signal-applicability.md)
+compares public alternatives without changing this signal profile or selecting
+an active backend, code, build, hook or fresh native attempt. Full gates stay open.
