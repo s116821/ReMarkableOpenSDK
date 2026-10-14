@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QDir>
 #include <QTextStream>
+#include <QSignalBlocker>
 #include <memory>
 #include <cstdlib>
 #include <thread>
@@ -36,6 +37,67 @@ int main(int argc, char **argv) {
     std::unique_ptr<QObject> object(component.create());
     auto *window = qobject_cast<QQuickWindow *>(object.get());
     require(window, "original owned QtWindow"); window->requestActivate(); pump();
+    if (argc == 2 && QByteArray(argv[1]) == "fixed-signal-only") {
+        // Owned-fixture-only isolation: suppress natural signals while pumping;
+        // explicitly injected queued events are delivered with signals blocked.
+        QSignalBlocker naturalSignals(window);
+        using visual_capture::FrameSignal;
+        const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
+        for (auto profile : {FrameSignal::AfterFrameEnd, FrameSignal::FrameSwapped}) {
+            for (auto mode : {"valid", "premature", "context", "cancel", "bound-cancel", "expiry"}) {
+                window->show(); window->requestActivate(); pump();
+                QTemporaryDir root;
+                require(root.isValid() && ::chmod(root.path().toLocal8Bit().constData(), 0700) == 0, "profile root");
+                put(root.path() + "/owner", nonce); put(root.path() + "/attempt.identity", id);
+                visual_capture::Entry entry(&app, root.path(), nonce, nullptr, true, true, profile);
+                int grabs = 0; entry.grabForTest([&](QQuickWindow *) { ++grabs; return pixels(); });
+                require(entry.start() && QFile::exists(root.path() + "/visual-window-bound"), "profile witness before delivery");
+                // Opposite synthetic signal cannot satisfy this fixed profile.
+                naturalSignals.unblock();
+                if (profile == FrameSignal::FrameSwapped) window->afterFrameEnd(); else window->frameSwapped();
+                naturalSignals.reblock();
+                pump(); require(!QFile::exists(root.path() + "/visual-frame-ready"), "opposite signal ignored");
+                if (QByteArray(mode) == "expiry") {
+                    entry.expireForTest(); pump(); require(entry.terminal() && grabs == 0, "profile original deadline");
+                    continue;
+                }
+                naturalSignals.unblock();
+                std::thread emitter([&] {
+                    for (int i = 0; i < 3; ++i) {
+                        if (profile == FrameSignal::FrameSwapped) window->frameSwapped(); else window->afterFrameEnd();
+                    }
+                }); emitter.join(); naturalSignals.reblock();
+                require(!QFile::exists(root.path() + "/visual-frame-ready"), "profile queued GUI delivery");
+                if (QByteArray(mode) == "premature") put(root.path() + "/visual-request", nonce + ' ' + id);
+                if (QByteArray(mode) == "context") window->hide();
+                if (QByteArray(mode) == "cancel") put(root.path() + "/visual-cancel", "x");
+                pump();
+                if (QByteArray(mode) == "premature" || QByteArray(mode) == "context" || QByteArray(mode) == "cancel") {
+                    require(entry.terminal() && grabs == 0 && !QFile::exists(root.path() + "/visual-frame-ready"), "profile pre-marker guards");
+                    continue;
+                }
+                const auto bytes = read(root.path() + "/visual-frame-ready");
+                const auto j = QJsonDocument::fromJson(bytes).object();
+                require(bytes.size() <= 512 && j.size() == 8 && j["stage"] == "frame-stage-observed" &&
+                    j["signal"] == (profile == FrameSignal::FrameSwapped ? "frameSwapped" : "afterFrameEnd") &&
+                    j["gui_delivery_observed"].toBool() && !j["native_authority"].toBool(true), "profile exact literal/domain");
+                if (QByteArray(mode) == "bound-cancel") {
+                    require(QFile::remove(root.path() + "/visual-window-bound"), "profile remove bound proof");
+                }
+                put(root.path() + "/visual-request", nonce + ' ' + id); pump();
+                require(entry.terminal() && grabs == (QByteArray(mode) == "valid" ? 1 : 0), "profile one grab/bound guard");
+                naturalSignals.unblock(); window->frameSwapped(); window->afterFrameEnd(); naturalSignals.reblock(); pump();
+                require(grabs == (QByteArray(mode) == "valid" ? 1 : 0), "profile no rearm");
+            }
+        }
+        for (auto profile : {FrameSignal::FrameSwapped, static_cast<FrameSignal>(99)}) {
+            QTemporaryDir root;
+            visual_capture::Entry entry(&app, root.path(), nonce, nullptr, false, false, profile);
+            require(!entry.start() && entry.terminal() && !QFile::exists(root.path() + "/visual-ready"), "profile runtime dependency/domain refusal before ready");
+        }
+        QTextStream(stdout) << "PASS fixed signal: both exact literals/opposite signal/queued latch/early request/current context/cancel/bound proof/expiry/one grab/runtime refusal (synthetic only)\n";
+        return 0;
+    }
     if (argc == 2 && QByteArray(argv[1]) == "binding-witness-only") {
         const QByteArray nonce(32, 'a'), id = visual_capture::selfIdentity();
         const auto prepare = [&](QTemporaryDir &root) {

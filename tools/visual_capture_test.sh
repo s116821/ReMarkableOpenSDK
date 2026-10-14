@@ -6,6 +6,25 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 $CXX -std=c++17 -Wall -Wextra -Werror -O2 -fPIC tools/visual_capture_fixture.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/fixture"
+if [ "${1:-}" = "fixed-signal-only" ]; then
+ for profile in default swapped; do
+  flags="-DVISUAL_CAPTURE_PASSIVE_FRAME_READY=1 -DVISUAL_CAPTURE_BINDING_WITNESS=1"
+  if [ "$profile" = swapped ]; then flags="$flags -DVISUAL_CAPTURE_FRAME_SWAPPED=1"; fi
+  $CXX -std=c++17 -Wall -Wextra -Werror $flags '-DVISUAL_CAPTURE_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' \
+   $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick) -fsyntax-only tools/visual_capture_startup.cpp
+ done
+ for flags in '-DVISUAL_CAPTURE_FRAME_SWAPPED=1' '-DVISUAL_CAPTURE_FRAME_SWAPPED=0 -DVISUAL_CAPTURE_PASSIVE_FRAME_READY=1' '-DVISUAL_CAPTURE_FRAME_SWAPPED=2 -DVISUAL_CAPTURE_PASSIVE_FRAME_READY=1'; do
+  if $CXX -std=c++17 $flags '-DVISUAL_CAPTURE_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' \
+   $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick) -fsyntax-only tools/visual_capture_startup.cpp \
+   > "$work/profile.stdout" 2> "$work/profile.stderr"; then exit 1; fi
+  grep -q 'Frame-swapped profile requires explicit value 1' "$work/profile.stderr"
+ done
+ "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
+  -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \
+  -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" \
+  -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$work/fixture" fixed-signal-only
+ exit 0
+fi
 $CXX -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -shared -fvisibility=hidden -Wl,-z,defs \
  '-DVISUAL_CAPTURE_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' tools/visual_capture_startup.cpp \
  $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/test-only-startup.so"

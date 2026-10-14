@@ -60,3 +60,44 @@ genuinely new permitted device attempt; all content/lifetime/recovery gates stay
 
 Source basis: current producer/consumer contracts, actual62416 evidence and the
 linked pinned assessment; proposed selection and controls are design decisions.
+
+## Implementation and focused owned checkpoint
+
+The new implementation keeps an immutable `FrameSignal` enum, default
+AfterFrameEnd, and exactly one selected public-signal connection. Explicit
+FRAME_SWAPPED requires passive1 at compile time; runtime invalid enum or swapped
+without passive readiness refuses before ready. The marker's signal literal is
+derived from that immutable selection; its guards and admission remain unchanged.
+
+Only the new `fixed-signal-only` runner branch executed: strict ARM fixture compile,
+default/explicit startup syntax, missing-passive and macro0/2 compile refusals,
+12 two-profile synthetic mode cases and two runtime refusal cases. Queued delivery,
+opposite-signal rejection, exact marker domain, premature request, context/cancel,
+missing bound witness, original expiry and one-grab/no-rearm controls passed.
+The startup syntax checks did not produce a shared artifact; no native binding
+or tablet operation followed. Negative compiler logs were temporary and checked
+by the frozen runner, not separately retained; raw overall stdout/stderr remain.
+Qt-header GCC ABI notes are retained without warning suppression.
+
+The first owned run failed the opposite-signal assertion: natural software signal
+delivery during event pumping interfered with synthetic-only isolation. This is
+not a native delivery observation. The repaired owned fixture alone blocks natural
+window signals while pumping, unblocks for explicit injection, then reblocks
+before queued delivery. The producer never blocks signals. Initial raw exit1 and
+receipt `324266ccce1d1cb84bddb760572b9b386414944c0376cb5cbd025320d72c9ed5`
+are preserved. A second-run host mount-index assertion occurred before subprocess
+execution; that setup failure is also preserved, then corrected without an extra
+compile/control execution.
+
+SDK author's successful source/control receipt SHA256
+`d166a2eafe07f178b459602815c34081914a0386a6bedaeee270ac0b1639bfe8`
+binds five exact source inputs, invocation, LF-normalized shell runner and raw
+overall outputs. Working header/startup CRLF bytes require explicit Git-LF
+mapping at publication; no all-byte-exact claim is made here. Private evidence
+has no public transcript link. The existing independent reviewer verified all
+five source and five output identities and accepted the affected implementation,
+focused controls and reporting supplement with no actionable findings; no rerun
+or natural/native delivery was claimed. Main's distinct inert host delta and
+mandatory exact-profile consumer were also accepted separately. Fresh
+source/artifact/Main whole-packet review remains a separate requirement;
+synthetic plumbing does not qualify active backend/emission/content or recovery.

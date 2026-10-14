@@ -32,6 +32,14 @@ constexpr bool bindingWitness = true;
 #else
 constexpr bool bindingWitness = false;
 #endif
+#ifdef VISUAL_CAPTURE_FRAME_SWAPPED
+#if VISUAL_CAPTURE_FRAME_SWAPPED != 1 || !defined(VISUAL_CAPTURE_PASSIVE_FRAME_READY) || VISUAL_CAPTURE_PASSIVE_FRAME_READY != 1
+#error Frame-swapped profile requires explicit value 1 and passive frame readiness value 1.
+#endif
+constexpr auto frameSignal = visual_capture::FrameSignal::FrameSwapped;
+#else
+constexpr auto frameSignal = visual_capture::FrameSignal::AfterFrameEnd;
+#endif
 std::atomic_flag scheduled = ATOMIC_FLAG_INIT;
 void startup() {
     if (scheduled.test_and_set(std::memory_order_relaxed)) return;
@@ -41,7 +49,7 @@ void startup() {
         auto *gui = qobject_cast<QGuiApplication *>(app);
         if (!gui || QThread::currentThread() != gui->thread() || ::geteuid() != 0) return;
         auto *entry = new visual_capture::Entry(gui,
-            QStringLiteral("/run/rmb-visual-capture-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr, passiveFrame, bindingWitness);
+            QStringLiteral("/run/rmb-visual-capture-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr, passiveFrame, bindingWitness, frameSignal);
         entry->start();
     }, Qt::QueuedConnection);
 }

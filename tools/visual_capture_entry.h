@@ -29,12 +29,14 @@ inline QByteArray selfIdentity() {
     if (fields.size() <= 19 || !decimal(fields[19])) return {};
     return QByteArray::number(::getpid()) + ' ' + fields[19] + '\n';
 }
+enum class FrameSignal { AfterFrameEnd, FrameSwapped };
 class Entry final : public QObject {
 public:
     Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
-          bool passiveFrame = false, bool bindingWitness = false)
+          bool passiveFrame = false, bool bindingWitness = false,
+          FrameSignal frameSignal = FrameSignal::AfterFrameEnd)
         : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
-          frameMode_(passiveFrame), witnessMode_(bindingWitness) {
+          frameMode_(passiveFrame), witnessMode_(bindingWitness), frameSignal_(frameSignal) {
         elapsed_.start();
     }
     ~Entry() override { if (root_ >= 0) ::close(root_); }
@@ -42,6 +44,8 @@ public:
         if (started_) return false;
         started_ = true;
         if (witnessMode_ && !frameMode_) return terminal_ = true, false;
+        if ((frameSignal_ != FrameSignal::AfterFrameEnd && frameSignal_ != FrameSignal::FrameSwapped) ||
+            (frameSignal_ == FrameSignal::FrameSwapped && !frameMode_)) return terminal_ = true, false;
         if (!app_ || QThread::currentThread() != app_->thread() || thread() != app_->thread() || nonce_.size() != 32)
             return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
@@ -130,7 +134,9 @@ private:
         if (!frameContext()) { initialStatus(initial, "binding-rejected"); stop(); return; }
         frameBound_ = true;
         QObject::disconnect(focusConnection_);
-        frameConnection_ = connect(window, &QQuickWindow::afterFrameEnd, this, [this] {
+        const auto selectedSignal = frameSignal_ == FrameSignal::FrameSwapped ?
+            &QQuickWindow::frameSwapped : &QQuickWindow::afterFrameEnd;
+        frameConnection_ = connect(window, selectedSignal, this, [this] {
             if (terminal_ || frameSeen_) return;
             if (witnessMode_ && !boundWitnessPublished_) { stop(); return; }
             if (!frameContext()) { stop(); return; }
@@ -146,7 +152,7 @@ private:
             const auto id = identity_.trimmed().split(' ');
             const QJsonObject marker{{"schema", 1}, {"nonce", QString::fromLatin1(nonce_)},
                 {"pid", QString::fromLatin1(id[0])}, {"start", QString::fromLatin1(id[1])},
-                {"stage", "frame-stage-observed"}, {"signal", "afterFrameEnd"},
+                {"stage", "frame-stage-observed"}, {"signal", frameSignal_ == FrameSignal::FrameSwapped ? "frameSwapped" : "afterFrameEnd"},
                 {"gui_delivery_observed", true}, {"native_authority", false}};
             frameMarker_ = QJsonDocument(marker).toJson(QJsonDocument::Compact) + '\n';
             if (frameMarker_.size() > 512 || !publish("visual-frame-ready", ".pending-frame-ready", frameMarker_,
@@ -334,6 +340,7 @@ private:
     bool started_ = false, terminal_ = false, queued_ = false, consumed_ = false, finishing_ = false;
     bool frameMode_ = false, frameBound_ = false, frameSeen_ = false;
     bool witnessMode_ = false, initialBindingAttempt_ = false, boundWitnessPublished_ = false;
+    const FrameSignal frameSignal_;
     QByteArray boundWitness_;
     QPointer<QQuickWindow> frameWindow_;
     QPointer<QQmlEngine> frameEngine_;
