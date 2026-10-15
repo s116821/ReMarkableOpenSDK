@@ -1,0 +1,26 @@
+name: SDK identity checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: ['1.88.0', stable]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt,clippy
+      - run: cargo test --locked --offline
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --offline --all-targets -- -D warnings
+      - run: python3 tools/check_identity_package.py
+      - run: git diff --exit-code
