@@ -237,3 +237,84 @@ five planning inputs and four source bindings were unchanged from R2;721-byte
 scalar and11403-byte metadata envelopes are verified static bounds, not executed
 collector/native evidence. Earlier R1/R2 review context is preserved. This is
 source-contract acceptance only; private review has no public transcript link.
+
+## Producer implementation and focused owned checkpoint
+
+The affected source now has a distinct observed-core path and default-off Entry/
+startup flag with the accepted dependency fences. The source-bound synchronous
+observer receives the core's actual QPointer window/root, uses accepted
+censusWindow, and stores completed local helper Results only after Entry's weak
+guard survives the callback. New-mode context uses callback-free retained proof
+after permit. Returned Result.context does not retain temporary observer storage.
+
+Entry's new-mode publication uses guarded callback copies and weak fences across
+image/check/finish and publish/commit/postLink. Local image FD/sink closure is
+independent of Entry survival. PNG commits first, then the bounded reader scalar;
+normal result is last. Reader completion guard checks exact cached bytes and the
+actual committed reader inode with the separate1024-byte reader, not a broadened
+512-byte witness read. Old public entry/core calls remain available; one directly
+affected default core compatibility control passes. No Main collector/consumer
+or release/workflow source is changed in this SDK implementation scope.
+
+The affected new owned ARM fixture and startup syntax/fences passed in the
+existing416c7 network-none image with read-only source. Six exact source inputs
+include the unchanged accepted metadata helper. Only new focused controls ran:
+actual core window/root and ordered phases around one synthetic grab; callback
+refusal/exception/context reentry; runtime dependencies and compile0/2/missing
+dependency/test-hook fences; normal PNG-reader-normal join; a completed refused
+structural snapshot; independently false page-string type domain; same-byte new
+reader inode and exclusive-name conflict; pending/two-link cancellation.
+
+Entry deletion at before/after observer, within before/after helper permit, inside
+grab, finish context and image/reader/normal postLink boundaries is exercised.
+Owned root/image descriptor checks find no leaks after loss or normal cleanup.
+The actual Qt serializer produces the721-byte conservative envelope; that fixture
+is a width bound, not a valid live observation. Property traps record zero VALUE
+getter calls. Runtime/default/reader syntax diagnostics are empty;1747 bytes of
+unsuppressed Qt-header GCC ABI notes are retained in fixture compiler stderr.
+No old matrix, startup shared artifact, native payload/nonce/device operation,
+default runtime profile selection or native qualification follows.
+
+Original first-pass receipt
+`7f73e5b4141506c9951484351199d10d3af31407f7935c797d1eb26825ce3c51`
+is preserved, not treated as final source acceptance. A focused exact-core RED
+receipt `0f6d4929416912fa0c2b7559e89fe051ea09da57231e79deb8b8f78ee6886d47`
+shows an observed permit exception escaping the observer-only catch; its caller
+catches/closes the local FD, with harmless locale diagnostics retained. The
+observed-mode permit now converts exceptions to refusal, guarded context/new-mode
+postLink callbacks refuse on throw, and one scoped new-mode image catch preserves
+local cleanup even for a throwing grab or Entry-deletion-plus-throw. Legacy
+permit semantics are unchanged. Private candidate PASS e6eb8809 and combined
+exception-repair PASS c2460ace remain saved; neither overwrites earlier evidence.
+
+Main/Root identified a distinct no-readmission edge inside the nested census:
+an original capture permit could fail once, the helper return a completed refused
+snapshot, then a later true permit allowed normal capture. Actual focused RED
+receipt `a1ad0cd7ba8e6adc23947b4cfec118bbd780ce0d578e3aa2da5ce7df9330a733`
+records helper canceled-or-expired, one-time throw tripped, one grab and erroneous
+visual-image-observed on that pre-latch source. The preceding minimal harness's
+two misleading-indentation compile failures (no control execution) remain in
+receipt4f4b5cf1; only line breaks were corrected, no warning suppression.
+
+The observed path now shares a sticky operation-refusal latch between original
+permit and returned capture context. Original false/throw, retained context loss
+or observer failure cannot re-admit this capture. Before/after nested-helper
+one-time false/throw controls pass; helper-local time/cap/owner/metadata refusals
+remain completed diagnostics while the original capture guard stays live. The
+same affected new fixture also covers throwing initial/finish permits, postLink,
+grab and deletion-plus-throw with zero/one grabs and closed local descriptors.
+No generic native exception recovery is claimed. All prior raw records remain.
+
+SDK author's corrected source/control receipt SHA256
+`a889d7237af92a3decd53f192ec535969f705b04809252e08f34482f0e322a20`
+binds all39 source/invocation/moc/compiler/syntax/fence/control/ELF/hash files.
+Root independently verified corrected receipt a889d723/all39 files, read the
+final source/affected lifetime and publication paths, inspected actual sticky RED
+a1ad0cd7 and successful saved controls, and matched reporting manifest43850622
+to the live files. The corrected narrow source/owned-control scope is accepted
+with no remaining actionable findings; controls were owner-executed and
+reviewer-inspected, not rerun by the reviewer. Main's distinct c36c032d source/
+owned controls were independently accepted separately. Private raw evidence and
+review have no public transcript link. Exact fresh artifact/provider/whole-packet
+selection and native content/current-document/page/owner/lifetime/recovery gates
+remain separate and open; no native identity or operation follows.

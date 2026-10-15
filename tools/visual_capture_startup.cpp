@@ -40,6 +40,14 @@ constexpr auto frameSignal = visual_capture::FrameSignal::FrameSwapped;
 #else
 constexpr auto frameSignal = visual_capture::FrameSignal::AfterFrameEnd;
 #endif
+#ifdef VISUAL_CAPTURE_READER_STRUCTURE
+#if VISUAL_CAPTURE_READER_STRUCTURE != 1 || !defined(VISUAL_CAPTURE_PASSIVE_FRAME_READY) || VISUAL_CAPTURE_PASSIVE_FRAME_READY != 1 || !defined(VISUAL_CAPTURE_BINDING_WITNESS) || VISUAL_CAPTURE_BINDING_WITNESS != 1 || !defined(VISUAL_CAPTURE_FRAME_SWAPPED) || VISUAL_CAPTURE_FRAME_SWAPPED != 1
+#error Reader structure requires explicit value 1 and passive/binding/frame-swapped values 1.
+#endif
+constexpr bool readerStructure = true;
+#else
+constexpr bool readerStructure = false;
+#endif
 std::atomic_flag scheduled = ATOMIC_FLAG_INIT;
 void startup() {
     if (scheduled.test_and_set(std::memory_order_relaxed)) return;
@@ -49,7 +57,7 @@ void startup() {
         auto *gui = qobject_cast<QGuiApplication *>(app);
         if (!gui || QThread::currentThread() != gui->thread() || ::geteuid() != 0) return;
         auto *entry = new visual_capture::Entry(gui,
-            QStringLiteral("/run/rmb-visual-capture-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr, passiveFrame, bindingWitness, frameSignal);
+            QStringLiteral("/run/rmb-visual-capture-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr, passiveFrame, bindingWitness, frameSignal, readerStructure);
         entry->start();
     }, Qt::QueuedConnection);
 }

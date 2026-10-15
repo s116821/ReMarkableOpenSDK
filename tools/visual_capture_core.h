@@ -10,6 +10,7 @@
 #include <QCryptographicHash>
 #include <cmath>
 #include <functional>
+#include <memory>
 #include <unistd.h>
 
 namespace visual_capture {
@@ -46,12 +47,28 @@ struct Result {
     QByteArray sha;
     std::function<bool()> context;
 };
-inline Result capture(const std::function<bool()> &permit, Sink &sink
+enum class SamplePhase { BeforeGrab, AfterGrab };
+using WindowObserver = std::function<bool(SamplePhase, QPointer<QQuickWindow>, QPointer<QQuickItem>,
+                                         const std::function<bool()> &)>;
+namespace detail {
+inline Result captureImpl(const std::function<bool()> &inputPermit, Sink &sink,
+                          const WindowObserver &inputObserver, bool observed
 #ifdef VISUAL_CAPTURE_TESTING
     , const std::function<QImage(QQuickWindow *)> &grab = {}
 #endif
 ) {
     Result r;
+    const auto refused = observed ? std::make_shared<bool>(false) : std::shared_ptr<bool>{};
+    const std::function<bool()> permit = observed ? std::function<bool()>([inputPermit, refused] {
+        if (*refused) return false;
+        bool ok = false;
+        try { ok = inputPermit && inputPermit(); }
+        catch (...) { *refused = true; return false; }
+        if (!ok) *refused = true;
+        return ok;
+    }) : inputPermit;
+    const auto observer = inputObserver;
+    if (observed && (!inputPermit || !observer)) { r.stage = "reader-observation-refused"; return r; }
     QPointer<QGuiApplication> app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
     if (!app || app->thread() != QThread::currentThread() || !permit()) return r;
     r.applicationThread = true;
@@ -69,7 +86,19 @@ inline Result capture(const std::function<bool()> &permit, Sink &sink
     }
     QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
     QPointer<QQuickItem> root = window ? window->contentItem() : nullptr;
-    r.context = [app, engine, window, root, permit] {
+    r.context = [app, engine, window, root, permit, observed, refused] {
+        const auto retained = [&] {
+            return app && !QCoreApplication::closingDown() && engine && window && root &&
+                QThread::currentThread() == app->thread() && engine->thread() == app->thread() &&
+                window->thread() == app->thread() && root->thread() == app->thread() &&
+                QGuiApplication::focusWindow() == window && window->isVisible() && window->isActive() &&
+                qmlEngine(window) == engine && window->contentItem() == root;
+        };
+        if (observed) {
+            if (*refused) return false;
+            if (!retained() || !permit() || !retained()) { *refused = true; return false; }
+            return true;
+        }
         if (!permit() || !app || QCoreApplication::closingDown() || !engine || !window || !root) return false;
         const bool ok = QThread::currentThread() == app->thread() && engine->thread() == app->thread() &&
             window->thread() == app->thread() && QGuiApplication::focusWindow() == window &&
@@ -79,6 +108,15 @@ inline Result capture(const std::function<bool()> &permit, Sink &sink
     };
     if (!r.context()) return r;
     r.currentWindow = true;
+    const auto sample = [&](SamplePhase phase) {
+        if (!r.context()) return false;
+        bool completed = false;
+        try { completed = observer(phase, window, root, r.context); }
+        catch (...) { *refused = true; return false; }
+        if (!completed || !r.context()) { *refused = true; return false; }
+        return true;
+    };
+    if (observed && !sample(SamplePhase::BeforeGrab)) { r.stage = "reader-observation-refused"; return r; }
     QImage image;
 #ifdef VISUAL_CAPTURE_TESTING
     image = grab ? grab(window) : window->grabWindow();
@@ -94,6 +132,7 @@ inline Result capture(const std::function<bool()> &permit, Sink &sink
         qint64(width) * height > PixelCap || storage <= 0 || storage > StorageCap ||
         !std::isfinite(dpr) || dpr <= 0) { r.stage = "image-quota"; return r; }
     r.width = width; r.height = height; r.storage = storage; r.dpr = dpr;
+    if (observed && !sample(SamplePhase::AfterGrab)) { r.stage = "reader-observation-refused"; return r; }
     if (!r.context()) { r.stage = "context-lost"; return r; }
     const bool encoded = image.save(&sink, "PNG");
     if (!r.context()) { r.stage = "context-lost"; return r; }
@@ -101,5 +140,28 @@ inline Result capture(const std::function<bool()> &permit, Sink &sink
     r.encoded = sink.count(); r.sha = sink.digest();
     r.stage = "visual-image-observed";
     return r;
+}
+} // namespace detail
+inline Result capture(const std::function<bool()> &permit, Sink &sink
+#ifdef VISUAL_CAPTURE_TESTING
+    , const std::function<QImage(QQuickWindow *)> &grab = {}
+#endif
+) {
+    return detail::captureImpl(permit, sink, {}, false
+#ifdef VISUAL_CAPTURE_TESTING
+        , grab
+#endif
+    );
+}
+inline Result captureObserved(const std::function<bool()> &permit, Sink &sink, const WindowObserver &observer
+#ifdef VISUAL_CAPTURE_TESTING
+    , const std::function<QImage(QQuickWindow *)> &grab = {}
+#endif
+) {
+    return detail::captureImpl(permit, sink, observer, true
+#ifdef VISUAL_CAPTURE_TESTING
+        , grab
+#endif
+    );
 }
 }
