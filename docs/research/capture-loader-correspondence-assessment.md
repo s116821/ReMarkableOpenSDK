@@ -121,3 +121,52 @@ therefore not selected and creates no required implementation/build/test cycle.
 Further source-only feasibility work should address that exact gate without
 reopening the completed static registration investigation. No getter, callback,
 implementation, profile, build or native action is selected by this decision.
+
+## Exact-witness feasibility follow-up
+
+The accepted instrumentation does not supply Main's exact gate. The frame
+connection in `visual_capture_entry.h` uses `Qt::QueuedConnection`; its marker
+explicitly records GUI delivery. The structural observations occur later, around
+the grab. A successful creation observation before GUI delivery could still
+follow the frame signal's emission. Moving a hypothetical readiness read into
+that callback would therefore not establish construction before that frame.
+
+The smallest sufficient evidence contract needs all of the following joins,
+not just a larger structural census:
+
+1. A qualified runtime correspondence from the retained window/root to the
+   source-defined Loader and its particular source/component generation.
+2. A successful-construction observation for that exact generation. A late
+   event listener alone cannot establish earlier success; a state read would
+   be a new, separately reviewed value-read mechanism.
+3. A causal ordering witness tying that success to the selected subsequent
+   frame boundary. GUI callback delivery order is insufficient. Installing a
+   frame observer after success can still catch an already in-flight frame;
+   evidence that the frame was prepared/synchronized after success is needed
+   if the claim concerns that frame's constructed scene.
+4. Same-instance/window/root/generation validity through the grab, with refusal
+   on replacement, destruction, context loss or unobservable continuity.
+
+These are necessary evidence requirements, not an implemented or selected
+mechanism. Public Qt frame semantics provide possible boundaries to investigate:
+`frameSwapped` reports a frame queued for presentation from the render thread;
+`beforeSynchronizing` precedes QML-state synchronization and documents a blocked
+GUI thread for a direct connection. That does not qualify a new callback here,
+permit reuse of the application-thread-only census on the render thread, or
+establish behavior of the retained device/backend. See
+[QQuickWindow signal semantics](https://doc.qt.io/qt-6.10/qquickwindow.html).
+
+Even an accepted construction/frame ordering witness would not by itself prove
+documentLoaded, current-document/page identity, visible Reader pixels, exact
+frame-to-grab image identity, freshness or physical panel state. No existing
+accepted observation can be relabeled to supply these missing joins. The next
+source-only design question is whether a narrowly qualified instance and
+generation witness plus causal frame boundary can satisfy them without changing
+the existing operational holds; no additional native action follows from this
+feasibility finding.
+
+Coordinator review checked this follow-up against the actual queued frame
+connection and GUI-delivery marker and fresh official QQuickWindow and
+[connection-type documentation](https://doc.qt.io/qt-6.10/qt.html#ConnectionType-enum).
+It found no actionable documentation issue. This bounded source/semantics review
+does not qualify an observation mechanism or native execution.
