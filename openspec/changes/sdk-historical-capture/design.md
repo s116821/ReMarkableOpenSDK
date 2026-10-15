@@ -1,0 +1,3 @@
+# Design
+
+Reuse exact module/test bytes from research a8cbf6d, introducedd01b4bd. OnlyUuid is imported from SDK. Optional dependencies preserve existing pinned lock resolution; default crate stays dependency-free. Actual committed caller13a9c0c/3e87abc conversation/development.rs restores saved evidence using from_collected_v11; dirty backend changes are excluded as provenance. Preserve bounded receipt/schema/binding/PNG verification and owned bytes with explicit unqualified classification. SCRAPPY owns CI/package tool integration; this feature edits only source, Cargo inventory and documentation.
