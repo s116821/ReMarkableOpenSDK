@@ -184,3 +184,21 @@ of that exact factory under windowAdder, and the factory callback's module/conte
 argument, remain unresolved. Thus construction and database capture are now
 supported without claiming that the legacydevice wrapper actually receives this
 provider or that the complete route was registered at runtime.
+
+
+## Named factory publication path
+
+The traced factory result reaches the qtgui wrapper's publication method, which
+captures that exact factory in a callback and supplies the explicit dependency
+key windowAdder and expected WindowAdder type. The selected helper compares the
+key bytes and transfers callback state into the selected record on its successful
+branch. This closes the static named-publication path; it is not an observation
+that publication or dependency resolution succeeded in the running process.
+
+The value callback preserves its incoming context argument and forwards it into
+the factory, where it becomes the constructed WindowAdder's context field.
+Whether this argument is the particular legacydevice wrapper remains the next
+assignment join. Private receipt SHA256
+`1b4708e5614a24cbca0c28c02b36dfa57765c8163f26ac1084ba4fddd351308b`
+binds this author/Astra static evidence. No native invocation or captured-window
+identity follows from the publication code path.
