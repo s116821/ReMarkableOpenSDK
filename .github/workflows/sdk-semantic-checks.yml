@@ -68,6 +68,7 @@ jobs:
           "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s release -p test_semantic_metadata.py -v
           "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s release -p test_commit_eligibility.py -v
           node --test release/titles.test.mjs
+          node --test release/release-assets.test.cjs
           git diff --exit-code
         env:
           PYTHON_SEMANTIC_RELEASE: ${{ runner.temp }}/sdk-semantic-tools/bin/semantic-release
