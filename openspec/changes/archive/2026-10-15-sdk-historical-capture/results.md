@@ -1,6 +1,6 @@
 # Verification
 
-Focused historical validator: two host tests PASS, one explicitly private fixture ignored. Default suite four existing tests PASS; cargo tree --no-default-features shows no external dependencies. Cargo package list has exactly eleven members: existing ten plus src/development_capture.rs. Optional dependency lock and complete original notices copied from research a8cbf6d unchanged. PR11 main49709c7 is composed. Package gates now expect eleven members; current CI fetches exact optional and consumer locks before offline all-feature/MSRV checks. Ordinary consumer1.88 and four package controls PASS; full strict OpenSpec7/7PASS. Consumer lock regeneration leaves its feature-disabled graph unchanged. Current feature review and canonical/archive remain pending.
+Focused historical validator: two host tests PASS, one explicitly private fixture ignored. Default suite four existing tests PASS; cargo tree --no-default-features shows no external dependencies. Cargo package list has exactly eleven members: existing ten plus src/development_capture.rs. Optional dependency lock and complete original notices copied from research a8cbf6d unchanged. PR11 main49709c7 is composed. Package gates now expect eleven members; current CI fetches exact optional and consumer locks before offline all-feature/MSRV checks. Ordinary consumer1.88 and four package controls PASS; full strict OpenSpec7/7PASS. Consumer lock regeneration leaves its feature-disabled graph unchanged. Source and composition reviews accepted; own canonical synchronization and archival completed. Normal merge remains with coordinator.
 
 Committed restoration caller: Buddy3e87abc862b40c98a8a7c9dd4586ab377e268d37 src/conversation/development.rs (last file commit13a9c0c895c7812836263b5e5d013898a5774a3d), independently read using git show. It revalidates raw saved completion/PNG using expected historical binding. Dirty backend changes are excluded as accepted provenance. No consumer pin changes or native operation.
 
@@ -8,7 +8,7 @@ Committed restoration caller: Buddy3e87abc862b40c98a8a7c9dd4586ab377e268d37 src/
 
 Source393068f2 accepted in review5535416403. Initial hosted run38756838647 failed because the offline runner had not fetched image; composition adds locked fetching rather than treating that failure as acceptance. Initial notice import exposed intentional trailing whitespace; first attribute renormalization also changed Windows LICENSE line endings and failed diff checks. LICENSE was restored exactly to merged main bytes at393068f; original notices retain their exact research bytes under explicit attributes. Only final restored bytes are verified. No private fixture/device execution occurred.
 
-Composition adds one requirement/scenario for optional dependency and eleven-file package checks. The existing sdk-consumer-package-ci canonical package count must change from ten to eleven during accepted lifecycle sync; archived PR11 records stay historical.
+Composition adds one requirement/scenario for optional dependency and eleven-file package checks. The existing sdk-consumer-package-ci canonical package count is updated from ten to eleven in accepted lifecycle sync; archived PR11 records stay historical.
 
 ## Exact dependency and notice reconciliation
 
@@ -23,3 +23,7 @@ The bounded c8b9 review found the manual registry/notice verification was not re
 ## Executable inventory path admission
 
 The exact docs/reference/dependency-license-inventory.json input is admitted by the maintained filter, while other documentation remains excluded. One actual pinned-Action fixture covers that input. All17 actual Action fixtures PASS locally, retaining existing docs/mixed/unknown/rename cases. Initial Windows fixture runs failed on absent PATHEXT, then CRLF output matching; the harness now preserves PATHEXT and normalizes Action output line endings for assertions. No Action implementation or runtime code changed.
+
+## Final acceptance and lifecycle
+
+[Review5535678944](https://github.com/s116821/ReMarkableOpenSDK/pull/12#pullrequestreview-5535678944) accepts composition741c570ea190f89df7e18311593a45e6eea17922 after runtime review5535416403. Exact741 hosted SDK38760734978 checks/MSRV/stable/result, baseline38760734926 and metadata38760734949 all PASS. Own three requirements/four scenarios canonical synchronized; existing consumer-package requirement retained with only ten-to-eleven scenario count changed and explicit MODIFIED delta. Own change archived; other archives unchanged. No source/CI/test/lock/notice bytes changed during lifecycle.
