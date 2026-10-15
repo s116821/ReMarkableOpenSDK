@@ -202,3 +202,57 @@ assignment join. Private receipt SHA256
 `1b4708e5614a24cbca0c28c02b36dfa57765c8163f26ac1084ba4fddd351308b`
 binds this author/Astra static evidence. No native invocation or captured-window
 identity follows from the publication code path.
+
+
+## Exact module context on the binding path
+
+The inspected new-module registration branch constructs an injector with the
+same module pointer whose binding method it subsequently invokes. That injector
+is retained in the module record and passed to the binding call. Combined with
+the already-traced binder and factory forwarding, this closes the context
+assignment for the legacydevice wrapper on that static path: the constructed
+WindowAdder receives that module wrapper as its context.
+
+Private receipt SHA256
+`c3e537a32d5d1e47734e4753d881f72777a9435fc8a84d43a5cbf78cd84c239d`
+binds this author/Astra instruction-level argument. This specializes the normal
+new-record branch; it does not prove that registration, binding or dependency
+resolution succeeded in the captured process, or qualify alternative branches.
+The selected database insertion method is a separate final static check; no
+native readiness or capture correspondence is inferred from the context join.
+
+
+## Static registration chain closed on the inspected path
+
+The final bounded insertion analysis verifies that the description builder holds
+the actual database pair supplied by WindowAdder. The selected database method
+uses the description's module and window keys, copies the description into a
+new entry, links that entry into the corresponding tree and increments its count
+on the successful missing-key branch. The missing-module branch likewise links
+its new outer entry. The existing-key branch reports an error; successful
+registration is not unconditional.
+
+Together with the preceding assignments, the supported static chain is:
+legacydevice module wrapper to its scoped WindowAdder, to the legacydevice/main
+description naming qml/LegacyMainWindow.qml, to insertion in the same
+WindowDatabase used by WindowLoader. The explicit component export chain then
+reaches MainView's documentView Loader and retained DocumentView source.
+This closes the source registration/creation mapping for the inspected path.
+
+Private final registration receipt SHA256
+`27ac9695d496a12b40d99d34f8c724b6028ab1522e5cb44067fd759e4f34303b`
+binds the exact insertion instructions and contributing artifacts. The source
+path is author/Astra static evidence, not proof that module initialization,
+dependency resolution, registration, loading or construction succeeded in the
+captured process. No alternate path or firmware profile is qualified by it.
+
+The remaining capture question is therefore runtime correspondence and ordering:
+was the exact captured window/root this registered component instance, and had
+its successful source assignment and Reader construction occurred before the
+admitted frame and grab? Actual 7a4 supplies neither join. The exact Loader's
+loaded/Ready state is a source-backed creation discriminator, while documentLoaded,
+identity, current-page pixels and freshness remain separate. No native getter,
+callback instrumentation, capture-gate change or new experiment is selected by
+this completed source investigation.
+
+Coordinator review read both final context/registration receipts, verified all 22 referenced artifact hashes and inspected selected injector, binding, builder, accessor, description-copy and tree-link instructions. It found no actionable inconsistency; this was bounded evidence/selected-instruction review, not an exhaustive re-derivation or vendor execution. Actual 7a4 remains a spent loading-only observation; held and spent experiment exclusions are unchanged.
