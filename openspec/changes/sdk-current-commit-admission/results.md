@@ -1,9 +1,0 @@
-# Qualification results
-
-Precode e0086109cd8bf3e54e026ce12021aa59e9772ca7 precedes implementation on actual main32b86e4fef04844cbf2ec31129bf029cc1d9899a. Prior PR19 final review5539173986 was read fully; actual main six push workflows independently verified SUCCESS (semantic38798903716, identity38798903766, staging38798903654, baseline38798903566, distribution38798903868, candidate38798903558).
-
-Guard and three original fixture methods derive from selected72136ed. Only scope policy reconciles accepted SDK18 optional scopes: maintained PSR parser handles absent/valid scopes and all type/bump parsing; a narrow empty-header check rejects explicit empty/whitespace scopes because upstream represents absent/empty scopes identically. No custom bump calculation or source-version field.
-
-Focused local five-test admission suite PASS: older failed/unreleased history cannot supply eligibility to current docs/copied-breaking/nonconventional messages; scoped/unscoped application headers pass and empty/unsupported headers refuse; known release guide is ignored while unknown source Markdown remains versioned; malformed/wrong checkout SHA refuses; actual workflow shell admits one observed first-parent step and refuses zero/mismatched/multiple-step observations. Every guard assertion preserves refs/source/status; fixture tags stay in disposable local bare repos. Tests use existing hash-installed pinned PSR environment, not a new local SDK build.
-
-Local actionlint1.7.12, strict OpenSpec and diff checks PASS. Actual hosted new fixture execution, source review and own canonical/archive remain pending. Main-push current-message guard is not proof of merged PR, successful required predecessors, protected remote identity or official release eligibility. No native/device operation, tags/releases/settings or cumulative pipeline import.
