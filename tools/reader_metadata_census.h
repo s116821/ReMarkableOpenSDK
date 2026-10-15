@@ -17,22 +17,41 @@ struct Result {
     bool metadata = false, pageStringDomain = false;
     int visited = 0, helpers = 0, containers = 0;
 };
-inline Result census(const std::function<bool()> &permit) {
+namespace detail {
+inline Result censusImpl(const std::function<bool()> &permit, bool explicitInputs,
+                         QPointer<QQuickWindow> retainedWindow, QPointer<QQuickItem> retainedRoot) {
     Result r;
     QPointer<QGuiApplication> app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
     if (!app || app->thread() != QThread::currentThread()) return r;
     r.applicationThread = true;
+    QPointer<QQmlEngine> retainedEngine;
+    bool engineRetained = false;
     QElapsedTimer elapsed; elapsed.start();
+    const auto retained = [&] {
+        if (!explicitInputs) return true;
+        return app && retainedWindow && retainedRoot &&
+            retainedWindow->thread() == app->thread() && retainedRoot->thread() == app->thread() &&
+            retainedWindow->contentItem() == retainedRoot && retainedWindow->isVisible() &&
+            retainedWindow->isActive() && QGuiApplication::focusWindow() == retainedWindow &&
+            (!engineRetained || (retainedEngine && retainedEngine->thread() == app->thread() &&
+                qmlEngine(retainedWindow) == retainedEngine));
+    };
     const auto live = [&] {
-        return app && !QCoreApplication::closingDown() && elapsed.elapsed() < 1000 && permit() &&
-            app && !QCoreApplication::closingDown() && elapsed.elapsed() < 1000;
+        return app && !QCoreApplication::closingDown() && elapsed.elapsed() < 1000 && retained() && permit() &&
+            app && !QCoreApplication::closingDown() && elapsed.elapsed() < 1000 && retained();
     };
     if (!live()) { r.stage = "canceled-or-expired"; return r; }
+    if (explicitInputs) {
+        retainedEngine = qmlEngine(retainedWindow);
+        engineRetained = true;
+        if (!live()) return r;
+    }
     const auto rawWindows = QGuiApplication::allWindows();
     if (rawWindows.size() > 16) { r.stage = "window-cap"; return r; }
     QList<QPointer<QWindow>> windows;
     for (auto *w : rawWindows) windows.append(w);
-    QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
+    QPointer<QQuickWindow> window = explicitInputs ? retainedWindow :
+        QPointer<QQuickWindow>(qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow()));
     QPointer<QQmlEngine> engine;
     for (const auto &w : windows) {
         if (!live() || !w || w->thread() != app->thread()) return r;
@@ -49,7 +68,7 @@ inline Result census(const std::function<bool()> &permit) {
     };
     if (!context()) return r;
     r.currentWindow = true;
-    QPointer<QQuickItem> root = window->contentItem();
+    QPointer<QQuickItem> root = explicitInputs ? retainedRoot : QPointer<QQuickItem>(window->contentItem());
     struct Node { QPointer<QObject> p; int depth; };
     QList<Node> queue{{root.data(), 0}};
     QList<QPointer<QObject>> helpers, containers;
@@ -137,7 +156,36 @@ inline Result census(const std::function<bool()> &permit) {
     r.pageStringDomain = readerString && deviceString;
     if (!r.metadata) { r.stage = "metadata-refused"; return r; }
     if (!owners()) { r.stage = "endpoint-refused"; return r; }
+    if (explicitInputs) {
+        // The last owners()/context() permit can reenter Qt and reparent an
+        // endpoint inside the same retained root. Re-prove the complete owner
+        // chain without invoking permit (or any application VALUE getter) again.
+        const auto endpointVisual = [&](const QPointer<QQuickItem> &item) {
+            return item && item->thread() == app->thread() && item->window() == window &&
+                item->isVisible() && item->isEnabled();
+        };
+        if (!app || QCoreApplication::closingDown() || elapsed.elapsed() >= 1000 || !retained() ||
+            !helper || !reader || !device || !container || helper->thread() != app->thread() ||
+            helper->parent() != reader || container->parentItem() != device || device->parentItem() != reader ||
+            !endpointVisual(reader) || !endpointVisual(device) || !endpointVisual(container) ||
+            !retained() || elapsed.elapsed() >= 1000) {
+            r.stage = "endpoint-refused"; return r;
+        }
+    }
     r.stage = "metadata-observed";
     return r;
+}
+} // namespace detail
+
+inline Result census(const std::function<bool()> &permit) {
+    return detail::censusImpl(permit, false, {}, {});
+}
+
+// Structural diagnostic only: explicit guarded inputs never select a replacement.
+// The caller's permit must retain its original operation deadline.
+inline Result censusWindow(QPointer<QQuickWindow> retainedWindow, QPointer<QQuickItem> retainedContentRoot,
+                           const std::function<bool()> &permit) {
+    if (!permit) return {};
+    return detail::censusImpl(permit, true, retainedWindow, retainedContentRoot);
 }
 }
