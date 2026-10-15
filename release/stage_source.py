@@ -41,6 +41,14 @@ def staged_lock_inventory(lock, identity):
     return external
 
 def stage(repo, tag, expected_sha, destination):
+    """Official existing-tag admission, preserved separately from candidates."""
+    return _stage(repo, tag, expected_sha, destination, candidate=False)
+
+def stage_candidate(repo, candidate_tag, expected_sha, destination):
+    """Stage an explicitly unofficial upstream candidate; never create any tag."""
+    return _stage(repo, candidate_tag, expected_sha, destination, candidate=True)
+
+def _stage(repo, tag, expected_sha, destination, *, candidate):
     repo, destination = Path(repo).resolve(), Path(destination)
     if not re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', tag):
         raise Refusal('An exact stable SemVer tag is required')
@@ -50,7 +58,7 @@ def stage(repo, tag, expected_sha, destination):
         except (subprocess.SubprocessError,OSError): raise Refusal('Source identity could not be verified') from None
     if git('status','--porcelain').strip(): raise Refusal('Build source must be clean')
     if git('rev-parse','HEAD').decode().strip()!=expected_sha: raise Refusal('Checked-out source differs from requested SHA')
-    if git('rev-parse','--verify',f'refs/tags/{tag}^{{commit}}').decode().strip()!=expected_sha:
+    if not candidate and git('rev-parse','--verify',f'refs/tags/{tag}^{{commit}}').decode().strip()!=expected_sha:
         raise Refusal('Tag and source SHA differ')
     manifest=git('show',f'{expected_sha}:Cargo.toml').decode()
     parsed=tomllib.loads(manifest)
@@ -106,8 +114,10 @@ def stage(repo, tag, expected_sha, destination):
                 raise Refusal('Declared package input is missing or not a regular source')
             package_inputs[name] = inputs[name]
     generated_root,source_lock=source_lock_inventory(tomllib.loads((destination/'Cargo.lock').read_text()),package['name']) if (destination/'Cargo.lock').exists() else (None,[])
-    identity={'build_inputs':inputs,'package_inputs':package_inputs,'package_inventory_explicit':declared is not None,'dependency_lock':source_lock,'generated_root_lock':generated_root,'package_name':package['name'],'schema':1,'git_tag':tag,'source_sha':expected_sha,'build_version':version,
+    identity={'build_inputs':inputs,'package_inputs':package_inputs,'package_inventory_explicit':declared is not None,'dependency_lock':source_lock,'generated_root_lock':generated_root,'package_name':package['name'],'schema':1,'git_tag':None if candidate else tag,'source_sha':expected_sha,'build_version':version,
               'qualification':{'native_operations':'unsupported','source_authority':False}}
+    if candidate:
+        identity.update(identity_kind='candidate', candidate_tag=tag)
     (destination/'build-identity.json').write_text(json.dumps(identity,indent=2)+'\n')
     return identity
 
@@ -125,10 +135,21 @@ def verify_sdk_dependency(metadata, package_name, repository_url, tag, source_sh
         raise Refusal('SDK tag, repository or locked commit differs')
     return {'git_tag':tag,'source_sha':source_sha,'repository_url':repository_url}
 
-def verify_staged_source(destination, *, source_only=False):
+def verify_staged_source(destination, *, source_only=False, allow_candidate=False):
     """Default requires a regular tag-verified lock; source_only is unverified."""
     destination=Path(destination)
     identity=json.loads((destination/'build-identity.json').read_text())
+    if identity.get('identity_kind') == 'candidate':
+        tag = identity.get('candidate_tag', '')
+        if (not allow_candidate or identity.get('git_tag') is not None or
+                not isinstance(tag, str) or not re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', tag) or
+                identity.get('build_version') != tag[1:]):
+            raise Refusal('Candidate stage requires explicit unofficial verification')
+    elif (identity.get('identity_kind') not in (None, 'official-tag') or
+          'candidate_tag' in identity or not isinstance(identity.get('git_tag'), str) or
+          not re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)', identity['git_tag']) or
+          identity.get('build_version') != identity['git_tag'][1:]):
+        raise Refusal('Official stage requires an exact verified tag identity')
     expected=identity['build_inputs']
     actual={p.relative_to(destination).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
             for p in destination.rglob('*') if p.is_file()
@@ -148,9 +169,9 @@ def verify_staged_source(destination, *, source_only=False):
     staged_lock_inventory(lock,identity)
     return identity
 
-def distribution_manifest(destination, artifact):
+def distribution_manifest(destination, artifact, *, allow_candidate=False):
     destination,artifact=Path(destination),Path(artifact)
-    identity=verify_staged_source(destination)
+    identity=verify_staged_source(destination, allow_candidate=allow_candidate)
     # Cargo rewrites Cargo.toml and preserves the staged manifest as Cargo.toml.orig.
     # Verify packaged bytes, not just the name of an arbitrary file on disk.
     prefix=identity['package_name']+'-'+identity['build_version']+'/'
@@ -200,12 +221,15 @@ def distribution_manifest(destination, artifact):
             staged_lock_inventory(lock,identity)
     except (tarfile.TarError,KeyError,UnicodeError,tomllib.TOMLDecodeError,json.JSONDecodeError) as error:
         raise Refusal('Invalid or incomplete source crate') from error
-    return {'schema':1,'git_tag':identity['git_tag'],'source_sha':identity['source_sha'],
+    manifest = {'schema':1,'git_tag':identity.get('candidate_tag', identity['git_tag']),'source_sha':identity['source_sha'],
             'version':identity['build_version'],
             'distributions':[{'kind':'rust-source-crate','name':artifact.name,
                               'sha256':hashlib.sha256(artifact.read_bytes()).hexdigest(),'size':artifact.stat().st_size}],
             'compatibility':{'rm1':'unqualified','rm2':'unqualified','paper-pro':'unqualified'},
             'native_operations':'unsupported'}
+    if identity.get('identity_kind') == 'candidate':
+        manifest.update(build_identity='candidate', official_remote_tag_verification_required=True)
+    return manifest
 
 def sdk_build_environment(metadata, package_name, repository_url, tag, source_sha):
     """Build-time runtime identity for an already pinned Git dependency."""

@@ -1,3 +1,5 @@
+> Historical candidate proposal. REM-56 and the October 15 instruction supersede its tag-before-build and unselected publisher selection. Current implementation and limits: [ordered SDK pipeline](../docs/reference/ci-release-pipeline.md). Preserve the observed historical defects below; they are not current shipping authority.
+
 # Proposed maintained release composition
 
 REM-50 / SCRAPPY-DOO. Reviewable candidate, not an enabled production workflow.

@@ -1,3 +1,5 @@
+> Current ordering: REM-56 `sdk-gated-release-pipeline` supersedes prospective tag-before-build plans below. See [the ordered SDK pipeline](../docs/reference/ci-release-pipeline.md). The former candidate workflows are retained as [historical evidence](../docs/research/release-history/README.md); their unselected-tool advisory failures are not waived. This work does not activate production tags/releases during development.
+
 # Upstream release qualification
 
 REM-50, machine owner SCRAPPY-DOO. This harness executes actual pinned upstream
@@ -14,8 +16,7 @@ amannn/action-semantic-pull-request exact commit
 `48f256284bd46cdaab1048c3721360e808335d50`. Also set `GH_RELEASE_ACTION` to `dist/index.js` from softprops/action-gh-release
 exact commit `efb35369e0ad2afab669f228072c1b0d510eae64`. Hosted CI checks out these
 upstream revisions automatically. No own project version is maintained in either manifest. Upstream
-dependency pins retain their upstream versions. Actual release artifacts must
-obtain their version only from an immutable Git tag during a build.
+dependency pins retain their upstream versions. Builds may embed a read-only upstream candidate in generated output; only the final gated release job binds it to an official immutable Git tag after successful artifact qualification.
 
 The fixtures cover feat/fix/perf/breaking/build/ci/chore/docs policy, equal commit
 timestamps, docs-only histories, exact release SHA, dry-run repeatability, actual tag/prepare/publish ordering, failed-publication retries, and stale-main refusal.
