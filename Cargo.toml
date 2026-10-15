@@ -1,0 +1,8 @@
+[package]
+name = "remarkable-open-sdk"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+license = "GPL-3.0-only"
+description = "Persistent identity primitives for an experimental reMarkable SDK"
+include = ["/Cargo.toml", "/Cargo.lock", "/src/lib.rs", "/LICENSE", "/README.md"]
