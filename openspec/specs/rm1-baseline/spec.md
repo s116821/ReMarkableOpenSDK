@@ -1,5 +1,9 @@
 # RM1 baseline collection
 
+## Purpose
+Record bounded read-only RM1 identity and runtime observations while preserving personal content and denying native operation authority.
+
+## Requirements
 ### Requirement: Read-only bounded RM1 baseline
 The development collector SHALL use a fixed read-only SSH command and strict existing-host verification without prompting, forwarding, target installation, runtime mutation or personal-data/configuration access. It SHALL bound transport time and output and refuse missing, duplicate, unknown or malformed fields without publishing raw diagnostics.
 
