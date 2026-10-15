@@ -21,6 +21,16 @@ jobs:
         if: github.event_name == 'pull_request' && !(github.event.pull_request.changed_files > 0 && github.event.pull_request.changed_files < 3000)
         shell: bash
         run: exit 1
+      - name: Require exactly one observed main first-parent commit
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          SOURCE: ${{ github.sha }}
+        run: |
+          test "$BEFORE" != 0000000000000000000000000000000000000000
+          test "$(git rev-parse --verify "$SOURCE^1")" = "$BEFORE"
+          test "$(git rev-list --first-parent --count "$BEFORE..$SOURCE")" = 1
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         id: paths
         with:
@@ -48,6 +58,13 @@ jobs:
           python -m venv "$RUNNER_TEMP/sdk-tools"
           "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
           "$RUNNER_TEMP/sdk-tools/bin/pip-audit"
+      - name: Require actual application main message eligibility
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          SOURCE: ${{ github.sha }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: '"$RUNNER_TEMP/sdk-tools/bin/python" release/check_commit.py --sha "$SOURCE"'
       - name: Calculate unofficial candidate from frozen Git history
         id: version
         shell: bash
