@@ -1,0 +1,4 @@
+# Preserve canonical license and original third-party notice bytes on every host.
+LICENSE -text
+# Upstream CRLF/trailing spaces are intentional; notice checks verify exact bytes.
+THIRD_PARTY_NOTICES.md -text -whitespace

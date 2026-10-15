@@ -1,0 +1,13 @@
+# Named guidance and known documentation directories only; unknown Markdown
+# including src/README.md stays application-relevant. PSR uses matching filters.
+application:
+  - '**'
+  - '!README.md'
+  - '!AGENTS.md'
+  - '!CONTRIBUTING.md'
+  - '!THIRD_PARTY_NOTICES.md'
+  - '!CHANGELOG.md'
+  - '!SECURITY.md'
+  - '!docs/**'
+  - '!openspec/**/*.md'
+  - '!release/README.md'

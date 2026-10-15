@@ -1,0 +1,25 @@
+[package]
+name = "remarkable-open-sdk"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+license = "GPL-3.0-only"
+include = [
+    "/Cargo.toml", "/Cargo.lock", "/README.md",
+    "/LICENSE", "/THIRD_PARTY_NOTICES.md",
+    "/src/lib.rs", "/src/capabilities.rs", "/src/capture.rs",
+    "/src/development_capture.rs", "/src/evidence.rs", "/src/mock.rs",
+    "/src/navigation.rs", "/src/navigation/gesture.rs",
+]
+description = "Experimental semantic reMarkable platform contract; no native adapter yet"
+
+[features]
+default = []
+mock = []
+development-capture = ["dep:serde", "dep:serde_json"]
+
+[dependencies]
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
+sha2 = "=0.10.9"
+serde = { version = "=1.0.229", features = ["derive"], optional = true }
+serde_json = { version = "=1.0.151", optional = true }

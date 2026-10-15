@@ -1,0 +1,444 @@
+name: SDK CI
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      application: ${{ steps.paths.outputs.application }}
+      candidate: ${{ steps.candidate.outputs.tag }}
+      uploader_bundle: ${{ steps.uploader.outputs.bundle_sha256 }}
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: sdk
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require exactly one observed main first-parent commit
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          test "$BEFORE" != 0000000000000000000000000000000000000000
+          test "$(git rev-parse --verify "$SOURCE^1")" = "$BEFORE"
+          test "$(git rev-list --first-parent --count "$BEFORE..$SOURCE")" = 1
+        env:
+          BEFORE: ${{ github.event.before }}
+          SOURCE: ${{ github.sha }}
+      - name: Require complete PR file observation
+        if: github.event_name == 'pull_request' && !(github.event.pull_request.changed_files > 0 && github.event.pull_request.changed_files < 3000)
+        run: exit 1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: paths
+        with:
+          working-directory: sdk
+          filters: .github/release-paths.yml
+          predicate-quantifier: every
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
+        if: github.event_name == 'pull_request'
+        with:
+          requireScope: true
+          types: ${{ steps.paths.outputs.application == 'true' && 'feat|fix|perf|build|ci|chore|refactor|test|revert' || 'feat|fix|perf|build|ci|chore|refactor|test|revert|docs' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+      - name: Validate SDK specifications
+        run: npx --yes @fission-ai/openspec@1.2.0 validate --all --strict --no-interactive
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        if: steps.paths.outputs.application == 'true'
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt,clippy
+          targets: x86_64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf,aarch64-unknown-linux-gnu
+      - name: SDK lint and unit checks
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          cargo fmt --all -- --check
+          cargo test --locked --all-features
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Check declared minimum compiler
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          rustup toolchain install 1.88.0 --profile minimal
+          cargo +1.88.0 test --locked --all-features
+      - name: Preserve ordinary consumer feature isolation and package containment
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          cargo +1.98.1 fetch --locked --manifest-path tests/fixtures/consumer-boundary/Cargo.toml
+          python tools/check_consumer_boundary.py --toolchain 1.98.1
+          cargo +1.88.0 fetch --locked --manifest-path tests/fixtures/consumer-boundary/Cargo.toml
+          python tools/check_consumer_boundary.py --toolchain 1.88.0
+          python tools/test_package_contents.py -v
+          git diff --exit-code HEAD --
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+      - name: Install and audit maintained semantic calculator
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          python -m venv "$RUNNER_TEMP/sdk-tools"
+          "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/sdk-tools/bin/pip-audit"
+      - name: Require actual main source eligibility without borrowing older history
+        if: github.event_name == 'push' && steps.paths.outputs.application == 'true'
+        run: '"$RUNNER_TEMP/sdk-tools/bin/python" release/check_commit.py --sha "$SOURCE"'
+        env:
+          SOURCE: ${{ github.sha }}
+      - name: Upstream semantics and candidate-stage refusal checks
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          python -m unittest discover -s release -p python_semantic_release_fixtures.py -v
+          python -m unittest discover -s release -p test_candidate_stage.py -v
+          python -m unittest discover -s release -p test_commit_eligibility.py -v
+          python -m unittest discover -s release -p test_stage_source.py -v
+          python -m unittest discover -s release -p test_generated_lock.py -v
+          python -m unittest discover -s release -p test_package_inventory.py -v
+          python -m unittest discover -s release -p test_verify_assets.py -v
+          python -m unittest discover -s release -p test_cargo_consumer.py -v
+          node --test release/release-assets.test.cjs
+        env:
+          PYTHON_SEMANTIC_RELEASE: ${{ runner.temp }}/sdk-tools/bin/semantic-release
+          SDK_FIXTURE_CARGO: cargo
+      - name: Install and audit maintained workflow-expression fixture tools
+        if: steps.paths.outputs.application == 'true'
+        working-directory: sdk/release/fixtures
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high
+          node --test pipeline.test.mjs
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        if: steps.paths.outputs.application == 'true'
+        with:
+          repository: svenstaro/upload-release-action
+          ref: 29e53e917877a24fad85510ded594ab3c9ca12de
+          path: uploader-upstream
+          persist-credentials: false
+      - name: Build and audit exact shared maintained uploader source
+        id: uploader
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          python release/qualify_uploader.py --source ../uploader-upstream --output "$RUNNER_TEMP/qualified-uploader"
+          python release/qualify_uploader.py --output "$RUNNER_TEMP/qualified-uploader" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc
+      - name: Exercise exact emitted uploader against owned loopback API
+        if: steps.paths.outputs.application == 'true'
+        run: node --test release/fixtures/uploader.test.mjs
+        env:
+          UPLOADER_ACTION: ${{ runner.temp }}/qualified-uploader
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.paths.outputs.application == 'true'
+        with:
+          name: verified-sdk-uploader
+          path: ${{ runner.temp }}/qualified-uploader/
+          if-no-files-found: error
+      - name: Resolve read-only candidate for exact source
+        id: candidate
+        if: steps.paths.outputs.application == 'true'
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE"
+          git checkout -B main "$SOURCE"
+          tag=$("$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c release/python-semantic-release.toml --strict version --print-tag --no-commit --no-tag --no-changelog --skip-build --no-push --no-vcs-release)
+          CANDIDATE="$tag" python -c 'import os,re; assert re.fullmatch(r"v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)",os.environ["CANDIDATE"])'
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          test -z "$(git status --porcelain)"
+        env:
+          SOURCE: ${{ github.sha }}
+  portable_checks:
+    needs: checks
+    if: needs.checks.result == 'success' && needs.checks.outputs.application == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Preserve original Windows portable staging regression
+        run: python -m unittest discover -s release -p test_portable_stage.py -v
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+  build:
+    needs: [checks, portable_checks]
+    if: needs.portable_checks.result == 'success' && needs.checks.result == 'success' && needs.checks.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      receipt_sha: ${{ steps.build.outputs.receipt_sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: sdk
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: '1.98.1'
+          targets: x86_64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf,aarch64-unknown-linux-gnu
+      - name: Build candidate source crate, target libraries and host test executables
+        id: build
+        working-directory: sdk
+        run: python release/candidate_artifacts.py build --source . --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate"
+        env:
+          SOURCE: ${{ github.sha }}
+          TAG: ${{ needs.checks.outputs.candidate }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-candidate-build
+          path: |
+            ${{ runner.temp }}/sdk-candidate/build-receipt.json
+            ${{ runner.temp }}/sdk-candidate/release
+            ${{ runner.temp }}/sdk-candidate/tests
+          if-no-files-found: error
+  integration:
+    needs: [checks, build]
+    if: needs.checks.result == 'success' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: sdk
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdk-candidate-build
+          path: ${{ runner.temp }}/sdk-candidate
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify transferred package and execute the built host tests
+        working-directory: sdk
+        run: python release/candidate_artifacts.py integration --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
+        env:
+          SOURCE: ${{ github.sha }}
+          TAG: ${{ needs.checks.outputs.candidate }}
+          RECEIPT: ${{ needs.build.outputs.receipt_sha }}
+      - name: Refuse tampered transferred package, identity and test executables
+        working-directory: sdk
+        run: python -m unittest discover -s release -p test_candidate_artifacts.py -v
+        env:
+          SDK_CANDIDATE_FIXTURE: ${{ runner.temp }}/sdk-candidate
+          SDK_CANDIDATE_RECEIPT_SHA: ${{ needs.build.outputs.receipt_sha }}
+  release:
+    needs: [checks, portable_checks, build, integration]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.portable_checks.result == 'success' && needs.checks.result == 'success' && needs.build.result == 'success' && needs.integration.result == 'success' && needs.checks.outputs.application == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: read
+    concurrency:
+      group: sdk-official-release
+      cancel-in-progress: false
+      queue: max
+    env:
+      RELEASE_TAG: ${{ needs.checks.outputs.candidate }}
+      RELEASE_SOURCE: ${{ github.sha }}
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: sdk
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdk-candidate-build
+          path: ${{ runner.temp }}/sdk-candidate
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: verified-sdk-uploader
+          path: .qualified/uploader
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.21.0'
+      - name: Revalidate exact tested build
+        run: |
+          echo "EXPECTED_MANIFEST=$RUNNER_TEMP/sdk-candidate/release/manifest.json" >> "$GITHUB_ENV"
+          python release/qualify_uploader.py --output ../.qualified/uploader --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc
+          python release/candidate_artifacts.py verify --sha "$RELEASE_SOURCE" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
+        env:
+          RECEIPT: ${{ needs.build.outputs.receipt_sha }}
+      - name: Require exact merged main PR before any official tag
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: await require('./sdk/release/release-assets.cjs')({github,context,core})
+        env:
+          ELIGIBILITY_ONLY: 'true'
+      - name: Install and audit maintained tagger
+        run: |
+          python -m venv "$RUNNER_TEMP/sdk-tools"
+          "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/sdk-tools/bin/pip-audit"
+      - name: Bind official tag only after predecessor success
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SOURCE"
+          git checkout -B main "$RELEASE_SOURCE"
+          "$RUNNER_TEMP/sdk-tools/bin/python" release/check_commit.py --sha "$RELEASE_SOURCE"
+          observed=$(git ls-remote origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}")
+          if test -z "$observed"; then
+            candidate=$("$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c release/python-semantic-release.toml --strict version --print-tag --no-commit --no-tag --no-changelog --skip-build --no-push --no-vcs-release)
+            test "$candidate" = "$RELEASE_TAG"
+            "$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c release/python-semantic-release.toml --strict version --no-commit --no-changelog --skip-build --push --no-vcs-release
+          fi
+          python -c 'import os; from remote_identity import verify_remote_tag; verify_remote_tag(".",os.environ["RELEASE_TAG"],os.environ["RELEASE_SOURCE"])'
+        env:
+          PYTHONPATH: release
+      - name: Observe exact release by tag, including an older draft
+        id: lookup
+        uses: octokit/graphql-action@ddde8ebb2493e79f390e6449c725c21663a67505 # v3.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          query: |
+            query($owner: String!, $repo: String!, $tag: String!) {
+              repository(owner: $owner, name: $repo) {
+                release(tagName: $tag) { databaseId tagName isDraft releaseAssets(first: 1) { totalCount } }
+              }
+            }
+          variables: |
+            owner: ${{ github.repository_owner }}
+            repo: ${{ github.event.repository.name }}
+            tag: ${{ env.RELEASE_TAG }}
+      - name: Validate complete exact release observation
+        id: observation
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const helper = require('./sdk/release/release-assets.cjs');
+            const value = helper.observe(JSON.parse(process.env.OBSERVATION),process.env.RELEASE_TAG);
+            for (const [key,item] of Object.entries(value)) core.setOutput(key,item);
+        env:
+          OBSERVATION: ${{ steps.lookup.outputs.data }}
+      - name: Create only an absent explicit draft
+        id: create
+        if: steps.observation.outputs.absent == 'true'
+        uses: octokit/request-action@b91aabaa861c777dcdb14e2387e30eddf04619ae # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          route: POST /repos/{repo}/releases
+          repo: ${{ github.repository }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ env.RELEASE_SOURCE }}
+          draft: true
+          generate_release_notes: true
+      - name: Retain the validated exact release ID
+        id: release_identity
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const helper = require('./sdk/release/release-assets.cjs');
+            const id = process.env.ABSENT === 'true'
+              ? helper.created(JSON.parse(process.env.CREATED),process.env.STATUS,process.env.RELEASE_TAG)
+              : process.env.OBSERVED_ID;
+            if (!/^[1-9][0-9]*$/.test(id)) throw new Error('Missing exact release ID');
+            core.exportVariable('RELEASE_ID',id); core.setOutput('id',id);
+        env:
+          ABSENT: ${{ steps.observation.outputs.absent }}
+          OBSERVED_ID: ${{ steps.observation.outputs.id }}
+          CREATED: ${{ steps.create.outputs.data }}
+          STATUS: ${{ steps.create.outputs.status }}
+      - name: Download retained assets by exact release ID without writes
+        id: retained
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: await require('./sdk/release/release-assets.cjs')({github,context,core})
+        env:
+          RETAINED_DIRECTORY: ${{ runner.temp }}/retained-before
+      - name: Refuse conflicting bytes and select only missing assets
+        id: missing
+        run: |
+          python -c 'import json,os,pathlib,shutil; from verify_assets import verify_downloaded_assets; manifest=json.load(open(os.environ["EXPECTED_MANIFEST"])); retained=pathlib.Path(os.environ["RETAINED"]); verify_downloaded_assets(manifest,retained,require_complete=False); names=[e["name"] for e in manifest["distributions"]]+["manifest.json"]; missing=[name for name in names if not (retained/name).exists()]; destination=pathlib.Path(os.environ["MISSING_DIRECTORY"]); destination.mkdir(mode=0o700); [shutil.copyfile(pathlib.Path(os.environ["BUILT_ASSETS"])/name,destination/name) for name in missing]; output=open(os.environ["GITHUB_OUTPUT"],"a"); output.write("files="+";".join(missing)+"\n")'
+        env:
+          PYTHONPATH: release
+          RETAINED: ${{ runner.temp }}/retained-before
+          BUILT_ASSETS: ${{ runner.temp }}/sdk-candidate/release
+          MISSING_DIRECTORY: ${{ runner.temp }}/sdk-missing-assets
+      - name: Upload only verified missing names to the exact private draft
+        if: steps.retained.outputs.published != 'true' && steps.missing.outputs.files != ''
+        uses: ./.qualified/uploader
+        with:
+          release_id: ${{ steps.release_identity.outputs.id }}
+          repo_token: ${{ github.token }}
+          tag: ${{ env.RELEASE_TAG }}
+          target_commit: ${{ env.RELEASE_SOURCE }}
+          file: ${{ runner.temp }}/sdk-missing-assets/*
+          file_glob: true
+          overwrite: false
+          check_duplicates: true
+          draft: true
+          promote: false
+          prerelease: false
+          make_latest: false
+      - name: Download full uploaded set for verification
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: await require('./sdk/release/release-assets.cjs')({github,context,core})
+        env:
+          REQUIRE_COMPLETE: 'true'
+          RETAINED_DIRECTORY: ${{ runner.temp }}/retained-complete
+      - name: Verify complete bytes and re-observe remote tag before finalization
+        run: |
+          python -c 'import json,os; from verify_assets import verify_downloaded_assets; verify_downloaded_assets(json.load(open(os.environ["EXPECTED_MANIFEST"])),os.environ["RETAINED"])'
+          python -c 'import os; from remote_identity import verify_remote_tag; verify_remote_tag(".",os.environ["RELEASE_TAG"],os.environ["RELEASE_SOURCE"])'
+        env:
+          PYTHONPATH: release
+          RETAINED: ${{ runner.temp }}/retained-complete
+      - name: Re-observe exact release immediately before finalization
+        id: final_lookup
+        uses: octokit/graphql-action@ddde8ebb2493e79f390e6449c725c21663a67505 # v3.0.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          query: |
+            query($owner: String!, $repo: String!, $tag: String!) {
+              repository(owner: $owner, name: $repo) {
+                release(tagName: $tag) { databaseId tagName isDraft releaseAssets(first: 1) { totalCount } }
+              }
+            }
+          variables: |
+            owner: ${{ github.repository_owner }}
+            repo: ${{ github.event.repository.name }}
+            tag: ${{ env.RELEASE_TAG }}
+      - name: Require the same release before its final mutation
+        id: final_observation
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const value = require('./sdk/release/release-assets.cjs').observe(JSON.parse(process.env.OBSERVATION),process.env.RELEASE_TAG,process.env.RELEASE_ID);
+            core.setOutput('published',value.published);
+        env:
+          OBSERVATION: ${{ steps.final_lookup.outputs.data }}
+      - name: Finalize only the verified exact draft
+        if: steps.final_observation.outputs.published != 'true'
+        uses: octokit/request-action@b91aabaa861c777dcdb14e2387e30eddf04619ae # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          route: PATCH /repos/{repo}/releases/{release_id}
+          repo: ${{ github.repository }}
+          release_id: ${{ steps.release_identity.outputs.id }}
+          draft: false
+          make_latest: legacy

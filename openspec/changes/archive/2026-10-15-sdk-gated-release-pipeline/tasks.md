@@ -1,0 +1,11 @@
+# Tasks
+- [x] Read current REM-56/user note, relevant SDK instructions and existing release ownership/tool constraints.
+- [x] Publish exact proposed release-only boundary and SDK pre-implementation proposal/design/delta.
+- [x] Confirm exact coordinated release files and qualified PSR/publisher/base inputs; reconcile affected active SDK release specs.
+- [x] Implement checks/portable/build/artifact-integration gates and explicit candidate-stage identity.
+- [x] Integrate the exact shared accepted create-only release-ID uploader with original-ID/byte proof and retained upstream caveats.
+- [x] Repair actual-source semantic eligibility and restore selected production-helper regressions identified by independent review.
+- [x] Apply the approved two-wrapper RM1 format repair without changing requirement/scenario bodies.
+- [x] Verify actual positive and failure paths, preserve old failures and inspect exact hosted checks.
+- [x] Obtain scoped independent review, sync canonical requirements and archive this completed SDK change only.
+- [x] Supply exact source/review/hosted evidence through PR8 and REM-56; leave overall ecosystem issue and user-note ownership with Root.
