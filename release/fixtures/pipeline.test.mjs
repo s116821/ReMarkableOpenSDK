@@ -101,3 +101,24 @@ test('actual main-admission shell accepts one merge and refuses ambiguous edit/r
   git('checkout','main');const before=git('rev-parse','HEAD');git('merge','--no-ff','owned-feature','-m','feat: owned ordinary merge');
   assert.equal(admission(before,git('rev-parse','HEAD')),0,'one first-parent ordinary merge is supported');
 });
+
+test('actual commit guard, retained production regressions and qualified uploader stay required',()=>{
+  const steps=flow.jobs.checks.steps;
+  const guard=steps.findIndex(s=>s.name==='Require actual main source eligibility without borrowing older history');
+  const candidate=steps.findIndex(s=>s.id==='candidate');
+  assert.ok(guard>=0&&guard<candidate);
+  assert.match(steps[guard].run,/check_commit.py/);
+  const regressions=steps.find(s=>s.name==='Upstream semantics and candidate-stage refusal checks').run;
+  for(const name of ['test_generated_lock.py','test_package_inventory.py','test_verify_assets.py','test_cargo_consumer.py','test_commit_eligibility.py'])assert.ok(regressions.includes(name),name);
+  const tag=flow.jobs.release.steps.find(s=>s.name==='Bind official tag only after predecessor success').run;
+  assert.ok(tag.indexOf('check_commit.py')<tag.indexOf('observed=$(git ls-remote'));
+  const uploader=flow.jobs.release.steps.find(s=>s.uses==='./.qualified/uploader');
+  assert.ok(uploader);
+  assert.equal(uploader.with.overwrite,false);
+  assert.equal(uploader.with.promote,false);
+  assert.equal(uploader.with.draft,true);
+  assert.equal(uploader.with.check_duplicates,true);
+  assert.equal(uploader.with.release_id,'${{ steps.release_identity.outputs.id }}');
+  assert.ok(flow.jobs.release.steps.some(s=>s.run?.includes('qualify_uploader.py')&&s.run.includes('--expected-bundle 379dc8')));
+  assert.equal(flow.jobs.release.steps.some(s=>s.run?.includes('awaits shared exact-action qualification')),false);
+});

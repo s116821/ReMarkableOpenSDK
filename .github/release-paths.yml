@@ -1,7 +1,13 @@
-# Unknown paths remain application-relevant. Do not exclude every Markdown file:
-# src/README.md and release/README.md may affect shipped/build tooling.
+# Named guidance and known documentation directories only; unknown Markdown
+# including src/README.md stays application-relevant. PSR uses matching filters.
 application:
   - '**'
-  - '!*.md'
+  - '!README.md'
+  - '!AGENTS.md'
+  - '!CONTRIBUTING.md'
+  - '!THIRD_PARTY_NOTICES.md'
+  - '!CHANGELOG.md'
+  - '!SECURITY.md'
   - '!docs/**'
   - '!openspec/**/*.md'
+  - '!release/README.md'

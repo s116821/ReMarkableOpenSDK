@@ -6,7 +6,7 @@ version_variables = []
 build_command = ""
 allow_zero_version = true
 major_on_zero = false
-commit_parser = "conventional"
+commit_parser = "conventional-monorepo"
 [semantic_release.branches.main]
 match = "main"
 prerelease = false
@@ -16,6 +16,20 @@ minor_tags = ["feat"]
 patch_tags = ["fix", "perf", "build", "ci", "chore", "refactor", "test", "revert"]
 other_allowed_tags = []
 parse_squash_commits = false
+scope_prefix = ""
+path_filters = [
+  ".",
+  "!README.md",
+  "!AGENTS.md",
+  "!CONTRIBUTING.md",
+  "!THIRD_PARTY_NOTICES.md",
+  "!CHANGELOG.md",
+  "!SECURITY.md",
+  "!docs/**",
+  "!openspec/**/*.md",
+  "!release/README.md",
+]
+
 [semantic_release.remote]
 type = "github"
 ignore_token_for_push = true

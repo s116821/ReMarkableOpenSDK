@@ -49,7 +49,14 @@ class PythonSemanticReleaseCandidate(unittest.TestCase):
         return self.command(repo or self.repo, "git", *args).stdout.strip()
 
     def commit(self, message, repo=None):
-        self.git("commit", "--allow-empty", "-m", message, repo=repo)
+        # Maintained monorepo history filtering needs actual owned application
+        # changes. Keep original subjects, equal timestamps and expected tags.
+        target = repo or self.repo
+        app = target / 'owned-application.txt'
+        with app.open('a') as stream:
+            stream.write(message + '\n')
+        self.git('add', 'owned-application.txt', repo=target)
+        self.git("commit", "--allow-empty", "-m", message, repo=target)
 
     def baseline(self, tag="v0.4.0"):
         self.git("tag", tag)

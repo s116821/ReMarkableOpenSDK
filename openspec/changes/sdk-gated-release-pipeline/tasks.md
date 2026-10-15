@@ -3,7 +3,9 @@
 - [x] Publish exact proposed release-only boundary and SDK pre-implementation proposal/design/delta.
 - [x] Confirm exact coordinated release files and qualified PSR/publisher/base inputs; reconcile affected active SDK release specs.
 - [x] Implement checks/portable/build/artifact-integration gates and explicit candidate-stage identity.
-- [ ] Integrate the shared accepted create-only release-ID uploader and complete the final release job; current upload step fails closed.
+- [x] Integrate the exact shared accepted create-only release-ID uploader with original-ID/byte proof and retained upstream caveats.
+- [x] Repair actual-source semantic eligibility and restore selected production-helper regressions identified by independent review.
+- [x] Apply the approved two-wrapper RM1 format repair without changing requirement/scenario bodies.
 - [ ] Verify actual positive and failure paths, preserve old failures and inspect exact hosted checks.
 - [ ] Obtain scoped independent review, sync canonical requirements and archive this completed SDK change only.
 - [ ] Supply coordinator completion evidence; keep ecosystem note cleanup pending full verified request.

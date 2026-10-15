@@ -1,3 +1,5 @@
+> Selection status for REM-56: SDK PR8 is a replacement **candidate requiring independent review and hosted verification**, not a source-main/foundation merge or production activation. The old npm semantic-release, GitHub CLI, tag-first compositions and recent-draft softprops candidates are superseded for selection; their branches, source fixtures and failure evidence remain preserved. Current selected tools are hash-pinned PSR10.7.0 with supported monorepo filtering and the exact qualified source-built release-ID/create-only uploader from Buddy925f70a. No advisory is waived and no unfinished foundation is archived.
+
 > Current ordering: REM-56 `sdk-gated-release-pipeline` supersedes prospective tag-before-build plans below. See [the ordered SDK pipeline](../docs/reference/ci-release-pipeline.md). The former candidate workflows are retained as [historical evidence](../docs/research/release-history/README.md); their unselected-tool advisory failures are not waived. This work does not activate production tags/releases during development.
 
 # Upstream release qualification
