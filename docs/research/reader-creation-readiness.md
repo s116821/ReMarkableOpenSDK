@@ -30,3 +30,38 @@ Obtain the exact retained application-root or parent creation site that referenc
 The existing reader-internal node 92/node 94 wiring and registration index do not supply this parent edge. The source artifact would establish which lifecycle signal could be relevant; it would still require a separate supported correspondence between that source instance and the actual captured window/root. Neither a new resource sweep nor a new native observation is selected here. No concrete producer repair is justified until that join is supported.
 
 Source basis: current producer source and accepted actual experiment; official Qt 6.10 lifecycle documentation linked above, reviewed with Astra. The early-admission scenario is a source-supported possibility, not an observed application timeline or proven loading cause. Private retained-source lookup reports have no public transcript link. No new tests, build or device operation were performed.
+
+
+## Bounded retained-metadata lookup
+
+A subsequent authorized local lookup verified the retained firmware SHA256
+`071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df`
+and validated the selected descriptor's 194 resource nodes. It resolved known
+node 92's resource path and directory ancestry, but found zero exact
+`AppRoot.qml` filename matches within descriptor 64. That filename was an explicit
+hypothesis. The lookup stopped at the miss; no additional descriptor or resource
+body was acquired. A resource-directory parent is not a QML instantiating owner.
+No concrete source-body extraction candidate follows from this result.
+
+Private result SHA256
+`1ea156a514e2012d2ce26c85e2fa2779fe459dc89e8ff22d129f7c7dafa75f84`
+binds the output. Whole-file integrity hashing read 22046100 bytes, including
+compressed regions as opaque hash input. Subsequent semantic reads were limited
+to ELF headers and the selected tree/name metadata; no payload pointer was
+dereferenced and no decompression or QML execution occurred. Descriptor identity
+was externally pinned from the retained registration index, not rediscovered.
+
+The first attempt refused publication because Windows handle and pathname APIs
+reported different ctime values. The original tool and refusal remain preserved.
+The correction compares complete identity/timestamp records within each API
+before and after, and device/file ID/size/mtime across APIs. This diagnostic did
+not establish an actual input mutation. Seven owned synthetic parser checks
+passed, including malformed-input cases and the timestamp comparison; they do
+not qualify native behavior. Main independently read the tool, contract and
+actual result and verified the four preparation-manifest hashes without a new
+finding. Private source/result/review records have no public transcript link.
+
+The unresolved prerequisite remains an actual Reader creation edge. This bounded
+filename miss supports neither global absence of an application root nor a
+loading-cause diagnosis. Another filename guess, descriptor expansion or all-QML
+scan is not selected by this finding.
