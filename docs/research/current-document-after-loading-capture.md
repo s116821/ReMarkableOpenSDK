@@ -1,6 +1,8 @@
 # Current-document observation after a loading-window capture
 
-October13 source-only assessment. The [d1 normal capture](../experiments/visual-only-capture-owned.md#native-in-flight-host-repair-result-normal-capture-of-loading-pixels)
+Historical October 13 source-only assessment; see the [October 15 follow-up](#october-15-follow-up-same-grab-measurement-obtained) for the subsequently obtained measurement.
+
+October 13 source-only assessment. The [d1 normal capture](../experiments/visual-only-capture-owned.md#native-in-flight-host-repair-result-normal-capture-of-loading-pixels)
 establishes guarded window/signal/image-pair/full-decode integration. The inspected
 pixels show loading. Neither wrong-window selection nor premature content
 readiness has been established as the cause; the source supplies a discriminator,
@@ -86,3 +88,48 @@ canonical retained-resource assessments, inspected d1 records/pixels and officia
 pinned Qt documentation. Reader-domain discrimination is an inference from those
 source relationships; no new native execution, application VALUE read or capture
 establishes it. Private execution evidence has no public transcript link.
+
+
+## October 15 follow-up: same-grab measurement obtained
+
+The independently accepted [7a4 actual observation](../experiments/capture-window-reader-structure-result.md)
+supplies the exact captured-window/root measurement proposed above. Both samples
+visited 35 objects with zero DocumentView.ToolSettings and SceneViewsRoot anchors,
+ending at anchor-uniqueness with application-thread/current-window true. Neither
+sample reports cap or context refusal. Downstream owner/metadata/page checks were
+unreached. This finding concerns only each sampled reachable domain; it does not
+prove global absence or stable node identities across the grab.
+
+The published metadata helper counts anchor names while traversing the bounded
+union of QObject children and visual childItems, before eligibility, visibility,
+enabled state and reader-owner checks. It does not silently filter hidden or
+unfocused anchors out of that name count. The retained DocumentView notepage
+predicate gates focus, not this traversal. Therefore hiding/focus alone would
+not explain zero anchors IF the exact pinned reader definitions were instantiated
+and reachable in that sampled root. Whether those conditions actually held is
+unestablished; no runtime component role or causal diagnosis follows.
+
+The next missing discriminator is the captured window's semantic role joined to
+the actual reader-component creation/instantiation and containment path. The
+retained node 92/node 94 wiring establishes reader-internal relationships, not the
+application-root/loading-to-DocumentView creation condition. The retained
+registration-through-64 descriptor index is not a runtime component join. Main's
+narrow retained-local lookup found no established creation-condition artifact;
+other retained routing/overview components do not close this gap. No new resource
+extraction or application VALUE read was performed for this assessment.
+
+There is consequently no supported producer repair or implementable new precode
+selected here. An exact retained parent/application-root creation path with
+provenance would be useful source evidence, followed separately by a justified
+runtime correspondence contract if supported. Another signal, count, sleep,
+larger cap, speculative getter/private offset/hook, forced rendering/input or
+native opening cannot substitute for that evidence. Native observe_page remains
+NoNativeAdapter; loading plus absent anchors cannot become NoDocumentOpen.
+Prior insertion/ink/reopen and normal capture milestones remain credited.
+
+Source basis for this follow-up: current published helper and owned-selector
+contracts, retained reader-containment assessment and Main's current scoped
+artifact lookup report, plus independently accepted actual 7a4 evidence linked
+above. Conditional focus/visibility reasoning and the next-discriminator choice
+are source inference. Private source and coordination reports have no public
+transcript link; raw proprietary QML remains private.
