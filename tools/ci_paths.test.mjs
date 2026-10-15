@@ -12,7 +12,9 @@ const filters = readFileSync(new URL('../.github/sdk-paths.yml', import.meta.url
 for (const [name, files, expected, rename, push] of [
   ['root guide', ['README.md'], false],
   ['OpenSpec requirement', ['openspec/changes/demo/specs/releases/spec.md'], false],
-  ['license inventory input', ['docs/reference/dependency-license-inventory.json'], true],
+  ['former inventory documentation', ['docs/reference/dependency-license-inventory.json'], false],
+  ['named release guidance', ['release/README.md'], false],
+  ['license inventory input', ['tools/dependency-license-inventory.json'], true],
   ['documentation asset', ['docs/screenshots/sample.png'], false],
   ['Rust source', ['src/lib.rs'], true],
   ['nested source Markdown', ['src/README.md'], true],
