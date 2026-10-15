@@ -1,0 +1,19 @@
+schema: spec-driven
+
+context: |
+  ReMarkableOpenSDK is an independent public project owning its SDK specifications.
+  ReMarkableBuddiesDocs owns Buddy and Manager product/integration requirements.
+  The SDK exposes semantic capabilities over device/firmware adapters; Buddy consumes it at build time.
+  Prefer robust direct/native mechanisms. Supervised session-scoped lazy XOVI is an allowed candidate, not selected or qualified; cold boot stays stock and lifecycle recovery must survive runtime/supervisor failure. No native adapter is implemented at bootstrap.
+  RM2/ARMv7 is the first qualification target; Paper Pro/AArch64 native validation is later work.
+  Distinguish observed evidence, hypotheses, mocks, cross-builds and native qualification.
+  Preserve source documents and account state. Do not publish proprietary binaries or reconstructed source.
+  Use full proposal/design/tasks/deltas before implementation, then verification, canonical sync and archival.
+  Cross-repository changes reference exact spec/code revisions and merge order without duplicate contracts.
+
+rules:
+  specs:
+    - Every requirement includes observable failure behavior and at least one WHEN/THEN scenario.
+    - Planned capabilities are not represented as implemented or hardware-qualified.
+  tasks:
+    - Include native evidence gates, consumer integration, canonical sync and archival.
