@@ -138,3 +138,81 @@ It found no actionable inconsistency within this source-only feasibility
 decision. The prior bounded queued-emission/frame-boundary review also applies.
 This does not establish that a supported source anchor is impossible, qualify
 an implementation, or block unrelated SDK work and future diagnostics.
+
+## Supported source-anchor investigation and next decision
+
+The scoped follow-up checked creator-controlled public Qt APIs, the saved vendor
+creation boundary and two applicable prior-art approaches. None supplies the
+missing passive attachment for this candidate. This is a bounded result for the
+inspected mechanisms, not proof that such an observation is impossible.
+
+| Checked mechanism | Finding and consequence |
+| --- | --- |
+| QQmlApplicationEngine objectCreated | Its own finishLoad emits the result of its own component creation. It is not a notification stream for every nested Loader or independent component creation. No evidence establishes that the selected vendor creator exposes MainView through this signal. |
+| QQmlComponent create return / owned QQmlIncubator result | These provide a direct definition-to-instance association when the actual creator is controlled or cooperates. Finding a component afterward does not recover that association; a separate helper would create a different instance. |
+| Component status, creationContext and URL | Definition readiness is not an instance birth notification. The definition's creation context and supplied URL do not attest arbitrary existing instances or pinned source bytes. |
+| Existing WindowNavigator notification | The retained windowOpened/windowClosed metadata carries a QString window name, not the created root, Loader, component or generation. It cannot supply the required instance join. |
+| Saved WindowLoader creation boundary | The selected path packages a window contentItem and context for a virtual provider call. The concrete provider/result exposure is not joined by the saved analysis. A private call boundary is not a supported external observer. |
+
+The application-engine finding is grounded in
+[Qt 6.10.3 finishLoad](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/qml/qml/qqmlapplicationengine.cpp#L136-L165).
+The controlled-creator distinction follows the
+[component API](https://doc.qt.io/qt-6.10/qqmlcomponent.html) and
+[incubator API](https://doc.qt.io/qt-6.10/qqmlincubator.html).
+The component's public signals describe definition progress/status; a caller
+can supply both bytes and a URL through setData, so URL agreement alone cannot
+attest those bytes.
+
+The pinned [Loader implementation](https://github.com/qt/qtdeclarative/blob/v6.10.3/src/quick/items/qquickloader.cpp#L612-L675)
+creates and owns its own incubator and reports the successful item through its
+Ready handling and loaded signal. An external incubator subclass does not attach
+to that existing object. Upstream also chooses AsynchronousIfNested when the
+Loader's asynchronous property is false; that setting is not an unconditional
+immediate-completion guarantee. This qualifies timing interpretation without
+establishing any asynchronous interval or cause in actual 7a4. The proposed
+future witness still requires observed Ready/item state and source identity.
+
+The saved WindowLoader receipt remains SHA256
+`aea5dc0c78b1d29cf23f78328eebdef149d3209be4c62c841f35f58fdfe3f200`;
+its selected item-creation disassembly was rechecked against SHA256
+`f098a47d2984dfe5c77460f14a3062d5f1f3c04e4a4d831066b71198545e6ef0`.
+This follow-up reread the creator delegation and wrapper notification metadata,
+not the completed registration chain. It neither exhaustively analyzed the
+provider nor inferred absence of other interfaces from that unjoined boundary.
+Raw private instructions and metadata remain unpublished.
+
+Two existing prior-art approaches do not remove this distinction:
+
+- [Inkling 089efb2](https://github.com/nathanmarlor/inkling/blob/089efb2c9f24ce64127c6fc4d7fd30f93ae5ad94/xovi-ext/inklingfb/main.c)
+  discovers objects by tree/class/property relationships. Its comments describe
+  stale pooled DocumentViews and it retains a first-match fallback. This is
+  traversal precedent, not source-qualified creator observation; no fallback
+  or property dump is adopted.
+- [qt-resource-rebuilder 6c709dd](https://github.com/asivery/rm-xovi-extensions/tree/6c709dd8416ddf89034831073d76fb4ee3372905/qt-resource-rebuilder)
+  overrides resource registration and can modify resource tables before the
+  original call. A lexical witness inserted into a pinned QML creation site is
+  a possible different design, but would modify the application resource and
+  require patch/cache/loaded-byte and lifecycle qualification. It is not an
+  untouched public observer or permission to use a held activation route.
+
+**Next decision:** keep this external public-observer candidate unselected.
+Its missing input cannot be supplied by adding objectCreated listeners, a new
+incubator, context-name queries or more census fields from the assessed APIs.
+To reopen it, identify an actual application-facing creator-result reference
+with source provenance, or explicitly scope a different creator-cooperation or
+interception design. The saved unjoined provider boundary is a precise possible
+research lead, not an available API. Resource modification is another effect
+scope, not an automatic fallback. Neither is selected by this assessment.
+
+No new scaffold, test cycle, native getter, callback attachment, build or packet
+is justified by the present findings. Other SDK work and separately permitted
+diagnostics remain open. Source basis for this follow-up is direct saved-source
+inspection, pinned public Qt source/docs and the cited prior art, with author/
+Astra analysis of their applicability. No live source-to-instance observation
+was obtained.
+
+Coordinator review checked the selected upstream creation/incubator paths,
+component/incubator APIs, cited prior-art behavior, saved creator receipt and
+matching item-creation instructions, and the wrapper's QString-only notification
+metadata. It found no actionable inconsistency. This was selected-source
+consistency review, not exhaustive provider resolution or runtime proof.
