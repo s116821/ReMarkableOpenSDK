@@ -23,3 +23,30 @@ The next useful join is the concrete construction/assignment supplying the wrapp
 Private wrapper metadata result SHA256 `d5de5009a25c35d5f15dd146f3c3f3395dcd0e0953d7aef1dc5ee20030294112`; single module acquisition receipt `203fd7a9b2648e44a257f8dfab9b0b9fc77fa00ea8a2b8a107f0b2c019651063`; bounded plaintext acquisition receipt `24cb2378b5116f1664b25a33563664bf3068f115815822251247ef9232e1c681`. Source basis is hash-verified local bytes, maintained ARM disassembly tooling, the existing Zstandard decoder and official Qt documentation. Private records have no public transcript link. Static receiver candidates and implications for investigation are explicitly inference. No firmware/QML execution, tablet operation, getter invocation or new native test occurred.
 
 The SDK author and Astra analysis worker derived the static dispatch path from saved disassembly. Coordinator review checked the public prose, three cited JSON receipts and hashes, and official Qt semantics; it did not independently rederive that disassembly path or execute native code.
+
+
+## Subsequent static constructor join
+
+The next bounded analysis closed the previously unresolved receiver assignment
+for one owner-construction path. It constructs the concrete Qt navigator, stores
+its shared object pointer, reloads that same pointer and passes it to the wrapper
+constructor, which installs it as the receiver used by open. The navigator's own
+incoming receiver is likewise traced to a constructed WindowLayoutStack. The
+supported static chain is therefore wrapper to Qt navigator to layout stack,
+not the earlier unproved alternative suggested by a similarly named strict
+navigator type.
+
+Private constructor-join receipt SHA256
+`3351b96c3892d3c0c6053cda95e1d320b8a889fed4cdd4d8d26a7224e5ba2d33`
+binds the exact instruction locations and twelve contributing artifact hashes.
+This is author/Astra static analysis of one construction path. It does not prove
+the runtime instance supplying the retained Reader, execution of the selected
+route, the other wrapper-construction callsite, DocumentView creation or a
+readiness condition. Earlier candidate-only findings remain the historical
+starting point; the new assignment evidence narrows that specific uncertainty.
+
+The layout stack's selected method delegates through another member. Its
+constructor initialization is the next grounded source question; no component
+factory or document-ready signal has yet been established. Static offsets are
+private analysis locators, not SDK API or permission for native reads/invocation.
+Direct native page opening remains outside this investigation.
