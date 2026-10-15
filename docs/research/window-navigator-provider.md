@@ -166,3 +166,21 @@ specific interface's provider, not another guessed component filename or a
 native invocation. The captured loading-window correspondence remains open.
 
 The selected binder explicitly expects xofm::gui::WindowAdder and fills that field from dependency lookup. Provider-boundary receipt `303c7142040b25bec5165350a87b61bc480a00fc9c8c587d768c10381157abc1` distinguishes this expected interface from the still-unresolved concrete provider. An adjacent unrelated type-name string is not used as type evidence.
+
+
+## Concrete WindowAdder factory construction
+
+A subsequent exact-type investigation identifies a concrete Qt WindowAdder and
+its constructor. The factory callback constructs that class, and the factory
+holder identifies the expected WindowAdder interface. Explicit assignments trace
+the factory's captured database to the same owner's previously identified
+WindowDatabase, then into the constructed WindowAdder. The factory is retained
+and copied into a produced aggregate.
+
+Private receipt SHA256
+`1bcef18ad5690f7ad46addb43095b8ea429b750e0fb196d79b6663145f9c1151`
+binds this author/Astra static construction evidence. Publication and resolution
+of that exact factory under windowAdder, and the factory callback's module/context
+argument, remain unresolved. Thus construction and database capture are now
+supported without claiming that the legacydevice wrapper actually receives this
+provider or that the complete route was registered at runtime.
