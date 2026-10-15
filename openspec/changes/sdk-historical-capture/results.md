@@ -19,3 +19,7 @@ Current composition hosted SDK38759593482 checks/MSRV1.88/stable/result, RM1base
 ## Composition review repair
 
 The bounded c8b9 review found the manual registry/notice verification was not retained as an automated current-check gate. Added only the existing dependency inventory and one package-test guard: exact name/version/source/checksum set equality against Cargo.lock, offline all-feature Cargo metadata to locate published sources, every inventoried original file SHA256 and complete byte inclusion in the bundle. Five package tests PASS. Existing hosted package jobs execute this guard on both selected compilers after locked fetch. No validator/runtime changes, new collector or audit matrix.
+
+## Executable inventory path admission
+
+The exact docs/reference/dependency-license-inventory.json input is admitted by the maintained filter, while other documentation remains excluded. One actual pinned-Action fixture covers that input. All17 actual Action fixtures PASS locally, retaining existing docs/mixed/unknown/rename cases. Initial Windows fixture runs failed on absent PATHEXT, then CRLF output matching; the harness now preserves PATHEXT and normalizes Action output line endings for assertions. No Action implementation or runtime code changed.
