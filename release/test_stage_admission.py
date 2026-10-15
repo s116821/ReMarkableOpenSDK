@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
 import tomllib
@@ -11,7 +10,10 @@ from stage_source import stage,Refusal,verify_staged_source
 
 class SourceStaging(unittest.TestCase):
     def setUp(self):
-        self.root=Path(tempfile.mkdtemp(prefix='sdk-stage-owned-'));self.addCleanup(shutil.rmtree,self.root)
+        # TemporaryDirectory handles read-only Git objects on Windows.
+        self.directory = tempfile.TemporaryDirectory(prefix='sdk-stage-owned-')
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
         self.repo=self.root/'source';self.repo.mkdir();self.out=self.root/'stage'
         self.env={**os.environ,'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':'/dev/null',
                   'GIT_AUTHOR_NAME':'Owned Fixture','GIT_COMMITTER_NAME':'Owned Fixture',

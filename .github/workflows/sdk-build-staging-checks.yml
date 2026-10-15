@@ -20,6 +20,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Verify source staging admission and portable identity
+        shell: bash
         run: |
           python -m unittest discover -s release -p test_stage_admission.py -v
           python -m unittest discover -s release -p test_candidate_admission.py -v
