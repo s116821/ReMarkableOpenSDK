@@ -29,3 +29,11 @@ assert_eq!(plan.movements().last(), Some(&(100, 512)));
 ```
 
 Reader retains model/orientation admission, input conversion, dispatch, release and observed completion. See THIRD_PARTY_NOTICES.md for adapted Buddy source provenance.
+
+## Saved development capture evidence
+
+Enable `development-capture` to validate already-collected v11 completion/PNG bytes with `development_capture::ReadOnlyDevelopmentCapture::from_collected_v11(&expected, completion, png)`. Supply an `ExpectedCaptureBinding` from the saved collection record, never a guessed current document. The result owns the original bytes and reports `DevelopmentUnqualifiedHistoricalCorrespondence`. Bounds, schema, expected bindings, digest and decoded image dimensions are checked before acceptance.
+
+This validates past receipt correspondence. It neither acquires pixels nor establishes current page, pixel freshness, render ordering or native operation authority. Collection/restoration and consumer persistence remain caller responsibilities. Default builds have no external dependencies; optional pinned dependencies and complete original notices are in THIRD_PARTY_NOTICES.md.
+
+Run `cargo test --locked --all-features --test development_capture`. The ignored private-fixture check is optional historical evidence and requires local files; no private files are shipped.
