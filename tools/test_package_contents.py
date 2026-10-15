@@ -73,7 +73,7 @@ class PackageContents(unittest.TestCase):
         self.assertIn("GPL-3.0-only", notices)
 
     def test_locked_registry_and_complete_original_notices(self):
-        inventory = json.loads((ROOT / "docs/reference/dependency-license-inventory.json").read_text(encoding="utf-8"))
+        inventory = json.loads((ROOT / "tools/dependency-license-inventory.json").read_text(encoding="utf-8"))
         lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
         registry = {(p["name"], p["version"], p["source"], p["checksum"])
                     for p in lock["package"] if p.get("source")}
