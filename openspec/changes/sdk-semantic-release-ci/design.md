@@ -1,3 +1,5 @@
+> October 15 REM-56 amendment: the new `sdk-gated-release-pipeline` change supersedes all prospective tag-before-build ordering below. Read-only candidate resolution precedes generated build identity; checks → build → integration gate one final main-merge official tag/release job. Historical fixtures and observed failures remain evidence of their original behavior, not current production design.
+
 # Design and unresolved gates
 
 Conventional Commit PR titles become squash subjects. The original candidate uses upstream commit-analyzer and semantic-release; their dependency audit remains unresolved. The current maintained alternative proposes Python Semantic Release for tag-only calculation and explicit existing-tag GitHub CLI drafts, with no production tool selected. docs: explicitly suppresses release even if other default conventions would suggest one. Upstream path/title Actions must reject docs: misclassification of application changes; no custom classifier. Relevant build/CI/dependency changes must receive a tested release policy. Breaking/pre-1.0 and first SDK version policy need explicit acceptance before activation.

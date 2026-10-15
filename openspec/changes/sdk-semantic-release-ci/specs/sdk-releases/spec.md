@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Semantic Git tags are version authority
-SDK release automation SHALL use maintained upstream tooling to derive SemVer from enforced PR-title-derived main squash messages. Official artifacts SHALL be built after immutable tag creation from its exact SHA with matching version/provenance. docs: merges SHALL not bump/tag/release or compile application code on main. Application code mislabeled docs: SHALL be refused by upstream classification/title checks.
+SDK release automation SHALL use maintained upstream tooling to derive SemVer from enforced PR-title-derived main squash messages. A read-only upstream candidate version MAY be resolved before building the exact intended main source. Official tags and releases SHALL be created only by one final release job after all required checks, builds and integration of those artifacts succeed; the final tag/version/source and published bytes SHALL match those qualified inputs. This October 15 REM-56 order supersedes the prior tag-before-build plan. docs: merges SHALL not bump/tag/release or compile application code on main. Application code mislabeled docs: SHALL be refused by upstream classification/title checks.
 
 #### Scenario: Feature and fix history
 - **WHEN** eligible feature/fix merges follow prior immutable tags, including equal commit timestamps
@@ -13,18 +13,18 @@ SDK release automation SHALL use maintained upstream tooling to derive SemVer fr
 
 #### Scenario: Failure or concurrent advancement
 - **WHEN** build/publication fails after tagging or main advances
-- **THEN** automation refuses wrong-source/version publication and recovers the intended immutable tag/assets without inventing duplicate versions.
+- **THEN** automation refuses wrong-source/version publication; failed, skipped or canceled required predecessors create no official tag/release, while recovery after an interrupted final publication preserves the intended immutable tag/assets without inventing duplicate versions.
 
 #### Scenario: Failed push retains local tag
 - **WHEN** upstream tagging leaves a local tag after a refused or uncertain remote push
-- **THEN** builds and publication remain refused until the exact remote tag is observed and its fetched commit equals the intended source; local tag existence or a no-release retry is insufficient.
+- **THEN** official publication remains refused until the exact remote tag is observed and its fetched commit equals the intended source; local tag existence or a no-release retry is insufficient.
 
 ### Requirement: Package and runtime versions are generated during builds
-No project version field or placeholder SHALL be maintained in source. Packaging and runtime versions SHALL be generated only at build time from the checked-out Git tag and SHALL NOT be committed.
+No project version field or placeholder SHALL be maintained in source. Packaging and runtime versions SHALL be generated only in build output from the upstream read-only candidate, whose exact value and source SHALL be bound to the official Git tag only after qualification succeeds. They SHALL NOT be committed as source versions.
 
 #### Scenario: Official package staging
-- **WHEN** an official build stages the verified tagged source
-- **THEN** package/runtime identity is generated from that tag in build output without editing the source checkout or creating a version-bump commit.
+- **WHEN** a build stages the exact intended source using the read-only upstream candidate before official tagging
+- **THEN** package/runtime identity is generated from that candidate in build output and final official tag binding is separately required without editing the source checkout or creating a version-bump commit.
 
 ### Requirement: Existing-tag draft recovery verifies complete byte identity
 Publication SHALL use maintained tooling for existing-tag drafts and SHALL verify retained assets against independently verified build identity before uploading missing names. Finalization SHALL require the complete declared manifest/distributions and exact remote source identity. Recovery SHALL NOT retag, clobber retained bytes or treat a functional fixture as a security-gate waiver.
