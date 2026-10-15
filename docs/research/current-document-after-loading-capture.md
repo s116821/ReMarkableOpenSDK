@@ -133,3 +133,5 @@ artifact lookup report, plus independently accepted actual 7a4 evidence linked
 above. Conditional focus/visibility reasoning and the next-discriminator choice
 are source inference. Private source and coordination reports have no public
 transcript link; raw proprietary QML remains private.
+
+The subsequent [creation/readiness analysis](reader-creation-readiness.md) traces the exact producer gate and public Qt instance lifecycle candidates, without selecting a native mechanism.
