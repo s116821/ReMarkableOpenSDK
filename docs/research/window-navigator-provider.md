@@ -125,3 +125,21 @@ Astra traced the bounded module/export acquisitions. These are source findings,
 not native execution or independent proof of the original loading-window role.
 
 Final private source-chain receipt SHA256 `fe0cbfdb6dd678a3bccef8b88d0e715b0eec374036b735185970561e96fa0465` binds sixteen acquisition/source artifacts plus the retained Reader source hash. The document-view module manifest explicitly maps DocumentView to the previously retained node 92; this closes the source export chain, not runtime correspondence.
+
+
+## Static main-key association
+
+The subsequent bounded setup analysis finds explicit data flow pairing the key
+main with the exact component path qml/LegacyMainWindow.qml in a description
+builder. Finalization passes a non-null description to a captured receiver.
+The capture's assignment from an incoming aggregate is also established.
+The aggregate's concrete module/database identity remains unresolved, so this
+is stronger than a filename association but is not yet proof of the complete
+legacydevice/window/main registration or its runtime execution.
+
+Private association receipt SHA256
+`1788cb0bc8fdb13ec8a7e795a13cf13141ca05145fb61c69d803362a7e56b800`
+and captured-receiver receipt
+`b1f0b1c8e5031c74b811e16f255bda24653254ad2852a50994b625f73ac85ed8`
+bind this author/Astra static derivation. The next exact question is the caller
+supplying that aggregate; no new resource body or native invocation follows.
