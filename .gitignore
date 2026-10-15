@@ -1,1 +1,3 @@
 /target/
+/tests/fixtures/consumer-boundary/target/
+/.ci-paths-filter/
