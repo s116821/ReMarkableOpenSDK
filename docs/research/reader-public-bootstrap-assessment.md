@@ -14,6 +14,95 @@ combined-child, depth and time bounds. The initial proposal below preserves its
 chronology; the linked contract governs the concrete implementation. Owned
 tests are not native deployment selection or qualification.
 
+## Ordinary document entry before capture: October 15 follow-up
+
+The smallest existing setup path is deliberate developer/manual selection of
+the fixture in the stock UI, followed by the maintained Buddy screenshot example
+for visual corroboration. This is an engineering recommendation for the sole
+device operator to select and review, not an admitted run, automated menu flow,
+native qualification or release of any held/spent operation. It precedes the
+in-process root question discussed below; it does not solve that question.
+
+### Exact maintained sources
+
+This assessment verifies Buddy revision
+[`5f89060d5953d4f5367d03913d81a1019fc2cd6b`](https://github.com/s116821/ReMarkableBuddies/tree/5f89060d5953d4f5367d03913d81a1019fc2cd6b),
+identified by the coordinator as current main on October 15. The initial lookup
+used older local `origin/main` snapshot `ff8ad75bec45fca403d55a7b6d93eb83ab732e3d`;
+that snapshot was not live GitHub main. After fetching the exact newer revision,
+Git comparison confirmed identical blobs for the example, all five source files
+listed below and AGENTS. README differences concern releases/acknowledgments;
+the Testing example instructions are unchanged. This is source correspondence,
+not a new build or hardware compatibility check.
+
+- [Contributor guidance](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/AGENTS.md#predictable-device-interaction)
+  permits deliberate developer/manual test setup through menus with advance
+  notice, separate from product paths. It does not permit autonomous product
+  menu navigation or qualify a blind coordinate sequence.
+- [Screenshot example](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/examples/screenshot.rs)
+  exposes `screenshot FILE [--image-only]`: `Screenshot::new`, then
+  `take_screenshot`/`save_image`, or `take_image`/image save. It initializes neither
+  input nor a provider. [Testing instructions](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/README.md#testing)
+  build an ARMv7 development example explicitly; it is not a release asset.
+- [Capture implementation](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/src/device/screenshot.rs)
+  chooses the firmware layout from `/etc/os-release`; RM2 firmware 3.24+ uses a
+  unique size/header-matched 1404 by 1872, four-byte allocation in process memory.
+  Its first `pidof xochitl` result makes an independently established sole
+  instance important. Allocation discovery does not establish physical-panel or
+  selected-window correspondence.
+- [XochitlIntegration](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/src/workflow/xochitl_integration.rs)
+  `navigate_to_page` takes only Next/Previous: it swipes and waits a legacy
+  500 ms. It neither opens a document nor proves completion.
+  [Backend routing](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/src/device/backend.rs)
+  and [navigation completion](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/src/device/navigation_completion.rs)
+  have a guarded path using metadata/pixels on an already selected source;
+  they are not document-entry readiness APIs.
+- [Native page loading](https://github.com/s116821/ReMarkableBuddies/blob/5f89060d5953d4f5367d03913d81a1019fc2cd6b/src/device/native_page.rs)
+  retains `load_selected`'s `supported: false`. Saved LastOpen/page metadata must
+  not be promoted into native current-page authority.
+- Delivered SDK revision
+  [`d9be3eb3c8cd997fc33caf817a8ac2ac3f08723b`](https://github.com/s116821/ReMarkableOpenSDK/blob/d9be3eb3c8cd997fc33caf817a8ac2ac3f08723b/src/lib.rs)
+  defaults `Platform::navigate` and `Platform::capture` to unsupported. Its
+  [capability report](https://github.com/s116821/ReMarkableOpenSDK/blob/d9be3eb3c8cd997fc33caf817a8ac2ac3f08723b/src/capabilities.rs)
+  distinguishes synthetic modeling from native availability. No implemented
+  public document-opening API was found in these maintained SDK/Buddy sources.
+  This is not a claim that every external vendor/community mechanism is exhausted.
+
+### Readiness evidence and remaining decision
+
+Record the actual stock UI selection, then observe the fixture's distinctive
+page content and Reader controls replacing the library/loading view. The existing
+screenshot example can corroborate this observation in the same xochitl process
+and session. Retain contemporaneous independent physical observation if available;
+without it, label the result as captured visual evidence only. An unchanged image,
+fixed wait, fixture-file hash or LastOpen value alone is not readiness proof.
+
+Any later restart invalidates that prerequisite. A capture in a new process must
+establish entry in that new instance; it cannot borrow an earlier stock session's
+entry. Visible entry does not prove native document/page identity, exact
+QQuickWindow identity, a render fence or capture freshness. This recommendation
+adds no polling framework, native hook, SDK API or consumer dependency change.
+
+The retained startup-only capture never established document entry: its selected
+operator pinned fixture files, restarted xochitl and requested a frame without
+opening/navigation/input. Loading pixels and zero anchors therefore do not prove
+that an active Reader cannot be identified. This historical result cannot decide
+the current stock state or authorize another run.
+
+Current firmware, sole stock process, UI state, example build provenance and
+availability remain unverified here. The sole operator must select any operation
+under current-state review, advance notice, bounded output/cleanup and independent
+recovery. No new operator packet is selected by this document. Held 8112 and all
+spent operations remain excluded, including equivalent replay or rerouting.
+
+Source basis: directly compared committed public sources above; the historical
+startup finding and sole-operator constraints are attributed to the current
+Project's [retained assessment](https://mem.ai/6eb0ecae-ddeb-5105-a23d-556d392ebb38)
+and [Main handoff](https://mem.ai/1c6f5a48-b765-5a56-aaf9-e640a52e3f68).
+Those private notes are optional provenance, not public contributor prerequisites
+or publicly verified transcripts. The recommendation is inference from these
+sources. No device operation, new experiment or runtime modification was performed.
+
 ## Reuse what is already demonstrated
 
 The SDK's `tools/qt_startup_probe.cpp` registers a Qt startup callback and queues
