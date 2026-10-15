@@ -24,6 +24,9 @@ const good=()=>({github:{event_name:'push',ref:'refs/heads/main'},needs:{
   checks:{result:'success',outputs:{application:'true'}},portable_checks:{result:'success'},build:{result:'success'},integration:{result:'success'}}});
 
 test('only the final release job may mutate official release state',()=>{
+  const paths=flow.jobs.checks.steps.find(s=>s.id==='paths');
+  assert.equal(paths.with['working-directory'],'sdk');
+  assert.equal(paths.with.filters,'.github/release-paths.yml');
   assert.deepEqual(Object.keys(flow.jobs),['checks','portable_checks','build','integration','release']);
   assert.equal(flow.permissions.contents,'read');
   assert.equal(flow.jobs.release.permissions.contents,'write');

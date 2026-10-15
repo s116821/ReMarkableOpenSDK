@@ -40,7 +40,7 @@ jobs:
         id: paths
         with:
           working-directory: sdk
-          filters: sdk/.github/release-paths.yml
+          filters: .github/release-paths.yml
           predicate-quantifier: every
       - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
         if: github.event_name == 'pull_request'
