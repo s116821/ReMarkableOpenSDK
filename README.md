@@ -37,3 +37,14 @@ Enable `development-capture` to validate already-collected v11 completion/PNG by
 This validates past receipt correspondence. It neither acquires pixels nor establishes current page, pixel freshness, render ordering or native operation authority. Collection/restoration and consumer persistence remain caller responsibilities. Default builds have no external dependencies; optional pinned dependencies and complete original notices are in THIRD_PARTY_NOTICES.md.
 
 Run `cargo test --locked --all-features --test development_capture`. The ignored private-fixture check is optional historical evidence and requires local files; no private files are shipped.
+
+## Synthetic platform contract
+
+`UnqualifiedPlatform` implements `Platform` with unsupported native operations. `capabilities()` reports availability only and never admits work. Enable `mock` for `mock::MockPlatform`, an in-memory scoped observation, creation/reconciliation and logical navigation/handoff fixture. Receipts are synthetic; they establish no native behavior or durable reconciliation.
+
+```rust
+use remarkable_open_sdk::{Platform, UnqualifiedPlatform, ObservationFailure, UnsupportedReason};
+assert_eq!(UnqualifiedPlatform.observe_page(), Err(ObservationFailure::Unsupported(UnsupportedReason::NoNativeAdapter)));
+```
+
+Capture acquisition and synthetic image/facts APIs remain a separate delivery. Historical development capture validation retains its own optional boundary.
