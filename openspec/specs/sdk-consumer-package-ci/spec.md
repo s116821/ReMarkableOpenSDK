@@ -14,7 +14,7 @@ Checks SHALL compile a separate feature-disabled consumer against this actual SD
 
 #### Scenario: Package boundary
 - **WHEN** package contents are listed with untracked private decoys present
-- **THEN** only the ten selected source/generated members are admitted and removing the include list reproduces the leak.
+- **THEN** only the eleven selected source/generated members are admitted and removing the include list reproduces the leak.
 
 ### Requirement: Documentation-only changes avoid SDK compilation
 CI SHALL use maintained path classification before Rust jobs, retain lightweight validation/results for documentation-only changes, and treat application/package/CI, unknown and mixed changes conservatively.

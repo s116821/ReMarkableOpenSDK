@@ -12,6 +12,7 @@ const filters = readFileSync(new URL('../.github/sdk-paths.yml', import.meta.url
 for (const [name, files, expected, rename, push] of [
   ['root guide', ['README.md'], false],
   ['OpenSpec requirement', ['openspec/changes/demo/specs/releases/spec.md'], false],
+  ['license inventory input', ['docs/reference/dependency-license-inventory.json'], true],
   ['documentation asset', ['docs/screenshots/sample.png'], false],
   ['Rust source', ['src/lib.rs'], true],
   ['nested source Markdown', ['src/README.md'], true],
@@ -30,7 +31,7 @@ for (const [name, files, expected, rename, push] of [
   test(`actual paths-filter: ${name}`, () => {
     const cwd = mkdtempSync(join(tmpdir(), 'sdk-paths-owned-'));
     const output = join(cwd, '.action-output');
-    const env = {PATH: process.env.PATH, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
+    const env = {PATH: process.env.PATH, PATHEXT: process.env.PATHEXT, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
       GIT_AUTHOR_NAME: 'Owned Fixture', GIT_COMMITTER_NAME: 'Owned Fixture',
       GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
       GITHUB_OUTPUT: output, GITHUB_EVENT_NAME: 'workflow_dispatch',
@@ -62,7 +63,7 @@ for (const [name, files, expected, rename, push] of [
       } catch (e) {
         assert.fail(`Owned fixture Action failed: ${String(e.stdout).slice(0, 4000)} ${String(e.stderr).slice(0, 1000)}`);
       }
-      const text = readFileSync(output, 'utf8');
+      const text = readFileSync(output, 'utf8').replaceAll('\r\n', '\n');
       assert.match(text, new RegExp(`^application<<[^\\n]+\\n${expected}\\n`, 'm'));
     } finally {rmSync(cwd, {recursive: true, force: true});}
   });
