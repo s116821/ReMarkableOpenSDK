@@ -50,3 +50,78 @@ constructor initialization is the next grounded source question; no component
 factory or document-ready signal has yet been established. Static offsets are
 private analysis locators, not SDK API or permission for native reads/invocation.
 Direct native page opening remains outside this investigation.
+
+
+## Loader, database and exact route decomposition
+
+Further constructor arguments on the same static path bind the layout stack to
+WindowLoader, and that loader to WindowDatabase. The loader first looks up a
+route description. Its selected downstream path uses QQuickWindow::contentItem
+and parent/context packaging before delegating to a provider held by that
+description. The provider's concrete component-creation implementation remains
+unresolved; these calls do not establish Reader creation or pixel readiness.
+
+The wrapper's route parser compares the exact delimiter `/window/`, producing
+the prefix and suffix used by the database. The observed route therefore maps
+to module key `legacydevice` and window key `main`. Exact retained strings then
+identify module `xofm.modules.legacydevice` and its QRC module path. This is a
+source-backed module selector, not conversion of an arbitrary slash-separated
+route into a guessed filename. The prior raw full-route miss remains accurate.
+
+Private loader/parser receipt SHA256
+`aea5dc0c78b1d29cf23f78328eebdef149d3209be4c62c841f35f58fdfe3f200`
+binds this author/Astra static analysis. The observed module-name metadata lies
+outside the previously retained registration descriptors 1 through 64; the subsequent targeted continuation found its registration at ordinal 66.
+Only two additional registration descriptors and the selected ten-node metadata
+tree were needed; this did not scan all QML bodies. See the creation-source
+follow-up below. No native operation follows from the module name.
+
+
+## Reader parent source located
+
+The exact legacydevice module manifest exports LegacyMainWindow. Its bounded
+source acquisition establishes contentItem MainView from device.view.main and
+forwards navigator/document-related dependencies and the opened arguments. The
+exact imported module export then identifies MainView, whose source supplies the
+previously missing documentView declaration and DocumentView creation edge.
+The route key main to LegacyMainWindow registration and the sampled capture
+window to this component instance remain separate unresolved joins.
+
+MainView declares a Loader with id documentView and objectName DocumentView,
+initially invisible and with asynchronous false. A neighboring Component wraps
+DocumentView. Navigator's Component.onCompleted handler assigns that component
+to the Loader's sourceComponent. The open helper defers its entry and callback
+when the Loader is not Ready; onLoaded replays the helper. Document-loaded state
+subsequently controls visibility and remains separate from instance creation.
+The unqualified documentView reference in retained Reader source now has a
+concrete enclosing source declaration, without proving any live instance.
+
+This changes the timing assessment: this Loader is configured for synchronous
+DocumentView instantiation when that source assignment executes; successful
+construction is still a condition, not a runtime observation. This source does not establish an asynchronous
+Loader.Loading interval spanning a frame. Capture before creation remains a
+conditional possibility only if the producer's admitted frame/request precedes
+this creation path or trigger. If a witnessed frame were established to follow successful execution of that
+exact source assignment and component construction, the creation explanation
+would need reevaluation; a MainView completion name or frame alone does not
+establish that ordering. Actual 7a4 lacks that component/window and ordering
+join, so neither a premature-capture diagnosis nor a repair is established.
+
+Loader loaded/Ready is now an application-source-backed creation discriminator
+for this exact Loader, subject to separately qualifying its runtime identity,
+ownership and observation mechanism. It does not establish document identity,
+page loading, current pixels or freshness. No native property getter, callback,
+probe or operation is selected here. A vendor comment cites a Qt issue, but the
+public issue could not be retrieved; it is not evidence of this capture's cause.
+
+MainView output SHA256
+`2bc2866c59245e74af769e277e3aae801ad76bc7f816f24ccf1fc7ac4f5e3cfc`
+and acquisition receipt
+`cfd90ffeb24c9a2a55ed6a11d6548344fcada87adfc7201079f31f1c4b45eebd`
+bind the 23823-byte private source. LegacyMainWindow's 2780-byte source is bound
+by receipt `d88b73a233a1d659429730d39f1b72c66aa285e623410a4ef86234787f727307`.
+The SDK author directly read the relevant creation/defer/open source blocks;
+Astra traced the bounded module/export acquisitions. These are source findings,
+not native execution or independent proof of the original loading-window role.
+
+Final private source-chain receipt SHA256 `fe0cbfdb6dd678a3bccef8b88d0e715b0eec374036b735185970561e96fa0465` binds sixteen acquisition/source artifacts plus the retained Reader source hash. The document-view module manifest explicitly maps DocumentView to the previously retained node 92; this closes the source export chain, not runtime correspondence.
