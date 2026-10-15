@@ -143,3 +143,26 @@ and captured-receiver receipt
 `b1f0b1c8e5031c74b811e16f255bda24653254ad2852a50994b625f73ac85ed8`
 bind this author/Astra static derivation. The next exact question is the caller
 supplying that aggregate; no new resource body or native invocation follows.
+
+
+## Module wrapper and registration interface join
+
+The indirect setup-table investigation connects the exact setup callback to a
+constructed legacydevice module wrapper carrying the observed QRC module root.
+The wrapper stores and later invokes that callback. Its call argument copies
+the registration receiver from the field bound under the explicit name
+windowAdder. This joins the module context and named registration interface to
+the already-established main/LegacyMainWindow description-building path.
+The concrete provider behind windowAdder and its database insertion remain
+unresolved; no live module initialization or registration execution is claimed.
+
+Private receipt SHA256
+`2aa6153c8db15735d756bc1584719e390b44c05a9198962a027042183c8343f4`
+binds the module/callback join. The subsequent argument/binding receipt
+`acc1140b4bd0bca5406a8061448d57b6a895995ba04468bcf7f2d01cef4d8feb`
+binds the callback invocation and windowAdder field derivation. These are
+bounded author/Astra static findings. The next source question is that
+specific interface's provider, not another guessed component filename or a
+native invocation. The captured loading-window correspondence remains open.
+
+The selected binder explicitly expects xofm::gui::WindowAdder and fills that field from dependency lookup. Provider-boundary receipt `303c7142040b25bec5165350a87b61bc480a00fc9c8c587d768c10381157abc1` distinguishes this expected interface from the still-unresolved concrete provider. An adjacent unrelated type-name string is not used as type evidence.
