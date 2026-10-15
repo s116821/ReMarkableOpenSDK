@@ -41,7 +41,8 @@ queued-event allocations and vendor signal emission SHALL remain unqualified.
 The SDK SHALL keep binding witnesses default-off and require the passive mode.
 It MAY publish at most two additional exclusive512-byte historical-only scalars:
 initial waiting/rejected status and first bound/observer-installed status, with
-the fixed eight-field identity/type domain and total producer quota1051211.
+the fixed eight-field identity/type domain and base producer quota1051211 before
+any separately declared reader-structure allowance.
 They SHALL NOT substitute for frame-ready/image guards or authorize capture.
 
 #### Scenario: Initial state is preserved rather than overwritten
@@ -51,6 +52,28 @@ They SHALL NOT substitute for frame-ready/image guards or authorize capture.
 #### Scenario: Missing or invalid witness remains unknown
 - **WHEN** context/connection/root/cancel/expiry/publication guards fail or witness output is missing, partial, pending or replaced
 - **THEN** the entry makes no inferred binding/signal diagnosis, never overwrites/rearms/renews time, and any accepted witness remains nonauthoritative
+
+### Requirement: Explicit same-grab structural reader diagnostics
+An explicitly selected default-off reader-structure mode SHALL require passive
+readiness, binding witnesses and the fixed frameSwapped profile. It SHALL pass
+the actual guarded capture window/content root to at most one synchronous
+metadata-only sample before and after its sole grab. It SHALL retain original
+clocks/caps and refuse lost context, incomplete callbacks or successful joined
+publication without exact new1024-byte structural evidence. Total unique producer
+payload SHALL remain at most1052235 bytes. Structural samples SHALL NOT become
+document/page identity, a reader-owner lease, render freshness or native authority.
+
+#### Scenario: Callback changes capture context
+- **WHEN** a permit or structural observer reenters Qt and changes the retained window/root/engine/focus/lifetime or consumes its deadline
+- **THEN** callback-free post-callback context proof refuses joined success, without replacement selection, renewed time or a second grab
+
+#### Scenario: Non-atomic triple is incomplete
+- **WHEN** image, reader-structure scalar or final normal scalar is missing, pending, two-link, replaced or mismatched
+- **THEN** the consumer retains unknown/refused evidence and never accepts a triple or falls back to an older profile; only a complete pending-free normal scalar published last can enter strict joined validation and bounded decode
+
+#### Scenario: Completed structural refusal
+- **WHEN** the bounded helper returns a typed refused or partial structural snapshot while the capture context remains valid
+- **THEN** the diagnostic preserves that stage and unreached/unknown meanings without asserting document absence, stable reader identity or a useful document image
 
 ### Requirement: Explicit-fixture caller-selected allocation experiment
 The development creation probe SHALL permit a separately selected single-call
