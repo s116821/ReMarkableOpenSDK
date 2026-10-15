@@ -125,3 +125,39 @@ creation/ownership evidence and author/Astra design analysis. Public
 support direct lexical references; they do not attest the loaded source bytes.
 Private records have no public transcript link. All proposed capabilities remain
 unimplemented and unqualified; held/spent exclusions remain unchanged.
+
+## Bounded delivery feasibility: resource registration replacement
+
+The one examined delivery candidate is the existing
+[qt-resource-rebuilder source](https://github.com/asivery/rm-xovi-extensions/blob/6c709dd8416ddf89034831073d76fb4ee3372905/qt-resource-rebuilder/src/main.c):
+replace the two application resources during registration, then use their
+explicit forwarding to report to the proposed creator-bound observer.
+At lines 320-358 the hook receives resource version/tree/name/data, walks and
+copies the archive tree, applies replacements, and passes the resulting tables
+to the original registration function. These arguments contain no creator,
+QQmlComponent or returned outer view. The extension declaration intercepts
+resource registration, not the provider creation/result boundary.
+
+Thus even recording original/replacement bytes at this hook would establish
+registration input, not which component/cache representation was instantiated
+or which outer result it produced. A QML self-report would not close that gap.
+The missing half is an independently established creator-to-source/result
+association; this prior-art path does not supply it. No permitted delivery
+candidate was identified in this bounded examination. This is a source-path
+limitation, not a claim that every possible delivery mechanism is impossible.
+
+Concrete effects exceed adding an observer: the hook serializes registration
+under a mutex, allocates/copies/rebuilds resource tables and substitutes pointers
+passed to Qt. Its constructor (lines 369-389) requires
+`QML_DISABLE_DISK_CACHE=1`, aborts otherwise, loads modifications and starts the
+QMLDiff saving-thread path. The README explicitly warns about firmware-dependent
+QML and stale caches. That environment requirement is not proof that every
+compiled/cache representation selected by this firmware is qualified. Source
+replacement can alter startup/creation behavior or fail before the UI exists.
+The inspected path supplies no independent recovery qualification. Activation
+through the held/equivalent route remains rejected; no source patches, cache
+changes or native execution were performed.
+
+Source basis for this follow-up: directly inspected pinned prior-art files and
+the reviewed provider boundary. The negative delivery decision is an inference
+from the concrete source interfaces, not a runtime observation.
