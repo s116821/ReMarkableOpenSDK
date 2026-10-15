@@ -55,3 +55,6 @@ impl std::fmt::Display for Uuid {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct OperationId(pub Uuid);
+
+/// Ordinary gesture plans only.
+pub mod navigation;
