@@ -11,7 +11,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = {"src/lib.rs", "src/navigation.rs", "src/navigation/gesture.rs"}
+SOURCES = {"src/lib.rs", "src/development_capture.rs", "src/navigation.rs", "src/navigation/gesture.rs"}
 REQUIRED = SOURCES | {"Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"}
 GENERATED = {"Cargo.toml.orig", ".cargo_vcs_info.json"}
 
@@ -64,13 +64,36 @@ class PackageContents(unittest.TestCase):
         package = next(p for p in json.loads(result.stdout)["packages"] if p["name"] == "remarkable-open-sdk")
         self.assertEqual(package["license"], "GPL-3.0-only")
         self.assertEqual(package["publish"], [])
-        # The current crate is dependency-free. Its adapted gesture provenance is
-        # carried verbatim from the reviewed source, not a dependency inventory.
-        lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
-        self.assertFalse([p for p in lock["package"] if p.get("source")])
+        # Optional dependency pins are preserved while the default graph stays empty.
+        self.assertTrue(all(d["optional"] for d in package["dependencies"]))
+        self.assertEqual(package["features"]["default"], [])
+        self.assertEqual({d["name"] for d in package["dependencies"]}, {"image", "sha2", "serde", "serde_json"})
         notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
         self.assertIn("ded1caddccd30d6452fc2613a017f0118b0c575b", notices)
         self.assertIn("GPL-3.0-only", notices)
+
+    def test_locked_registry_and_complete_original_notices(self):
+        inventory = json.loads((ROOT / "docs/reference/dependency-license-inventory.json").read_text(encoding="utf-8"))
+        lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
+        registry = {(p["name"], p["version"], p["source"], p["checksum"])
+                    for p in lock["package"] if p.get("source")}
+        expected = {(p["name"], p["version"], "registry+https://github.com/rust-lang/crates.io-index", p["registry_checksum"])
+                    for p in inventory["packages"]}
+        self.assertEqual(registry, expected)
+        result = subprocess.run(
+            ["cargo", "metadata", "--format-version", "1", "--locked", "--offline", "--all-features"],
+            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=True, timeout=60,
+        )
+        packages = {(p["name"], p["version"]): p for p in json.loads(result.stdout)["packages"] if p.get("source")}
+        bundle = (ROOT / "THIRD_PARTY_NOTICES.md").read_bytes()
+        for package in inventory["packages"]:
+            metadata = packages[(package["name"], package["version"])]
+            root = Path(metadata["manifest_path"]).parent
+            for notice in package["license_notice_files"]:
+                with self.subTest(package=package["name"], notice=notice["path"]):
+                    original = (root / notice["path"]).read_bytes()
+                    self.assertEqual(hashlib.sha256(original).hexdigest(), notice["sha256"])
+                    self.assertIn(original, bundle)
 
     def assert_contents(self, paths):
         self.assertTrue(REQUIRED <= paths, REQUIRED - paths)

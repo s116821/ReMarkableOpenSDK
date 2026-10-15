@@ -58,3 +58,7 @@ pub struct OperationId(pub Uuid);
 
 /// Ordinary gesture plans only.
 pub mod navigation;
+
+/// Saved historical evidence only; never live capture authority.
+#[cfg(feature = "development-capture")]
+pub mod development_capture;
