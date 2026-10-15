@@ -5,4 +5,4 @@ rust-version = "1.88"
 publish = false
 license = "GPL-3.0-only"
 description = "Persistent identity primitives for an experimental reMarkable SDK"
-include = ["/Cargo.toml", "/Cargo.lock", "/src/lib.rs", "/LICENSE", "/README.md"]
+include = ["/Cargo.toml", "/Cargo.lock", "/src/lib.rs", "/src/navigation.rs", "/src/navigation/gesture.rs", "/THIRD_PARTY_NOTICES.md", "/LICENSE", "/README.md"]
