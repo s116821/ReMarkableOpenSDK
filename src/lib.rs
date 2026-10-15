@@ -3,8 +3,10 @@
 #![forbid(unsafe_code)]
 
 pub mod capabilities;
+pub mod capture;
 #[cfg(feature = "development-capture")]
 pub mod development_capture;
+pub mod evidence;
 pub mod navigation;
 
 #[cfg(any(test, feature = "mock"))]
@@ -244,6 +246,10 @@ pub trait Platform {
         _: bool,
     ) -> navigation::CreationHandoffOutcome {
         navigation::CreationHandoffOutcome::Unsupported(UnsupportedReason::CapabilityNotImplemented)
+    }
+    /// Until acquisition is qualified, the safe default cannot produce a batch.
+    fn capture(&mut self, _: &capture::CaptureRequest) -> capture::CaptureOutcome {
+        capture::CaptureOutcome::Unsupported(UnsupportedReason::CapabilityNotImplemented)
     }
     fn observe_page(&self) -> Result<PageObservation, ObservationFailure>;
     fn create_after(&mut self, request: &CreationRequest, canceled: bool) -> CreationOutcome;

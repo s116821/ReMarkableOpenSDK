@@ -48,3 +48,9 @@ assert_eq!(UnqualifiedPlatform.observe_page(), Err(ObservationFailure::Unsupport
 ```
 
 Capture acquisition and synthetic image/facts APIs remain a separate delivery. Historical development capture validation retains its own optional boundary.
+
+## Capture model and historical facts
+
+`capture` supplies immutable image/geometry descriptors; `evidence` exports bounded one-way historical facts from model observations, receipts and batches. Original encoded media must be stored separately alongside exported descriptors. Exact integers, durations and geometry bits remain available without converting historical facts into live guards.
+
+Enable `mock` for synthetic batch validation against parent-derived crop/resize pixels and explicit modeled owner/render assertions. These assertions establish model consistency only. `Platform::capture` defaults to unsupported; no native acquisition/freshness or current-page producer is supplied. Ordinary builds retain dependency-free defaults; image/hash libraries are selected for mock, development capture or tests. Reader's historical SDK_SOURCE remains its original provenance until coordinated consumer migration.
