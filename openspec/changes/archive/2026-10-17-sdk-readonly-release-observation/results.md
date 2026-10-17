@@ -1,0 +1,23 @@
+# Qualification results
+
+Precode71a3d3d1679f33b5e2e420126c3b2dd0a3b663ca precedes accepted source7b9a88707f3e4f16293b98db88ab62bb6fafbe7b/treee4513c07ed9b562ef64eef84873b39b83b491206 on maina16e8819ab54de3a3420b739f9b768f4c633e075.
+
+## Source qualification and actual hosted evidence
+Exact selected72136ed release-assets.cjs SHA25650679d151dad96db1b7af0ae8d5d50036dc7d27ed9906a7ac2a9fe29dd7856d7 is preserved. The test file preserves the exact 5,019-byte six-test selected prefix plus two focused refusal tests. All eight local Node24.21.0 tests passed; built-in modules and owned temp directories/in-process Octokit routes only. Wrong exact source, non-main base, unmerged state and unavailable API refuse before release/asset calls or retained-output creation. Original absent/exact draft/malformed/undeclared/duplicate/incomplete observations remain qualified.
+
+All seven source workflows completed SUCCESS: semantic38802856514, candidate38802856453, identity38802856396, baseline38802856502, metadata38802856439, distribution38802856463, staging38802856494. Actual tested merge3e2bfffadb4e21781981cdd2f15518b8f5b41bcc combines source7b9a8870 with maina16e8819.
+
+Actual semantic116656175787 log was read on October15: fresh hash-installed maintained graph/full audit found no known vulnerabilities; eight new observation controls passed with zero failures, separately from inherited semantic/title/guard suites. Actual integration116657093024 log was read: candidatev0.1.0/source3e2bfff, seven retained binaries40passed/one private-fixture ignore/zero failed and four passing tamper controls. This inherited artifact composition is separate from new API fixture qualification; no unchanged local SDK matrix was repeated. [Completed source evidence6201760448](https://github.com/s116821/ReMarkableOpenSDK/pull/21#issuecomment-6201760448).
+
+## Independent acceptance and lifecycle
+On October17 the coordinator reported completing and reading back [source/spec review5560527738](https://github.com/s116821/ReMarkableOpenSDK/pull/21#pullrequestreview-5560527738) at exact7b9a8870 with no actionable defect. The coordinator independently read all nine changed paths/both surrounding workflows, matched the selected adapter and exact six-test prefix, and read the eight-control hosted log; all seven source workflows succeeded. This is attributed coordinator review evidence; direct author review readback must occur before publication.
+
+Own canonical capability preserves the exact two requirement/three scenario bodies from the accepted delta. Own five-file change is archived under2026-10-17-sdk-readonly-release-observation; proposal/design/delta blobs are preserved exactly, only tasks/results completed. Local preservation checks cover all158 unrelated source mode/type/blob entries including both helpers and both workflow versions; strict OpenSpec/diff checks only, no unchanged SDK build/test matrix. Remote publication, PR-body refresh, final lifecycle review and final required checks remain pending. Actual main GET-only merged-source observation is postmerge evidence, not a PR-fixture claim.
+
+## Prior SDK20 aggregate correction
+SDK20 finalreview5539464020 was read fully. Actual main checks116654359231/current-message116654432881 succeeded before calculation. The earlier aggregate claim998bc9a0 was premature while the candidate pipeline was pending and explicitly corrected9731c15c. Subsequently all six exact main-push workflows were independently verified completed SUCCESS (semantic38802343162, identity38802343173, staging38802343152, baseline38802343353, distribution38802343427, candidate38802343224), recorded in REM50 final comment16cc91d3. No failure was waived; SDK20 scope is closed and is not reopened here.
+
+## Authority limits
+Only live main activation is eligibility-only merged-PR observation through pinned maintained github-script after current-message admission and before candidate calculation. PR synthetic merges skip the live call; docs-only skip remains. Other release metadata/download branches remain fixture-only with no real SDK release access. Provider operations are read/download-only. Metadata size is not payload hash proof; existing verify_assets remains responsible for payload hashes.
+
+Merged-PR observation does not prove squash method, successful required predecessors, protected remote identity, first official release or publication authority. No SDK tag/release/settings/device operation, runtime/Cargo/package/version config/lock change or native qualification. Progress and decisions are authoritative in REM50; Mem retains only a pointer under the current hierarchy.
