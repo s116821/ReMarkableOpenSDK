@@ -105,14 +105,22 @@ test('candidate is read-only after checks and integration uses the exact artifac
   const observe=checkSteps.findIndex(s=>s.name==='Observe exact merged main PR without release writes');
   assert.ok(guard>=0&&observe>guard);
   assert.equal(checkSteps[observe].env.ELIGIBILITY_ONLY,'true');
-  const download=flow.jobs.integration.steps.find(s=>s.uses?.startsWith('actions/download-artifact@'));
+  const download=flow.jobs.integration.steps.find(s=>s.with?.['artifact-ids']==='${{ needs.build.outputs.artifact_id }}');
   assert.equal(download.with['artifact-ids'],'${{ needs.build.outputs.artifact_id }}');
   assert.equal(download.with.name,undefined);
-  const integrate=flow.jobs.integration.steps.find(s=>s.run);
+  const integrate=flow.jobs.integration.steps.find(s=>s.run?.includes('candidate_artifacts.py integration'));
   assert.equal(integrate.env.RECEIPT,'${{ needs.build.outputs.receipt_sha }}');
   assert.equal(integrate.env.SOURCE,'${{ needs.build.outputs.source_sha }}');
   assert.ok(integrate.run.includes('candidate_artifacts.py integration'));
   assert.ok(integrate.run.includes('test_candidate_artifacts.py'));
+  const uploader=flow.jobs.integration.steps.find(s=>s.with?.['artifact-ids']==='${{ needs.checks.outputs.uploader_artifact_id }}');
+  assert.ok(uploader);
+  assert.equal(uploader.with.name,undefined);
+  assert.equal(flow.jobs.checks.outputs.uploader_artifact_id,'${{ steps.uploader_artifacts.outputs.artifact-id }}');
+  assert.equal(flow.jobs.checks.outputs.uploader_provenance_sha,'${{ steps.uploader.outputs.provenance_sha256 }}');
+  const verify=flow.jobs.integration.steps.find(s=>s.run?.includes('--expected-provenance'));
+  assert.equal(verify.env.SDK_UPLOADER_PROVENANCE_SHA,'${{ needs.checks.outputs.uploader_provenance_sha }}');
+  assert.ok(verify.run.includes('--expected-provenance "$SDK_UPLOADER_PROVENANCE_SHA"'));
 });
 test('retained probe is a real built-library consumer rather than unit replay',()=>{
   const helper=readFileSync(new URL('../../release/candidate_artifacts.py',import.meta.url),'utf8');
