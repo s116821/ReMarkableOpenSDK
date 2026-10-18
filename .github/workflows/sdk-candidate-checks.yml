@@ -65,6 +65,14 @@ jobs:
           SOURCE: ${{ github.sha }}
           PYTHONDONTWRITEBYTECODE: '1'
         run: '"$RUNNER_TEMP/sdk-tools/bin/python" release/check_commit.py --sha "$SOURCE"'
+      - name: Observe exact merged main PR without release writes
+        if: github.event_name == 'push'
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553
+        with:
+          script: await require('./release/release-assets.cjs')({github,context,core})
+        env:
+          ELIGIBILITY_ONLY: 'true'
+          RELEASE_SOURCE: ${{ github.sha }}
       - name: Calculate unofficial candidate from frozen Git history
         id: version
         shell: bash
