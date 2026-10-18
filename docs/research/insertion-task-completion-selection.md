@@ -128,3 +128,43 @@ Source basis: the same hash-verified private executable, bounded LLVM decoding,
 Document/DocumentWorker/Task Qt metadata and retained AddPageTask RTTI/vtable.
 Semantic interpretation of the remembered-page update follows its field write
 and named notification; any resulting live view selection remains inference.
+
+## Follow-up: wrapper forwarding and the known view setup
+
+The next bounded check inspected the already-mapped QmlDocumentWrapper
+constructor and SceneView document setter on the same retained image. It found
+two concrete subscriptions in the wrapper constructor:
+
+| Source | Immediate wrapper target | Connection |
+| --- | --- | --- |
+| `Document::lastOpenedPageChanged(index)` | `QmlDocumentWrapper::lastOpenedPageChanged(index)` | AutoConnection |
+| `Document::pageAdded(index)` | `QmlDocumentWrapper::pageAdded(index)` | QueuedConnection |
+
+The constructor uses its backing Document as sender and the wrapper as receiver.
+The stored member-function targets and the generic slot invocation thunk resolve
+to wrapper signal emitters. Wrapper Qt metadata independently identifies their
+names and single index argument. Each immediate target packages that argument
+and calls `QMetaObject::activate`; neither target assigns a SceneView or reader
+current-page field. These are signal-forwarding connections, not a discovered
+selection handler. Connection type does not establish runtime delivery order,
+receiver lifetime or successful emission.
+
+The known SceneView document setter disconnects old document/worker connections,
+retains the replacement Document and worker, and installs its immediate
+connections. No direct subscription to Document `lastOpenedPageChanged` or
+`pageAdded` was identified in that setter. Its final immediate setup helper
+uses the view's existing page key for worker page-state acquisition; the
+inspected helper does not expose a connection for either target signal.
+This is a statement about these specific setup bodies, not every SceneView
+constructor, inherited path or application binding.
+
+The concrete chain now reaches **task result -> remembered Document index and
+Document notifications -> wrapper notifications**. It still does not reach an
+identified application-owned reader handler that assigns the active current
+SceneView/page. This setup path supplies no next bounded handler target beyond
+the wrapper emissions, so the check stops there. No all-receiver survey,
+resource acquisition, runtime call or new observation mechanism was introduced.
+
+Source basis: the same verified private image and prior relationship report,
+bounded constructor/setter/slot/emitter decoding, and Qt metadata. Reader
+selection, rendering, lifetime and indirect signal effects remain unresolved.
