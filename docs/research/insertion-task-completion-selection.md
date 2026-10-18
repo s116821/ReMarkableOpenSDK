@@ -73,3 +73,58 @@ this analysis. No native capability, primitive API, firmware support declaration
 or experiment authorization changes. Source basis: exact retained private
 artifacts and local static decoding; the selection conclusion is explicitly
 limited to the inspected paths.
+
+## Follow-up: task result updates the remembered page
+
+A subsequent bounded trace on the same retained image inspected the AddPageTask
+virtual implementation and its immediate worker dispatch/result handlers. This
+extends the first submission/completion scope above. It identifies a concrete
+document page-index update and notification route, while leaving actual reader
+selection unresolved.
+
+The task acquires the Document's worker, then connects the worker's `pageAdded`
+signal to its task-context page-added handler using QueuedConnection. Worker
+metadata identifies two signal arguments; the handler compares the received
+64-bit job identifier with the task's stored identifier before processing the
+reported page index. The task's operation closure forwards its captured insertion
+inputs to the worker command-construction path. The command submission returns
+a 64-bit value stored atomically in the task. No completed document mutation is
+implied merely by that submission result.
+
+For a matching page-added result, the immediate handler:
+
+1. Reconciles Document state through an internal helper whose observed branches
+   include page-map/template-map change notifications.
+2. Calls a Document index setter with the reported page index. The setter clamps
+   the index against the current page count, conditionally changes a backing
+   metadata field, marks it dirty, updates timestamp-related state and emits
+   `Document::lastOpenedPageChanged` when the remembered index changes. A separate
+   document-format branch also updates its internal index representation.
+3. Calls another Document helper containing virtual dispatch and further update
+   handling, then emits `Document::pageAdded` with the reported page index.
+
+Thus the extended path does more than deliver an empty JavaScript callback:
+it explicitly updates the Document's remembered/last-opened page index and
+emits page-specific notifications. That field must not be silently equated with
+the reader's active current-page reference.
+
+The task separately connects `DocumentWorker::jobCompleted` to a generic task
+completion handler using AutoConnection. Its identifier comparisons lead to
+disconnecting that handler and calling the task's virtual finish slot; the
+ordinary AddPageTask vtable maps this slot to `Task::finished`. This is separate
+from the job-matching page-added handler. The trace does not establish cross-
+connection delivery order, durable success, or that generic job completion
+proves the page-added path executed.
+
+This is a concrete **potential notification route to selection**, not an
+identified active-display handoff. No direct SceneView setter or reader
+current-page assignment was identified in these task/immediate-result bodies.
+The internal Document helper's virtual targets, other signal receivers and
+caller-supplied JavaScript prevent a whole-program absence conclusion. A broader
+receiver survey was not performed. Native receiver identity, actual page switch,
+rendering, lifetime, persistence and callback ordering remain unverified.
+
+Source basis: the same hash-verified private executable, bounded LLVM decoding,
+Document/DocumentWorker/Task Qt metadata and retained AddPageTask RTTI/vtable.
+Semantic interpretation of the remembered-page update follows its field write
+and named notification; any resulting live view selection remains inference.
