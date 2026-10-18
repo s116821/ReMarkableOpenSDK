@@ -157,6 +157,23 @@ jobs:
           SEMANTIC_PR_ACTION: ${{ github.workspace }}/.ci-semantic-pr/dist/index.js
           PYTHONDONTWRITEBYTECODE: "1"
         if: steps.admission.outputs.application == 'true'
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        if: steps.admission.outputs.application == 'true'
+        with:
+          repository: svenstaro/upload-release-action
+          ref: 29e53e917877a24fad85510ded594ab3c9ca12de
+          path: .ci-uploader
+          persist-credentials: false
+      - name: Build and audit the exact maintained uploader recipe
+        if: steps.admission.outputs.application == 'true'
+        run: |
+          python release/qualify_uploader.py --source .ci-uploader --output "$RUNNER_TEMP/qualified-sdk-uploader"
+          python release/qualify_uploader.py --output "$RUNNER_TEMP/qualified-sdk-uploader" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc
+      - name: Exercise the emitted uploader against an owned loopback API
+        if: steps.admission.outputs.application == 'true'
+        run: node --test release/fixtures/uploader.test.mjs
+        env:
+          UPLOADER_ACTION: ${{ runner.temp }}/qualified-sdk-uploader
       - name: Qualify actual compact workflow graph
         if: steps.admission.outputs.application == 'true'
         run: |
