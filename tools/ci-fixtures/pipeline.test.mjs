@@ -14,11 +14,12 @@ function value(input){
   return new data.Dictionary(...Object.entries(input).map(([key,v])=>({key,value:value(v)})));
 }
 const always={name:'always',minArgs:0,maxArgs:0,call:()=>new data.BooleanData(true)};
-function evaluate(expression,context){
+function evaluate(expression,context,{cancelled=false}={}){
   const text=expression.replace(/^\$\{\{\s*|\s*\}\}$/g,'');
   const lexed=new Lexer(text).lex();
-  const parsed=new Parser(lexed.tokens,Object.keys(context),[always]).parse();
-  return new Evaluator(parsed,value(context),new Map([['always',always]])).evaluate().coerceString();
+  const cancel={name:'cancelled',minArgs:0,maxArgs:0,call:()=>new data.BooleanData(cancelled)};
+  const parsed=new Parser(lexed.tokens,Object.keys(context),[always,cancel]).parse();
+  return new Evaluator(parsed,value(context),new Map([['always',always],['cancelled',cancel]])).evaluate().coerceString();
 }
 const good=()=>({github:{event_name:'pull_request'},needs:{title:{result:'success'},checks:{result:'success',outputs:{application:'true'}},portable_checks:{result:'success'},build:{result:'success'}}});
 const runs=job=>job.steps.filter(s=>s.run).map(s=>s.run).join('\n');
@@ -138,4 +139,18 @@ test('no compact job receives publication permission or activation',()=>{
       assert.equal((step.run??'').includes('--vcs-release'),false);
     }
   }
+});
+
+// GitHub adds implicit success() when job.if has no status function. Expression
+// truth alone does not prove scheduling across the intentionally skipped title.
+test('main successors explicitly override implicit status while retaining their required gates',()=>{
+  const c=good();c.github.event_name='push';c.needs.title.result='skipped';
+  for(const name of ['checks','portable_checks','build','integration']){
+    assert.match(flow.jobs[name].if,/!cancelled\(\)/,`${name}: explicit cancellation-aware status guard`);
+    assert.equal(evaluate(flow.jobs[name].if,c),'true',name);
+  }
+});
+test('workflow cancellation refuses every application stage even after prior success',()=>{
+  for(const name of ['checks','portable_checks','build','integration'])
+    assert.equal(evaluate(flow.jobs[name].if,good(),{cancelled:true}),'false',name);
 });
