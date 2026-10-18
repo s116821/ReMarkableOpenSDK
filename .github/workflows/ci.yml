@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: title
-    if: ${{ always() && (github.event_name == 'push' || needs.title.result == 'success') }}
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.title.result == 'success') }}
     outputs:
       application: ${{ steps.admission.outputs.application }}
     steps:
@@ -203,7 +203,7 @@ jobs:
   portable_checks:
     name: Checks (Windows staging)
     needs: checks
-    if: needs.checks.outputs.application == 'true'
+    if: ${{ !cancelled() && needs.checks.result == 'success' && needs.checks.outputs.application == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
@@ -226,7 +226,7 @@ jobs:
     needs:
       - checks
       - portable_checks
-    if: needs.checks.result == 'success' && needs.portable_checks.result == 'success' && needs.checks.outputs.application == 'true'
+    if: ${{ !cancelled() && needs.checks.result == 'success' && needs.portable_checks.result == 'success' && needs.checks.outputs.application == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -319,4 +319,4 @@ jobs:
           python -m unittest discover -s release -p test_candidate_artifacts.py -v
           test -z "$(git status --porcelain)"
     name: Integration
-    if: needs.checks.result == 'success' && needs.build.result == 'success' && needs.checks.outputs.application == 'true'
+    if: ${{ !cancelled() && needs.checks.result == 'success' && needs.build.result == 'success' && needs.checks.outputs.application == 'true' }}
