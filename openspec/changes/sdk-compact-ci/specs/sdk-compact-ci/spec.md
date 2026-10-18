@@ -14,12 +14,16 @@ Compact SDK CI SHALL retain source/admission staging controls on real Windows, r
 - **WHEN** Linux or Windows required staging/check controls fail, cancel or do not complete successfully
 - **THEN** later application build/integration cannot proceed and platform coverage is not silently dropped.
 
-### Requirement: Documentation and edited metadata avoid application builds
-Maintained conservative path/title admission SHALL occur once per applicable event, reject documentation misclassification and retain structural checks while skipping SDK compilation for docs-only changes; metadata-only edits SHALL revalidate title without replacing failed application-check contexts or restarting application builds.
+### Requirement: Documentation skips builds and corrected metadata resumes the core
+Maintained conservative path/title admission SHALL occur once per applicable event, reject documentation misclassification and retain structural checks while skipping SDK compilation for docs-only changes. Edited PR metadata SHALL use the same title status and ordered core, permitting correction of an initially invalid title without another source push and never substituting skipped application checks for a previous failure.
 
-#### Scenario: Documentation or metadata-only event
-- **WHEN** only named docs change or PR metadata is edited
-- **THEN** applicable title/structure validation remains available and unnecessary Rust/application build and integration jobs do not run.
+#### Scenario: Documentation-only event
+- **WHEN** only named documentation paths change
+- **THEN** applicable title/structure validation remains available and Rust/application build and integration do not run.
+
+#### Scenario: Corrected title on unchanged source
+- **WHEN** a title initially fails and is then corrected on the same source head
+- **THEN** the edited event executes the same title gate and full required core after success; body-only edits likewise run real application gates rather than replacing them with skipped status.
 
 ### Requirement: Open SDK candidates cannot restore obsolete CI layouts
 Every active SDK PR SHALL be reconciled against the compact workflow contract through an accounted superseded closure or an owner-applied update, preserving unrelated source and recorded qualification limits.

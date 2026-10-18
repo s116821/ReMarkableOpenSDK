@@ -5,9 +5,6 @@ on:
       application:
         description: Maintained application path admission
         value: ${{ jobs.title.outputs.application }}
-  pull_request:
-    types:
-      - edited
 permissions:
   contents: read
   pull-requests: read

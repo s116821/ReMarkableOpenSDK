@@ -34,13 +34,18 @@ test('one compact core plus reusable title, with one explicit Windows platform j
   assert.equal(flow.defaults.run.shell,'bash');
   assert.equal(title.defaults.run.shell,'bash');
 });
-test('edited metadata validates only title without overriding application contexts',()=>{
-  assert.deepEqual(flow.on.pull_request.types,['opened','reopened','synchronize']);
+test('corrected metadata runs the same title and core without skipped failure replacement',()=>{
+  assert.deepEqual(flow.on.pull_request.types,['opened','reopened','synchronize','edited']);
   assert.deepEqual(flow.on.push.branches,['main']);
-  assert.deepEqual(title.on.pull_request.types,['edited']);
+  assert.equal(title.on.pull_request,undefined,'no standalone title status or parallel workflow');
   assert.ok(title.on.workflow_call.outputs.application);
   assert.deepEqual(Object.keys(title.jobs),['title']);
   assert.equal(evaluate(flow.jobs.checks.if,good()),'true');
+  const corrected=good();corrected.github.event={action:'edited'};
+  assert.equal(evaluate(flow.jobs.checks.if,corrected),'true','title correction resumes real checks on unchanged source');
+  assert.equal(evaluate(flow.jobs.build.if,corrected),'true');
+  corrected.needs.checks.result='failure';
+  assert.equal(evaluate(flow.jobs.build.if,corrected),'false','body edits cannot turn failed application checks into skipped success');
   for(const state of ['failure','skipped','cancelled']){
     const c=good();c.needs.title.result=state;
     assert.equal(evaluate(flow.jobs.checks.if,c),'false',state);
