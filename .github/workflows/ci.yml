@@ -111,8 +111,11 @@ jobs:
           python -m unittest discover -s release -p test_stage_admission.py -v
           python -m unittest discover -s release -p test_candidate_admission.py -v
           python -m unittest discover -s release -p test_portable_stage.py -v
+          python -m unittest discover -s release -p test_cargo_consumer.py -v
+          python -m unittest discover -s release -p test_current_git_consumer.py -v
           git diff --exit-code
         env:
+          SDK_FIXTURE_CARGO: cargo
           PYTHONDONTWRITEBYTECODE: "1"
         if: steps.admission.outputs.application == 'true'
       - name: Verify generated packages and retained artifact identities
