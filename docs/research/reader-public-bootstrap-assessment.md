@@ -16,6 +16,13 @@ tests are not native deployment selection or qualification.
 
 ## Ordinary document entry before capture: October 15 follow-up
 
+October 17 follow-up: the sole operator completed one maintained stock screenshot
+observation, full decode and owned cleanup. Its saved tutorial pixels are visual
+corroboration only; they do not establish native document/page or selected-window
+identity. The [compatibility and bounded-operator findings](../experiments/stock-screenshot-compatibility.md)
+record the actual utility refusals, corrected byte limiter and evidence limits.
+This does not release any held operation or qualify the in-process root below.
+
 The smallest existing setup path is deliberate developer/manual selection of
 the fixture in the stock UI, followed by the maintained Buddy screenshot example
 for visual corroboration. This is an engineering recommendation for the sole
