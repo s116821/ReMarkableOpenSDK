@@ -63,15 +63,18 @@ test('undeclared, duplicate and incomplete published assets refuse',async()=>{
 test('GraphQL observation distinguishes explicit absence, exact old draft and malformed state',()=>{
   const tag='v0.5.0';
   assert.deepEqual(download.observe({repository:{release:null}},tag),{absent:'true',published:'false',id:''});
-  const good={databaseId:55,tagName:tag,isDraft:true,releaseAssets:{totalCount:1}};
+  const good={databaseId:55,tagName:tag,isDraft:true,isPrerelease:false,releaseAssets:{totalCount:1}};
   assert.equal(download.observe({repository:{release:good}},tag,'55').id,'55');
   for(const value of [undefined,null,{}, {repository:{}}, {repository:{release:0}},
     {repository:{release:{...good,databaseId:'55'}}},{repository:{release:{...good,isDraft:'true'}}},
+    {repository:{release:{...good,isPrerelease:true}}},{repository:{release:{...good,isPrerelease:undefined}}},
     {repository:{release:{...good,releaseAssets:{totalCount:6}}}}]) assert.throws(()=>download.observe(value,tag));
   assert.throws(()=>download.observe({repository:{release:good}},tag,'56'));
   assert.throws(()=>download.observe({repository:{release:null}},tag,'55'));
-  assert.equal(download.created({id:55,tag_name:tag,draft:true},'201',tag),'55');
+  assert.equal(download.created({id:55,tag_name:tag,draft:true,prerelease:false},'201',tag),'55');
   assert.throws(()=>download.created({id:55,tag_name:tag,draft:false},'201',tag));
+  assert.throws(()=>download.created({id:55,tag_name:tag,draft:true,prerelease:true},'201',tag));
+  assert.throws(()=>download.created({id:55,tag_name:tag,draft:true},'201',tag));
 });
 
 test('wrong source, wrong base and unmerged associated PRs cannot supply eligibility',async()=>{

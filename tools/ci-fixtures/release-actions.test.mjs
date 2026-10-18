@@ -39,14 +39,14 @@ test('maintained exact-tag lookup, explicit draft create and original-ID finaliz
       let data;
       if(req.method==='POST'&&req.url==='/graphql'){
         assert.deepEqual(body.variables,{owner:'fixture',repo:'owned',tag});
-        assert.ok(body.query.includes('release(tagName: $tag)'));
-        data={data:{repository:{release:release?{databaseId:55,tagName:tag,isDraft:release.draft,releaseAssets:{totalCount:0}}:null}}};
+        assert.ok(body.query.includes('release(tagName: $tag)'));assert.ok(body.query.includes('isPrerelease'));
+        data={data:{repository:{release:release?{databaseId:55,tagName:tag,isDraft:release.draft,isPrerelease:false,releaseAssets:{totalCount:0}}:null}}};
       }else if(req.method==='POST'&&req.url==='/repos/fixture/owned/releases'){
         assert.equal(release,null);assert.equal(body.tag_name,tag);assert.equal(body.target_commitish,sha);
-        assert.equal(body.draft,true);assert.equal(body.generate_release_notes,true);
-        release={id:55,tag_name:tag,draft:true};data=release;
+        assert.equal(body.draft,true);assert.equal(body.prerelease,false);assert.equal(body.generate_release_notes,true);
+        release={id:55,tag_name:tag,draft:true,prerelease:false};data=release;
       }else if(req.method==='PATCH'&&req.url==='/repos/fixture/owned/releases/55'){
-        assert.equal(release.draft,true);assert.equal(body.draft,false);
+        assert.equal(release.draft,true);assert.equal(body.draft,false);assert.equal(body.prerelease,false);
         release={...release,...body};data=release;
       }else throw new Error('Unexpected owned route');
       res.writeHead(req.method==='POST'&&req.url.endsWith('/releases')?201:200,{'content-type':'application/json'});

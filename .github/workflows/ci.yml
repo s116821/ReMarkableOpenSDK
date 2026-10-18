@@ -468,7 +468,7 @@ jobs:
           query: |
             query($owner: String!, $repo: String!, $tag: String!) {
               repository(owner: $owner, name: $repo) {
-                release(tagName: $tag) { databaseId tagName isDraft releaseAssets(first: 1) { totalCount } }
+                release(tagName: $tag) { databaseId tagName isDraft isPrerelease releaseAssets(first: 1) { totalCount } }
               }
             }
           variables: |
@@ -497,6 +497,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ env.RELEASE_SOURCE }}
           draft: true
+          prerelease: false
           generate_release_notes: true
       - name: Retain the validated exact release ID
         id: release_identity
@@ -576,7 +577,7 @@ jobs:
           query: |
             query($owner: String!, $repo: String!, $tag: String!) {
               repository(owner: $owner, name: $repo) {
-                release(tagName: $tag) { databaseId tagName isDraft releaseAssets(first: 1) { totalCount } }
+                release(tagName: $tag) { databaseId tagName isDraft isPrerelease releaseAssets(first: 1) { totalCount } }
               }
             }
           variables: |
@@ -602,4 +603,5 @@ jobs:
           repo: ${{ github.repository }}
           release_id: ${{ steps.release_identity.outputs.id }}
           draft: false
+          prerelease: false
           make_latest: legacy

@@ -12,10 +12,10 @@ Only the final main-only Release stage SHALL receive publication permission and 
 - **THEN** the final Release stage cannot mutate official tag/release state.
 
 ### Requirement: Retained bytes and original release identity govern finalization
-Release composition SHALL use maintained exact-tag lookup/create/finalize mechanisms and the qualified create-only uploader, verify retained subsets against independent expected bytes, upload only missing names, and require the complete expected set/original ID/remote tag immediately before finalization.
+Release composition SHALL use maintained exact-tag lookup/create/finalize mechanisms and the qualified create-only uploader, verify retained subsets against independent expected bytes, upload only missing names, and require the complete expected set/original ID/remote tag and stable-release metadata immediately before finalization.
 
 #### Scenario: Partial draft or conflicting state
-- **WHEN** a prior exact-ID draft contains a retained subset, conflicting bytes, or the uploader creates a replacement ID
+- **WHEN** a prior exact-ID draft contains a retained subset, conflicting bytes, a mismatched/unknown prerelease flag, or the uploader creates a replacement ID
 - **THEN** only verified missing names may be uploaded, while conflicts and changed original identity refuse finalization without overwriting retained bytes.
 
 ### Requirement: Native queuing and explicit activation scope remain bounded
