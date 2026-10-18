@@ -10,7 +10,7 @@ import test from 'node:test';
 const action = process.env.SEMANTIC_PR_ACTION;
 assert.ok(action, 'Set SEMANTIC_PR_ACTION to the pinned title Action dist/index.js');
 const bundle = resolve(action);
-const workflow = readFileSync(new URL('../.github/workflows/sdk-semantic-checks.yml', import.meta.url), 'utf8');
+const workflow = readFileSync(new URL('../.github/workflows/pr-title.yml', import.meta.url), 'utf8');
 const configuredTypes = workflow.match(/types:.*&& '([^']+)' \|\| '([^']+)'/);
 assert.ok(configuredTypes, 'Read the actual workflow type choices');
 const exec = promisify(execFile);

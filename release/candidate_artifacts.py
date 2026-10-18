@@ -22,9 +22,9 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def command(cwd, *args):
+def command(cwd, *args, env=None):
     try:
-        return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True, timeout=600).stdout
+        return subprocess.run(args, cwd=cwd, env=env, check=True, capture_output=True, text=True, timeout=600).stdout
     except subprocess.CalledProcessError as error:
         print((error.stderr or '')[-8192:], file=sys.stderr)
         raise
@@ -42,27 +42,22 @@ def build(source, sha, tag, output, cargo='cargo'):
     identity = stage_candidate(source, tag, sha, stage_dir)
     command(stage_dir, cargo, 'generate-lockfile', '--offline')
     verify_staged_source(stage_dir, allow_candidate=True)
-    assets, tests = output / 'release', output / 'tests'
+    assets, probes = output / 'release', output / 'probes'
     assets.mkdir()
-    tests.mkdir()
+    probes.mkdir()
     for target in TARGETS:
         command(stage_dir, cargo, 'build', '--locked', '--offline', '--release', '--all-features', '--lib', '--target', target)
-    test_messages = command(stage_dir, cargo, 'test', '--locked', '--offline', '--all-features', '--no-run', '--message-format=json')
-    executables = []
-    for line in test_messages.splitlines():
-        value = json.loads(line)
-        if value.get('reason') == 'compiler-artifact' and value.get('profile', {}).get('test') and value.get('executable'):
-            executable = Path(value['executable'])
-            if not executable.resolve().is_relative_to((stage_dir / 'target').resolve()):
-                raise Refusal('Compiler test executable escaped build output')
-            copied = tests / executable.name
-            if copied.exists():
-                raise Refusal('Ambiguous test executable name')
-            shutil.copyfile(executable, copied)
-            copied.chmod(0o700)
-            executables.append({'name': copied.name, 'sha256': digest(copied)})
-    if not executables:
-        raise Refusal('No actual host test executable was built')
+    # Unit suites belong to Checks. Integration consumes this distinct external
+    # consumer linked against the exact release library and dependency graph.
+    stem = 'lib' + identity['package_name'].replace('-', '_') + '.rlib'
+    host = stage_dir / 'target' / TARGETS[0] / 'release'
+    probe = probes / 'sdk-consumer-probe'
+    command(source, 'rustc', '--edition=2024', str(source / 'release/sdk_consumer_probe.rs'),
+            '--extern', 'remarkable_open_sdk=' + str(host / stem),
+            '-L', 'dependency=' + str(host / 'deps'), '-o', str(probe),
+            env={**os.environ, 'SDK_PROBE_TAG': tag, 'SDK_PROBE_SHA': sha})
+    probe.chmod(0o700)
+    executables = [{'name': probe.name, 'sha256': digest(probe)}]
     command(stage_dir, cargo, 'package', '--locked', '--offline', '--no-verify')
     crate = stage_dir / 'target/package' / f"{identity['package_name']}-{identity['build_version']}.crate"
     manifest = distribution_manifest(stage_dir, crate, allow_candidate=True)
@@ -78,8 +73,8 @@ def build(source, sha, tag, output, cargo='cargo'):
     manifest['library_abi'] = 'requires matching compiler/dependency graph; native operations unsupported'
     (assets / 'manifest.json').write_text(json.dumps(manifest, sort_keys=True, indent=2) + '\n')
     verify_downloaded_assets(manifest, assets)
-    receipt = {'schema': 1, 'source_sha': sha, 'candidate_tag': tag, 'package_name': identity['package_name'],
-               'manifest_sha256': digest(assets / 'manifest.json'), 'host_tests': executables}
+    receipt = {'schema': 2, 'source_sha': sha, 'candidate_tag': tag, 'package_name': identity['package_name'],
+               'manifest_sha256': digest(assets / 'manifest.json'), 'host_probes': executables}
     (output / 'build-receipt.json').write_text(json.dumps(receipt, sort_keys=True, indent=2) + '\n')
     # Transfer only tested artifacts/receipt; no full build tree, keys or caches.
     shutil.rmtree(stage_dir)
@@ -88,13 +83,13 @@ def build(source, sha, tag, output, cargo='cargo'):
     return receipt
 
 
-def verify(output, sha, tag, receipt_sha, *, execute_tests=False):
+def verify(output, sha, tag, receipt_sha, *, execute_probes=False):
     output = output.resolve()
     receipt_path = output / 'build-receipt.json'
     if digest(receipt_path) != receipt_sha:
         raise Refusal('Build receipt differs from trusted build-job output')
     receipt = json.loads(receipt_path.read_text())
-    if receipt.get('source_sha') != sha or receipt.get('candidate_tag') != tag or receipt.get('schema') != 1:
+    if receipt.get('source_sha') != sha or receipt.get('candidate_tag') != tag or receipt.get('schema') != 2:
         raise Refusal('Candidate/source receipt identity differs')
     assets = output / 'release'
     if digest(assets / 'manifest.json') != receipt['manifest_sha256']:
@@ -103,24 +98,19 @@ def verify(output, sha, tag, receipt_sha, *, execute_tests=False):
     if manifest.get('source_sha') != sha or manifest.get('git_tag') != tag or manifest.get('build_identity') != 'candidate':
         raise Refusal('Build manifest candidate/source differs')
     verify_downloaded_assets(manifest, assets)
-    test_names = set()
-    for entry in receipt.get('host_tests', []):
+    probe_entries = receipt.get('host_probes', [])
+    if len(probe_entries) != 1:
+        raise Refusal('Exactly one external consumer probe is required')
+    probe_names = set()
+    for entry in probe_entries:
         name = entry.get('name')
-        if not isinstance(name, str) or Path(name).name != name or name in test_names:
-            raise Refusal('Invalid or duplicate host test name')
-        test_names.add(name)
-        path = output / 'tests' / name
-        if digest(path) != entry['sha256']:
-            raise Refusal('Transferred host test bytes differ')
-        if execute_tests:
-            path.chmod(0o700)
-            report = command(output, str(path))
-            summaries = [line for line in report.splitlines() if line.startswith('test result:')]
-            if not summaries:
-                raise Refusal('Built host test executable did not report completion')
-            print(json.dumps({'built_test': name, 'completion': summaries}))
-    if not test_names or {p.name for p in (output / 'tests').iterdir()} != test_names:
-        raise Refusal('Missing or undeclared host test artifact')
+        if not isinstance(name, str) or Path(name).name != name or name in probe_names:
+            raise Refusal('Invalid or duplicate consumer probe name')
+        probe_names.add(name)
+        if digest(output / 'probes' / name) != entry['sha256']:
+            raise Refusal('Transferred consumer probe bytes differ')
+    if {p.name for p in (output / 'probes').iterdir()} != probe_names:
+        raise Refusal('Missing or undeclared consumer probe artifact')
     # Inspect the actual transferred source crate rather than a second source checkout.
     crates = [e for e in manifest['distributions'] if e['kind'] == 'rust-source-crate']
     if len(crates) != 1:
@@ -135,6 +125,15 @@ def verify(output, sha, tag, receipt_sha, *, execute_tests=False):
         if package['name'] != receipt['package_name'] or package['version'] != tag[1:]:
             raise Refusal('Transferred source crate identity differs')
     verify_downloaded_assets(manifest, assets)
+    if execute_probes:
+        path = output / 'probes' / probe_entries[0]['name']
+        path.chmod(0o700)
+        observed = json.loads(command(output, str(path), tag, sha))
+        expected = {'probe': 'sdk-consumer', 'candidate': tag, 'source': sha,
+                    'native_operations': 'unsupported'}
+        if observed != expected:
+            raise Refusal('Retained external consumer identity differs')
+        print(json.dumps({'retained_consumer': observed}))
     return manifest
 
 
@@ -157,8 +156,8 @@ def main():
                     stream.write(f'{key}={item}\n')
         print(json.dumps(value))
     else:
-        verify(args.output, args.sha, args.tag, args.receipt_sha, execute_tests=args.mode == 'integration')
-        print(json.dumps({'verified_source': args.sha, 'candidate': args.tag, 'executed_built_tests': args.mode == 'integration'}))
+        verify(args.output, args.sha, args.tag, args.receipt_sha, execute_probes=args.mode == 'integration')
+        print(json.dumps({'verified_source': args.sha, 'candidate': args.tag, 'executed_retained_consumer': args.mode == 'integration'}))
 
 
 if __name__ == '__main__':
