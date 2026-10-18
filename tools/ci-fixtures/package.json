@@ -1,0 +1,11 @@
+{
+  "name": "sdk-ci-fixtures",
+  "private": true,
+  "scripts": {
+    "test": "node --test pipeline.test.mjs"
+  },
+  "devDependencies": {
+    "@actions/expressions": "0.3.61",
+    "yaml": "2.9.1"
+  }
+}

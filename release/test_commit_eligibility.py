@@ -80,7 +80,7 @@ class ActualCommitEligibility(unittest.TestCase):
     def test_actual_workflow_push_observation_refuses_ambiguous_history(self):
         import textwrap
         f = self.fixture
-        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/sdk-candidate-checks.yml').read_text()
+        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
         block = workflow.split('      - name: Require exactly one observed main first-parent commit\n', 1)[1]
         script = block.split('        run: |\n', 1)[1].split('      - uses:', 1)[0]
         script = textwrap.dedent(script)

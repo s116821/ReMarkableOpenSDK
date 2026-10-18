@@ -37,15 +37,15 @@ class TransferredArtifactRefusals(unittest.TestCase):
         crate = next(e for e in manifest['distributions'] if e['kind'] == 'rust-source-crate')
         (self.output / 'release' / crate['name']).write_bytes(b'owned tampered crate')
         with self.assertRaises(Refusal):
-            verify(self.output, self.sha, self.tag, self.digest, execute_tests=True)
+            verify(self.output, self.sha, self.tag, self.digest, execute_probes=True)
 
-    def test_changed_test_executable_is_never_executed(self):
-        executable = self.output / 'tests' / self.receipt['host_tests'][0]['name']
+    def test_changed_consumer_executable_is_never_executed(self):
+        executable = self.output / 'probes' / self.receipt['host_probes'][0]['name']
         marker = self.root / 'must-not-run'
         executable.write_text('#!/bin/sh\ntouch "' + str(marker) + '"\n')
         executable.chmod(0o700)
         with self.assertRaises(Refusal):
-            verify(self.output, self.sha, self.tag, self.digest, execute_tests=True)
+            verify(self.output, self.sha, self.tag, self.digest, execute_probes=True)
         self.assertFalse(marker.exists())
 
     def test_symlink_library_is_refused(self):
@@ -56,4 +56,4 @@ class TransferredArtifactRefusals(unittest.TestCase):
         artifact.rename(regular)
         artifact.symlink_to(regular)
         with self.assertRaises(Refusal):
-            verify(self.output, self.sha, self.tag, self.digest, execute_tests=True)
+            verify(self.output, self.sha, self.tag, self.digest, execute_probes=True)
