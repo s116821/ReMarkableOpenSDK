@@ -28,6 +28,8 @@ jobs:
     if: ${{ !cancelled() && (github.event_name == 'push' || needs.title.result == 'success') }}
     outputs:
       application: ${{ steps.admission.outputs.application }}
+      uploader_artifact_id: ${{ steps.uploader_artifacts.outputs.artifact-id }}
+      uploader_provenance_sha: ${{ steps.uploader.outputs.provenance_sha256 }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -165,6 +167,7 @@ jobs:
           path: .ci-uploader
           persist-credentials: false
       - name: Build and audit the exact maintained uploader recipe
+        id: uploader
         if: steps.admission.outputs.application == 'true'
         run: |
           python release/qualify_uploader.py --source .ci-uploader --output "$RUNNER_TEMP/qualified-sdk-uploader"
@@ -174,6 +177,14 @@ jobs:
         run: node --test release/fixtures/uploader.test.mjs
         env:
           UPLOADER_ACTION: ${{ runner.temp }}/qualified-sdk-uploader
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        id: uploader_artifacts
+        if: steps.admission.outputs.application == 'true'
+        with:
+          name: verified-sdk-uploader-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualified-sdk-uploader/
+          if-no-files-found: error
+          retention-days: 7
       - name: Qualify actual compact workflow graph
         if: steps.admission.outputs.application == 'true'
         run: |
@@ -324,6 +335,19 @@ jobs:
           path: ${{ runner.temp }}/sdk-candidate
           artifact-ids: ${{ needs.build.outputs.artifact_id }}
           merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: ${{ runner.temp }}/qualified-sdk-uploader
+          artifact-ids: ${{ needs.checks.outputs.uploader_artifact_id }}
+          merge-multiple: true
+      - name: Verify the retained uploader against trusted Checks provenance
+        env:
+          SDK_UPLOADER_FIXTURE: ${{ runner.temp }}/qualified-sdk-uploader
+          SDK_UPLOADER_PROVENANCE_SHA: ${{ needs.checks.outputs.uploader_provenance_sha }}
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          python release/qualify_uploader.py --output "$SDK_UPLOADER_FIXTURE" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc --expected-provenance "$SDK_UPLOADER_PROVENANCE_SHA"
+          python -m unittest discover -s release -p test_uploader_transfer.py -v
       - name: Verify and execute the retained external SDK consumer
         shell: bash
         env:

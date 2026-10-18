@@ -49,11 +49,15 @@ def qualify(source, destination):
     evidence["files"] = {p.relative_to(destination).as_posix(): sha256(p)
                          for p in sorted(destination.rglob("*")) if p.is_file()}
     (destination / "provenance.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-    output(bundle_sha256=evidence["files"]["dist/index.js"])
+    output(bundle_sha256=evidence["files"]["dist/index.js"],
+           provenance_sha256=sha256(destination / "provenance.json"))
     return evidence
 
-def verify(directory, expected_bundle):
-    record = json.loads((directory / "provenance.json").read_text(encoding="utf-8"))
+def verify(directory, expected_bundle, *, expected_provenance=None):
+    provenance = directory / "provenance.json"
+    if expected_provenance is not None and sha256(provenance) != expected_provenance:
+        raise ValueError("Uploader provenance differs from trusted Checks identity")
+    record = json.loads(provenance.read_text(encoding="utf-8"))
     if record["commit"] != PIN or record["upstream"] != UPSTREAM:
         raise ValueError("Wrong uploader source identity")
     for name in ("package.json", "package-lock.json"):
@@ -73,9 +77,11 @@ if __name__ == "__main__":
     parser.add_argument("--source", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--expected-bundle")
+    parser.add_argument("--expected-provenance")
     args = parser.parse_args()
     if args.expected_bundle:
-        verify(args.output.resolve(), args.expected_bundle)
+        verify(args.output.resolve(), args.expected_bundle,
+               expected_provenance=args.expected_provenance)
     elif args.source:
         qualify(args.source.resolve(), args.output.resolve())
     else:
