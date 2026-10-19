@@ -55,14 +55,14 @@ module.exports.observe = (data, tag, expectedId) => {
   }
   if (!release || typeof release !== 'object' || release.tagName !== tag ||
       !Number.isSafeInteger(release.databaseId) || release.databaseId <= 0 ||
-      typeof release.isDraft !== 'boolean' || !release.releaseAssets ||
+      typeof release.isDraft !== 'boolean' || release.isPrerelease !== false || !release.releaseAssets ||
       !Number.isSafeInteger(release.releaseAssets.totalCount) ||
       release.releaseAssets.totalCount < 0 || release.releaseAssets.totalCount > 5 ||
       (expectedId && String(release.databaseId) !== expectedId)) throw new Error('Invalid exact release observation');
   return {absent:'false',published:String(!release.isDraft),id:String(release.databaseId)};
 };
 module.exports.created = (data, status, tag) => {
-  if (status !== '201' || !data || data.tag_name !== tag || data.draft !== true ||
+  if (status !== '201' || !data || data.tag_name !== tag || data.draft !== true || data.prerelease !== false ||
       !Number.isSafeInteger(data.id) || data.id <= 0) throw new Error('Invalid created draft identity');
   return String(data.id);
 };

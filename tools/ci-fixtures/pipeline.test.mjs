@@ -26,7 +26,7 @@ const runs=job=>job.steps.filter(s=>s.run).map(s=>s.run).join('\n');
 
 test('one compact core plus reusable title, with one explicit Windows platform job',()=>{
   assert.deepEqual(readdirSync(new URL('../../.github/workflows/',import.meta.url)).sort(),['ci.yml','pr-title.yml']);
-  assert.deepEqual(Object.keys(flow.jobs),['title','checks','portable_checks','build','integration']);
+  assert.deepEqual(Object.keys(flow.jobs),['title','checks','portable_checks','build','integration','release']);
   assert.equal(flow.jobs.title.uses,'./.github/workflows/pr-title.yml');
   assert.equal(flow.jobs.checks['runs-on'],'ubuntu-latest');
   assert.equal(flow.jobs.portable_checks['runs-on'],'windows-latest');
@@ -136,9 +136,11 @@ test('retained probe is a real built-library consumer rather than unit replay',(
   assert.ok(upload.with.path.includes('/probes/'));
   assert.equal(upload.with.path.includes('/tests/'),false);
 });
-test('no compact job receives publication permission or activation',()=>{
+test('only the final Release job receives publication permission or activation',()=>{
   assert.equal(flow.permissions.contents,'read');assert.equal(title.permissions.contents,'read');
-  for(const job of Object.values(flow.jobs)){
+  assert.equal(flow.jobs.release.permissions.contents,'write');
+  for(const [name,job] of Object.entries(flow.jobs)){
+    if(name==='release')continue;
     assert.notEqual(job.permissions?.contents,'write');
     if(!job.steps)continue;
     for(const step of job.steps){
@@ -161,4 +163,76 @@ test('main successors explicitly override implicit status while retaining their 
 test('workflow cancellation refuses every application stage even after prior success',()=>{
   for(const name of ['checks','portable_checks','build','integration'])
     assert.equal(evaluate(flow.jobs[name].if,good(),{cancelled:true}),'false',name);
+});
+
+
+test('final Release admits only uncancelled eligible main with all four successful stages',()=>{
+  const c=good();c.github={event_name:'push',ref:'refs/heads/main'};
+  c.needs.integration={result:'success'};
+  assert.deepEqual(flow.jobs.release.needs,['checks','portable_checks','build','integration']);
+  assert.equal(evaluate(flow.jobs.release.if,c),'true');
+  assert.equal(evaluate(flow.jobs.release.if,c,{cancelled:true}),'false');
+  for(const name of flow.jobs.release.needs)for(const result of ['failure','skipped','cancelled']){
+    const bad=structuredClone(c);bad.needs[name].result=result;
+    assert.equal(evaluate(flow.jobs.release.if,bad),'false',`${name}/${result}`);
+  }
+  for(const mutate of [x=>x.github.event_name='pull_request',x=>x.github.ref='refs/heads/topic',x=>x.needs.checks.outputs.application='false']){
+    const bad=structuredClone(c);mutate(bad);assert.equal(evaluate(flow.jobs.release.if,bad),'false');
+  }
+});
+
+test('final Release consumes exact tested artifacts without rebuilding or replaying probes',()=>{
+  const release=flow.jobs.release,steps=release.steps,text=runs(release);
+  assert.equal(release.env.RELEASE_TAG,'${{ needs.build.outputs.tag }}');
+  const downloads=steps.filter(s=>s.uses?.startsWith('actions/download-artifact@'));
+  assert.deepEqual(downloads.map(s=>s.with['artifact-ids']),[
+    '${{ needs.build.outputs.artifact_id }}','${{ needs.checks.outputs.uploader_artifact_id }}']);
+  for(const step of downloads)assert.equal(step.with.name,undefined);
+  const verified=steps.findIndex(s=>s.name==='Revalidate exact tested build');
+  const eligible=steps.findIndex(s=>s.name==='Require exact merged main PR before any official tag');
+  const tag=steps.findIndex(s=>s.name==='Bind official tag only after predecessor success');
+  assert.ok(verified>=0&&eligible>verified&&tag>eligible);
+  assert.equal(steps[verified].env.RECEIPT,'${{ needs.build.outputs.receipt_sha }}');
+  assert.equal(steps[verified].env.BUILT_SOURCE,'${{ needs.build.outputs.source_sha }}');
+  assert.equal(steps[verified].env.UPLOADER_PROVENANCE,'${{ needs.checks.outputs.uploader_provenance_sha }}');
+  assert.ok(steps[verified].run.includes('--expected-provenance "$UPLOADER_PROVENANCE"'));
+  assert.ok(steps[verified].run.includes('candidate_artifacts.py verify'));
+  assert.equal(/cargo |rustc |npm |unittest|candidate_artifacts.py (?:build|integration)/.test(text),false);
+  assert.equal(text.includes('pip-audit'),false,'audit remains owned by Checks');
+  assert.ok(steps[tag].run.includes('test "$candidate" = "$RELEASE_TAG"'));
+  assert.ok(steps[tag].run.includes('verify_remote_tag'));
+  assert.ok(steps[tag].run.includes('--no-commit --no-changelog --skip-build --push --no-vcs-release'));
+});
+
+test('maintained finalization retains original ID and verified missing-only bytes',()=>{
+  const steps=flow.jobs.release.steps;
+  const upload=steps.find(s=>s.id==='upload');
+  assert.equal(upload.uses,'./.qualified/uploader');
+  for(const key of ['overwrite','promote','prerelease','make_latest'])assert.equal(upload.with[key],false,key);
+  for(const key of ['draft','check_duplicates','file_glob'])assert.equal(upload.with[key],true,key);
+  const replacement=steps.findIndex(s=>s.name==='Refuse a replacement uploader release ID');
+  const complete=steps.findIndex(s=>s.name==='Verify complete bytes and re-observe remote tag before finalization');
+  const observed=steps.findIndex(s=>s.name==='Require the same release before its final mutation');
+  const publish=steps.findIndex(s=>s.name==='Finalize only the verified exact draft');
+  assert.ok(replacement>=0&&complete>replacement&&observed>complete&&publish>observed);
+  assert.equal(steps[replacement].env.ORIGINAL_ID,'${{ steps.release_identity.outputs.id }}');
+  assert.equal(steps[replacement].env.UPLOADED_ID,'${{ steps.upload.outputs.release_id }}');
+  assert.ok(steps[replacement].run.includes('test "$UPLOADED_ID" = "$ORIGINAL_ID"'));
+  assert.ok(steps[complete].run.includes('verify_downloaded_assets'));
+  assert.ok(steps[observed].with.script.includes('process.env.RELEASE_ID'));
+  assert.equal(steps[publish].with.route,'PATCH /repos/{repo}/releases/{release_id}');
+  assert.equal(steps[publish].with.release_id,'${{ steps.release_identity.outputs.id }}');
+  assert.equal(steps[publish].with.draft,false);
+  for(const [name,job] of Object.entries(flow.jobs))for(const step of job.steps??[])
+    if(/^(POST|PATCH|DELETE) /.test(step.with?.route??''))assert.equal(name,'release');
+});
+
+test('native queue covers main candidate through publication and keeps PR runs independent',()=>{
+  assert.equal(flow.concurrency.queue,'max');
+  assert.equal(flow.concurrency['cancel-in-progress'],false);
+  const c=good();c.github.run_id='one';
+  assert.equal(evaluate(flow.concurrency.group,c),'one');
+  c.github.run_id='two';assert.equal(evaluate(flow.concurrency.group,c),'two');
+  c.github.event_name='push';assert.equal(evaluate(flow.concurrency.group,c),'sdk-main-delivery');
+  assert.equal(flow.jobs.release.concurrency,undefined,'one workflow lock avoids a nested deadlock');
 });
