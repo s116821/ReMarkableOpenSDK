@@ -15,6 +15,25 @@ component context instead of using traversal order or keyboard focus. Its
 result is a bounded observation, never an action token or an atomic snapshot.
 The complete native mapping and getter behavior still need exact-device review.
 
+Discovery follows the window's visual item tree and checks direct QObject
+children for the Reader helper. A valid helper must have the visual Reader as
+its direct parent, so nonvisual service/model descendants are outside this
+candidate relationship. The whole bounded visual census completes before an
+anchor is selected; it does not stop at the first match or skip rendered
+subtrees. Limits are 512 visual items, 32 levels, 64 direct or visual children
+per item, and 640 retained objects including later relationship checks. Node,
+depth and child limits have distinct refusal codes. The original cooperative
+one-second sampling limit remains unchanged.
+
+Visited visual items watch visual-child and name changes. Direct QObject
+children have separate name/destruction guards, bounded by the same 512-by-64
+census, without consuming the smaller relationship-object budget. A late
+duplicate-anchor rename or externally owned visual attachment, including an
+A-to-B-to-A reversal, invalidates the sample. QObject-valued property results
+are guarded before the post-read cancellation callback can run. These guards
+detect destruction; they do not extend native ownership or make a getter that
+returns a dangling pointer valid.
+
 The observer, notification-order fixture and logical-close fixture answer
 different questions. They must not be combined into a claim of native success.
 
@@ -87,6 +106,18 @@ pre-observation refusal, not a page sample or malformed JSON. Unobserved fields
 retain conservative defaults; their error/loading flags do not report actual
 Reader errors. Keep wire validation, observation acceptance and the independent
 recovery outcome separate.
+
+Two earlier exact-candidate stock experiments ended without page identity. The
+first returned `request-refused` before sampling; interprocess fixtures later
+reproduced the direct-publication race, without proving it caused that run.
+The second admitted the atomic request and returned `census-cap` after about
+40 milliseconds. That earlier guard combined 256 discovered QObject nodes and
+16 levels, so its receipt does not distinguish the exhausted bound. These
+results motivated the visual-only discovery change above; they do not qualify
+that revised implementation on stock Reader. Both attempts were consumed,
+their independent stock restoration was checked, and their task-owned runtime
+directories were archived and removed. Preservation and recovery results are
+separate from the failed primary observations.
 
 Consumers must reject a result unless it is a regular single-link mode0600 file
 under the same mode0700 root, its pending sibling is absent, and fresh process,

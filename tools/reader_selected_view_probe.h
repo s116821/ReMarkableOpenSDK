@@ -56,18 +56,22 @@ class Sample {
     const std::function<bool()> &permit;
     Epoch epoch;
     QList<QPointer<QObject>> retained;
+    // A separate bounded discovery census; these objects do not consume the
+    // smaller relationship-object budget merely because they are direct children.
+    QList<QPointer<QObject>> discoveryGuards;
     QList<QPair<QObject *, int>> watched;
     quint64 baseline = 0;
     QString failure;
 
     bool no(const char *reason) { if (failure.isEmpty()) failure = QString::fromLatin1(reason); return false; }
     bool retain(QObject *p) {
-        if (!p || p->thread() != QThread::currentThread()) return no("object-thread-or-lifetime");
+        QPointer<QObject> pin = p;
+        if (!pin || pin->thread() != QThread::currentThread()) return no("object-thread-or-lifetime");
         for (const auto &old : retained) if (old == p) return true;
-        if (retained.size() >= 256) return no("object-cap");
+        if (retained.size() >= 640) return no("object-cap");
         retained.append(p);
         QObject::connect(p, &QObject::destroyed, &epoch, &Epoch::changed, Qt::DirectConnection);
-        return true;
+        return pin ? true : no("object-thread-or-lifetime");
     }
     bool live(bool consultPermit = true) {
         if (!app || QCoreApplication::closingDown() || QThread::currentThread() != app->thread() ||
@@ -87,7 +91,9 @@ class Sample {
         return true;
     }
     bool signal(QObject *p, const char *signature) {
-        if (!live() || !retain(p)) return false;
+        QPointer<QObject> pin = p;
+        if (!retain(pin) || !live() || !pin) return false;
+        p = pin.data();
         const int i = p->metaObject()->indexOfSignal(signature);
         if (i < 0) return no("notification-missing");
         const QPair<QObject *, int> key(p, i);
@@ -99,7 +105,9 @@ class Sample {
         return live();
     }
     bool watch(QObject *p, const char *name) {
-        if (!live() || !retain(p)) return false;
+        QPointer<QObject> pin = p;
+        if (!retain(pin) || !live() || !pin) return false;
+        p = pin.data();
         const QMetaObject *m = p->metaObject();
         if (m->propertyCount() > 512) return no("property-cap");
         const int i = m->indexOfProperty(name);
@@ -111,14 +119,36 @@ class Sample {
         return signal(p, property.notifySignal().methodSignature().constData());
     }
     bool watchMany(QObject *p, std::initializer_list<const char *> names) {
-        for (const char *name : names) if (!watch(p, name)) return false;
+        QPointer<QObject> pin = p;
+        for (const char *name : names) if (!pin || !watch(pin, name)) return false;
         return true;
     }
+    bool guardDiscovery(QObject *p) {
+        QPointer<QObject> pin = p;
+        if (!pin || pin->thread() != QThread::currentThread()) return no("object-thread-or-lifetime");
+        if (discoveryGuards.size() >= 512 * 64) return no("discovery-guard-cap");
+        discoveryGuards.append(pin);
+        // Install before consulting permit: a callback can otherwise rename or
+        // delete a previously scanned direct child without delivering an event.
+        if (!QObject::connect(pin, &QObject::destroyed, &epoch, &Epoch::changed, Qt::DirectConnection) || !pin ||
+            !QObject::connect(pin, &QObject::objectNameChanged, &epoch, &Epoch::changed, Qt::DirectConnection))
+            return no("notification-connect");
+        return live();
+    }
     QVariant value(QObject *p, const char *name) {
-        if (!live() || !p) return {};
+        QPointer<QObject> pin = p;
+        if (!retain(pin) || !live() || !pin) return {};
+        p = pin.data();
         const int i = p->metaObject()->indexOfProperty(name);
         if (i < 0) { no("property-missing"); return {}; }
         const QVariant v = p->metaObject()->property(i).read(p);
+        // A QVariant holds a bare QObject pointer. Pin a nonnull result before
+        // post-read permit callbacks; null prefetched neighbors remain valid.
+        // This assumes an accessor returns a live pointer, not corrupt storage.
+        if (v.metaType().flags().testFlag(QMetaType::PointerToQObject)) {
+            QPointer<QObject> returned = v.value<QObject *>();
+            if (returned && !retain(returned)) return {};
+        }
         if (!live() || !v.isValid()) { no("property-read"); return {}; }
         return v;
     }
@@ -150,7 +180,9 @@ class Sample {
         out = v.toBool(); return failure.isEmpty() && live();
     }
     bool enumeration(QObject *p, const char *name, const char *key, int &out, int &wanted) {
-        if (!live()) return false;
+        QPointer<QObject> pin = p;
+        if (!retain(pin) || !live() || !pin) return false;
+        p = pin.data();
         const int i = p->metaObject()->indexOfProperty(name);
         if (i < 0) return no("enum-missing");
         const QMetaProperty property = p->metaObject()->property(i);
@@ -172,7 +204,9 @@ class Sample {
         no("lexical-root-missing"); return nullptr;
     }
     bool visual(QQuickItem *p, bool consultPermit = true) {
-        if (!live(consultPermit) || !p) return false;
+        QPointer<QQuickItem> pin = p;
+        if (!retain(pin) || !live(consultPermit) || !pin) return false;
+        p = pin.data();
         return p->thread() == app->thread() && p->window() == window && p->isVisible() && p->isEnabled() && live(consultPermit);
     }
     bool id(QObject *document, QString &out) {
@@ -206,27 +240,39 @@ public:
         if (!failure.isEmpty() || !live() || !retain(window) || !retain(root) || !retain(engine)) return refuse();
         if (!signal(app, "focusWindowChanged(QWindow*)") || !signal(window, "activeChanged()") ||
             !signal(window, "visibleChanged(bool)")) return refuse();
-        struct Node { QPointer<QObject> p; int depth; };
+        // Search the visual hierarchy completely within its bounds. The helper
+        // must be a direct QObject child of a visual Reader root, so unrelated
+        // nonvisual service/model subtrees cannot contain a valid candidate.
+        struct Node { QPointer<QQuickItem> p; int depth; };
         QList<Node> nodes{{root.data(), 0}};
         QList<QPointer<QObject>> helpers, containers;
         for (qsizetype n = 0; n < nodes.size(); ++n) {
-            QPointer<QObject> p = nodes[n].p;
+            QPointer<QQuickItem> p = nodes[n].p;
             if (!live() || !p || !retain(p)) return refuse();
+            if (!signal(p, "childrenChanged()") || !watch(p, "objectName")) return refuse();
             const QString name = p->objectName();
             if (!live()) return refuse();
-            if (name == QStringLiteral("DocumentView.ToolSettings")) helpers.append(p);
-            if (name == QStringLiteral("SceneViewsRoot")) containers.append(p);
-            QList<QPointer<QObject>> children;
-            for (QObject *child : p->children()) children.append(child);
-            if (auto *item = qobject_cast<QQuickItem *>(p.data())) {
-                for (QQuickItem *child : item->childItems()) if (!children.contains(child)) children.append(child);
+            if (name == QStringLiteral("SceneViewsRoot")) containers.append(QPointer<QObject>(p.data()));
+            QList<QPointer<QObject>> direct;
+            for (QObject *child : p->children()) direct.append(child);
+            if (direct.size() > 64) { no("direct-child-cap"); return refuse(); }
+            for (const auto &candidate : direct) {
+                if (!guardDiscovery(candidate)) return refuse();
+                if (candidate->objectName() == QStringLiteral("DocumentView.ToolSettings")) {
+                    if (!retain(candidate) || !live()) return refuse();
+                    helpers.append(candidate);
+                }
             }
-            if (children.size() > 64) { no("child-cap"); return refuse(); }
+            QList<QPointer<QQuickItem>> children;
+            for (QQuickItem *child : p->childItems()) children.append(child);
+            if (!live()) return refuse();
+            if (children.size() > 64) { no("visual-child-cap"); return refuse(); }
             for (const auto &child : children) {
                 bool seen = false;
                 for (const auto &old : nodes) if (old.p == child) seen = true;
                 if (seen) continue;
-                if (nodes.size() >= 256 || nodes[n].depth >= 16) { no("census-cap"); return refuse(); }
+                if (nodes.size() >= 512) { no("visual-node-cap"); return refuse(); }
+                if (nodes[n].depth >= 32) { no("visual-depth-cap"); return refuse(); }
                 nodes.append({child, nodes[n].depth + 1});
             }
         }
@@ -252,8 +298,9 @@ public:
         for (int depth = 0; sceneMeta && depth < 16; ++depth, sceneMeta = sceneMeta->superClass())
             if (qstrcmp(sceneMeta->className(), "SceneView") == 0) { nativeScene = true; break; }
         if (!nativeScene || !live()) { no("native-scene-type"); return refuse(); }
-        for (QQuickItem *item : {reader.data(), device.data(), container.data(), current.data()})
-            if (!watchMany(item, {"parent", "visible", "enabled"}) || !signal(item, "windowChanged(QQuickWindow*)")) return refuse();
+        const QList<QPointer<QQuickItem>> visualOwners{reader, device, container, current};
+        for (const auto &item : visualOwners)
+            if (!item || !watchMany(item, {"parent", "visible", "enabled"}) || !signal(item, "windowChanged(QQuickWindow*)")) return refuse();
         if (!watchMany(document, {"id", "pageCount", "loadError"}) || !signal(document, "pageMapChanged()") ||
             !watchMany(controller, {"pageId", "working"}) ||
             !watchMany(current, {"document", "controller", "pageId", "status", "pageStatus", "awaitingInitialTileSet", "tileManager"})) return refuse();

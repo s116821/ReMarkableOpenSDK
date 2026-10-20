@@ -1,8 +1,10 @@
 # Selected Reader observation experiment
 
 This increment investigates existing tasks 2.6 and 2.9. It introduces no public
-capability or supported native profile. The selected activation remains held;
-owned-fixture verification does not authorize loading a payload into xochitl.
+capability or supported native profile. Each native experiment requires its own
+current authorization and exact activation/recovery admission. Owned-fixture
+verification alone does not authorize loading a payload into xochitl. Historical
+held or consumed attempts are not reusable candidate admission.
 
 The experiment follows a supplied current window to a unique Reader component,
 resolves that component's own scoped `sceneView` id, and reads its selected

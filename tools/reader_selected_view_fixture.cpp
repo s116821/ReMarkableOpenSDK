@@ -80,9 +80,10 @@ public:
     PageStatus pageState = Ready;
     bool awaiting = false;
     mutable std::function<void()> pageRead;
+    mutable std::function<void()> tilesRead;
     QObject *document() const { return doc; }
     QObject *controller() const { return control; }
-    QObject *tileManager() const { return tiles; }
+    QObject *tileManager() const { if (tilesRead) { auto f = std::move(tilesRead); tilesRead = {}; f(); } return tiles; }
     void setDocument(QObject *p) { if (p != doc) { doc = p; emit documentChanged(); } }
     void setController(QObject *p) { if (p != control) { control = p; emit controllerChanged(); } }
     void setTileManager(QObject *p) { if (p != tiles) { tiles = p; emit tileManagerChanged(); } }
@@ -288,13 +289,103 @@ int main(int argc, char **argv) {
     }
     {
         Fixture f;
+        QObject services(f.window.contentItem());
+        QObject *tail = &services;
+        for (int i = 0; i < 700; ++i) tail = new QObject(tail);
+        tail->setObjectName("DocumentView.ToolSettings");
+        require(f.sample().observed, "irrelevant nonvisual descendants cannot be a direct Reader helper");
+    }
+    {
+        Fixture f;
+        // Discovery guards have their own bounded storage, not the 640-object
+        // relationship budget. These direct objects still need name epochs.
+        for (int i = 0; i < 20; ++i) {
+            auto *branch = new QQuickItem(f.window.contentItem());
+            for (int j = 0; j < 40; ++j) new QObject(branch);
+        }
+        require(f.sample().observed, "800 unrelated direct nonvisual children do not exhaust relationship retention");
+    }
+    for (const bool aba : {false, true}) {
+        Fixture f;
+        QObject lateHelper(f.reader);
+        f.current->pageRead = [&] {
+            lateHelper.setObjectName("DocumentView.ToolSettings");
+            if (aba) lateHelper.setObjectName({});
+        };
+        const auto r = f.sample();
+        refused(r, "late direct helper rename and rename ABA invalidate completed census");
+        require(r.refusal == "generation-changed", "late name change is captured by discovery epoch");
+    }
+    for (const bool aba : {false, true}) {
+        Fixture f;
+        QObject externalOwner;
+        QQuickItem lateContainer;
+        lateContainer.setParent(&externalOwner);
+        lateContainer.setObjectName("SceneViewsRoot");
+        f.current->pageRead = [&] {
+            lateContainer.setParentItem(f.window.contentItem());
+            if (aba) lateContainer.setParentItem(nullptr);
+        };
+        const auto r = f.sample();
+        refused(r, "external QObject-owned visual attachment and ABA invalidate completed census");
+        require(r.refusal == "generation-changed", "visual child change is captured without QObject reparenting");
+    }
+    {
+        Fixture f;
+        auto returned = std::make_unique<TilesFixture>();
+        f.current->setTileManager(returned.get());
+        bool propertyReturned = false, deletedInPermit = false;
+        f.current->tilesRead = [&] { propertyReturned = true; };
+        const auto r = reader_selected::observe(&f.window, [&] {
+            if (propertyReturned && returned) { returned.reset(); deletedInPermit = true; }
+            return true;
+        });
+        require(deletedInPermit, "parentless result deleted during immediate post-read permit callback");
+        refused(r, "newly returned QObject is retained before post-read permit can delete it");
+        require(r.refusal == "generation-changed", "returned object destruction invalidates epoch before pointer reuse");
+    }
+    {
+        Fixture f;
+        QQuickItem chain(f.window.contentItem());
+        QQuickItem *tail = &chain;
+        for (int i = 0; i < 20; ++i) tail = new QQuickItem(tail);
+        f.reader->setParentItem(tail);
+        require(f.sample().observed, "visual Reader below legacy depth remains in the bounded visual census");
+        // Restore visual ownership before the temporary chain is destroyed.
+        f.reader->setParentItem(f.window.contentItem());
+    }
+    {
+        Fixture f;
+        QQuickItem duplicate(f.window.contentItem()); duplicate.setObjectName("SceneViewsRoot");
+        refused(f.sample(), "visual census preserves container ambiguity");
+    }
+    {
+        Fixture f;
+        QQuickItem branch(f.window.contentItem());
+        for (int i = 0; i < 30; ++i) {
+            auto *group = new QQuickItem(&branch);
+            for (int j = 0; j < 20; ++j) new QQuickItem(group);
+        }
+        const auto r = f.sample(); refused(r, "incomplete wide visual census cannot select an early candidate");
+        require(r.refusal == "visual-node-cap", "node cap has a distinct refusal");
+    }
+    {
+        Fixture f;
+        QQuickItem chain(f.window.contentItem());
+        QQuickItem *tail = &chain;
+        for (int i = 0; i < 34; ++i) tail = new QQuickItem(tail);
+        const auto r = f.sample(); refused(r, "incomplete deep visual census cannot select an early candidate");
+        require(r.refusal == "visual-depth-cap", "depth cap has a distinct refusal");
+    }
+    {
+        Fixture f;
         auto replacement = std::make_unique<ControllerFixture>();
         require(f.device->setProperty("controller", QVariant::fromValue<QObject *>(replacement.get())), "external replacement setup");
         require(f.sample().observed, "external replacement is observed");
         f.current->pageRead = [&] { replacement.reset(); };
         refused(f.sample(), "external controller destroyed inside accessor refuses");
     }
-    QTextStream(stdout) << "PASS selected view owned Qt: separate lexical contexts, external ownership, native type/nonfirst selection, map/UUID/refusals, error/loading/tiles/work, value/pointer/map/visual/focus/visibility ABA, destruction, sampler/event reentry, cancellation/deadline/thread/window/context; native_authority=false render_authority=false durable_authority=false\n";
+    QTextStream(stdout) << "PASS selected view owned Qt: separate lexical contexts, external ownership, native type/nonfirst selection, bounded visual-only discovery/nonvisual exclusion/ambiguity/distinct caps, discovery name/visual ABA and separate guards, returned QObject post-read lifetime, map/UUID/refusals, error/loading/tiles/work, value/pointer/map/visual/focus/visibility ABA, destruction, sampler/event reentry, cancellation/deadline/thread/window/context; native_authority=false render_authority=false durable_authority=false\n";
     return 0;
 }
 #include "reader_selected_view_fixture.moc"
