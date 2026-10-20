@@ -1,6 +1,7 @@
 // Inspect actual YAML and evaluate actual expressions with GitHub's maintained library.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import {readFileSync,readdirSync} from 'node:fs';
 import {parse} from 'yaml';
 import {Lexer,Parser,Evaluator,data} from '@actions/expressions';
@@ -21,7 +22,7 @@ function evaluate(expression,context,{cancelled=false}={}){
   const parsed=new Parser(lexed.tokens,Object.keys(context),[always,cancel]).parse();
   return new Evaluator(parsed,value(context),new Map([['always',always],['cancelled',cancel]])).evaluate().coerceString();
 }
-const good=()=>({github:{event_name:'pull_request'},needs:{title:{result:'success'},checks:{result:'success',outputs:{application:'true'}},portable_checks:{result:'success'},build:{result:'success'}}});
+const good=()=>({github:{event_name:'pull_request'},needs:{title:{result:'success',outputs:{body_only:'false',application:'true'}},checks:{result:'success',outputs:{application:'true'}},portable_checks:{result:'success'},build:{result:'success'}}});
 const runs=job=>job.steps.filter(s=>s.run).map(s=>s.run).join('\n');
 
 test('one compact core plus reusable title, with one explicit Windows platform job',()=>{
@@ -30,8 +31,8 @@ test('one compact core plus reusable title, with one explicit Windows platform j
   assert.equal(flow.jobs.title.uses,'./.github/workflows/pr-title.yml');
   assert.equal(flow.jobs.checks['runs-on'],'ubuntu-latest');
   assert.equal(flow.jobs.portable_checks['runs-on'],'windows-latest');
-  assert.deepEqual(flow.jobs.build.needs,['checks','portable_checks']);
-  assert.deepEqual(flow.jobs.integration.needs,['checks','build']);
+  assert.deepEqual(flow.jobs.build.needs,['title','checks','portable_checks']);
+  assert.deepEqual(flow.jobs.integration.needs,['title','checks','build']);
   assert.equal(flow.defaults.run.shell,'bash');
   assert.equal(title.defaults.run.shell,'bash');
 });
@@ -169,10 +170,10 @@ test('workflow cancellation refuses every application stage even after prior suc
 test('final Release admits only uncancelled eligible main with all four successful stages',()=>{
   const c=good();c.github={event_name:'push',ref:'refs/heads/main'};
   c.needs.integration={result:'success'};
-  assert.deepEqual(flow.jobs.release.needs,['checks','portable_checks','build','integration']);
+  assert.deepEqual(flow.jobs.release.needs,['title','checks','portable_checks','build','integration']);
   assert.equal(evaluate(flow.jobs.release.if,c),'true');
   assert.equal(evaluate(flow.jobs.release.if,c,{cancelled:true}),'false');
-  for(const name of flow.jobs.release.needs)for(const result of ['failure','skipped','cancelled']){
+  for(const name of flow.jobs.release.needs.filter(n=>n!=='title'))for(const result of ['failure','skipped','cancelled']){
     const bad=structuredClone(c);bad.needs[name].result=result;
     assert.equal(evaluate(flow.jobs.release.if,bad),'false',`${name}/${result}`);
   }
@@ -235,4 +236,39 @@ test('native queue covers main candidate through publication and keeps PR runs i
   c.github.run_id='two';assert.equal(evaluate(flow.concurrency.group,c),'two');
   c.github.event_name='push';assert.equal(evaluate(flow.concurrency.group,c),'sdk-main-delivery');
   assert.equal(flow.jobs.release.concurrency,undefined,'one workflow lock avoids a nested deadlock');
+});
+
+
+function actualBodyOnly(event){
+  const step=title.jobs.title.steps.find(s=>s.id==='metadata');
+  const match=step.run.match(/jq -r '([\s\S]*?)' "\$GITHUB_EVENT_PATH"/);
+  assert.ok(match,'execute actual classifier, not a fixture copy');
+  const r=spawnSync(process.env.METADATA_JQ||'jq',['-r',match[1]],{input:JSON.stringify(event),encoding:'utf8'});
+  assert.ifError(r.error);assert.equal(r.status,0,r.stderr);assert.match(r.stdout.trim(),/^(true|false)$/);return r.stdout.trim();
+}
+test('exact body classifier rejects base mixed unknown and malformed changes',()=>{
+  for(const from of ['', 'old', '{"title":"text","base":{}}'])assert.equal(actualBodyOnly({action:'edited',changes:{body:{from}}}),'true');
+  const base={ref:{from:'old'},sha:{from:'a'.repeat(40)}};
+  for(const changes of [undefined,null,{},[], 'body',{title:{from:'old'}},{base},{body:{from:'old'},base},{body:{from:'old'},title:{from:'old'}},{body:{from:'old'},unknown:true},{unknown:true},{body:{}},{body:{from:null}},{body:{from:7}},{body:{from:true}},{body:{from:'old',unknown:true}},{body:'old'}])assert.equal(actualBodyOnly({action:'edited',changes}),'false',JSON.stringify(changes));
+  assert.equal(actualBodyOnly({action:'synchronize',changes:{body:{from:'old'}}}),'false');
+});
+test('both reusable output levels preserve exact metadata custody',()=>{
+  assert.equal(title.on.workflow_call.outputs.body_only.value,'${{ jobs.title.outputs.body_only }}');
+  assert.equal(title.jobs.title.outputs.body_only,'${{ steps.metadata.outputs.body_only }}');
+  assert.ok(title.jobs.title.steps.findIndex(s=>s.id==='metadata')<title.jobs.title.steps.findIndex(s=>s.uses?.startsWith('amannn/')));
+});
+test('all flat omitted contexts are distinct while normal executed names and guards stay',()=>{
+  const names={checks:'Checks (Linux)',portable_checks:'Checks (Windows staging)',build:'Build',integration:'Integration',release:'Release'};
+  const c=good();c.needs.integration={result:'success'};
+  for(const [job,name] of Object.entries(names)){assert.ok([flow.jobs[job].needs].flat().includes('title'));assert.equal(evaluate(flow.jobs[job].name,c),name);}
+  c.needs.title.outputs.body_only='true';c.needs.checks.result='skipped';c.needs.portable_checks.result='skipped';c.needs.build.result='skipped';
+  for(const [job,name] of Object.entries(names)){assert.notEqual(evaluate(flow.jobs[job].name,c),name);assert.equal(evaluate(flow.jobs[job].if,c),'false',job);}
+  c.needs.title.outputs.body_only='false';c.needs.checks.result='failure';
+  for(const job of ['portable_checks','build','integration','release'])assert.equal(evaluate(flow.jobs[job].if,c),'false',job);
+});
+test('main intentionally skipped title remains nonrequired for final Release',()=>{
+  const c=good();c.github={event_name:'push',ref:'refs/heads/main'};c.needs.title={result:'skipped',outputs:{}};c.needs.integration={result:'success'};
+  for(const job of ['checks','portable_checks','build','integration','release'])assert.equal(evaluate(flow.jobs[job].if,c),'true',job);
+  assert.equal(evaluate(flow.jobs.release.name,c),'Release');
+  assert.equal(evaluate(flow.jobs.release.if,c,{cancelled:true}),'false');
 });

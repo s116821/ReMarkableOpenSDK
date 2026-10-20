@@ -5,6 +5,9 @@ on:
       application:
         description: Maintained application path admission
         value: ${{ jobs.title.outputs.application }}
+      body_only:
+        description: Positively identified exact PR body-only edit
+        value: ${{ jobs.title.outputs.body_only }}
 permissions:
   contents: read
   pull-requests: read
@@ -18,11 +21,25 @@ jobs:
     timeout-minutes: 10
     outputs:
       application: ${{ steps.paths.outputs.application }}
+      body_only: ${{ steps.metadata.outputs.body_only }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Classify only exact body edits as metadata
+        id: metadata
+        shell: bash
+        run: |
+          jq --version
+          body_only="$(jq -r '
+            if .action == "edited" and (.changes | type) == "object" then
+              .changes | if keys == ["body"] and (.body | type) == "object" then
+                .body | keys == ["from"] and (.from | type) == "string"
+              else false end
+            else false end
+          ' "$GITHUB_EVENT_PATH")"
+          printf 'body_only=%s\n' "$body_only" >> "$GITHUB_OUTPUT"
       - name: Require complete PR file observation
         if: github.event_name == 'pull_request' && !(github.event.pull_request.changed_files > 0 && github.event.pull_request.changed_files < 3000)
         shell: bash
