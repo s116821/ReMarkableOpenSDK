@@ -36,10 +36,6 @@ jobs:
       uploader_artifact_id: ${{ steps.uploader_artifacts.outputs.artifact-id }}
       uploader_provenance_sha: ${{ steps.uploader.outputs.provenance_sha256 }}
     steps:
-      - name: Controlled SDK metadata failure witness (temporary)
-        run: |
-          echo "Expected owned metadata-admission failure witness; remove before final validation."
-          exit 19
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0
