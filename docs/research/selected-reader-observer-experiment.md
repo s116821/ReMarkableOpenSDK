@@ -65,6 +65,29 @@ unload operation. The entry's own fixtures compile a test-nonce startup library
 without loading it. A real payload needs exact independent recovery and source,
 artifact, process, device and fixture admission.
 
+Publish the request only after its complete private file has been closed. Direct
+shell redirection exposes the final filename before the write and close finish;
+the directory watcher can therefore reject an incomplete or changing file even
+when its later archived bytes are correct. Interprocess fixtures reproduce this
+failure before any observation is admitted.
+
+The Linux research helper `reader_selected_request_publish.cpp` writes a private
+pending file, closes and verifies it, then uses `renameat2(RENAME_NOREPLACE)`.
+It refuses an existing destination or unsupported atomic operation without a
+replacement or link/unlink fallback. A link/unlink publication would expose a
+temporary second link, which the entry deliberately refuses. The helper does
+not observe Reader or supply the caller's process/deadline admission. An
+uncertain helper exit can follow publication and must never trigger a retry.
+Before file operations, the helper restores the default `SIGALRM` disposition
+and arms a five-second process lifetime. Signal termination remains an unknown
+publication outcome and never permits a retry.
+
+A terminal `request-refused` result with sample timestamps `-1` is a valid
+pre-observation refusal, not a page sample or malformed JSON. Unobserved fields
+retain conservative defaults; their error/loading flags do not report actual
+Reader errors. Keep wire validation, observation acceptance and the independent
+recovery outcome separate.
+
 Consumers must reject a result unless it is a regular single-link mode0600 file
 under the same mode0700 root, its pending sibling is absent, and fresh process,
 request, cancellation, restoration and deadline brackets agree. Publication is a

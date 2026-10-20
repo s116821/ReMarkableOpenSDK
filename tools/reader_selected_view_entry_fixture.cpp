@@ -5,6 +5,7 @@
 #define READER_SELECTED_TESTING
 #include "reader_selected_view_entry.h"
 #include <QDir>
+#include <QProcess>
 
 static QByteArray readEntry(const QString &path) {
     QFile f(path); return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
@@ -34,6 +35,8 @@ int main(int argc, char **argv) {
     const QByteArray nonce(32, 'a'), identity = reader_selected::selfIdentity();
     require(!identity.isEmpty(), "entry process identity");
     Fixture f;
+    require(argc == 2, "explicit owned publisher executable required");
+    const QString publisher = QString::fromLocal8Bit(argv[1]);
     const QList<QByteArray> modes{"valid", "bad-binding", "cancel", "restore", "expiry", "duplicate", "pending",
         "root-replaced", "symlink", "fifo", "hardlink", "bad-mode", "request-replaced", "nested-cancel", "nested-expiry",
         "nested-restore", "postlink-cancel", "prelink-expiry", "postlink-expiry", "check-cap"};
@@ -129,5 +132,64 @@ int main(int argc, char **argv) {
         require(entry.samplesForTest() == before && readEntry(root + "/selected-result") == bytes && !entry.start(), "terminal entry cannot replay or rearm");
         f.current->pageRead = {};
     }
+    int completeDirectObserved = 0, completeDirectRefused = 0;
+    for (const QByteArray &mode : {QByteArray("open-gap"), QByteArray("partial-gap"), QByteArray("complete-direct"), QByteArray("atomic")}) {
+        const int trials = (mode == "complete-direct" || mode == "atomic") ? 10 : 1;
+        for (int trial = 0; trial < trials; ++trial) {
+            QTemporaryDir base; require(base.isValid(), "interprocess temporary root");
+            const QString root = base.path() + "/root";
+            require(QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "interprocess root mode");
+            putEntry(root + "/owner", nonce); putEntry(root + "/attempt.identity", identity);
+            reader_selected::Entry entry(&app, root, nonce); require(entry.start(), "interprocess entry start"); pumpEntry();
+            const QByteArray request = nonce + ' ' + identity;
+            QProcess writer;
+            if (mode == "atomic") {
+                QString program = publisher;
+                QStringList arguments{root, QString::fromLatin1(nonce),
+                    QString::fromLatin1(identity.trimmed().split(' ')[0]), QString::fromLatin1(identity.trimmed().split(' ')[1])};
+                const QString qemu = qEnvironmentVariable("READER_SELECTED_HELPER_QEMU");
+                if (!qemu.isEmpty()) { arguments.prepend(program); arguments.prepend(qEnvironmentVariable("READER_SELECTED_HELPER_SYSROOT")); arguments.prepend("-L"); program = qemu; }
+                writer.start(program, arguments);
+            } else {
+                QString script = "umask 077; ";
+                if (mode == "complete-direct") script += "printf '%s' \"$2\" > \"$1\"";
+                else {
+                    script += "exec 3> \"$1\"; ";
+                    if (mode == "partial-gap") script += "printf '%s' \"$3\" >&3; ";
+                    script += "printf 'opened\\n'; IFS= read -r signal; printf '%s' \"$2\" >&3; exec 3>&-";
+                }
+                const QByteArray remaining = mode == "partial-gap" ? request.mid(10) : request;
+                writer.start("/bin/sh", {"-c", script, "owned-writer", root + "/selected-request", QString::fromLatin1(remaining), QString::fromLatin1(request.left(10))});
+            }
+            require(writer.waitForStarted(5000), "interprocess writer started");
+            if (mode == "open-gap" || mode == "partial-gap") {
+                require(writer.waitForReadyRead(5000) && writer.readAllStandardOutput() == "opened\n", "writer staged open/write handshake");
+                QElapsedTimer wait; wait.start();
+                while (!entry.terminal() && wait.elapsed() < 5000) pumpEntry();
+                require(entry.terminal() && entry.samplesForTest() == 0, "visible incomplete request refuses before observation");
+                require(writer.write("go\n") == 3 && writer.waitForBytesWritten(5000), "release staged writer");
+            }
+            QElapsedTimer wait; wait.start();
+            while ((!entry.terminal() || writer.state() != QProcess::NotRunning) && wait.elapsed() < 5000) pumpEntry();
+            require(entry.terminal() && writer.state() == QProcess::NotRunning && writer.exitCode() == 0, "interprocess writer/entry completed");
+            require(readEntry(root + "/selected-request") == request, "final complete bytes cannot explain earlier refusal alone");
+            const auto result = QJsonDocument::fromJson(readEntry(root + "/selected-result")).object();
+            if (mode == "open-gap" || mode == "partial-gap") {
+                require(result["stage"] == "request-refused" && result["sample_begin_ms"].toInt() == -1 && result["sample_end_ms"].toInt() == -1,
+                        "interprocess incomplete visibility reproduces valid pre-observation refusal");
+            } else if (mode == "complete-direct") {
+                if (result["stage"] == "observed") ++completeDirectObserved;
+                else { require(result["stage"] == "request-refused" && entry.samplesForTest() == 0, "direct publication outcome remains bounded"); ++completeDirectRefused; }
+            } else {
+                require(result["stage"] == "observed" && entry.samplesForTest() == 1 && result["ready"].toBool(), "atomic closed-file request observed exactly once");
+                QProcess duplicate;
+                duplicate.start(writer.program(), writer.arguments()); require(duplicate.waitForFinished(5000) && duplicate.exitCode() != 0,
+                        "atomic publisher never overwrites/replays existing request");
+                require(readEntry(root + "/selected-request") == request && entry.samplesForTest() == 1, "duplicate preserves committed request");
+            }
+        }
+    }
+    QTextStream(stdout) << "PASS interprocess request publication: deterministic open/partial refusal; complete-direct observed=" << completeDirectObserved
+        << " refused=" << completeDirectRefused << "; atomic10/10 exact once; no overwrite\n";
     QTextStream(stdout) << "PASS selected entry owned Qt: exact request/no early getter, binding/mode/link/FIFO refusal, pinned request, one-shot/cap/deadline, nested cancel/restore/expiry deferral, pending publication; all authorities=false\n";
 }
