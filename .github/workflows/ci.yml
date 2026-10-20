@@ -26,11 +26,11 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/pr-title.yml
   checks:
-    name: Checks (Linux)
+    name: ${{ needs.title.outputs.body_only == 'true' && 'PR metadata (no Linux checks)' || 'Checks (Linux)' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: title
-    if: ${{ !cancelled() && (github.event_name == 'push' || needs.title.result == 'success') }}
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.title.result == 'success') && needs.title.outputs.body_only != 'true' }}
     outputs:
       application: ${{ steps.admission.outputs.application }}
       uploader_artifact_id: ${{ steps.uploader_artifacts.outputs.artifact-id }}
@@ -255,8 +255,8 @@ jobs:
           sha256sum "$RUNNER_TEMP/rm1-arm/probe"
         if: steps.admission.outputs.application == 'true'
   portable_checks:
-    name: Checks (Windows staging)
-    needs: checks
+    name: ${{ needs.title.outputs.body_only == 'true' && 'PR metadata (no Windows checks)' || 'Checks (Windows staging)' }}
+    needs: [title, checks]
     if: ${{ !cancelled() && needs.checks.result == 'success' && needs.checks.outputs.application == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 10
@@ -278,6 +278,7 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
   build:
     needs:
+      - title
       - checks
       - portable_checks
     if: ${{ !cancelled() && needs.checks.result == 'success' && needs.portable_checks.result == 'success' && needs.checks.outputs.application == 'true' }}
@@ -339,9 +340,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
         id: artifacts
-    name: Build
+    name: ${{ needs.title.outputs.body_only == 'true' && 'PR metadata (no SDK build)' || 'Build' }}
   integration:
     needs:
+      - title
       - checks
       - build
     runs-on: ubuntu-latest
@@ -385,12 +387,12 @@ jobs:
           python release/candidate_artifacts.py integration --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
           python -m unittest discover -s release -p test_candidate_artifacts.py -v
           test -z "$(git status --porcelain)"
-    name: Integration
+    name: ${{ needs.title.outputs.body_only == 'true' && 'PR metadata (no SDK integration)' || 'Integration' }}
     if: ${{ !cancelled() && needs.checks.result == 'success' && needs.build.result == 'success' && needs.checks.outputs.application == 'true' }}
   release:
-    needs: [checks, portable_checks, build, integration]
+    needs: [title, checks, portable_checks, build, integration]
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.portable_checks.result == 'success' && needs.checks.result == 'success' && needs.build.result == 'success' && needs.integration.result == 'success' && needs.checks.outputs.application == 'true' }}
-    name: Release
+    name: ${{ needs.title.outputs.body_only == 'true' && 'PR metadata (no SDK release)' || 'Release' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
