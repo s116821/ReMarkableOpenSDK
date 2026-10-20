@@ -36,8 +36,10 @@ descendants are excluded, so later reveal/enable, including ABA, invalidates
 the sample. Opacity, clipping and off-screen position are not pruning rules.
 Limits are 512 queued visual items, 32 levels, 64 direct or visual children
 per item, and 640 retained objects including later relationship checks. Node,
-depth and child limits have distinct refusal codes. The original cooperative
-one-second sampling limit remains unchanged.
+depth and child limits have distinct refusal codes. The cooperative research cap
+is twenty seconds; direct `observe` callers retain a one-second default unless
+they explicitly select a longer budget. The request entry uses at most twenty
+seconds within its original sixty-second setup window, never renewing that window.
 The owned host/ARM fixtures verify the effective inheritance described by Qt's
 [visible](https://doc.qt.io/qt-6/qml-qtquick-item.html#visible-prop) and
 [enabled](https://doc.qt.io/qt-6/qml-qtquick-item.html#enabled-prop) contracts.
@@ -98,7 +100,7 @@ The separate `reader_selected_view_startup.cpp` compiles only with a frozen
 bound to its owner and attempt PID/start. It publishes `selected-ready` without
 reading Reader properties. A single `selected-request` then admits the diagnostic;
 `selected-result` carries either scalar observations or a bounded refusal. The
-original setup window is sixty seconds, sampling at most one second within it.
+original setup window is sixty seconds, sampling at most twenty seconds within it.
 There is no native polling, navigation, creation, arbitrary request executor or
 unload operation. The entry's own fixtures compile a test-nonce startup library
 without loading it. A real payload needs exact independent recovery and source,
@@ -140,6 +142,23 @@ implementation on stock Reader. All three attempts were consumed,
 their independent stock restoration was checked, and their task-owned runtime
 directories were archived and removed. Preservation and recovery results are
 separate from the failed primary observations.
+
+A later helper-context candidate admitted the manual page-opening step in time
+but returned `deadline` after 1007 milliseconds, without any page identity. Its
+flat refusal does not identify the internal phase or qualify the context fix.
+Owned profiling then reproduced the cost of full request admission checks: a
+490-visual-item fixture with roughly 930 direct nonvisual children made 9106
+permit calls. With the original checks and tmpfs request files, three ARM/QEMU
+samples completed in 8.449, 8.496 and 8.783 seconds under a temporary twenty-second
+cap. Host and QEMU timings are not tablet timings. This motivates the research
+cap increase while retaining all lifetime, epoch, request and cancellation checks;
+it is not a production responsiveness target or native qualification.
+
+Elapsed-time checks are cooperative: a synchronous native getter is not
+preemptible. An operator profile must admit enough time for request publication,
+the selected sample budget and result collection before the original window
+ends, and retain recovery independent of the GUI thread. A result arriving after
+the original deadline is invalid. A timeout never authorizes another request.
 
 Consumers must reject a result unless it is a regular single-link mode0600 file
 under the same mode0700 root, its pending sibling is absent, and fresh process,

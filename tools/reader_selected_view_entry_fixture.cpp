@@ -39,7 +39,8 @@ int main(int argc, char **argv) {
     const QString publisher = QString::fromLocal8Bit(argv[1]);
     const QList<QByteArray> modes{"valid", "bad-binding", "cancel", "restore", "expiry", "duplicate", "pending",
         "root-replaced", "symlink", "fifo", "hardlink", "bad-mode", "request-replaced", "nested-cancel", "nested-expiry",
-        "nested-restore", "postlink-cancel", "prelink-expiry", "postlink-expiry", "check-cap"};
+        "nested-restore", "postlink-cancel", "prelink-expiry", "postlink-expiry", "check-cap",
+        "slow-valid", "slow-cancel", "slow-restore"};
     for (const QByteArray &mode : modes) {
         QTemporaryDir base; require(base.isValid(), "entry temporary base");
         const QString root = base.path() + "/root";
@@ -94,13 +95,18 @@ int main(int argc, char **argv) {
                 require(entry.samplingForTest() && entry.disarmedForTest() && !entry.terminal() &&
                         readEntry(root + "/selected-result").isEmpty(), "nested stop disarms but defers terminal publication until sample unwinds");
             };
+            if (mode.startsWith("slow-")) f.current->pageRead = [&] {
+                if (++getterReads != 1) return;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+                if (mode != "slow-valid") putEntry(root + (mode == "slow-cancel" ? "/selected-cancel" : "/restore.claim"), "stop");
+            };
             entry.checkForTest(); pumpEntry();
         }
         pumpEntry();
         require(entry.terminal(), "entry terminal is sticky");
         const QByteArray bytes = readEntry(root + "/selected-result");
         const bool suppressed = mode == "cancel" || mode == "restore" || mode == "root-replaced" || mode == "request-replaced" ||
-            mode == "nested-cancel" || mode == "nested-restore";
+            mode == "nested-cancel" || mode == "nested-restore" || mode == "slow-cancel" || mode == "slow-restore";
         if (suppressed) require(bytes.isEmpty(), "cancellation/restore/request lifetime/trust loss suppress valid output");
         else if (mode == "postlink-cancel" || mode == "postlink-expiry") {
             struct stat st{};
@@ -113,16 +119,19 @@ int main(int argc, char **argv) {
                     ::lstat((root + "/.pending-result").toLocal8Bit().constData(), &st) == 0 && st.st_nlink == 1,
                     "deadline during publication cannot commit a late observation");
         } else {
-            const QString expected = mode == "valid" ? QStringLiteral("observed") :
+            const bool successful = mode == "valid" || mode == "slow-valid";
+            const QString expected = successful ? QStringLiteral("observed") :
                 (mode == "expiry" || mode == "nested-expiry") ? QStringLiteral("setup-expired") :
                 mode == "check-cap" ? QStringLiteral("request-check-cap") : QStringLiteral("request-refused");
             validReceipt(bytes, nonce, identity, expected);
             const auto json = QJsonDocument::fromJson(bytes).object();
-            require(json["observed"].toBool() == (mode == "valid"), "only actual admitted observation has identities");
-            if (mode == "valid") require(json["ready"].toBool() && json["document_id"].toString() == f.document.key &&
+            require(json["observed"].toBool() == successful, "only actual admitted observation has identities");
+            if (successful) require(json["ready"].toBool() && json["document_id"].toString() == f.document.key &&
                     json["page_id"].toString() == f.document.pages[0] && getterReads > 0 && entry.samplesForTest() == 1,
                     "one real observer result through entry");
             else require(json["document_id"].toString().isEmpty() && !json["ready"].toBool(), "terminal refusal clears identity observation");
+            if (mode == "slow-valid") require(json["sample_end_ms"].toInt() - json["sample_begin_ms"].toInt() >= 1100,
+                    "entry permits an admitted observation beyond the former one-second cutoff");
             struct stat st{};
             require(::lstat((root + "/selected-result").toLocal8Bit().constData(), &st) == 0 && st.st_nlink == 1 &&
                     (st.st_mode & 07777) == 0600 && readEntry(root + "/.pending-result").isEmpty(), "closed single-link receipt");

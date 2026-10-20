@@ -212,7 +212,7 @@ private:
         if (!permit()) return;
         const qint64 remaining = 60000 - now();
         if (remaining <= 0) { finish("setup-expired"); return; }
-        const int budget = int(qMin<qint64>(1000, remaining));
+        const int budget = int(qMin<qint64>(MaxObservationMs, remaining));
         const QPointer<Entry> weak(this);
         // The first native/window selection occurs only after exact admission.
         QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());

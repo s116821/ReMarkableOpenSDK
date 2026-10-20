@@ -33,12 +33,20 @@ No canonical specification is synced or archived by this research increment.
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original sixty-second
 setup window. Readiness does not observe the Reader. Only that admitted request
-calls the accessor diagnostic; the sampling budget is at most one second and
+calls the accessor diagnostic; the sampling budget is at most twenty seconds and
 cannot extend setup. Cancellation, restore markers and request replacement
 disarm it. It remains resident after terminal completion; no unload is provided.
 Owned host and ARM/QEMU fixtures cover admission, reentry, cancellation/expiry
 unwinding and publication boundaries. Actual target results must be separately
 recorded with their exact payload/operator/profile.
+
+The longer research cap follows an owned 490-visual-item ARM/QEMU fixture that
+needed about 8.5 seconds with exact request checks, and a stock attempt that
+returned only `deadline` at the old one-second cap. All request, cancellation,
+lifetime and notification checks remain. Direct callers retain a one-second
+default. The operator must separately budget publication and collection inside
+the original setup deadline and retain independent recovery; cooperative checks
+cannot preempt a blocked getter. Native timing and actual identity remain open.
 
 One possible resident operation-completion diagnostic adds a queued checkpoint
 and later GUI acknowledgement after an admitted sample has unwound. It must

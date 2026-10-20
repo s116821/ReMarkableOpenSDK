@@ -317,6 +317,8 @@ int main(int argc, char **argv) {
         r = reader_selected::observe(&f.window, [] { std::this_thread::sleep_for(std::chrono::milliseconds(10)); return true; }, 2);
         refused(r, "absolute deadline refuses"); require(r.refusal == "deadline", "deadline reason");
         refused(reader_selected::observe(&f.window, [] { return true; }, 0), "invalid budget refuses");
+        r = reader_selected::observe(&f.window, [] { return true; }, reader_selected::MaxObservationMs + 1);
+        require(!r.observed && r.refusal == "budget-invalid", "over-cap budget refuses");
         reader_selected::Observation crossThread;
         std::thread worker([&] { crossThread = f.sample(); }); worker.join();
         refused(crossThread, "foreign thread refuses before GUI access");

@@ -17,6 +17,8 @@
 #include <functional>
 
 namespace reader_selected {
+// Cooperative research cap, not a preemptive timeout or UI responsiveness SLA.
+inline constexpr int MaxObservationMs = 20000;
 struct Observation {
     QString refusal;
     QString documentId, pageId;
@@ -244,7 +246,7 @@ public:
             no("application-thread"); return;
         }
         window = w; root = w->contentItem(); engine = qmlEngine(w);
-        if (ms < 1 || ms > 1000) no("budget-invalid");
+        if (ms < 1 || ms > MaxObservationMs) no("budget-invalid");
         // Any nested event delivery invalidates this cooperative sample. Never
         // suppress the event or pump an event loop to obtain a better result.
         app->installEventFilter(&epoch);
