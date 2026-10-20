@@ -31,7 +31,7 @@ Implementation and checks:
 No canonical specification is synced or archived by this research increment.
 
 The separate request entry publishes readiness after file/process binding and
-accepts exactly one nonce/PID/start request within its original sixty-second
+accepts exactly one nonce/PID/start request within its original ninety-second
 setup window. Readiness does not observe the Reader. Only that admitted request
 calls the accessor diagnostic; the sampling budget is at most twenty seconds and
 cannot extend setup. Cancellation, restore markers and request replacement
@@ -47,6 +47,12 @@ lifetime and notification checks remain. Direct callers retain a one-second
 default. The operator must separately budget publication and collection inside
 the original setup deadline and retain independent recovery; cooperative checks
 cannot preempt a blocked getter. Native timing and actual identity remain open.
+
+The operator's matching ninety-second window requires a 285-second startup
+reserve within its original 360-second actor deadline, retaining the 185-second
+recovery cutoff plus ten seconds of slack. The thirty-second request margin
+reserves publication, sampling and collection. These are fresh profile bounds,
+not extensions or retries of a consumed sixty-second attempt.
 
 One possible resident operation-completion diagnostic adds a queued checkpoint
 and later GUI acknowledgement after an admitted sample has unwound. It must

@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 namespace reader_selected {
+inline constexpr qint64 SetupWindowMs = 90000;
 inline bool decimal(const QByteArray &s) {
     if (s.isEmpty() || s.size() > 20 || s[0] == '0') return false;
     for (char c : s) if (c < '0' || c > '9') return false;
@@ -54,7 +55,7 @@ public:
         connect(app_, &QCoreApplication::aboutToQuit, this, [this] { finish("application-closing", {}, false); });
         if (!watcher_.addPath(path_)) return terminal_ = true, false;
         timer_.setSingleShot(true); timer_.setTimerType(Qt::PreciseTimer);
-        const qint64 remaining = 60000 - now();
+        const qint64 remaining = SetupWindowMs - now();
         if (remaining <= 0) { finish("setup-expired"); return false; }
         timer_.start(int(remaining));
         if (!publish("selected-ready", ".pending-ready", nonce_ + ' ' + identity_)) {
@@ -64,7 +65,7 @@ public:
     }
     bool terminal() const { return terminal_; }
 #ifdef READER_SELECTED_TESTING
-    void expireForTest() { offset_ = 60000; finish("setup-expired"); }
+    void expireForTest() { offset_ = SetupWindowMs; finish("setup-expired"); }
     void checkForTest() { queue(); }
     bool samplingForTest() const { return sampling_; }
     bool disarmedForTest() const { return disarmed_; }
@@ -125,7 +126,7 @@ private:
         return true;
     }
     bool publish(const char *name, const char *pending, const QByteArray &bytes, bool requireDeadline = true) const {
-        const auto admitted = [&] { return trusted() && (!requireDeadline || now() < 60000); };
+        const auto admitted = [&] { return trusted() && (!requireDeadline || now() < SetupWindowMs); };
         if (bytes.isEmpty() || bytes.size() > 2048 || !admitted()) return false;
         const int fd = ::openat(root_, pending, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (fd < 0) return false;
@@ -165,7 +166,7 @@ private:
         terminal_ = true;
         if (suppressed_ || !trusted()) return;
         if (!pendingStage_.isEmpty()) { stage = pendingStage_; observation = {}; }
-        if (now() >= 60000) { stage = QStringLiteral("setup-expired"); observation = {}; }
+        if (now() >= SetupWindowMs) { stage = QStringLiteral("setup-expired"); observation = {}; }
         if (observation.documentId.size() > 36 || observation.pageId.toUtf8().size() > 256 || observation.refusal.size() > 128) {
             stage = QStringLiteral("observation-cap"); observation = {};
         }
@@ -186,7 +187,7 @@ private:
     bool permit() {
         if (terminal_ || disarmed_) return false;
         if (!trusted()) { finish("trust-lost", {}, false); return false; }
-        if (now() >= 60000) { finish("setup-expired"); return false; }
+        if (now() >= SetupWindowMs) { finish("setup-expired"); return false; }
         return true;
     }
     void queue() {
@@ -210,7 +211,7 @@ private:
         }
         consumed_ = true;
         if (!permit()) return;
-        const qint64 remaining = 60000 - now();
+        const qint64 remaining = SetupWindowMs - now();
         if (remaining <= 0) { finish("setup-expired"); return; }
         const int budget = int(qMin<qint64>(MaxObservationMs, remaining));
         const QPointer<Entry> weak(this);

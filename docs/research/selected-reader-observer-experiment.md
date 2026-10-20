@@ -39,7 +39,7 @@ per item, and 640 retained objects including later relationship checks. Node,
 depth and child limits have distinct refusal codes. The cooperative research cap
 is twenty seconds; direct `observe` callers retain a one-second default unless
 they explicitly select a longer budget. The request entry uses at most twenty
-seconds within its original sixty-second setup window, never renewing that window.
+seconds within its original ninety-second setup window, never renewing that window.
 The owned host/ARM fixtures verify the effective inheritance described by Qt's
 [visible](https://doc.qt.io/qt-6/qml-qtquick-item.html#visible-prop) and
 [enabled](https://doc.qt.io/qt-6/qml-qtquick-item.html#enabled-prop) contracts.
@@ -100,7 +100,7 @@ The separate `reader_selected_view_startup.cpp` compiles only with a frozen
 bound to its owner and attempt PID/start. It publishes `selected-ready` without
 reading Reader properties. A single `selected-request` then admits the diagnostic;
 `selected-result` carries either scalar observations or a bounded refusal. The
-original setup window is sixty seconds, sampling at most twenty seconds within it.
+original setup window is ninety seconds, sampling at most twenty seconds within it.
 There is no native polling, navigation, creation, arbitrary request executor or
 unload operation. The entry's own fixtures compile a test-nonce startup library
 without loading it. A real payload needs exact independent recovery and source,
@@ -153,6 +153,15 @@ samples completed in 8.449, 8.496 and 8.783 seconds under a temporary twenty-sec
 cap. Host and QEMU timings are not tablet timings. This motivates the research
 cap increase while retaining all lifetime, epoch, request and cancellation checks;
 it is not a production responsiveness target or native qualification.
+
+The first longer-budget operator attempt published no request or observation.
+Its timing was consistent with reaching the host's thirty-second reserved margin
+inside the former sixty-second setup window; the exact failed shell guard was
+not logged. A fresh profile uses a ninety-second entry/operator window, retaining
+the twenty-second sample and independent recovery deadline. The selected actor
+requires at least 285 seconds remaining before that window, preserving the
+185-second recovery cutoff plus ten seconds of slack. This refuses a late startup
+rather than renewing an existing window. Human confirmation is not page proof.
 
 Elapsed-time checks are cooperative: a synchronous native getter is not
 preemptible. An operator profile must admit enough time for request publication,
