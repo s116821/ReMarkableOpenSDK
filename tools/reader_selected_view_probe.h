@@ -240,16 +240,21 @@ public:
         if (!failure.isEmpty() || !live() || !retain(window) || !retain(root) || !retain(engine)) return refuse();
         if (!signal(app, "focusWindowChanged(QWindow*)") || !signal(window, "activeChanged()") ||
             !signal(window, "visibleChanged(bool)")) return refuse();
-        // Search the visual hierarchy completely within its bounds. The helper
-        // must be a direct QObject child of a visual Reader root, so unrelated
-        // nonvisual service/model subtrees cannot contain a valid candidate.
+        // Search every effectively visible and enabled visual branch within its
+        // bounds. A valid selected chain requires both states. Retain/watch an
+        // excluded boundary before pruning, so later reveal/enable (even ABA)
+        // invalidates the census. Nonvisual service/model subtrees cannot hold
+        // a valid direct helper of an eligible visual Reader root.
         struct Node { QPointer<QQuickItem> p; int depth; };
         QList<Node> nodes{{root.data(), 0}};
         QList<QPointer<QObject>> helpers, containers;
         for (qsizetype n = 0; n < nodes.size(); ++n) {
             QPointer<QQuickItem> p = nodes[n].p;
             if (!live() || !p || !retain(p)) return refuse();
-            if (!signal(p, "childrenChanged()") || !watch(p, "objectName")) return refuse();
+            if (!signal(p, "childrenChanged()") || !watchMany(p, {"objectName", "visible", "enabled"})) return refuse();
+            const bool eligible = p->isVisible() && p->isEnabled();
+            if (!live()) return refuse();
+            if (!eligible) continue;
             const QString name = p->objectName();
             if (!live()) return refuse();
             if (name == QStringLiteral("SceneViewsRoot")) containers.append(QPointer<QObject>(p.data()));

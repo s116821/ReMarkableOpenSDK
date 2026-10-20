@@ -295,6 +295,39 @@ int main(int argc, char **argv) {
         tail->setObjectName("DocumentView.ToolSettings");
         require(f.sample().observed, "irrelevant nonvisual descendants cannot be a direct Reader helper");
     }
+    for (const bool hidden : {true, false}) {
+        Fixture f;
+        QQuickItem excluded(f.window.contentItem());
+        if (hidden) excluded.setVisible(false); else excluded.setEnabled(false);
+        auto *duplicate = new QQuickItem(&excluded);
+        duplicate->setObjectName("SceneViewsRoot");
+        duplicate->setVisible(true); duplicate->setEnabled(true);
+        QQuickItem *tail = duplicate;
+        for (int i = 0; i < 700; ++i) {
+            tail = new QQuickItem(tail);
+            tail->setVisible(true); tail->setEnabled(true);
+        }
+        QObject misleadingHelper(duplicate); misleadingHelper.setObjectName("DocumentView.ToolSettings");
+        require(hidden ? (!duplicate->isVisible() && !tail->isVisible()) : (!duplicate->isEnabled() && !tail->isEnabled()),
+                "explicit child true cannot override effective hidden/disabled ancestry");
+        require(f.sample().observed, "huge ineffective visual subtree cannot contain an eligible anchor");
+    }
+    for (const bool hidden : {true, false}) for (const bool aba : {false, true}) {
+        Fixture f;
+        QQuickItem excluded(f.window.contentItem());
+        if (hidden) excluded.setVisible(false); else excluded.setEnabled(false);
+        QQuickItem duplicate(&excluded); duplicate.setObjectName("SceneViewsRoot");
+        duplicate.setVisible(true); duplicate.setEnabled(true);
+        require(hidden ? !duplicate.isVisible() : !duplicate.isEnabled(), "excluded boundary starts effectively ineligible");
+        f.current->pageRead = [&] {
+            if (hidden) excluded.setVisible(true); else excluded.setEnabled(true);
+            require(duplicate.isVisible() && duplicate.isEnabled(), "boundary reveal/enable makes descendant effectively eligible");
+            if (aba) { if (hidden) excluded.setVisible(false); else excluded.setEnabled(false); }
+        };
+        const auto r = f.sample();
+        refused(r, "late reveal/reenable and ABA invalidate pruned census");
+        require(r.refusal == "generation-changed", "pruned boundary state notification invalidates epoch");
+    }
     {
         Fixture f;
         // Discovery guards have their own bounded storage, not the 640-object
@@ -385,7 +418,7 @@ int main(int argc, char **argv) {
         f.current->pageRead = [&] { replacement.reset(); };
         refused(f.sample(), "external controller destroyed inside accessor refuses");
     }
-    QTextStream(stdout) << "PASS selected view owned Qt: separate lexical contexts, external ownership, native type/nonfirst selection, bounded visual-only discovery/nonvisual exclusion/ambiguity/distinct caps, discovery name/visual ABA and separate guards, returned QObject post-read lifetime, map/UUID/refusals, error/loading/tiles/work, value/pointer/map/visual/focus/visibility ABA, destruction, sampler/event reentry, cancellation/deadline/thread/window/context; native_authority=false render_authority=false durable_authority=false\n";
+    QTextStream(stdout) << "PASS selected view owned Qt: separate lexical contexts, external ownership, native type/nonfirst selection, bounded eligible visual discovery/effective hidden-disabled pruning/reveal-enable ABA/nonvisual exclusion/ambiguity/distinct caps, discovery name/visual ABA and separate guards, returned QObject post-read lifetime, map/UUID/refusals, error/loading/tiles/work, value/pointer/map/visual/focus/visibility ABA, destruction, sampler/event reentry, cancellation/deadline/thread/window/context; native_authority=false render_authority=false durable_authority=false\n";
     return 0;
 }
 #include "reader_selected_view_fixture.moc"

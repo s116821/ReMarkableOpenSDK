@@ -18,14 +18,21 @@ The complete native mapping and getter behavior still need exact-device review.
 Discovery follows the window's visual item tree and checks direct QObject
 children for the Reader helper. A valid helper must have the visual Reader as
 its direct parent, so nonvisual service/model descendants are outside this
-candidate relationship. The whole bounded visual census completes before an
-anchor is selected; it does not stop at the first match or skip rendered
-subtrees. Limits are 512 visual items, 32 levels, 64 direct or visual children
+candidate relationship. The whole bounded census of effectively visible and
+enabled branches completes before an anchor is selected; it does not stop at
+the first match. Every accepted selected-view chain already requires these
+effective states. Hidden or disabled boundaries are watched before their
+descendants are excluded, so later reveal/enable, including ABA, invalidates
+the sample. Opacity, clipping and off-screen position are not pruning rules.
+Limits are 512 queued visual items, 32 levels, 64 direct or visual children
 per item, and 640 retained objects including later relationship checks. Node,
 depth and child limits have distinct refusal codes. The original cooperative
 one-second sampling limit remains unchanged.
+The owned host/ARM fixtures verify the effective inheritance described by Qt's
+[visible](https://doc.qt.io/qt-6/qml-qtquick-item.html#visible-prop) and
+[enabled](https://doc.qt.io/qt-6/qml-qtquick-item.html#enabled-prop) contracts.
 
-Visited visual items watch visual-child and name changes. Direct QObject
+Visited visual items watch visual-child, name, visibility and enabled changes. Direct QObject
 children have separate name/destruction guards, bounded by the same 512-by-64
 census, without consuming the smaller relationship-object budget. A late
 duplicate-anchor rename or externally owned visual attachment, including an
@@ -107,14 +114,16 @@ retain conservative defaults; their error/loading flags do not report actual
 Reader errors. Keep wire validation, observation acceptance and the independent
 recovery outcome separate.
 
-Two earlier exact-candidate stock experiments ended without page identity. The
+Three earlier exact-candidate stock experiments ended without page identity. The
 first returned `request-refused` before sampling; interprocess fixtures later
 reproduced the direct-publication race, without proving it caused that run.
 The second admitted the atomic request and returned `census-cap` after about
 40 milliseconds. That earlier guard combined 256 discovered QObject nodes and
 16 levels, so its receipt does not distinguish the exhausted bound. These
-results motivated the visual-only discovery change above; they do not qualify
-that revised implementation on stock Reader. Both attempts were consumed,
+results motivated visual-only discovery. Its first stock attempt then returned
+`visual-node-cap` after about 605 milliseconds, identifying the 512-node bound.
+This motivated eligible-branch pruning above; it does not qualify that revised
+implementation on stock Reader. All three attempts were consumed,
 their independent stock restoration was checked, and their task-owned runtime
 directories were archived and removed. Preservation and recovery results are
 separate from the failed primary observations.
