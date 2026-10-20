@@ -1,0 +1,250 @@
+#pragma once
+// Separate one-request entry. No injection mechanism or stock restoration claim.
+#include "reader_selected_view_probe.h"
+#include <QFileSystemWatcher>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTimer>
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+namespace reader_selected {
+inline bool decimal(const QByteArray &s) {
+    if (s.isEmpty() || s.size() > 20 || s[0] == '0') return false;
+    for (char c : s) if (c < '0' || c > '9') return false;
+    bool ok = false; s.toULongLong(&ok); return ok;
+}
+inline QByteArray selfIdentity() {
+    const int fd = ::open("/proc/self/stat", O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    if (fd < 0) return {};
+    char bytes[4097]; const ssize_t n = ::read(fd, bytes, sizeof bytes);
+    const bool closed = ::close(fd) == 0;
+    if (!closed || n <= 0 || n > 4096) return {};
+    const QByteArray stat(bytes, n);
+    const int end = stat.lastIndexOf(')');
+    if (end < 0) return {};
+    const auto fields = stat.mid(end + 1).simplified().split(' ');
+    if (fields.size() <= 19 || !decimal(fields[19])) return {};
+    return QByteArray::number(::getpid()) + ' ' + fields[19] + '\n';
+}
+
+class Entry final : public QObject {
+public:
+    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr)
+        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)) { elapsed_.start(); }
+    ~Entry() override { if (root_ >= 0) ::close(root_); }
+    bool start() {
+        if (started_) return false;
+        started_ = true;
+        if (!app_ || QThread::currentThread() != app_->thread() || thread() != app_->thread() || nonce_.size() != 32)
+            return terminal_ = true, false;
+        for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return terminal_ = true, false;
+        identity_ = selfIdentity();
+        if (identity_.isEmpty()) return terminal_ = true, false;
+        root_ = ::open(path_.toLocal8Bit().constData(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (root_ < 0 || ::fstat(root_, &rootStat_) != 0 || !S_ISDIR(rootStat_.st_mode) ||
+            (rootStat_.st_mode & 07777) != 0700 || rootStat_.st_uid != ::geteuid() || !trusted())
+            return terminal_ = true, false;
+        if (!absent("selected-ready") || !absent("selected-result") || !absent(".pending-ready") || !absent(".pending-result"))
+            return terminal_ = true, false;
+        connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, [this] { queue(); });
+        connect(&timer_, &QTimer::timeout, this, [this] { finish("setup-expired"); });
+        connect(app_, &QCoreApplication::aboutToQuit, this, [this] { finish("application-closing", {}, false); });
+        if (!watcher_.addPath(path_)) return terminal_ = true, false;
+        timer_.setSingleShot(true); timer_.setTimerType(Qt::PreciseTimer);
+        const qint64 remaining = 60000 - now();
+        if (remaining <= 0) { finish("setup-expired"); return false; }
+        timer_.start(int(remaining));
+        if (!publish("selected-ready", ".pending-ready", nonce_ + ' ' + identity_)) {
+            finish("ready-publication-refused", {}, false); return false;
+        }
+        queue(); return true;
+    }
+    bool terminal() const { return terminal_; }
+#ifdef READER_SELECTED_TESTING
+    void expireForTest() { offset_ = 60000; finish("setup-expired"); }
+    void checkForTest() { queue(); }
+    bool samplingForTest() const { return sampling_; }
+    bool disarmedForTest() const { return disarmed_; }
+    int samplesForTest() const { return samples_; }
+    void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
+    void preLinkForTest(std::function<void()> hook) { preLink_ = std::move(hook); }
+#endif
+private:
+    qint64 now() const {
+#ifdef READER_SELECTED_TESTING
+        return elapsed_.elapsed() + offset_;
+#else
+        return elapsed_.elapsed();
+#endif
+    }
+    static bool sameFile(const struct stat &a, const struct stat &b) {
+        return a.st_dev == b.st_dev && a.st_ino == b.st_ino && a.st_mode == b.st_mode &&
+            a.st_uid == b.st_uid && a.st_nlink == b.st_nlink && a.st_size == b.st_size &&
+            a.st_mtim.tv_sec == b.st_mtim.tv_sec && a.st_mtim.tv_nsec == b.st_mtim.tv_nsec &&
+            a.st_ctim.tv_sec == b.st_ctim.tv_sec && a.st_ctim.tv_nsec == b.st_ctim.tv_nsec;
+    }
+    bool absent(const char *name) const {
+        struct stat st{};
+        if (::fstatat(root_, name, &st, AT_SYMLINK_NOFOLLOW) == 0) return false;
+        return errno == ENOENT;
+    }
+    bool readExact(const char *name, const QByteArray &expected, int cap, struct stat *identity = nullptr) const {
+        if (cap < 0 || cap > 75 || expected.size() > cap) return false;
+        const int fd = ::openat(root_, name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
+        if (fd < 0) return false;
+        struct stat before{}, after{}, named{};
+        bool ok = ::fstat(fd, &before) == 0 && S_ISREG(before.st_mode) &&
+            (before.st_mode & 07777) == 0600 && before.st_uid == rootStat_.st_uid && before.st_nlink == 1 &&
+            before.st_size == expected.size();
+        char bytes[76]; const ssize_t n = ok ? ::read(fd, bytes, size_t(cap + 1)) : -1;
+        ok = ok && n == expected.size() && QByteArray(bytes, n) == expected &&
+            ::fstat(fd, &after) == 0 && sameFile(before, after) &&
+            ::fstatat(root_, name, &named, AT_SYMLINK_NOFOLLOW) == 0 && sameFile(after, named);
+        const bool closed = ::close(fd) == 0;
+        if (ok && closed && identity) *identity = after;
+        return ok && closed;
+    }
+    bool trusted() const {
+        if (root_ < 0 || !app_ || QCoreApplication::closingDown()) return false;
+        const int fresh = ::open(path_.toLocal8Bit().constData(), O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (fresh < 0) return false;
+        struct stat current{};
+        const bool same = ::fstat(fresh, &current) == 0 && current.st_dev == rootStat_.st_dev &&
+            current.st_ino == rootStat_.st_ino && current.st_uid == rootStat_.st_uid &&
+            (current.st_mode & 07777) == 0700;
+        const bool closed = ::close(fresh) == 0;
+        if (!same || !closed || !absent("selected-cancel") || !absent("restore.claim") ||
+            !readExact("owner", nonce_, 32) || !readExact("attempt.identity", identity_, 42)) return false;
+        if (consumed_) {
+            struct stat request{};
+            return readExact("selected-request", nonce_ + ' ' + identity_, 75, &request) && sameFile(requestStat_, request);
+        }
+        return true;
+    }
+    bool publish(const char *name, const char *pending, const QByteArray &bytes, bool requireDeadline = true) const {
+        const auto admitted = [&] { return trusted() && (!requireDeadline || now() < 60000); };
+        if (bytes.isEmpty() || bytes.size() > 2048 || !admitted()) return false;
+        const int fd = ::openat(root_, pending, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
+        if (fd < 0) return false;
+        struct stat st{};
+        const bool valid = ::fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == rootStat_.st_uid &&
+            (st.st_mode & 07777) == 0600 && st.st_nlink == 1 && st.st_size == 0;
+        const ssize_t n = valid ? ::write(fd, bytes.constData(), size_t(bytes.size())) : -1;
+        const bool closed = ::close(fd) == 0;
+        if (n != bytes.size() || !closed || !admitted()) return false;
+#ifdef READER_SELECTED_TESTING
+        if (preLink_ && QByteArray(name) == "selected-result") preLink_();
+#endif
+        if (!admitted()) return false;
+        if (::linkat(root_, pending, root_, name, 0) != 0) return false;
+#ifdef READER_SELECTED_TESTING
+        if (postLink_ && QByteArray(name) == "selected-result") postLink_();
+#endif
+        // A post-link trust failure leaves pending+nlink2: unknown, not a valid
+        // receipt. Consumers must independently bracket this sampled commit;
+        // this is not an atomic cancellation or persistence fence.
+        if (!admitted() || ::unlinkat(root_, pending, 0) != 0) return false;
+        return true;
+    }
+    void disarm() {
+        disarmed_ = true; timer_.stop();
+        const auto paths = watcher_.directories();
+        if (!paths.isEmpty()) watcher_.removePaths(paths);
+    }
+    void finish(QString stage, Observation observation = {}, bool allowResult = true) {
+        if (terminal_) return;
+        disarm();
+        if (!allowResult) suppressed_ = true;
+        if (sampling_) {
+            if (pendingStage_.isEmpty() || stage == QStringLiteral("setup-expired")) pendingStage_ = std::move(stage);
+            return; // Never publish or destroy an entry on its sample stack.
+        }
+        terminal_ = true;
+        if (suppressed_ || !trusted()) return;
+        if (!pendingStage_.isEmpty()) { stage = pendingStage_; observation = {}; }
+        if (now() >= 60000) { stage = QStringLiteral("setup-expired"); observation = {}; }
+        if (observation.documentId.size() > 36 || observation.pageId.toUtf8().size() > 256 || observation.refusal.size() > 128) {
+            stage = QStringLiteral("observation-cap"); observation = {};
+        }
+        const auto identity = identity_.trimmed().split(' ');
+        if (identity.size() != 2) return;
+        const QJsonObject json{{"schema", 1}, {"nonce", QString::fromLatin1(nonce_)},
+            {"pid", QString::fromLatin1(identity[0])}, {"start", QString::fromLatin1(identity[1])},
+            {"stage", stage}, {"refusal", observation.refusal}, {"observed", observation.observed},
+            {"document_id", observation.documentId}, {"page_id", observation.pageId},
+            {"page_index", observation.pageIndex}, {"page_count", observation.pageCount},
+            {"map_coherent", observation.mapCoherent}, {"status", observation.status}, {"page_status", observation.pageStatus},
+            {"loading", observation.loading}, {"page_error", observation.pageError}, {"document_error", observation.documentError},
+            {"awaiting_tiles", observation.awaitingTiles}, {"pending_tiles", observation.pendingTiles}, {"working", observation.working},
+            {"ready", observation.ready}, {"sample_begin_ms", sampleBegin_}, {"sample_end_ms", sampleEnd_},
+            {"native_authority", false}, {"render_authority", false}, {"durable_authority", false}};
+        publish("selected-result", ".pending-result", QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n', stage == QStringLiteral("setup-expired") ? false : true);
+    }
+    bool permit() {
+        if (terminal_ || disarmed_) return false;
+        if (!trusted()) { finish("trust-lost", {}, false); return false; }
+        if (now() >= 60000) { finish("setup-expired"); return false; }
+        return true;
+    }
+    void queue() {
+        if (terminal_ || disarmed_ || queued_) return;
+        queued_ = true;
+        const QPointer<Entry> weak(this);
+        if (!QMetaObject::invokeMethod(this, [weak] {
+            if (!weak || weak->terminal_ || weak->disarmed_) return;
+            weak->queued_ = false; weak->check();
+        }, Qt::QueuedConnection)) finish("queue-refused", {}, false);
+    }
+    void check() {
+        if (!permit()) return;
+        // Nested watcher delivery checks cancellation/trust through permit(),
+        // but can neither repeat nor finish the synchronous sample early.
+        if (sampling_ || consumed_) return;
+        if (++checks_ > 32) { finish("request-check-cap"); return; }
+        if (absent("selected-request")) return;
+        if (!readExact("selected-request", nonce_ + ' ' + identity_, 75, &requestStat_)) {
+            finish("request-refused"); return;
+        }
+        consumed_ = true;
+        if (!permit()) return;
+        const qint64 remaining = 60000 - now();
+        if (remaining <= 0) { finish("setup-expired"); return; }
+        const int budget = int(qMin<qint64>(1000, remaining));
+        const QPointer<Entry> weak(this);
+        // The first native/window selection occurs only after exact admission.
+        QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
+        sampling_ = true; sampleBegin_ = now();
+#ifdef READER_SELECTED_TESTING
+        ++samples_;
+#endif
+        const Observation observation = observe(window, [weak] { return weak && weak->permit(); }, budget);
+        if (!weak) return;
+        sampling_ = false; sampleEnd_ = now();
+        if (!permit()) {
+            if (!terminal_) finish(pendingStage_.isEmpty() ? QStringLiteral("sample-disarmed") : pendingStage_, {}, !suppressed_);
+            return;
+        }
+        finish(observation.observed ? QStringLiteral("observed") : QStringLiteral("observation-refused"), observation);
+    }
+    QPointer<QGuiApplication> app_;
+    QString path_, pendingStage_;
+    QByteArray nonce_, identity_;
+    int root_ = -1, checks_ = 0;
+    struct stat rootStat_{}, requestStat_{};
+    QElapsedTimer elapsed_;
+    QFileSystemWatcher watcher_;
+    QTimer timer_;
+    qint64 sampleBegin_ = -1, sampleEnd_ = -1;
+    bool started_ = false, terminal_ = false, queued_ = false, consumed_ = false;
+    bool sampling_ = false, disarmed_ = false, suppressed_ = false;
+#ifdef READER_SELECTED_TESTING
+    qint64 offset_ = 0;
+    int samples_ = 0;
+    std::function<void()> postLink_;
+    std::function<void()> preLink_;
+#endif
+};
+} // namespace reader_selected

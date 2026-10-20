@@ -1,0 +1,321 @@
+#pragma once
+// Experimental public-accessor diagnostic. Never an action or lifetime lease.
+#include <QElapsedTimer>
+#include <QEvent>
+#include <QGuiApplication>
+#include <QMetaMethod>
+#include <QMetaProperty>
+#include <QPointer>
+#include <QQmlContext>
+#include <QQmlEngine>
+#include <QQmlExpression>
+#include <QQuickItem>
+#include <QQuickWindow>
+#include <QRegularExpression>
+#include <QThread>
+#include <QVariant>
+#include <functional>
+
+namespace reader_selected {
+struct Observation {
+    QString refusal;
+    QString documentId, pageId;
+    int pageIndex = -1, pageCount = -1;
+    int status = -1, pageStatus = -1;
+    bool observed = false, mapCoherent = false;
+    bool loading = true, pageError = true, documentError = true, awaitingTiles = true, pendingTiles = true, working = true;
+    // A sampled status conjunction only: not a render fence or an action gate.
+    bool ready = false;
+    // Even an accepted snapshot establishes none of these authorities.
+    bool nativeAuthority = false, renderAuthority = false, durableAuthority = false;
+};
+
+namespace detail {
+class Epoch final : public QObject {
+    Q_OBJECT
+public:
+    quint64 value = 0;
+    bool eventFilter(QObject *, QEvent *) override { ++value; return false; }
+public slots:
+    void changed() { ++value; }
+};
+struct Entry { bool busy = false, reentered = false; };
+inline thread_local Entry entry;
+struct EntryScope {
+    EntryScope() { entry.busy = true; entry.reentered = false; }
+    ~EntryScope() { entry.busy = false; }
+};
+
+class Sample {
+    QPointer<QGuiApplication> app;
+    QPointer<QQuickWindow> window;
+    QPointer<QQuickItem> root;
+    QPointer<QQmlEngine> engine;
+    QElapsedTimer timer;
+    int budget;
+    const std::function<bool()> &permit;
+    Epoch epoch;
+    QList<QPointer<QObject>> retained;
+    QList<QPair<QObject *, int>> watched;
+    quint64 baseline = 0;
+    QString failure;
+
+    bool no(const char *reason) { if (failure.isEmpty()) failure = QString::fromLatin1(reason); return false; }
+    bool retain(QObject *p) {
+        if (!p || p->thread() != QThread::currentThread()) return no("object-thread-or-lifetime");
+        for (const auto &old : retained) if (old == p) return true;
+        if (retained.size() >= 256) return no("object-cap");
+        retained.append(p);
+        QObject::connect(p, &QObject::destroyed, &epoch, &Epoch::changed, Qt::DirectConnection);
+        return true;
+    }
+    bool live(bool consultPermit = true) {
+        if (!app || QCoreApplication::closingDown() || QThread::currentThread() != app->thread() ||
+            !window || !root || !engine || window->thread() != app->thread() || engine->thread() != app->thread())
+            return no("context-thread-or-lifetime");
+        if (entry.reentered) return no("sample-reentered");
+        if (epoch.value != baseline) return no("generation-changed");
+        if (timer.elapsed() >= budget) return no("deadline");
+        if (consultPermit && (!permit || !permit())) return no("canceled");
+        if (!app || !window || !root || !engine || entry.reentered || epoch.value != baseline)
+            return no("generation-changed");
+        for (const auto &p : retained) if (!p || p->thread() != app->thread()) return no("object-thread-or-lifetime");
+        if (timer.elapsed() >= budget) return no("deadline");
+        if (window->contentItem() != root || !window->isVisible() || !window->isActive() ||
+            QGuiApplication::focusWindow() != window || qmlEngine(window) != engine)
+            return no("window-or-engine-changed");
+        return true;
+    }
+    bool signal(QObject *p, const char *signature) {
+        if (!live() || !retain(p)) return false;
+        const int i = p->metaObject()->indexOfSignal(signature);
+        if (i < 0) return no("notification-missing");
+        const QPair<QObject *, int> key(p, i);
+        if (watched.contains(key)) return true;
+        const int slot = epoch.metaObject()->indexOfSlot("changed()");
+        if (!QObject::connect(p, p->metaObject()->method(i), &epoch, epoch.metaObject()->method(slot), Qt::DirectConnection))
+            return no("notification-connect");
+        watched.append(key);
+        return live();
+    }
+    bool watch(QObject *p, const char *name) {
+        if (!live() || !retain(p)) return false;
+        const QMetaObject *m = p->metaObject();
+        if (m->propertyCount() > 512) return no("property-cap");
+        const int i = m->indexOfProperty(name);
+        if (i < 0) return no("property-missing");
+        const QMetaProperty property = m->property(i);
+        if (!property.isReadable()) return no("property-unreadable");
+        if (property.isConstant()) return live();
+        if (!property.hasNotifySignal()) return no("notification-missing");
+        return signal(p, property.notifySignal().methodSignature().constData());
+    }
+    bool watchMany(QObject *p, std::initializer_list<const char *> names) {
+        for (const char *name : names) if (!watch(p, name)) return false;
+        return true;
+    }
+    QVariant value(QObject *p, const char *name) {
+        if (!live() || !p) return {};
+        const int i = p->metaObject()->indexOfProperty(name);
+        if (i < 0) { no("property-missing"); return {}; }
+        const QVariant v = p->metaObject()->property(i).read(p);
+        if (!live() || !v.isValid()) { no("property-read"); return {}; }
+        return v;
+    }
+    QObject *object(QObject *p, const char *name) {
+        const QVariant v = value(p, name);
+        if (!failure.isEmpty()) return nullptr;
+        if (!v.metaType().flags().testFlag(QMetaType::PointerToQObject)) { no("object-type"); return nullptr; }
+        QObject *result = v.value<QObject *>();
+        if (!retain(result) || !live()) return nullptr;
+        // Native wrappers may have external QObject ownership and no QML context.
+        // A different associated engine is refused; absence grants no ownership.
+        QQmlEngine *associated = qmlEngine(result);
+        if (associated && associated != engine) { no("foreign-engine"); return nullptr; }
+        return live() ? result : nullptr;
+    }
+    bool string(QObject *p, const char *name, QString &out) {
+        const QVariant v = value(p, name);
+        if (v.metaType().id() != QMetaType::QString) return no("string-type");
+        out = v.toString(); return failure.isEmpty() && live();
+    }
+    bool integer(QObject *p, const char *name, int &out) {
+        const QVariant v = value(p, name);
+        if (v.metaType().id() != QMetaType::Int) return no("integer-type");
+        out = v.toInt(); return failure.isEmpty() && live();
+    }
+    bool boolean(QObject *p, const char *name, bool &out) {
+        const QVariant v = value(p, name);
+        if (v.metaType().id() != QMetaType::Bool) return no("boolean-type");
+        out = v.toBool(); return failure.isEmpty() && live();
+    }
+    bool enumeration(QObject *p, const char *name, const char *key, int &out, int &wanted) {
+        if (!live()) return false;
+        const int i = p->metaObject()->indexOfProperty(name);
+        if (i < 0) return no("enum-missing");
+        const QMetaProperty property = p->metaObject()->property(i);
+        const QMetaEnum e = property.enumerator();
+        bool found = false; wanted = e.keyToValue(key, &found);
+        if (!property.isEnumType() || !found) return no("enum-key-missing");
+        const QVariant v = value(p, name);
+        bool ok = false; out = v.toInt(&ok);
+        return ok && live() ? true : no("enum-value");
+    }
+    QQmlContext *scope(QObject *owner) {
+        QPointer<QQmlContext> c = qmlContext(owner);
+        for (int depth = 0; c && depth < 16; ++depth) {
+            if (!retain(c) || !live() || !c->isValid() || c->engine() != engine) return nullptr;
+            if (c->objectForName(QStringLiteral("root")) == owner) return c;
+            if (!live()) return nullptr;
+            c = c->parentContext();
+        }
+        no("lexical-root-missing"); return nullptr;
+    }
+    bool visual(QQuickItem *p, bool consultPermit = true) {
+        if (!live(consultPermit) || !p) return false;
+        return p->thread() == app->thread() && p->window() == window && p->isVisible() && p->isEnabled() && live(consultPermit);
+    }
+    bool id(QObject *document, QString &out) {
+        if (!live()) return false;
+        // Fixed expression only; neither caller input nor source text is evaluated.
+        // A canonical textual key is not proof of backing-Document identity.
+        QQmlExpression expression(engine->rootContext(), document, QStringLiteral("String(id)"));
+        const QVariant v = expression.evaluate();
+        if (!live() || expression.hasError() || v.metaType().id() != QMetaType::QString) return no("document-id-conversion");
+        out = v.toString();
+        static const QRegularExpression uuid(QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
+        return uuid.match(out).hasMatch() && out != QStringLiteral("00000000-0000-0000-0000-000000000000")
+            ? true : no("document-id-format");
+    }
+public:
+    Sample(QQuickWindow *w, const std::function<bool()> &permission, int ms) : budget(ms), permit(permission) {
+        timer.start();
+        app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+        if (!app || QThread::currentThread() != app->thread() || !w || w->thread() != app->thread()) {
+            no("application-thread"); return;
+        }
+        window = w; root = w->contentItem(); engine = qmlEngine(w);
+        if (ms < 1 || ms > 1000) no("budget-invalid");
+        // Any nested event delivery invalidates this cooperative sample. Never
+        // suppress the event or pump an event loop to obtain a better result.
+        app->installEventFilter(&epoch);
+    }
+    Observation run() {
+        Observation r;
+        const auto refuse = [&] { Observation f; f.refusal = failure.isEmpty() ? QStringLiteral("relationship-refused") : failure; return f; };
+        if (!failure.isEmpty() || !live() || !retain(window) || !retain(root) || !retain(engine)) return refuse();
+        if (!signal(app, "focusWindowChanged(QWindow*)") || !signal(window, "activeChanged()") ||
+            !signal(window, "visibleChanged(bool)")) return refuse();
+        struct Node { QPointer<QObject> p; int depth; };
+        QList<Node> nodes{{root.data(), 0}};
+        QList<QPointer<QObject>> helpers, containers;
+        for (qsizetype n = 0; n < nodes.size(); ++n) {
+            QPointer<QObject> p = nodes[n].p;
+            if (!live() || !p || !retain(p)) return refuse();
+            const QString name = p->objectName();
+            if (!live()) return refuse();
+            if (name == QStringLiteral("DocumentView.ToolSettings")) helpers.append(p);
+            if (name == QStringLiteral("SceneViewsRoot")) containers.append(p);
+            QList<QPointer<QObject>> children;
+            for (QObject *child : p->children()) children.append(child);
+            if (auto *item = qobject_cast<QQuickItem *>(p.data())) {
+                for (QQuickItem *child : item->childItems()) if (!children.contains(child)) children.append(child);
+            }
+            if (children.size() > 64) { no("child-cap"); return refuse(); }
+            for (const auto &child : children) {
+                bool seen = false;
+                for (const auto &old : nodes) if (old.p == child) seen = true;
+                if (seen) continue;
+                if (nodes.size() >= 256 || nodes[n].depth >= 16) { no("census-cap"); return refuse(); }
+                nodes.append({child, nodes[n].depth + 1});
+            }
+        }
+        if (helpers.size() != 1 || containers.size() != 1) { no("anchor-ambiguity"); return refuse(); }
+        QPointer<QObject> helper = helpers.first();
+        QPointer<QQuickItem> container = qobject_cast<QQuickItem *>(containers.first().data());
+        QPointer<QQuickItem> reader = helper ? qobject_cast<QQuickItem *>(helper->parent()) : nullptr;
+        QPointer<QQuickItem> device = container ? container->parentItem() : nullptr;
+        if (!reader || !device || device->parentItem() != reader || !visual(reader) || !visual(device) || !visual(container)) return refuse();
+        QPointer<QQmlContext> lexical = scope(reader);
+        if (!lexical || lexical->objectForName(QStringLiteral("sceneView")) != device || !live()) {
+            no("lexical-device-mismatch"); return refuse();
+        }
+        if (!watchMany(reader, {"document", "currentPage", "currentPageId", "sceneController"}) ||
+            !watchMany(helper, {"document"}) ||
+            !watchMany(device, {"document", "sceneView", "nextSceneView", "previousSceneView", "page", "pageId", "controller", "status", "pageStatus", "isLoading", "pageError"})) return refuse();
+        QPointer<QObject> document = object(reader, "document");
+        QPointer<QObject> controller = object(reader, "sceneController");
+        QPointer<QQuickItem> current = qobject_cast<QQuickItem *>(object(device, "sceneView"));
+        if (!document || !controller || !current || current->parentItem() != container || !visual(current)) return refuse();
+        bool nativeScene = false;
+        const QMetaObject *sceneMeta = current->metaObject();
+        for (int depth = 0; sceneMeta && depth < 16; ++depth, sceneMeta = sceneMeta->superClass())
+            if (qstrcmp(sceneMeta->className(), "SceneView") == 0) { nativeScene = true; break; }
+        if (!nativeScene || !live()) { no("native-scene-type"); return refuse(); }
+        for (QQuickItem *item : {reader.data(), device.data(), container.data(), current.data()})
+            if (!watchMany(item, {"parent", "visible", "enabled"}) || !signal(item, "windowChanged(QQuickWindow*)")) return refuse();
+        if (!watchMany(document, {"id", "pageCount", "loadError"}) || !signal(document, "pageMapChanged()") ||
+            !watchMany(controller, {"pageId", "working"}) ||
+            !watchMany(current, {"document", "controller", "pageId", "status", "pageStatus", "awaitingInitialTileSet", "tileManager"})) return refuse();
+        QPointer<QObject> tiles = object(current, "tileManager");
+        if (!tiles || !watchMany(tiles, {"pendingTiles"})) return refuse();
+        const auto owners = [&](bool consultPermit = true) {
+            return live(consultPermit) && helper && reader && device && container && current && document && controller && tiles && lexical &&
+                helper->parent() == reader && device->parentItem() == reader && container->parentItem() == device &&
+                current->parentItem() == container && lexical->isValid() && lexical->engine() == engine &&
+                lexical->objectForName(QStringLiteral("root")) == reader && lexical->objectForName(QStringLiteral("sceneView")) == device &&
+                visual(reader, consultPermit) && visual(device, consultPermit) && visual(container, consultPermit) && visual(current, consultPermit);
+        };
+        const auto relationship = [&] {
+            if (!owners()) return false;
+            if (object(reader, "document") != document || object(helper, "document") != document || object(device, "document") != document ||
+                object(current, "document") != document || object(reader, "sceneController") != controller ||
+                object(device, "controller") != controller || object(current, "controller") != controller ||
+                object(device, "sceneView") != current || object(current, "tileManager") != tiles) return false;
+            // Null neighbors are valid. Read their typed values without retaining a null.
+            for (const char *name : {"nextSceneView", "previousSceneView"}) {
+                const QVariant neighbor = value(device, name);
+                if (!neighbor.metaType().flags().testFlag(QMetaType::PointerToQObject) || neighbor.value<QObject *>() == current) return false;
+            }
+            return owners();
+        };
+        if (!relationship()) return refuse();
+        QString deviceId, nativeId, controllerId;
+        int devicePage = -1;
+        if (!id(document, r.documentId) || !string(reader, "currentPageId", r.pageId) ||
+            !string(device, "pageId", deviceId) || !string(current, "pageId", nativeId) || !string(controller, "pageId", controllerId) ||
+            !integer(reader, "currentPage", r.pageIndex) || !integer(device, "page", devicePage) || !integer(document, "pageCount", r.pageCount)) return refuse();
+        if (r.pageId.isEmpty() || r.pageId != deviceId || r.pageId != nativeId || r.pageId != controllerId ||
+            r.pageIndex != devicePage || r.pageIndex < 0 || r.pageIndex >= r.pageCount) return refuse();
+        QString mapped; int roundtrip = -1;
+        if (!live() || !QMetaObject::invokeMethod(document, "idForPage", Qt::DirectConnection,
+                Q_RETURN_ARG(QString, mapped), Q_ARG(int, r.pageIndex)) || !live() ||
+            !QMetaObject::invokeMethod(document, "pageForId", Qt::DirectConnection,
+                Q_RETURN_ARG(int, roundtrip), Q_ARG(QString, r.pageId)) || !live() || mapped != r.pageId || roundtrip != r.pageIndex) {
+            no("page-map-refused"); return refuse();
+        }
+        int active = -1, pageReady = -1, facadeStatus = -1, facadePageStatus = -1;
+        if (!enumeration(current, "status", "Active", r.status, active) || !enumeration(current, "pageStatus", "Ready", r.pageStatus, pageReady) ||
+            !boolean(device, "isLoading", r.loading) || !boolean(device, "pageError", r.pageError) ||
+            !boolean(document, "loadError", r.documentError) ||
+            !integer(device, "status", facadeStatus) || !integer(device, "pageStatus", facadePageStatus) ||
+            !boolean(current, "awaitingInitialTileSet", r.awaitingTiles) || !boolean(tiles, "pendingTiles", r.pendingTiles) ||
+            !boolean(controller, "working", r.working)) return refuse();
+        if (facadeStatus != r.status || facadePageStatus != r.pageStatus) return refuse();
+        QString finalId, finalPage;
+        if (!id(document, finalId) || !string(reader, "currentPageId", finalPage) || finalId != r.documentId || finalPage != r.pageId ||
+            !relationship() || !owners(false) || !live(false)) return refuse();
+        r.observed = true; r.mapCoherent = true;
+        r.ready = !r.loading && !r.pageError && !r.documentError && r.status == active && r.pageStatus == pageReady &&
+            !r.awaitingTiles && !r.pendingTiles && !r.working;
+        return r;
+    }
+};
+} // namespace detail
+
+inline Observation observe(QQuickWindow *window, const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000) {
+    if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
+    detail::EntryScope scope;
+    return detail::Sample(window, permit, budgetMs).run();
+}
+} // namespace reader_selected
