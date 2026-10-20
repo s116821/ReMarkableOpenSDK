@@ -40,14 +40,20 @@ Owned host and ARM/QEMU fixtures cover admission, reentry, cancellation/expiry
 unwinding and publication boundaries. Actual target results must be separately
 recorded with their exact payload/operator/profile.
 
-The next resident logical-close increment will add a separate queued checkpoint
+One possible resident operation-completion diagnostic adds a queued checkpoint
 and later GUI acknowledgement after an admitted sample has unwound. It must
 retain the original request/result/process/root and deadline binding, terminal
 disarmed state, unchanged observer invocation count, and the same guarded
 window/engine lifetimes. It must perform no new Reader property reads, rearm,
 navigation, unload or private module teardown. A changed result, cancellation,
 restoration, expired deadline or destroyed context must prevent acknowledgement.
-This is a proposed diagnostic, not native logical-close qualification.
+This is a proposed diagnostic, not native operation-completion qualification.
+Buddy and bridge code remain available for subsequent operations. Conversation
+completion does not require unloading the bridge or restarting xochitl. Actual
+process restart, disable/uninstall and failure recovery are separate transitions.
 
-- [ ] Implement and verify the queued close acknowledgement on owned fixtures.
-- [ ] Qualify the exact acknowledgement candidate in stock Reader separately.
+This is one way to measure the existing lifecycle obligation, not an additional
+requirement to unload libraries or stop Buddy after a conversation.
+
+- [ ] If selected, implement and verify the queued acknowledgement on owned fixtures.
+- [ ] If selected, qualify its exact stock Reader candidate separately.

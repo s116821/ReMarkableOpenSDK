@@ -66,9 +66,12 @@ different questions. They must not be combined into a claim of native success.
 - A matching creation result, generic job completion and its JavaScript callback
   are separate events. Content-saving effects exist in the traced native path,
   but its failure propagation and multi-file crash durability remain open.
-- Closing owned work while leaving the process and library alive is a logical
-  close. It is not library unloading, stock restoration or proof of safe native
-  process shutdown.
+- Completing or canceling owned work leaves the background service and native
+  bridge available for later operations. Disarm temporary work and reject late
+  callbacks; conversation completion does not require library unloading or a
+  xochitl restart. Process restart, disable/uninstall and failure recovery have
+  separate preservation obligations. The one-shot diagnostic's stock restoration
+  is a test arrangement, not the production conversation workflow.
 
 ## Reproduction on owned objects
 
