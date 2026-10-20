@@ -15,6 +15,16 @@ component context instead of using traversal order or keyboard focus. Its
 result is a bounded observation, never an action token or an atomic snapshot.
 The complete native mapping and getter behavior still need exact-device review.
 
+Scoped id lookup starts from the discovered direct ToolSettings helper's creation
+context. A nested composite Reader root can expose its caller's outer context;
+bounded ascent from that root alone therefore misses its internal `root` and
+`sceneView` ids. The helper is declared inside the Reader component. From its
+context the observer ascends at most 16 parents, requiring both ids to equal the
+exact discovered Reader and device objects, the same engine and direct helper
+ownership. Final checks retain the helper's original creation context and engine.
+Owned nested-component tests reproduce the old failure and verify this fix;
+actual stock-context accessibility remains a separate device check.
+
 Discovery follows the window's visual item tree and checks direct QObject
 children for the Reader helper. A valid helper must have the visual Reader as
 its direct parent, so nonvisual service/model descendants are outside this
@@ -149,6 +159,26 @@ Scoped id lookup uses [QQmlContext::objectForName](https://doc.qt.io/qt-6/qqmlco
 available since Qt6.2; newer recursive context APIs are not required.
 
 ## Proposed SDK integration
+
+The retained creation seam belongs to the `DocumentController` singleton from
+`xofm.libs.library`, not the Reader's `sceneController`. Its full invokable is
+`bool addPageWithTemplateAndPageSize(entry::Id, int, QString, QSizeF, QJSValue, QString)`;
+the final argument supplies a page UUID. This is positional insertion, not an
+atomic insert-after-source-ID operation. The exposed boolean and JavaScript
+callback are not a native job/target receipt. The existing
+[caller-selected result](../experiments/caller-selected-insertion-result.md)
+records one historical exact-firmware allocation honoring the supplied UUID;
+its durable-success flag remained false and lifecycle qualification stayed open.
+
+A future candidate should preselect a fresh absent target UUID, establish the
+existing Library/Reader document correspondence, and derive the insertion index
+from the retained source ID immediately before its single dispatch. Read-only
+reconciliation then requires the target exactly once immediately after source,
+and removing that target must reproduce the complete original order. Both map
+directions must agree. Separate preservation evidence must cover original page
+records, PDF mapping/bytes, ink and unknown fields. A false return, lost callback
+or timeout permits reconciliation, never resending. Matching logical IDs alone
+does not prove backing-document ownership or exclude another concurrent writer.
 
 1. Admit the exact firmware/provider/payload profile and an independently
    recoverable session. Retain process-start identity, engine/window generation,

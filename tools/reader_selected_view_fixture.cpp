@@ -151,6 +151,7 @@ static const QByteArray readerQml = R"QML(
 import OwnedProbe 1.0
 FocusScope {
     id: root
+    objectName: "owned-reader-root"
     width: 100; height: 100
     property QtObject document: externalDocument
     property alias currentPage: sceneView.page
@@ -171,22 +172,32 @@ struct Fixture {
     std::unique_ptr<QObject> object;
     QQuickItem *reader = nullptr, *device = nullptr, *container = nullptr;
     SceneView *current = nullptr;
-    explicit Fixture(bool badContext = false) {
+    explicit Fixture(bool badContext = false, bool composite = false) {
         require(dir.isValid(), "temporary directory");
         write(dir.filePath("DeviceFixture.qml"), deviceQml);
         QByteArray source = readerQml;
         if (badContext) source.replace("sceneView", "wrongLexicalId");
         write(dir.filePath("ReaderFixture.qml"), source);
+        write(dir.filePath("Main.qml"), R"QML(
+import OwnedProbe 1.0
+Item {
+    id: root
+    width: 100; height: 100
+    ReaderFixture { id: nestedReader }
+}
+)QML");
         engine.rootContext()->setContextProperty("externalDocument", &document);
         engine.rootContext()->setContextProperty("externalController", &controller);
         engine.rootContext()->setContextProperty("externalTiles", &tiles);
         // The external objects intentionally have no QObject parent under the window.
         QQmlEngine::setContextForObject(&window, engine.rootContext());
-        QQmlComponent component(&engine, QUrl::fromLocalFile(dir.filePath("ReaderFixture.qml")));
+        QQmlComponent component(&engine, QUrl::fromLocalFile(dir.filePath(composite ? "Main.qml" : "ReaderFixture.qml")));
         if (component.isError()) for (const auto &e : component.errors()) QTextStream(stderr) << e.toString() << '\n';
         object.reset(component.create()); require(bool(object), "actual QML component creation");
-        reader = qobject_cast<QQuickItem *>(object.get()); require(reader != nullptr, "reader root item");
-        reader->setParentItem(window.contentItem()); reader->setParent(window.contentItem());
+        auto *visualRoot = qobject_cast<QQuickItem *>(object.get()); require(visualRoot, "component visual root");
+        reader = composite ? visualRoot->findChild<QQuickItem *>("owned-reader-root") : visualRoot;
+        require(reader != nullptr, "reader root item");
+        visualRoot->setParentItem(window.contentItem()); visualRoot->setParent(window.contentItem());
         container = reader->findChild<QQuickItem *>("SceneViewsRoot"); require(container, "container");
         device = container->parentItem();
         current = reader->findChild<SceneView *>("owned-selected"); require(current, "selected scene");
@@ -205,6 +216,35 @@ int main(int argc, char **argv) {
     qmlRegisterType<QQuickItem>("OwnedProbe", 1, 0, "Item");
     qmlRegisterType<FocusFixture>("OwnedProbe", 1, 0, "FocusScope");
     qmlRegisterType<SceneView>("OwnedProbe", 1, 0, "SceneFixture");
+    {
+        Fixture f(false, true);
+        QObject *helper = f.reader->findChild<QObject *>("DocumentView.ToolSettings", Qt::FindDirectChildrenOnly);
+        QQmlContext *outer = qmlContext(f.reader), *inner = qmlContext(helper);
+        require(helper && outer && inner && outer != inner && outer->engine() == &f.engine && inner->engine() == &f.engine,
+                "nested composite root exposes outer creation context while direct helper exposes inner context");
+        require(outer->objectForName("root") == f.object.get() && inner->objectForName("root") == f.reader &&
+                inner->objectForName("sceneView") == f.device, "owned composite scope has exact distinct root and device ids");
+        const auto r = f.sample();
+        require(r.observed && r.ready && r.pageId == f.document.pages[0], "direct helper context resolves exact nested composite Reader and selected device");
+    }
+    for (const bool foreign : {false, true}) {
+        Fixture f(false, true);
+        QObject *original = f.reader->findChild<QObject *>("DocumentView.ToolSettings", Qt::FindDirectChildrenOnly);
+        require(original, "original direct helper"); original->setObjectName("ignored-helper");
+        QQmlEngine otherEngine;
+        QQmlComponent component(foreign ? &otherEngine : &f.engine);
+        component.setData("import OwnedProbe 1.0\nQtObject { id: root; objectName: \"DocumentView.ToolSettings\"; property QtObject document }", QUrl());
+        std::unique_ptr<QObject> replacement(component.create()); require(bool(replacement), "real replacement helper component");
+        replacement->setParent(f.reader);
+        require(qmlContext(replacement.get())->objectForName("root") != f.reader, "replacement helper has wrong lexical root despite direct QObject ownership");
+        const auto r = f.sample(); refused(r, "foreign helper engine or wrong exact lexical root refuses");
+        require(r.refusal == (foreign ? "foreign-helper-context" : "lexical-root-missing"), "context refusal preserves engine and exact root guards");
+    }
+    {
+        Fixture f(true, true);
+        const auto r = f.sample(); refused(r, "nested exact Reader root with incorrect scoped sceneView refuses");
+        require(r.refusal == "lexical-device-mismatch", "exact device id remains mandatory in helper-seeded scope");
+    }
     {
         Fixture f;
         auto r = f.sample();

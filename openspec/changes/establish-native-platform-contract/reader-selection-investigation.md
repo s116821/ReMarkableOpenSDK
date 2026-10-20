@@ -39,3 +39,15 @@ disarm it. It remains resident after terminal completion; no unload is provided.
 Owned host and ARM/QEMU fixtures cover admission, reentry, cancellation/expiry
 unwinding and publication boundaries. Actual target results must be separately
 recorded with their exact payload/operator/profile.
+
+The next resident logical-close increment will add a separate queued checkpoint
+and later GUI acknowledgement after an admitted sample has unwound. It must
+retain the original request/result/process/root and deadline binding, terminal
+disarmed state, unchanged observer invocation count, and the same guarded
+window/engine lifetimes. It must perform no new Reader property reads, rearm,
+navigation, unload or private module teardown. A changed result, cancellation,
+restoration, expired deadline or destroyed context must prevent acknowledgement.
+This is a proposed diagnostic, not native logical-close qualification.
+
+- [ ] Implement and verify the queued close acknowledgement on owned fixtures.
+- [ ] Qualify the exact acknowledgement candidate in stock Reader separately.

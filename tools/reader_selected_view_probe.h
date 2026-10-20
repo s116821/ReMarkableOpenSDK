@@ -51,6 +51,7 @@ class Sample {
     QPointer<QQuickWindow> window;
     QPointer<QQuickItem> root;
     QPointer<QQmlEngine> engine;
+    QPointer<QQmlContext> lexicalSeed;
     QElapsedTimer timer;
     int budget;
     const std::function<bool()> &permit;
@@ -193,11 +194,25 @@ class Sample {
         bool ok = false; out = v.toInt(&ok);
         return ok && live() ? true : no("enum-value");
     }
-    QQmlContext *scope(QObject *owner) {
-        QPointer<QQmlContext> c = qmlContext(owner);
+    QQmlContext *scope(QObject *owner, QObject *seed, QObject *expectedDevice) {
+        QPointer<QObject> ownerPin = owner, seedPin = seed, devicePin = expectedDevice;
+        if (!retain(ownerPin) || !retain(seedPin) || !retain(devicePin) || !live()) return nullptr;
+        if (seedPin->parent() != ownerPin || qmlEngine(seedPin) != engine) {
+            no("foreign-helper-context"); return nullptr;
+        }
+        // A composite root can expose its caller's creation context. Its direct
+        // in-component helper exposes the Reader's internal lexical namespace.
+        // Only bounded parent ascent is allowed, with both exact scoped ids.
+        QPointer<QQmlContext> c = qmlContext(seedPin);
+        lexicalSeed = c;
         for (int depth = 0; c && depth < 16; ++depth) {
             if (!retain(c) || !live() || !c->isValid() || c->engine() != engine) return nullptr;
-            if (c->objectForName(QStringLiteral("root")) == owner) return c;
+            if (c->objectForName(QStringLiteral("root")) == ownerPin) {
+                if (c->objectForName(QStringLiteral("sceneView")) != devicePin) {
+                    no("lexical-device-mismatch"); return nullptr;
+                }
+                return live() ? c.data() : nullptr;
+            }
             if (!live()) return nullptr;
             c = c->parentContext();
         }
@@ -287,7 +302,7 @@ public:
         QPointer<QQuickItem> reader = helper ? qobject_cast<QQuickItem *>(helper->parent()) : nullptr;
         QPointer<QQuickItem> device = container ? container->parentItem() : nullptr;
         if (!reader || !device || device->parentItem() != reader || !visual(reader) || !visual(device) || !visual(container)) return refuse();
-        QPointer<QQmlContext> lexical = scope(reader);
+        QPointer<QQmlContext> lexical = scope(reader, helper, device);
         if (!lexical || lexical->objectForName(QStringLiteral("sceneView")) != device || !live()) {
             no("lexical-device-mismatch"); return refuse();
         }
@@ -313,7 +328,8 @@ public:
         if (!tiles || !watchMany(tiles, {"pendingTiles"})) return refuse();
         const auto owners = [&](bool consultPermit = true) {
             return live(consultPermit) && helper && reader && device && container && current && document && controller && tiles && lexical &&
-                helper->parent() == reader && device->parentItem() == reader && container->parentItem() == device &&
+                helper->parent() == reader && qmlContext(helper) == lexicalSeed && qmlEngine(helper) == engine &&
+                device->parentItem() == reader && container->parentItem() == device &&
                 current->parentItem() == container && lexical->isValid() && lexical->engine() == engine &&
                 lexical->objectForName(QStringLiteral("root")) == reader && lexical->objectForName(QStringLiteral("sceneView")) == device &&
                 visual(reader, consultPermit) && visual(device, consultPermit) && visual(container, consultPermit) && visual(current, consultPermit);
