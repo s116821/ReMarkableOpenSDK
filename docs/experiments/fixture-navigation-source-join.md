@@ -56,6 +56,21 @@ remain outside the repository. REA native forwarding/registration findings are
 a separate evidence item; source/fixture checks cannot substitute for a live
 target result.
 
+REA 6.7.0 / Ghidra 12.1.4 evidence
+`ev_a0344e931816fa5fa1422e9a00e96d63a6d917f00c1ac5bed8647368a65f83fb`
+confirms the inspected wrapper at `0xa5a908` parses the route, copies the map
+into QVariant-backed captured storage and calls the underlying navigator's
+virtual slot at offset eight before returning. The concrete downstream target
+and scheduler remain unresolved: inline wrapper forwarding is not synchronous
+UI completion. The `0xcf1708` registration helper retains the `windowadder.cpp`
+`addWindow` diagnostic identity; the setup slice pairs literal `main` with
+`qml/LegacyMainWindow.qml` through that helper and `0xcdede4`'s QML factory
+binding. The route interpretation combines these native findings with the
+retained stock QML callsites; it is not a recovered public SDK contract.
+
+The owned temporary analysis session exported its evidence and closed. Unrelated
+OpenCode sessions were untouched. No global MCP/client configuration changed.
+
 Normal opening may update visit/last-open metadata. Preserve complete before
 and after backups and report actual changes; require immutable PDF/page/ink
 preservation without writing saved bytes into a running document cache.
