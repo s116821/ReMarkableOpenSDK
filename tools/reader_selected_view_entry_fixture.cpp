@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
     qmlRegisterType<QQuickItem>("OwnedProbe", 1, 0, "Item");
     qmlRegisterType<FocusFixture>("OwnedProbe", 1, 0, "FocusScope");
     qmlRegisterType<SceneView>("OwnedProbe", 1, 0, "SceneFixture");
+    registerCreationFixture();
     const QByteArray nonce(32, 'a'), identity = reader_selected::selfIdentity();
     require(!identity.isEmpty(), "entry process identity");
     Fixture f;
@@ -125,6 +126,7 @@ int main(int argc, char **argv) {
                 mode == "check-cap" ? QStringLiteral("request-check-cap") : QStringLiteral("request-refused");
             validReceipt(bytes, nonce, identity, expected);
             const auto json = QJsonDocument::fromJson(bytes).object();
+            require(!json.contains("diagnostic") && !json.contains("creation_join_observed"), "default entry wire schema remains unchanged");
             require(json["observed"].toBool() == successful, "only actual admitted observation has identities");
             if (successful) require(json["ready"].toBool() && json["document_id"].toString() == f.document.key &&
                     json["page_id"].toString() == f.document.pages[0] && getterReads > 0 && entry.samplesForTest() == 1,
@@ -200,5 +202,89 @@ int main(int argc, char **argv) {
     }
     QTextStream(stdout) << "PASS interprocess request publication: deterministic open/partial refusal; complete-direct observed=" << completeDirectObserved
         << " refused=" << completeDirectRefused << "; atomic10/10 exact once; no overwrite\n";
+    require(creationPreparations == 0, "ordinary entry never resolves creation singleton");
+    for (const QByteArray &mode : {QByteArray("valid"), QByteArray("bad-binding"), QByteArray("before-cancel"), QByteArray("before-expiry"),
+            QByteArray("prepare-cancel"), QByteArray("prepare-restore"), QByteArray("prepare-expiry"),
+            QByteArray("prepare-request-replaced"), QByteArray("prepare-reentry"), QByteArray("postlink-cancel")}) {
+        Fixture joinFixture;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &joinFixture.document;
+        joinFixture.engine.rootContext()->setContextProperty("externalCreation", &creation);
+        QTemporaryDir base; require(base.isValid(), "join entry temporary base");
+        const QString root = base.path() + "/root";
+        require(QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "join entry private root");
+        putEntry(root + "/owner", nonce); putEntry(root + "/attempt.identity", identity);
+        const int preparationsBefore = creationPreparations;
+        reader_selected::Entry entry(&app, root, nonce, nullptr, reader_selected::Entry::Diagnostic::CreationSourceJoin);
+        require(entry.start(), "join entry starts without singleton resolution");
+        pumpEntry();
+        require(creationPreparations == preparationsBefore && library.calls == 0 && entry.samplesForTest() == 0 &&
+                readEntry(root + "/selected-result").isEmpty(), "join entry has no singleton/native lookup before exact request");
+        bool hookReached = false;
+        preparationHook = [&] {
+            hookReached = true;
+            require(entry.samplingForTest() && entry.samplesForTest() == 1 && library.calls == 0,
+                    "preparation occurs on one admitted operation stack before resolver");
+            if (mode == "prepare-expiry") entry.expireForTest();
+            else if (mode == "prepare-request-replaced") {
+                require(QFile::rename(root + "/selected-request", root + "/preserved-request"), "preserve original join request inode");
+                putEntry(root + "/selected-request", nonce + ' ' + identity);
+            } else if (mode == "prepare-reentry") {
+                const auto nested = reader_selected::observeCreationJoin(&joinFixture.window);
+                refused(nested, "preparation cannot recursively enter join");
+                require(nested.refusal == "sample-reentered", "preparation reentry has fixed refusal");
+            } else if (mode == "prepare-cancel" || mode == "prepare-restore") {
+                putEntry(root + (mode == "prepare-cancel" ? "/selected-cancel" : "/restore.claim"), "stop");
+                entry.checkForTest(); pumpEntry();
+                require(entry.disarmedForTest(), "nested preparation cancellation disarms entry");
+            }
+            require(entry.samplingForTest() && !entry.terminal() && readEntry(root + "/selected-result").isEmpty(),
+                    "preparation stop cannot publish or finish before operation stack unwinds");
+        };
+        if (mode == "postlink-cancel") entry.postLinkForTest([&] { putEntry(root + "/selected-cancel", "stop"); });
+        if (mode == "before-cancel") putEntry(root + "/selected-cancel", "stop");
+        if (mode == "before-expiry") entry.expireForTest();
+        else putEntry(root + "/selected-request", nonce + ' ' + identity + (mode == "bad-binding" ? QByteArray("extra") : QByteArray()));
+        entry.checkForTest(); pumpEntry();
+        preparationHook = {};
+        require(entry.terminal() && entry.disarmedForTest() && !entry.samplingForTest(), "join entry terminal/disarmed after unwind");
+        const bool noPreparation = mode == "bad-binding" || mode == "before-cancel" || mode == "before-expiry";
+        require(creationPreparations == preparationsBefore + (noPreparation ? 0 : 1) && hookReached == !noPreparation,
+                "exact request controls single singleton preparation");
+        const bool joined = mode == "valid" || mode == "postlink-cancel";
+        require(library.calls == (joined ? 1 : 0) && entry.samplesForTest() == (noPreparation ? 0 : 1),
+                "no resolver after preparation stop, refusal, or reentry");
+        const QByteArray bytes = readEntry(root + "/selected-result");
+        const bool suppressed = mode == "before-cancel" || mode == "prepare-cancel" || mode == "prepare-restore" || mode == "prepare-request-replaced";
+        if (suppressed) require(bytes.isEmpty(), "join cancellation/restore/request replacement suppresses output");
+        else {
+            const QString stage = joined ? QStringLiteral("observed") :
+                (mode == "before-expiry" || mode == "prepare-expiry") ? QStringLiteral("setup-expired") :
+                mode == "bad-binding" ? QStringLiteral("request-refused") : QStringLiteral("observation-refused");
+            validReceipt(bytes, nonce, identity, stage);
+            const auto json = QJsonDocument::fromJson(bytes).object();
+            require(json["diagnostic"].isString() && json["diagnostic"].toString() == "creation-source-join" &&
+                    json["creation_join_observed"].isBool() && json["creation_join_observed"].toBool() == joined &&
+                    json["observed"].isBool() && json["observed"].toBool() == joined,
+                    "join-specific kind and scalar success are explicit");
+            if (joined) require(json["document_id"].toString() == joinFixture.document.key && json["ready"].toBool(),
+                    "joined entry returns selected source scalar facts");
+            else require(json["document_id"].toString().isEmpty() && !json["ready"].toBool(), "join terminal refusal has no identity");
+            struct stat st{};
+            require(::lstat((root + "/selected-result").toLocal8Bit().constData(), &st) == 0 &&
+                    (st.st_mode & 07777) == 0600 && S_ISREG(st.st_mode), "private join receipt");
+            if (mode == "postlink-cancel") require(st.st_nlink == 2 && readEntry(root + "/.pending-result") == bytes,
+                    "uncertain join publication retains invalid pending/single-link failure evidence");
+            else require(st.st_nlink == 1 && readEntry(root + "/.pending-result").isEmpty(), "closed join receipt");
+        }
+        const int samplesBefore = entry.samplesForTest(), callsBefore = library.calls;
+        putEntry(root + "/extra-event", "event"); entry.checkForTest(); pumpEntry();
+        require(entry.samplesForTest() == samplesBefore && library.calls == callsBefore &&
+                creationPreparations == preparationsBefore + (noPreparation ? 0 : 1) &&
+                readEntry(root + "/selected-result") == bytes && !entry.start(),
+                "join entry never retries spent request or uncertain publication");
+    }
+    QTextStream(stdout) << "PASS creation join entry owned Qt: no preparation before exact request, one typed join, explicit diagnostic/scalar wire, preparation cancel/restore/expiry/reentry/request replacement, uncertain publication/no retry; all authorities=false\n";
     QTextStream(stdout) << "PASS selected entry owned Qt: exact request/no early getter, binding/mode/link/FIFO refusal, pinned request, one-shot/cap/deadline, nested cancel/restore/expiry deferral, pending publication; all authorities=false\n";
 }

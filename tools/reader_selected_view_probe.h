@@ -7,11 +7,13 @@
 #include <QMetaProperty>
 #include <QPointer>
 #include <QQmlContext>
+#include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QThread>
 #include <QVariant>
 #include <functional>
@@ -486,5 +488,57 @@ inline Observation observeWithCreationController(QQuickWindow *window, QObject *
     if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
     detail::EntryScope scope;
     return detail::Sample(window, permit, budgetMs, controller, true).run();
+}
+
+// Explicit stateful preparation on the already admitted engine. Resolving an
+// imported singleton may initialize it; this never creates a separate engine.
+inline Observation observeCreationJoin(QQuickWindow *window,
+        const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000) {
+    const auto refuse = [](const char *reason) { Observation r; r.refusal = QString::fromLatin1(reason); return r; };
+    if (detail::entry.busy) { detail::entry.reentered = true; return refuse("sample-reentered"); }
+    detail::EntryScope scope;
+    if (budgetMs < 1 || budgetMs > MaxObservationMs) return refuse("budget-invalid");
+    QElapsedTimer elapsed; elapsed.start();
+    QPointer<QGuiApplication> app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (!app || QThread::currentThread() != app->thread() || !window || window->thread() != app->thread())
+        return refuse("application-thread");
+    QPointer<QQuickWindow> w = window;
+    QPointer<QQuickItem> root = window->contentItem();
+    QPointer<QQmlEngine> engine = qmlEngine(window);
+    const auto contextLive = [&] {
+        return app && w && root && engine && !QCoreApplication::closingDown() &&
+            !detail::entry.reentered && elapsed.elapsed() < budgetMs &&
+            w->thread() == app->thread() && engine->thread() == app->thread() &&
+            w->contentItem() == root && qmlEngine(w) == engine &&
+            w->isActive() && w->isVisible() && QGuiApplication::focusWindow() == w;
+    };
+    const auto allowed = [&] { return contextLive() && permit && permit() && contextLive(); };
+    if (!allowed()) return refuse("creation-preparation-refused");
+    QPointer<QObject> controller;
+    const Observation result = [&]() -> Observation {
+        QQmlComponent component(engine);
+        component.setData(QByteArrayLiteral("import QtQml\nimport xofm.libs.library\n"
+            "QtObject { readonly property QtObject observedController: DocumentController }"),
+            QUrl::fromLocalFile(QStringLiteral("/__reader_creation_join_fixed_helper__.qml")));
+        if (!allowed()) return refuse("creation-preparation-refused");
+        if (component.status() != QQmlComponent::Ready)
+            return refuse(component.status() == QQmlComponent::Loading ? "creation-import-loading" : "creation-import-refused");
+        QPointer<QObject> helper = component.create(engine->rootContext());
+        const auto cleanup = qScopeGuard([&] { delete helper.data(); });
+        if (!helper || !allowed() || !helper || qmlEngine(helper) != engine) return refuse("creation-preparation-refused");
+        const QVariant value = helper->property("observedController");
+        controller = value.metaType().flags().testFlag(QMetaType::PointerToQObject)
+            ? value.value<QObject *>() : nullptr;
+        if (!controller || !allowed()) return refuse("creation-preparation-refused");
+        delete helper.data(); // Remove the owned binding before notification guards.
+        if (!controller || !allowed()) return refuse("creation-preparation-refused");
+        const int remaining = budgetMs - int(elapsed.elapsed());
+        if (remaining <= 0) return refuse("deadline");
+        return detail::Sample(w, permit, remaining, controller, true).run();
+    }();
+    // Include component/helper unwind in this mode's original cooperative cap.
+    if (elapsed.elapsed() >= budgetMs) return refuse("deadline");
+    if (result.observed && (!controller || !contextLive())) return refuse("creation-preparation-refused");
+    return result;
 }
 } // namespace reader_selected

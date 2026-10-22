@@ -33,8 +33,11 @@ inline QByteArray selfIdentity() {
 
 class Entry final : public QObject {
 public:
-    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr)
-        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)) { elapsed_.start(); }
+    enum class Diagnostic { SelectedPage, CreationSourceJoin };
+    Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
+          Diagnostic diagnostic = Diagnostic::SelectedPage)
+        : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
+          diagnostic_(diagnostic) { elapsed_.start(); }
     ~Entry() override { if (root_ >= 0) ::close(root_); }
     bool start() {
         if (started_) return false;
@@ -172,7 +175,7 @@ private:
         }
         const auto identity = identity_.trimmed().split(' ');
         if (identity.size() != 2) return;
-        const QJsonObject json{{"schema", 1}, {"nonce", QString::fromLatin1(nonce_)},
+        QJsonObject json{{"schema", 1}, {"nonce", QString::fromLatin1(nonce_)},
             {"pid", QString::fromLatin1(identity[0])}, {"start", QString::fromLatin1(identity[1])},
             {"stage", stage}, {"refusal", observation.refusal}, {"observed", observation.observed},
             {"document_id", observation.documentId}, {"page_id", observation.pageId},
@@ -182,6 +185,10 @@ private:
             {"awaiting_tiles", observation.awaitingTiles}, {"pending_tiles", observation.pendingTiles}, {"working", observation.working},
             {"ready", observation.ready}, {"sample_begin_ms", sampleBegin_}, {"sample_end_ms", sampleEnd_},
             {"native_authority", false}, {"render_authority", false}, {"durable_authority", false}};
+        if (diagnostic_ == Diagnostic::CreationSourceJoin) {
+            json.insert(QStringLiteral("diagnostic"), QStringLiteral("creation-source-join"));
+            json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
+        }
         publish("selected-result", ".pending-result", QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n', stage == QStringLiteral("setup-expired") ? false : true);
     }
     bool permit() {
@@ -221,7 +228,9 @@ private:
 #ifdef READER_SELECTED_TESTING
         ++samples_;
 #endif
-        const Observation observation = observe(window, [weak] { return weak && weak->permit(); }, budget);
+        const auto allowed = [weak] { return weak && weak->permit(); };
+        const Observation observation = diagnostic_ == Diagnostic::CreationSourceJoin
+            ? observeCreationJoin(window, allowed, budget) : observe(window, allowed, budget);
         if (!weak) return;
         sampling_ = false; sampleEnd_ = now();
         if (!permit()) {
@@ -233,6 +242,7 @@ private:
     QPointer<QGuiApplication> app_;
     QString path_, pendingStage_;
     QByteArray nonce_, identity_;
+    Diagnostic diagnostic_;
     int root_ = -1, checks_ = 0;
     struct stat rootStat_{}, requestStat_{};
     QElapsedTimer elapsed_;

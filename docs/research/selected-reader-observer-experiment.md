@@ -84,8 +84,9 @@ different questions. They must not be combined into a claim of native success.
 `observeWithCreationController` adds a separate experimental question to the
 same guarded sample: does the supplied existing creation controller's own
 Library return the exact selected document wrapper? Ordinary `observe` does not
-perform this lookup. The current one-request native entry still calls ordinary
-`observe`; no new native join result or activation is supplied by this change.
+perform this lookup. The default one-request entry still calls ordinary
+`observe`. A separate startup build with `READER_SELECTED_CREATION_JOIN` selects
+the join mode; no new native join result or activation is supplied by this change.
 
 The optional path checks the exact build's qualified controller/Library Qt class
 names, associated engine/thread/lifetimes, Library readiness and notifications.
@@ -103,9 +104,20 @@ The [static resolver/cache finding](scene-document-controller-relationship.md)
 explains the conditional backing-identity interpretation and its limits. This
 lookup can create/cache a wrapper, so it is not passive. Different wrappers with
 equal IDs are inconclusive. The caller must establish provenance for an existing
-controller before this sample; the diagnostic neither constructs a singleton
-nor creates a new QML engine. Separate request-entry integration and a fresh
-native profile remain unfinished. No page creation or worker access is added.
+controller before this direct sample; this function neither constructs a
+singleton nor creates a QML engine. No page creation or worker access is added.
+
+The separate `observeCreationJoin` wrapper explicitly prepares that controller
+through one fixed import helper on the admitted window's existing QML engine.
+This can initialize a lazy singleton; it does not prove prior instantiation.
+It changes no native ownership or parentage, destroys its owned helper before
+the fresh guarded sample, and includes preparation and component unwind in the
+original cooperative observation cap. There is no event pumping, asynchronous
+import wait or retry. The request entry invokes preparation only after consuming
+the exact admitted request; preparation stop/expiry cannot publish while that
+stack is active. The separate mode adds `diagnostic="creation-source-join"` and
+`creation_join_observed` to its scalar result. Ordinary mode's wire is unchanged.
+A fresh native profile and separate stock result remain unfinished.
 
 Owned fixtures cover exact qualified class names, a non-QString ID value and
 mismatched argument rejection, same-ID distinct wrappers, absent/unready and
@@ -116,7 +128,8 @@ not evidence that the join has run on stock objects.
 ## Reproduction on owned objects
 
 Run from the repository root on a host with Qt6 Core/Qml/Gui/Quick development
-packages and a C++17 compiler:
+packages, the QtQml runtime imports (including Models and WorkerScript), and a
+C++17 compiler:
 
 ```sh
 sh tools/reader_selected_view_test.sh

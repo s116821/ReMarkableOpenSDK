@@ -99,6 +99,20 @@ signals:
 using xofm::libs::library::Library;
 using xofm::libs::library::AmbiguousLibrary;
 using xofm::libs::library::DocumentController;
+static int creationPreparations = 0;
+static std::function<void()> preparationHook;
+static void registerCreationFixture() {
+    qmlRegisterSingletonType<QObject>("xofm.libs.library", 1, 0, "DocumentController",
+        [](QQmlEngine *engine, QJSEngine *) -> QObject * {
+            ++creationPreparations;
+            if (preparationHook) preparationHook();
+            QObject *value = engine->rootContext()->contextProperty("externalCreation").value<QObject *>();
+            // Only the owned fixture factory does this; production preparation
+            // never assigns native singleton/wrapper ownership.
+            if (value) QQmlEngine::setObjectOwnership(value, QQmlEngine::CppOwnership);
+            return value;
+        });
+}
 class TilesFixture final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool pendingTiles READ pendingTiles WRITE setPendingTiles NOTIFY pendingTilesChanged)
@@ -265,6 +279,34 @@ int main(int argc, char **argv) {
     qmlRegisterType<QQuickItem>("OwnedProbe", 1, 0, "Item");
     qmlRegisterType<FocusFixture>("OwnedProbe", 1, 0, "FocusScope");
     qmlRegisterType<SceneView>("OwnedProbe", 1, 0, "SceneFixture");
+    registerCreationFixture();
+    for (const QByteArray &mode : {QByteArray("valid"), QByteArray("cancel-before"), QByteArray("cancel-during"),
+                                QByteArray("reentry"), QByteArray("deadline")}) {
+        Fixture f;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        f.engine.rootContext()->setContextProperty("externalCreation", &creation);
+        const int before = creationPreparations;
+        bool canceled = mode == "cancel-before";
+        preparationHook = [&] {
+            if (mode == "cancel-during") canceled = true;
+            if (mode == "reentry") reader_selected::observe(&f.window);
+            if (mode == "deadline") std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+        };
+        const auto r = reader_selected::observeCreationJoin(&f.window, [&] { return !canceled; });
+        preparationHook = {};
+        require(creationPreparations == before + (mode == "cancel-before" ? 0 : 1), "preparation resolves singleton at most once after permit");
+        if (mode == "valid") {
+            require(r.observed && r.creationJoinObserved && library.calls == 1,
+                    "fixed helper resolves singleton on admitted existing engine before fresh guarded join");
+            require(QQmlEngine::objectOwnership(&creation) == QQmlEngine::CppOwnership && creation.library() == &library,
+                    "owned helper cleanup preserves native controller and Library");
+        } else {
+            refused(r, "preparation cancellation/reentry/deadline refuses before source lookup");
+            require(library.calls == 0, "preparation refusal never invokes Library lookup");
+        }
+    }
     {
         Fixture f;
         Library library;

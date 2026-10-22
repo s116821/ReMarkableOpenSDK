@@ -25,7 +25,13 @@ void startup() {
         auto *gui = qobject_cast<QGuiApplication *>(app);
         if (!gui || QThread::currentThread() != gui->thread() || ::geteuid() != 0) return;
         auto *entry = new reader_selected::Entry(gui,
-            QStringLiteral("/run/rmb-qt-probe-") + QString::fromLatin1(nonce), QByteArray(nonce));
+            QStringLiteral("/run/rmb-qt-probe-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr,
+#ifdef READER_SELECTED_CREATION_JOIN
+            reader_selected::Entry::Diagnostic::CreationSourceJoin
+#else
+            reader_selected::Entry::Diagnostic::SelectedPage
+#endif
+        );
         entry->start();
     }, Qt::QueuedConnection);
 }

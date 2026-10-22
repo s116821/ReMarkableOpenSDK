@@ -60,8 +60,25 @@ pumping, waiting for readiness or automatic retry is permitted.
   entry suites. Qualified native class names and notification guards preceding
   optional getters have independent review and regression coverage. This does
   not qualify stock execution of the new join.
-- [ ] Prepare and review a separate one-request entry/profile before a native
-  join experiment. The successful selected-observation candidate is spent.
+- [x] Implement and review the separate one-request join entry on owned fixtures.
+  Resolve the registered controller once through a fixed import helper on the
+  admitted window's existing engine, before the guarded sample. This may lazily
+  initialize the singleton and is an explicit stateful preparation step, not
+  evidence that it existed beforehand. Destroy only the owned helper; never
+  change the controller's ownership or create an engine. Keep preparation,
+  cleanup and the sample inside the original operation/setup deadlines. Expose
+  the join only through a separately compiled entry mode and explicit result
+  kind; preserve the ordinary entry's wire shape and no-access-before-request
+  behavior. Verify preparation cancellation, reentry and one invocation on
+  owned objects before an exact new native profile.
+  Host Qt 6.4.2 with its QtQml/Models/WorkerScript runtime modules and ARM Qt
+  6.10.3/QEMU pass both observer and entry suites, including both startup builds.
+  Entry fixtures cover preparation stop/restore/expiry, request replacement,
+  reentry, uncertain result publication and terminal no-retry behavior. Fixed
+  helper source uses a local URL; an unknown synthetic scheme had left imports
+  pending and was refused without a lookup. No asynchronous wait was added.
+- [ ] Freeze and review a separate exact native join profile. The successful
+  selected-observation candidate is spent; this entry mode has not run on stock.
 - [ ] Record any admitted native join separately; a positive sampled join is
   conditional on the inspected wrapper/cache invariant and is not atomicity,
   worker serialization, creation, rendering or persistence qualification.
