@@ -129,6 +129,10 @@ identical or restore saved bytes into a live document cache.
   the normal existing-document route and receiver are sufficiently established.
 - [ ] Record the actual native target join and preservation/recovery result;
   navigation dispatch alone cannot close the positive source-join task.
+  The [first native attempt](../../../docs/experiments/fixture-navigation-source-join-result.md)
+  refused different eligible receiver pointers before dispatch; active-view
+  receiver ownership remains unresolved. Stock restoration and all eighteen
+  unchanged fixture files were verified; the candidate is spent.
 
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second
