@@ -9,6 +9,7 @@
 #include "reader_selected_view_entry.h"
 #include <QDir>
 #include <QProcess>
+#include <vector>
 
 static QByteArray readEntry(const QString &path) {
     QFile f(path); return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
@@ -19,8 +20,8 @@ static void putEntry(const QString &path, const QByteArray &bytes) {
     require(f.write(bytes) == bytes.size(), "entry file write"); f.close();
 }
 static void pumpEntry() { for (int n = 0; n < 8; ++n) QCoreApplication::processEvents(); }
-static void validReceipt(const QByteArray &bytes, const QByteArray &nonce, const QByteArray &identity, const QString &stage) {
-    require(!bytes.isEmpty() && bytes.size() <= 2048, "bounded entry receipt");
+static void validReceipt(const QByteArray &bytes, const QByteArray &nonce, const QByteArray &identity, const QString &stage, int cap = 2048) {
+    require(!bytes.isEmpty() && bytes.size() <= cap, "bounded entry receipt");
     const auto json = QJsonDocument::fromJson(bytes).object();
     const auto parts = identity.trimmed().split(' ');
     require(json["stage"].toString() == stage && json["nonce"].toString() == QString::fromLatin1(nonce) &&
@@ -385,6 +386,79 @@ int main(int argc, char **argv) {
         require(navigator.calls == (noOpen ? 0 : 1) && entry.samplesForTest() == (sampled ? 1 : 0) &&
                 readEntry(root + "/selected-result") == bytes, "no navigation/sample/publication retry after terminal outcome");
     }
+    for (const QByteArray &mode : {QByteArray("valid"), QByteArray("wide"), QByteArray("finish-expiry"), QByteArray("wire-cap"), QByteArray("bad-binding"), QByteArray("before-cancel"),
+            QByteArray("nested-cancel"), QByteArray("nested-restore"), QByteArray("nested-expiry"), QByteArray("nested-request-replaced"),
+            QByteArray("reentry"), QByteArray("postlink-cancel")}) {
+        Fixture censusFixture;
+        xofm::bindings::qt::WindowNavigatorWrapper first, second;
+        std::vector<std::unique_ptr<NavigationOwner>> owners;
+        const int count = mode == "wide" ? 8 : 2;
+        for (int i = 0; i < count; ++i) {
+            owners.emplace_back(new NavigationOwner(censusFixture.window.contentItem()));
+            QQmlEngine::setContextForObject(owners.back().get(), censusFixture.engine.rootContext());
+            owners.back()->setWindowNavigator(i % 2 ? &first : &second);
+        }
+        QTemporaryDir base; require(base.isValid(), "ownership entry base");
+        const QString root = base.path() + "/root";
+        require(QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "ownership private root");
+        putEntry(root + "/owner", nonce); putEntry(root + "/attempt.identity", identity);
+        const int before = creationPreparations;
+        reader_selected::Entry entry(&app, root, nonce, nullptr, reader_selected::Entry::Diagnostic::NavigationOwnership);
+        if (mode == "finish-expiry") entry.postOwnershipForTest([&](reader_selected::NavigationOwnership &) { entry.advanceForTest(reader_selected::SetupWindowMs); });
+        if (mode == "wire-cap") entry.postOwnershipForTest([](reader_selected::NavigationOwnership &r) { r.owners.append(QString(20000, 'x')); });
+        owners.front()->onRead = [&] {
+            require(entry.samplingForTest() && entry.samplesForTest() == 1, "ownership getter only on admitted operation stack");
+            if (mode == "nested-expiry") entry.expireForTest();
+            else if (mode == "nested-request-replaced") {
+                require(QFile::rename(root + "/selected-request", root + "/preserved-request"), "preserve ownership request inode");
+                putEntry(root + "/selected-request", nonce + ' ' + identity);
+            } else if (mode == "nested-cancel" || mode == "nested-restore") {
+                putEntry(root + (mode == "nested-cancel" ? "/selected-cancel" : "/restore.claim"), "stop");
+                entry.checkForTest(); pumpEntry();
+                require(entry.disarmedForTest(), "ownership stop disarms on active stack");
+            } else if (mode == "reentry") {
+                const auto nested = reader_selected::inspectNavigationOwnership(&censusFixture.window, [] { return true; }, 1000);
+                require(!nested.complete && nested.refusal == "sample-reentered", "shared reentry guard covers ownership census");
+            }
+            require(!entry.terminal() && readEntry(root + "/selected-result").isEmpty(), "ownership does not publish on getter stack");
+        };
+        require(entry.start(), "ownership entry starts"); pumpEntry();
+        require(owners.front()->reads == 0 && entry.samplesForTest() == 0, "no ownership reads before exact request");
+        if (mode == "before-cancel") putEntry(root + "/selected-cancel", "stop");
+        if (mode == "postlink-cancel") entry.postLinkForTest([&] { putEntry(root + "/selected-cancel", "stop"); });
+        putEntry(root + "/selected-request", nonce + ' ' + identity + (mode == "bad-binding" ? QByteArray("extra") : QByteArray()));
+        entry.checkForTest(); pumpEntry();
+        require(entry.terminal() && entry.disarmedForTest() && creationPreparations == before && first.calls == 0 && second.calls == 0,
+                "ownership terminal has no navigation or creation singleton calls");
+        const QByteArray bytes = readEntry(root + "/selected-result");
+        const bool suppressed = mode == "before-cancel" || mode == "nested-cancel" || mode == "nested-restore" || mode == "nested-request-replaced";
+        if (suppressed) require(bytes.isEmpty(), "ownership stop/trust loss suppresses publication");
+        else {
+            const bool complete = mode == "valid" || mode == "wide" || mode == "postlink-cancel";
+            const QString stage = complete ? QStringLiteral("ownership-observed") : mode == "bad-binding" ? QStringLiteral("request-refused") :
+                (mode == "nested-expiry" || mode == "finish-expiry") ? QStringLiteral("setup-expired") : QStringLiteral("observation-refused");
+            validReceipt(bytes, nonce, identity, stage, 16384);
+            const auto json = QJsonDocument::fromJson(bytes).object();
+            require(json["diagnostic"] == "navigation-ownership" && json["census_complete"].isBool() &&
+                    json["census_complete"].toBool() == complete && json["owners"].isArray() &&
+                    !json["observed"].toBool() && !json["ready"].toBool() && json["document_id"].toString().isEmpty(),
+                    "ownership wire is explicit metadata, not selected identity/readiness");
+            if (complete) require(json["owners"].toArray().size() == count && json["visited"].toInt() >= count,
+                    "all discovered owner rows represented within larger census-only wire cap");
+            if (mode == "wide") require(bytes.size() > 2048, "wide census exercises separate bounded wire size");
+            if (mode == "finish-expiry" || mode == "wire-cap") require(!json["census_complete"].toBool() && json["owners"].toArray().isEmpty(), "expiry/overflow never publishes completed census rows");
+            if (mode == "wire-cap") require(json["refusal"] == "ownership-wire-cap", "overflow produces explicit bounded refusal");
+            if (mode == "postlink-cancel") {
+                struct stat st{}; require(::lstat((root + "/selected-result").toLocal8Bit().constData(), &st) == 0 &&
+                    st.st_nlink == 2 && readEntry(root + "/.pending-result") == bytes, "ownership uncertain publication not silently retried");
+            }
+        }
+        const int reads = owners.front()->reads, samples = entry.samplesForTest();
+        entry.checkForTest(); pumpEntry();
+        require(owners.front()->reads == reads && entry.samplesForTest() == samples && readEntry(root + "/selected-result") == bytes,
+                "ownership entry does not rescan/retry after terminal result");
+    }
+    QTextStream(stdout) << "PASS ownership census entry owned Qt: exact admission, distinct wrappers accepted as metadata, larger bounded wire, no navigation/preparation, nested stop/expiry/trust loss/reentry, uncertain publication/no retry\n";
     QTextStream(stdout) << "PASS navigation join entry owned Qt: exact admission, one stock-like dispatch, deferred fresh sample, sealed ID/page, shared original budget, queued/in-call stop/expiry/trust loss, uncertain publication/no retry; all authorities=false\n";
     QTextStream(stdout) << "PASS creation join entry owned Qt: no preparation before exact request, one typed join, explicit diagnostic/scalar wire, preparation cancel/restore/expiry/reentry/request replacement, uncertain publication/no retry; all authorities=false\n";
     QTextStream(stdout) << "PASS selected entry owned Qt: exact request/no early getter, binding/mode/link/FIFO refusal, pinned request, one-shot/cap/deadline, nested cancel/restore/expiry deferral, pending publication; all authorities=false\n";

@@ -2,6 +2,7 @@
 // Separate one-request entry. No injection mechanism or stock restoration claim.
 #include "reader_selected_view_probe.h"
 #include "reader_fixture_navigation.h"
+#include "reader_navigation_ownership.h"
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -34,7 +35,7 @@ inline QByteArray selfIdentity() {
 
 class Entry final : public QObject {
 public:
-    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin };
+    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership };
     Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
           Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {})
         : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
@@ -46,7 +47,7 @@ public:
         if (!app_ || QThread::currentThread() != app_->thread() || thread() != app_->thread() || nonce_.size() != 32)
             return terminal_ = true, false;
         if ((diagnostic_ != Diagnostic::SelectedPage && diagnostic_ != Diagnostic::CreationSourceJoin &&
-             diagnostic_ != Diagnostic::NavigateCreationSourceJoin) ||
+             diagnostic_ != Diagnostic::NavigateCreationSourceJoin && diagnostic_ != Diagnostic::NavigationOwnership) ||
             (diagnostic_ == Diagnostic::NavigateCreationSourceJoin && !navigation_.valid())) return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return terminal_ = true, false;
         identity_ = selfIdentity();
@@ -82,6 +83,7 @@ public:
     bool navigationPendingForTest() const { return navigationPending_; }
     void afterNavigationForTest() { afterNavigation(); }
     void advanceForTest(qint64 milliseconds) { offset_ += milliseconds; }
+    void postOwnershipForTest(std::function<void(NavigationOwnership &)> hook) { postOwnership_ = std::move(hook); }
     void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
     void preLinkForTest(std::function<void()> hook) { preLink_ = std::move(hook); }
 #endif
@@ -139,7 +141,8 @@ private:
     }
     bool publish(const char *name, const char *pending, const QByteArray &bytes, bool requireDeadline = true) const {
         const auto admitted = [&] { return trusted() && (!requireDeadline || now() < SetupWindowMs); };
-        if (bytes.isEmpty() || bytes.size() > 2048 || !admitted()) return false;
+        const int cap = diagnostic_ == Diagnostic::NavigationOwnership && QByteArray(name) == "selected-result" ? 16384 : 2048;
+        if (bytes.isEmpty() || bytes.size() > cap || !admitted()) return false;
         const int fd = ::openat(root_, pending, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (fd < 0) return false;
         struct stat st{};
@@ -177,8 +180,8 @@ private:
         }
         terminal_ = true;
         if (suppressed_ || !trusted()) return;
-        if (!pendingStage_.isEmpty()) { stage = pendingStage_; observation = {}; }
-        if (now() >= SetupWindowMs) { stage = QStringLiteral("setup-expired"); observation = {}; }
+        if (!pendingStage_.isEmpty()) { stage = pendingStage_; observation = {}; ownership_ = {}; }
+        if (now() >= SetupWindowMs) { stage = QStringLiteral("setup-expired"); observation = {}; ownership_ = {}; }
         if (observation.documentId.size() > 36 || observation.pageId.toUtf8().size() > 256 || observation.refusal.size() > 128) {
             stage = QStringLiteral("observation-cap"); observation = {};
         }
@@ -204,7 +207,22 @@ private:
             json.insert(QStringLiteral("navigation_dispatched"), navigationDispatched_);
             json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
         }
-        publish("selected-result", ".pending-result", QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n', stage == QStringLiteral("setup-expired") ? false : true);
+        if (diagnostic_ == Diagnostic::NavigationOwnership) {
+            json.insert(QStringLiteral("diagnostic"), QStringLiteral("navigation-ownership"));
+            json.insert(QStringLiteral("census_complete"), ownership_.complete);
+            json.insert(QStringLiteral("visited"), ownership_.visited);
+            json.insert(QStringLiteral("owners"), ownership_.owners);
+        }
+        QByteArray bytes = QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n';
+        if (diagnostic_ == Diagnostic::NavigationOwnership && bytes.size() > 16384) {
+            json.insert(QStringLiteral("owners"), QJsonArray());
+            json.insert(QStringLiteral("census_complete"), false);
+            json.insert(QStringLiteral("stage"), QStringLiteral("observation-refused"));
+            json.insert(QStringLiteral("refusal"), QStringLiteral("ownership-wire-cap"));
+            bytes = QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n';
+        }
+        if (bytes.size() > (diagnostic_ == Diagnostic::NavigationOwnership ? 16384 : 2048)) return;
+        publish("selected-result", ".pending-result", bytes, stage == QStringLiteral("setup-expired") ? false : true);
     }
     bool permit() {
         if (terminal_ || disarmed_) return false;
@@ -238,6 +256,7 @@ private:
         sampleBegin_ = now();
         operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + MaxObservationMs);
         if (operationEnd_ <= now()) { finish("setup-expired"); return; }
+        if (diagnostic_ == Diagnostic::NavigationOwnership) { sampleOwnership(window); return; }
         if (diagnostic_ != Diagnostic::NavigateCreationSourceJoin) { sample(window); return; }
         const QPointer<Entry> weak(this);
         operationEngine_ = window ? qmlEngine(window) : nullptr;
@@ -265,6 +284,26 @@ private:
     }
     void finishStopped() {
         if (!terminal_) finish(pendingStage_.isEmpty() ? QStringLiteral("sample-disarmed") : pendingStage_, {}, !suppressed_);
+    }
+    void sampleOwnership(QQuickWindow *window) {
+        const QPointer<Entry> weak(this);
+        sampling_ = true;
+#ifdef READER_SELECTED_TESTING
+        ++samples_;
+#endif
+        auto result = inspectNavigationOwnership(window, [weak] {
+            return weak && weak->permit() && weak->now() < weak->operationEnd_;
+        }, int(operationEnd_ - now()));
+        if (!weak) return;
+        sampling_ = false; sampleEnd_ = now();
+        if (!permit()) { finishStopped(); return; }
+        if (now() >= operationEnd_) { result = {}; result.refusal = QStringLiteral("deadline"); }
+        ownership_ = std::move(result);
+#ifdef READER_SELECTED_TESTING
+        if (postOwnership_) postOwnership_(ownership_);
+#endif
+        Observation r; r.refusal = ownership_.refusal;
+        finish(ownership_.complete ? QStringLiteral("ownership-observed") : QStringLiteral("observation-refused"), r);
     }
     void afterNavigation() {
         if (terminal_ || disarmed_ || !navigationPending_ || sampling_) return;
@@ -308,6 +347,7 @@ private:
     QByteArray nonce_, identity_;
     Diagnostic diagnostic_;
     FixtureNavigation navigation_;
+    NavigationOwnership ownership_;
     QPointer<QQmlEngine> operationEngine_;
     int root_ = -1, checks_ = 0;
     struct stat rootStat_{}, requestStat_{};
@@ -326,6 +366,7 @@ private:
     int samples_ = 0;
     std::function<void()> postLink_;
     std::function<void()> preLink_;
+    std::function<void(NavigationOwnership &)> postOwnership_;
 #endif
 };
 } // namespace reader_selected

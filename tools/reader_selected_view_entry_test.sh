@@ -31,6 +31,10 @@ ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -shared -fvisibility=hidd
     '-DREADER_SELECTED_DOCUMENT_ID="11111111-1111-1111-1111-111111111111"' -DREADER_SELECTED_PAGE_INDEX=0 \
     tools/reader_selected_view_startup.cpp "$work/moc_reader_selected_view_probe.cpp" \
     $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/test-only-navigate-join-startup.so"
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -shared -fvisibility=hidden -Wl,-z,defs -Itools \
+    '-DREADER_SELECTED_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' -DREADER_SELECTED_NAVIGATION_OWNERSHIP \
+    tools/reader_selected_view_startup.cpp "$work/moc_reader_selected_view_probe.cpp" \
+    $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/test-only-navigation-ownership-startup.so"
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
         -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \

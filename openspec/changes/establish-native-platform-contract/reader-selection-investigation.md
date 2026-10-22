@@ -134,6 +134,31 @@ identical or restore saved bytes into a live document cache.
   receiver ownership remains unresolved. Stock restoration and all eighteen
   unchanged fixture files were verified; the candidate is spent.
 
+### Navigation ownership follow-up
+
+The target's BaseView is a QML Control with injected navigator/layout
+properties, not a native BaseView class. Different view-owned navigator
+wrappers are legitimate. A separate read-only metadata census will report
+bounded owner class/context URLs, intra-census wrapper/layout equality groups,
+lexical `root`/`mainView` matches and content-item/composition links. It may read
+the exact native `xofm::bindings::qt::WindowLayout`'s notified bool `ready` and
+QString `activeWindow`; the latter's format/value must not be guessed. No
+navigation or `contains` call, singleton helper, document lookup or creation
+is part of this census. Text truncation is explicit and presentation-only.
+
+Report full eligible traversal separately from a capped/refused prefix, with
+at most eight owner rows, bounded strings and a separate sixteen-KiB wire cap.
+Keep notification/lifetime/thread/engine/focus and original 20/90-second guards,
+one request, no retry and independent recovery. Metadata does not identify a
+selected document/page, common backing router or action authority. Only a later
+separately reviewed composition-based selector may use these findings.
+
+- [x] Verify the metadata-only census and separate one-request entry on owned Qt,
+  including distinct legitimate receivers, composition equality/mismatch,
+  incomplete caps, cancellation/destruction/reentry/deadline and wire bounds.
+- [ ] Freeze a fresh read-only profile, record actual stock owner/layout facts,
+  preserve restoration and before/after files, and derive the narrow selector.
+
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second
 setup window. Readiness does not observe the Reader. Only that admitted request

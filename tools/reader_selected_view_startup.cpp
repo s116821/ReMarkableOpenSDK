@@ -10,6 +10,9 @@
 #if defined(READER_SELECTED_OPEN_FIXTURE_JOIN) && defined(READER_SELECTED_CREATION_JOIN)
 #error Select exactly one diagnostic mode.
 #endif
+#if defined(READER_SELECTED_NAVIGATION_OWNERSHIP) && (defined(READER_SELECTED_OPEN_FIXTURE_JOIN) || defined(READER_SELECTED_CREATION_JOIN))
+#error Select exactly one diagnostic mode.
+#endif
 #ifdef READER_SELECTED_OPEN_FIXTURE_JOIN
 #if !defined(READER_SELECTED_DOCUMENT_ID) || !defined(READER_SELECTED_PAGE_INDEX)
 #error Navigation requires separately frozen document UUID and zero-based page index.
@@ -34,7 +37,9 @@ void startup() {
         if (!gui || QThread::currentThread() != gui->thread() || ::geteuid() != 0) return;
         auto *entry = new reader_selected::Entry(gui,
             QStringLiteral("/run/rmb-qt-probe-") + QString::fromLatin1(nonce), QByteArray(nonce), nullptr,
-#ifdef READER_SELECTED_OPEN_FIXTURE_JOIN
+#ifdef READER_SELECTED_NAVIGATION_OWNERSHIP
+            reader_selected::Entry::Diagnostic::NavigationOwnership
+#elif defined(READER_SELECTED_OPEN_FIXTURE_JOIN)
             reader_selected::Entry::Diagnostic::NavigateCreationSourceJoin,
             {QStringLiteral(READER_SELECTED_DOCUMENT_ID), READER_SELECTED_PAGE_INDEX}
 #elif defined(READER_SELECTED_CREATION_JOIN)
