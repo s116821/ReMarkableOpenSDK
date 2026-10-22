@@ -11,6 +11,7 @@ else
 fi
 "$moc" tools/reader_selected_view_probe.h -o "$work/moc_reader_selected_view_probe.cpp"
 "$moc" tools/reader_selected_view_fixture.cpp -o "$work/reader_selected_view_fixture.moc"
+"$moc" tools/reader_fixture_navigation_fixture.cpp -o "$work/reader_fixture_navigation_fixture.moc"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 tools/reader_selected_request_publish.cpp -o "$work/publisher"
 chmod 700 "$work/publisher"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -I"$work" -Itools \
@@ -25,6 +26,11 @@ ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -shared -fvisibility=hidd
     '-DREADER_SELECTED_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' -DREADER_SELECTED_CREATION_JOIN \
     tools/reader_selected_view_startup.cpp "$work/moc_reader_selected_view_probe.cpp" \
     $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/test-only-creation-join-startup.so"
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -shared -fvisibility=hidden -Wl,-z,defs -Itools \
+    '-DREADER_SELECTED_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' -DREADER_SELECTED_OPEN_FIXTURE_JOIN \
+    '-DREADER_SELECTED_DOCUMENT_ID="11111111-1111-1111-1111-111111111111"' -DREADER_SELECTED_PAGE_INDEX=0 \
+    tools/reader_selected_view_startup.cpp "$work/moc_reader_selected_view_probe.cpp" \
+    $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -o "$work/test-only-navigate-join-startup.so"
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" \
         -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \

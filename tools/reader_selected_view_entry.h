@@ -1,6 +1,7 @@
 #pragma once
 // Separate one-request entry. No injection mechanism or stock restoration claim.
 #include "reader_selected_view_probe.h"
+#include "reader_fixture_navigation.h"
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -33,17 +34,20 @@ inline QByteArray selfIdentity() {
 
 class Entry final : public QObject {
 public:
-    enum class Diagnostic { SelectedPage, CreationSourceJoin };
+    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin };
     Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
-          Diagnostic diagnostic = Diagnostic::SelectedPage)
+          Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {})
         : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
-          diagnostic_(diagnostic) { elapsed_.start(); }
+          diagnostic_(diagnostic), navigation_(std::move(navigation)) { elapsed_.start(); }
     ~Entry() override { if (root_ >= 0) ::close(root_); }
     bool start() {
         if (started_) return false;
         started_ = true;
         if (!app_ || QThread::currentThread() != app_->thread() || thread() != app_->thread() || nonce_.size() != 32)
             return terminal_ = true, false;
+        if ((diagnostic_ != Diagnostic::SelectedPage && diagnostic_ != Diagnostic::CreationSourceJoin &&
+             diagnostic_ != Diagnostic::NavigateCreationSourceJoin) ||
+            (diagnostic_ == Diagnostic::NavigateCreationSourceJoin && !navigation_.valid())) return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return terminal_ = true, false;
         identity_ = selfIdentity();
         if (identity_.isEmpty()) return terminal_ = true, false;
@@ -55,6 +59,8 @@ public:
             return terminal_ = true, false;
         connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, [this] { queue(); });
         connect(&timer_, &QTimer::timeout, this, [this] { finish("setup-expired"); });
+        connect(&navigationTimer_, &QTimer::timeout, this, [this] { afterNavigation(); });
+        navigationTimer_.setSingleShot(true); navigationTimer_.setTimerType(Qt::PreciseTimer);
         connect(app_, &QCoreApplication::aboutToQuit, this, [this] { finish("application-closing", {}, false); });
         if (!watcher_.addPath(path_)) return terminal_ = true, false;
         timer_.setSingleShot(true); timer_.setTimerType(Qt::PreciseTimer);
@@ -73,6 +79,9 @@ public:
     bool samplingForTest() const { return sampling_; }
     bool disarmedForTest() const { return disarmed_; }
     int samplesForTest() const { return samples_; }
+    bool navigationPendingForTest() const { return navigationPending_; }
+    void afterNavigationForTest() { afterNavigation(); }
+    void advanceForTest(qint64 milliseconds) { offset_ += milliseconds; }
     void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
     void preLinkForTest(std::function<void()> hook) { preLink_ = std::move(hook); }
 #endif
@@ -154,7 +163,7 @@ private:
         return true;
     }
     void disarm() {
-        disarmed_ = true; timer_.stop();
+        disarmed_ = true; timer_.stop(); navigationTimer_.stop(); navigationPending_ = false;
         const auto paths = watcher_.directories();
         if (!paths.isEmpty()) watcher_.removePaths(paths);
     }
@@ -189,6 +198,12 @@ private:
             json.insert(QStringLiteral("diagnostic"), QStringLiteral("creation-source-join"));
             json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
         }
+        if (diagnostic_ == Diagnostic::NavigateCreationSourceJoin) {
+            json.insert(QStringLiteral("diagnostic"), QStringLiteral("navigate-creation-source-join"));
+            json.insert(QStringLiteral("navigation_attempted"), navigationAttempted_);
+            json.insert(QStringLiteral("navigation_dispatched"), navigationDispatched_);
+            json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
+        }
         publish("selected-result", ".pending-result", QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n', stage == QStringLiteral("setup-expired") ? false : true);
     }
     bool permit() {
@@ -218,24 +233,73 @@ private:
         }
         consumed_ = true;
         if (!permit()) return;
-        const qint64 remaining = SetupWindowMs - now();
-        if (remaining <= 0) { finish("setup-expired"); return; }
-        const int budget = int(qMin<qint64>(MaxObservationMs, remaining));
-        const QPointer<Entry> weak(this);
         // The first native/window selection occurs only after exact admission.
         QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
-        sampling_ = true; sampleBegin_ = now();
+        sampleBegin_ = now();
+        operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + MaxObservationMs);
+        if (operationEnd_ <= now()) { finish("setup-expired"); return; }
+        if (diagnostic_ != Diagnostic::NavigateCreationSourceJoin) { sample(window); return; }
+        const QPointer<Entry> weak(this);
+        operationEngine_ = window ? qmlEngine(window) : nullptr;
+        sampling_ = true;
+        const auto navigation = openFixture(window, navigation_, [weak] {
+            return weak && weak->permit() && weak->now() < weak->operationEnd_;
+        },
+            int(operationEnd_ - now()));
+        if (!weak) return;
+        navigationAttempted_ = navigation.attempted; navigationDispatched_ = navigation.dispatched;
+        sampling_ = false;
+        if (!permit()) { finishStopped(); return; }
+        if (now() >= operationEnd_) {
+            Observation r; r.refusal = QStringLiteral("deadline"); sampleEnd_ = now(); finish("observation-refused", r); return;
+        }
+        if (!navigation.dispatched || !navigation.refusal.isEmpty()) {
+            Observation r; r.refusal = navigation.refusal.isEmpty() ? QStringLiteral("navigation-dispatch-refused") : navigation.refusal;
+            sampleEnd_ = now(); finish("observation-refused", r); return;
+        }
+        // One deferred fresh sample, not an event pump or readiness/reopen loop.
+        if (operationEnd_ - now() <= NavigationDelayMs) {
+            Observation r; r.refusal = QStringLiteral("deadline"); sampleEnd_ = now(); finish("observation-refused", r); return;
+        }
+        navigationPending_ = true; navigationTimer_.start(NavigationDelayMs);
+    }
+    void finishStopped() {
+        if (!terminal_) finish(pendingStage_.isEmpty() ? QStringLiteral("sample-disarmed") : pendingStage_, {}, !suppressed_);
+    }
+    void afterNavigation() {
+        if (terminal_ || disarmed_ || !navigationPending_ || sampling_) return;
+        navigationPending_ = false; navigationTimer_.stop();
+        if (!permit()) { finishStopped(); return; }
+        QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
+        if (!window || !operationEngine_ || qmlEngine(window) != operationEngine_) {
+            Observation r; r.refusal = QStringLiteral("navigation-context-changed"); sampleEnd_ = now(); finish("observation-refused", r); return;
+        }
+        sample(window);
+    }
+    void sample(QQuickWindow *window) {
+        const qint64 remaining = operationEnd_ - now();
+        if (remaining <= 0) { Observation r; r.refusal = QStringLiteral("deadline"); sampleEnd_ = now(); finish("observation-refused", r); return; }
+        const int budget = int(remaining);
+        const QPointer<Entry> weak(this);
+        sampling_ = true;
 #ifdef READER_SELECTED_TESTING
         ++samples_;
 #endif
-        const auto allowed = [weak] { return weak && weak->permit(); };
-        const Observation observation = diagnostic_ == Diagnostic::CreationSourceJoin
-            ? observeCreationJoin(window, allowed, budget) : observe(window, allowed, budget);
+        const auto allowed = [weak] {
+            return weak && weak->permit() && (weak->diagnostic_ != Diagnostic::NavigateCreationSourceJoin || weak->now() < weak->operationEnd_);
+        };
+        Observation observation = diagnostic_ == Diagnostic::SelectedPage
+            ? observe(window, allowed, budget) : observeCreationJoin(window, allowed, budget);
         if (!weak) return;
         sampling_ = false; sampleEnd_ = now();
         if (!permit()) {
-            if (!terminal_) finish(pendingStage_.isEmpty() ? QStringLiteral("sample-disarmed") : pendingStage_, {}, !suppressed_);
+            finishStopped();
             return;
+        }
+        if (diagnostic_ == Diagnostic::NavigateCreationSourceJoin && (now() >= operationEnd_ ||
+            (observation.observed && (observation.documentId != navigation_.documentId || observation.pageIndex != navigation_.pageIndex)))) {
+            const bool late = now() >= operationEnd_;
+            observation = {}; observation.refusal = late ? QStringLiteral("deadline") : QStringLiteral("navigation-target-not-observed");
         }
         finish(observation.observed ? QStringLiteral("observed") : QStringLiteral("observation-refused"), observation);
     }
@@ -243,14 +307,20 @@ private:
     QString path_, pendingStage_;
     QByteArray nonce_, identity_;
     Diagnostic diagnostic_;
+    FixtureNavigation navigation_;
+    QPointer<QQmlEngine> operationEngine_;
     int root_ = -1, checks_ = 0;
     struct stat rootStat_{}, requestStat_{};
     QElapsedTimer elapsed_;
     QFileSystemWatcher watcher_;
     QTimer timer_;
+    QTimer navigationTimer_;
+    static constexpr int NavigationDelayMs = 2000;
     qint64 sampleBegin_ = -1, sampleEnd_ = -1;
+    qint64 operationEnd_ = -1;
     bool started_ = false, terminal_ = false, queued_ = false, consumed_ = false;
     bool sampling_ = false, disarmed_ = false, suppressed_ = false;
+    bool navigationPending_ = false, navigationAttempted_ = false, navigationDispatched_ = false;
 #ifdef READER_SELECTED_TESTING
     qint64 offset_ = 0;
     int samples_ = 0;

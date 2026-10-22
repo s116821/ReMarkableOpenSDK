@@ -120,10 +120,11 @@ before/after document and report actual metadata changes, while requiring
 immutable PDF/page/ink preservation; do not promise all eighteen hashes stay
 identical or restore saved bytes into a live document cache.
 
-- [ ] Implement and verify bounded typed navigator discovery/dispatch on owned Qt
+- [x] Implement and verify bounded typed navigator discovery/dispatch on owned Qt
   objects, including ambiguity, ABA, cancellation, destruction and no retry.
-- [ ] Integrate a separately compiled one-request navigation/join mode with
+- [x] Integrate a separately compiled one-request navigation/join mode with
   explicit dispatch versus observation fields and one shared original budget.
+  See the [source and owned-fixture record](../../../docs/experiments/fixture-navigation-source-join.md).
 - [ ] Review REA/source findings, freeze a new exact profile and run only after
   the normal existing-document route and receiver are sufficiently established.
 - [ ] Record the actual native target join and preservation/recovery result;

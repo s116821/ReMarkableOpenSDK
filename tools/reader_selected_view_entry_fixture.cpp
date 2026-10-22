@@ -2,6 +2,9 @@
 #define main readerSelectedOwnedTestsMain
 #include "reader_selected_view_fixture.cpp"
 #undef main
+#define READER_NAVIGATION_OWNED_CLASSES_ONLY
+#include "reader_fixture_navigation_fixture.cpp"
+#undef READER_NAVIGATION_OWNED_CLASSES_ONLY
 #define READER_SELECTED_TESTING
 #include "reader_selected_view_entry.h"
 #include <QDir>
@@ -285,6 +288,104 @@ int main(int argc, char **argv) {
                 readEntry(root + "/selected-result") == bytes && !entry.start(),
                 "join entry never retries spent request or uncertain publication");
     }
+    for (const QByteArray &mode : {QByteArray("valid"), QByteArray("bad-binding"), QByteArray("before-cancel"), QByteArray("before-dispatch-budget"),
+            QByteArray("open-cancel"), QByteArray("open-restore"), QByteArray("open-expiry"), QByteArray("open-request-replaced"),
+            QByteArray("queued-cancel"), QByteArray("queued-expiry"), QByteArray("queued-budget"),
+            QByteArray("wrong-target"), QByteArray("postlink-cancel")}) {
+        Fixture navigationFixture;
+        Library library; DocumentController creation;
+        creation.setLibrary(&library); library.result = &navigationFixture.document;
+        navigationFixture.engine.rootContext()->setContextProperty("externalCreation", &creation);
+        NavigationOwner owner(navigationFixture.window.contentItem());
+        QQmlEngine::setContextForObject(&owner, navigationFixture.engine.rootContext());
+        xofm::bindings::qt::WindowNavigatorWrapper navigator;
+        owner.setWindowNavigator(&navigator);
+        navigationFixture.reader->setVisible(false);
+        const reader_selected::FixtureNavigation target{navigationFixture.document.key, 1};
+        QTemporaryDir base; require(base.isValid(), "navigation entry base");
+        const QString root = base.path() + "/root";
+        require(QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "navigation entry private root");
+        putEntry(root + "/owner", nonce); putEntry(root + "/attempt.identity", identity);
+        const int before = creationPreparations;
+        reader_selected::Entry entry(&app, root, nonce, nullptr,
+            reader_selected::Entry::Diagnostic::NavigateCreationSourceJoin, target);
+        navigator.onOpen = [&] {
+            require(entry.samplingForTest() && entry.samplesForTest() == 0 && creationPreparations == before,
+                    "navigation runs on admitted stack before fresh sample or singleton preparation");
+            navigationFixture.reader->setVisible(true);
+            if (mode != "wrong-target") {
+                require(navigationFixture.reader->setProperty("currentPage", 1), "normal navigation fixture selects target page");
+                navigationFixture.controller.setPageId(navigationFixture.document.pages[1]);
+            }
+            if (mode == "open-expiry") entry.expireForTest();
+            else if (mode == "open-request-replaced") {
+                require(QFile::rename(root + "/selected-request", root + "/preserved-request"), "pin navigation request before replacement");
+                putEntry(root + "/selected-request", nonce + ' ' + identity);
+            } else if (mode == "open-cancel" || mode == "open-restore") {
+                putEntry(root + (mode == "open-cancel" ? "/selected-cancel" : "/restore.claim"), "stop");
+                entry.checkForTest(); pumpEntry();
+                require(entry.disarmedForTest(), "stop inside open disarms");
+            }
+            require(!entry.terminal() && readEntry(root + "/selected-result").isEmpty(), "no receipt while native open stack is active");
+        };
+        require(entry.start(), "navigation entry starts"); pumpEntry();
+        require(navigator.calls == 0 && owner.reads == 0 && creationPreparations == before, "no navigation getter/call/preparation before request");
+        if (mode == "before-dispatch-budget") owner.onRead = [&] { entry.advanceForTest(reader_selected::MaxObservationMs + 1); };
+        if (mode == "before-cancel") putEntry(root + "/selected-cancel", "stop");
+        if (mode == "postlink-cancel") entry.postLinkForTest([&] { putEntry(root + "/selected-cancel", "stop"); });
+        putEntry(root + "/selected-request", nonce + ' ' + identity + (mode == "bad-binding" ? QByteArray("extra") : QByteArray()));
+        entry.checkForTest(); pumpEntry();
+        const bool noOpen = mode == "bad-binding" || mode == "before-cancel" || mode == "before-dispatch-budget";
+        const bool stoppedInOpen = mode.startsWith("open-");
+        const bool queuedStop = mode.startsWith("queued-");
+        require(navigator.calls == (noOpen ? 0 : 1), "navigation dispatched no more than once");
+        if (!noOpen && !stoppedInOpen) {
+            require(entry.navigationPendingForTest() && !entry.terminal() && !entry.samplingForTest() &&
+                    entry.samplesForTest() == 0 && creationPreparations == before && library.calls == 0,
+                    "navigation dispatch queues one fresh observation without pumping or early lookup");
+            if (mode == "queued-cancel") { putEntry(root + "/selected-cancel", "stop"); entry.checkForTest(); pumpEntry(); }
+            else if (mode == "queued-expiry") entry.expireForTest();
+            else if (mode == "queued-budget") entry.advanceForTest(reader_selected::MaxObservationMs + 1);
+            if (mode == "valid") {
+                QElapsedTimer clock; clock.start();
+                while (!entry.terminal() && clock.elapsed() < 4000) { pumpEntry(); std::this_thread::sleep_for(std::chrono::milliseconds(2)); }
+                require(clock.elapsed() >= 1900, "real precise timer leaves normal event-loop opportunity before observation");
+            } else entry.afterNavigationForTest(); // Owned test bypasses only the wait; production has no such entry.
+        }
+        pumpEntry(); require(entry.terminal() && entry.disarmedForTest(), "navigation entry terminal after all stop/success paths");
+        const bool sampled = !noOpen && !stoppedInOpen && !queuedStop;
+        const bool joined = sampled && mode != "wrong-target";
+        require(entry.samplesForTest() == (sampled ? 1 : 0) && library.calls == (sampled ? 1 : 0) &&
+                creationPreparations == before + (sampled ? 1 : 0), "queued cancellation/deadline prevents preparation and lookup");
+        const QByteArray bytes = readEntry(root + "/selected-result");
+        const bool suppressed = mode == "before-cancel" || mode == "open-cancel" || mode == "open-restore" ||
+            mode == "open-request-replaced" || mode == "queued-cancel";
+        if (suppressed) require(bytes.isEmpty(), "navigation stop/trust loss suppresses output");
+        else {
+            const QString stage = joined ? QStringLiteral("observed") :
+                (mode == "open-expiry" || mode == "queued-expiry") ? QStringLiteral("setup-expired") :
+                mode == "bad-binding" ? QStringLiteral("request-refused") : QStringLiteral("observation-refused");
+            validReceipt(bytes, nonce, identity, stage);
+            const auto json = QJsonDocument::fromJson(bytes).object();
+            require(json["diagnostic"] == "navigate-creation-source-join" && json["navigation_attempted"].isBool() &&
+                    json["navigation_dispatched"].isBool() && json["navigation_attempted"].toBool() == !noOpen &&
+                    json["navigation_dispatched"].toBool() == !noOpen && json["observed"].toBool() == joined &&
+                    json["creation_join_observed"].toBool() == joined, "navigation wire distinguishes dispatch from accepted target/join");
+            if (joined) require(json["document_id"] == target.documentId && json["page_index"].toInt() == target.pageIndex && json["ready"].toBool(), "accepted navigation target matches sealed ID and page");
+            else require(json["document_id"].toString().isEmpty() && !json["ready"].toBool(), "wrong target/deadline cannot leak accepted identity");
+            if (mode == "queued-budget") require(json["refusal"] == "deadline" && json["sample_end_ms"].toInt() - json["sample_begin_ms"].toInt() >= reader_selected::MaxObservationMs,
+                    "queued delay consumes original operation budget without reset");
+            if (mode == "wrong-target") require(json["refusal"] == "navigation-target-not-observed", "dispatch alone cannot establish selected target");
+            if (mode == "postlink-cancel") {
+                struct stat st{}; require(::lstat((root + "/selected-result").toLocal8Bit().constData(), &st) == 0 &&
+                    st.st_nlink == 2 && readEntry(root + "/.pending-result") == bytes, "navigation uncertain publication remains invalid");
+            }
+        }
+        entry.afterNavigationForTest(); entry.checkForTest(); pumpEntry();
+        require(navigator.calls == (noOpen ? 0 : 1) && entry.samplesForTest() == (sampled ? 1 : 0) &&
+                readEntry(root + "/selected-result") == bytes, "no navigation/sample/publication retry after terminal outcome");
+    }
+    QTextStream(stdout) << "PASS navigation join entry owned Qt: exact admission, one stock-like dispatch, deferred fresh sample, sealed ID/page, shared original budget, queued/in-call stop/expiry/trust loss, uncertain publication/no retry; all authorities=false\n";
     QTextStream(stdout) << "PASS creation join entry owned Qt: no preparation before exact request, one typed join, explicit diagnostic/scalar wire, preparation cancel/restore/expiry/reentry/request replacement, uncertain publication/no retry; all authorities=false\n";
     QTextStream(stdout) << "PASS selected entry owned Qt: exact request/no early getter, binding/mode/link/FIFO refusal, pinned request, one-shot/cap/deadline, nested cancel/restore/expiry deferral, pending publication; all authorities=false\n";
 }
