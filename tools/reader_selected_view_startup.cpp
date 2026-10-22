@@ -18,6 +18,9 @@
 #error Navigation requires separately frozen document UUID and zero-based page index.
 #endif
 #endif
+#if defined(READER_SELECTED_LEGACY_COMPOSITION) && !defined(READER_SELECTED_OPEN_FIXTURE_JOIN)
+#error Legacy composition selection requires the fixed-fixture navigation mode.
+#endif
 namespace {
 constexpr char nonce[] = READER_SELECTED_NONCE;
 constexpr bool validNonce() {
@@ -41,7 +44,11 @@ void startup() {
             reader_selected::Entry::Diagnostic::NavigationOwnership
 #elif defined(READER_SELECTED_OPEN_FIXTURE_JOIN)
             reader_selected::Entry::Diagnostic::NavigateCreationSourceJoin,
-            {QStringLiteral(READER_SELECTED_DOCUMENT_ID), READER_SELECTED_PAGE_INDEX}
+            {QStringLiteral(READER_SELECTED_DOCUMENT_ID), READER_SELECTED_PAGE_INDEX
+#ifdef READER_SELECTED_LEGACY_COMPOSITION
+                , true
+#endif
+            }
 #elif defined(READER_SELECTED_CREATION_JOIN)
             reader_selected::Entry::Diagnostic::CreationSourceJoin
 #else

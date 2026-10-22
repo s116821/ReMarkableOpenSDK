@@ -156,13 +156,28 @@ separately reviewed composition-based selector may use these findings.
 - [x] Verify the metadata-only census and separate one-request entry on owned Qt,
   including distinct legitimate receivers, composition equality/mismatch,
   incomplete caps, cancellation/destruction/reentry/deadline and wire bounds.
-- [ ] Freeze a fresh read-only profile, record actual stock owner/layout facts,
+- [x] Freeze a fresh read-only profile, record actual stock owner/layout facts,
   preserve restoration and before/after files, and derive the narrow selector.
   The [first completed census](../../../docs/experiments/navigation-ownership-census-result.md)
   found only three boot-UI owners at about four seconds, all reporting the
   splash route despite ready=true. Stock restoration/all eighteen unchanged
   files passed; a separate later observation within the original setup window
-  is needed before deriving the receiver selector.
+  was followed by an independent [post-boot census](../../../docs/experiments/navigation-ownership-postboot-result.md)
+  identifying the linked legacy root/MainView and distinct auxiliary wrappers.
+
+The optional [linked-MainView selector](../../../docs/experiments/legacy-composition-navigation-join.md)
+requires that observed exact creation URL, scoped IDs, direct content/parent
+links, matching native navigator/layout and current ready/active route. It
+finishes the bounded search and rejects a second composition, then rereads the
+complete link immediately before dispatch. It adds a five-second queued loading
+opportunity inside the original shared twenty-second budget and marks its wire
+scope explicitly. Other wrappers and the older selector remain unchanged.
+
+- [x] Verify this selector and both Entry variants on owned host/ARM Qt.
+- [ ] Freeze and independently review a fresh native profile; open only the
+  known existing fixture, observe a fresh selected-page/controller join and
+  preserve actual metadata changes, immutable files and independent recovery.
+  Dispatch, delay and source-only checks do not fulfill this native gate.
 
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second

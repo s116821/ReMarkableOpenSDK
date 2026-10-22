@@ -206,6 +206,7 @@ private:
             json.insert(QStringLiteral("navigation_attempted"), navigationAttempted_);
             json.insert(QStringLiteral("navigation_dispatched"), navigationDispatched_);
             json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
+            if (navigation_.legacyComposition) json.insert(QStringLiteral("navigation_scope"), QStringLiteral("legacy-main-composition"));
         }
         if (diagnostic_ == Diagnostic::NavigationOwnership) {
             json.insert(QStringLiteral("diagnostic"), QStringLiteral("navigation-ownership"));
@@ -277,10 +278,11 @@ private:
             sampleEnd_ = now(); finish("observation-refused", r); return;
         }
         // One deferred fresh sample, not an event pump or readiness/reopen loop.
-        if (operationEnd_ - now() <= NavigationDelayMs) {
+        const int navigationDelay = navigation_.legacyComposition ? LegacyNavigationDelayMs : NavigationDelayMs;
+        if (operationEnd_ - now() <= navigationDelay) {
             Observation r; r.refusal = QStringLiteral("deadline"); sampleEnd_ = now(); finish("observation-refused", r); return;
         }
-        navigationPending_ = true; navigationTimer_.start(NavigationDelayMs);
+        navigationPending_ = true; navigationTimer_.start(navigationDelay);
     }
     void finishStopped() {
         if (!terminal_) finish(pendingStage_.isEmpty() ? QStringLiteral("sample-disarmed") : pendingStage_, {}, !suppressed_);
@@ -356,6 +358,7 @@ private:
     QTimer timer_;
     QTimer navigationTimer_;
     static constexpr int NavigationDelayMs = 2000;
+    static constexpr int LegacyNavigationDelayMs = 5000;
     qint64 sampleBegin_ = -1, sampleEnd_ = -1;
     qint64 operationEnd_ = -1;
     bool started_ = false, terminal_ = false, queued_ = false, consumed_ = false;

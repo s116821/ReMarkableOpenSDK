@@ -2,9 +2,9 @@
 #define main readerSelectedOwnedTestsMain
 #include "reader_selected_view_fixture.cpp"
 #undef main
-#define READER_NAVIGATION_OWNED_CLASSES_ONLY
-#include "reader_fixture_navigation_fixture.cpp"
-#undef READER_NAVIGATION_OWNED_CLASSES_ONLY
+#define READER_OWNERSHIP_OWNED_CLASSES_ONLY
+#include "reader_navigation_ownership_fixture.cpp"
+#undef READER_OWNERSHIP_OWNED_CLASSES_ONLY
 #define READER_SELECTED_TESTING
 #include "reader_selected_view_entry.h"
 #include <QDir>
@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
     qmlRegisterType<QQuickItem>("OwnedProbe", 1, 0, "Item");
     qmlRegisterType<FocusFixture>("OwnedProbe", 1, 0, "FocusScope");
     qmlRegisterType<SceneView>("OwnedProbe", 1, 0, "SceneFixture");
+    qmlRegisterType<OwnershipOwner>("OwnedLegacyEntry", 1, 0, "Owner");
     registerCreationFixture();
     const QByteArray nonce(32, 'a'), identity = reader_selected::selfIdentity();
     require(!identity.isEmpty(), "entry process identity");
@@ -289,7 +290,7 @@ int main(int argc, char **argv) {
                 readEntry(root + "/selected-result") == bytes && !entry.start(),
                 "join entry never retries spent request or uncertain publication");
     }
-    for (const QByteArray &mode : {QByteArray("valid"), QByteArray("bad-binding"), QByteArray("before-cancel"), QByteArray("before-dispatch-budget"),
+    for (bool legacy : {false, true}) for (const QByteArray &mode : {QByteArray("valid"), QByteArray("bad-binding"), QByteArray("before-cancel"), QByteArray("before-dispatch-budget"),
             QByteArray("open-cancel"), QByteArray("open-restore"), QByteArray("open-expiry"), QByteArray("open-request-replaced"),
             QByteArray("queued-cancel"), QByteArray("queued-expiry"), QByteArray("queued-budget"),
             QByteArray("wrong-target"), QByteArray("postlink-cancel")}) {
@@ -302,7 +303,37 @@ int main(int argc, char **argv) {
         xofm::bindings::qt::WindowNavigatorWrapper navigator;
         owner.setWindowNavigator(&navigator);
         navigationFixture.reader->setVisible(false);
-        const reader_selected::FixtureNavigation target{navigationFixture.document.key, 1};
+        xofm::bindings::qt::WindowLayout layout;
+        layout.activeValue = QStringLiteral("legacydevice/window/main");
+        std::unique_ptr<QObject> composition;
+        if (legacy) {
+            navigationFixture.engine.rootContext()->setContextProperty("entryNavigator", &navigator);
+            navigationFixture.engine.rootContext()->setContextProperty("entryLayout", &layout);
+            QQmlComponent component(&navigationFixture.engine);
+            component.setData(R"QML(
+import OwnedLegacyEntry 1.0
+Owner {
+    id: root
+    width: 100; height: 100
+    windowNavigator: entryNavigator
+    windowLayout: entryLayout
+    contentItem: mainView
+    Owner {
+        id: mainView
+        width: 100; height: 100
+        windowNavigator: root.windowNavigator
+        windowLayout: root.windowLayout
+    }
+}
+)QML", QUrl(QStringLiteral("qrc:/qt/qml/xofm/modules/legacydevice/qml/LegacyMainWindow.qml")));
+            require(component.isReady(), "owned legacy entry composition compiles");
+            composition.reset(component.create());
+            auto *visual = qobject_cast<QQuickItem *>(composition.get());
+            require(visual, "owned legacy entry composition creates");
+            visual->setParentItem(navigationFixture.window.contentItem());
+            visual->setParent(navigationFixture.window.contentItem());
+        }
+        const reader_selected::FixtureNavigation target{navigationFixture.document.key, 1, legacy};
         QTemporaryDir base; require(base.isValid(), "navigation entry base");
         const QString root = base.path() + "/root";
         require(QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "navigation entry private root");
@@ -331,7 +362,10 @@ int main(int argc, char **argv) {
         };
         require(entry.start(), "navigation entry starts"); pumpEntry();
         require(navigator.calls == 0 && owner.reads == 0 && creationPreparations == before, "no navigation getter/call/preparation before request");
-        if (mode == "before-dispatch-budget") owner.onRead = [&] { entry.advanceForTest(reader_selected::MaxObservationMs + 1); };
+        if (mode == "before-dispatch-budget") {
+            const auto advance = [&] { entry.advanceForTest(reader_selected::MaxObservationMs + 1); };
+            if (legacy) layout.onRead = advance; else owner.onRead = advance;
+        }
         if (mode == "before-cancel") putEntry(root + "/selected-cancel", "stop");
         if (mode == "postlink-cancel") entry.postLinkForTest([&] { putEntry(root + "/selected-cancel", "stop"); });
         putEntry(root + "/selected-request", nonce + ' ' + identity + (mode == "bad-binding" ? QByteArray("extra") : QByteArray()));
@@ -349,8 +383,8 @@ int main(int argc, char **argv) {
             else if (mode == "queued-budget") entry.advanceForTest(reader_selected::MaxObservationMs + 1);
             if (mode == "valid") {
                 QElapsedTimer clock; clock.start();
-                while (!entry.terminal() && clock.elapsed() < 4000) { pumpEntry(); std::this_thread::sleep_for(std::chrono::milliseconds(2)); }
-                require(clock.elapsed() >= 1900, "real precise timer leaves normal event-loop opportunity before observation");
+                while (!entry.terminal() && clock.elapsed() < (legacy ? 7000 : 4000)) { pumpEntry(); std::this_thread::sleep_for(std::chrono::milliseconds(2)); }
+                require(clock.elapsed() >= (legacy ? 4900 : 1900), "real precise timer leaves normal event-loop opportunity before observation");
             } else entry.afterNavigationForTest(); // Owned test bypasses only the wait; production has no such entry.
         }
         pumpEntry(); require(entry.terminal() && entry.disarmedForTest(), "navigation entry terminal after all stop/success paths");
@@ -372,6 +406,7 @@ int main(int argc, char **argv) {
                     json["navigation_dispatched"].isBool() && json["navigation_attempted"].toBool() == !noOpen &&
                     json["navigation_dispatched"].toBool() == !noOpen && json["observed"].toBool() == joined &&
                     json["creation_join_observed"].toBool() == joined, "navigation wire distinguishes dispatch from accepted target/join");
+            require(legacy ? json["navigation_scope"] == "legacy-main-composition" : !json.contains("navigation_scope"), "legacy scope wire is explicit and ordinary wire unchanged");
             if (joined) require(json["document_id"] == target.documentId && json["page_index"].toInt() == target.pageIndex && json["ready"].toBool(), "accepted navigation target matches sealed ID and page");
             else require(json["document_id"].toString().isEmpty() && !json["ready"].toBool(), "wrong target/deadline cannot leak accepted identity");
             if (mode == "queued-budget") require(json["refusal"] == "deadline" && json["sample_end_ms"].toInt() - json["sample_begin_ms"].toInt() >= reader_selected::MaxObservationMs,
