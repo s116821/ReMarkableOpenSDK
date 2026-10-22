@@ -77,13 +77,57 @@ pumping, waiting for readiness or automatic retry is permitted.
   reentry, uncertain result publication and terminal no-retry behavior. Fixed
   helper source uses a local URL; an unknown synthetic scheme had left imports
   pending and was refused without a lookup. No asynchronous wait was added.
-- [ ] Freeze and review a separate exact native join profile. The successful
-  selected-observation candidate is spent; this entry mode has not run on stock.
-- [ ] Record any admitted native join separately; a positive sampled join is
+- [x] Freeze and review a separate exact native join profile; record the
+  [first stock refusal](../../../docs/experiments/creation-source-join-observation-result.md)
+  with restoration and all eighteen files unchanged. It stopped at eligible
+  Reader-anchor discovery before wrapper lookup; this candidate is also spent.
+- [ ] Obtain and record a positive admitted native join separately; a positive sampled join is
   conditional on the inspected wrapper/cache invariant and is not atomicity,
   worker serialization, creation, rendering or persistence qualification.
 
 No canonical specification is synced or archived by this research increment.
+
+## Autonomous normal-UI fixture setup
+
+The next separate experiment may open only the frozen existing fixture through
+the stock `WindowNavigatorWrapper.open(QString,QVariantMap)` route before one
+fresh source-join observation. Retained stock QML uses the fixed
+`legacydevice/window/main` route with a document ID and zero-based `page` value;
+page four requests human page five. Native registration/forwarding confirmation
+is being investigated separately with REA. No navigation action is admitted by
+source discovery alone, and no creation method is involved.
+
+The experimental implementation must discover the current application's existing
+typed navigator through its eligible visual owners' `windowNavigator` property.
+Complete the bounded census and guard notifications, lifetimes, engine/thread
+and receiver agreement before invocation. Multiple owners of the same receiver
+are acceptable; conflicting receivers refuse. Use the exact native two-argument
+slot, preserving its QString/QVariantMap types; its cloned one-argument overload
+must not be selected. Freeze the canonical nonnil document UUID and page index
+in the startup artifact, rather than accepting arbitrary commands or routes.
+
+Consume dispatch before calling. An accepted dispatch is not a target-page or
+readiness receipt. Queue exactly one later fresh observation without pumping
+events or reopening/resampling; derive its remaining budget from the original
+operation start. Navigation, queued delay, singleton preparation, sampling and
+unwind together share the original twenty-second operation cap and ninety-second
+setup window. Cancellation/restore/expiry during navigation must defer terminal
+publication until that stack unwinds; waiting callbacks must become inert after
+disarm. Keep recovery independent and all authority flags false.
+
+Normal stock opening can update visit/last-open metadata. Preserve the complete
+before/after document and report actual metadata changes, while requiring
+immutable PDF/page/ink preservation; do not promise all eighteen hashes stay
+identical or restore saved bytes into a live document cache.
+
+- [ ] Implement and verify bounded typed navigator discovery/dispatch on owned Qt
+  objects, including ambiguity, ABA, cancellation, destruction and no retry.
+- [ ] Integrate a separately compiled one-request navigation/join mode with
+  explicit dispatch versus observation fields and one shared original budget.
+- [ ] Review REA/source findings, freeze a new exact profile and run only after
+  the normal existing-document route and receiver are sufficiently established.
+- [ ] Record the actual native target join and preservation/recovery result;
+  navigation dispatch alone cannot close the positive source-join task.
 
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second

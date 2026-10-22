@@ -86,7 +86,9 @@ same guarded sample: does the supplied existing creation controller's own
 Library return the exact selected document wrapper? Ordinary `observe` does not
 perform this lookup. The default one-request entry still calls ordinary
 `observe`. A separate startup build with `READER_SELECTED_CREATION_JOIN` selects
-the join mode; no new native join result or activation is supplied by this change.
+the join mode. Its [first stock attempt](../experiments/creation-source-join-observation-result.md)
+reached Reader discovery and returned `anchor-ambiguity` before the wrapper
+lookup. No positive native creation-controller join has been established.
 
 The optional path checks the exact build's qualified controller/Library Qt class
 names, associated engine/thread/lifetimes, Library readiness and notifications.
@@ -117,7 +119,8 @@ import wait or retry. The request entry invokes preparation only after consuming
 the exact admitted request; preparation stop/expiry cannot publish while that
 stack is active. The separate mode adds `diagnostic="creation-source-join"` and
 `creation_join_observed` to its scalar result. Ordinary mode's wire is unchanged.
-A fresh native profile and separate stock result remain unfinished.
+That first profile is consumed. Entering the fixture through normal navigation
+and obtaining a fresh positive stock join remain unfinished.
 
 Owned fixtures cover exact qualified class names, a non-QString ID value and
 mismatched argument rejection, same-ID distinct wrappers, absent/unready and
