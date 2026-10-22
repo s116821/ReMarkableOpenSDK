@@ -32,6 +32,40 @@ Implementation and checks:
   activation/recovery admission. The single positive observation above is a
   bounded checkpoint; broader native operation/state qualification remains open.
 
+## Creation-controller source join follow-up
+
+The next distinct question is whether the selected document wrapper is the same
+live wrapper returned by the creation controller's own Library lookup. The
+[static relationship findings](../../../docs/research/scene-document-controller-relationship.md)
+describe the shared native resolver and the stateful wrapper-cache path. This
+follow-up does not create a page, acquire a worker, navigate, or grant a mutation
+lease. Different wrappers with matching IDs remain inconclusive.
+
+Implement the optional join using the actual `id` QVariant and an exact matching
+Qt meta-method argument type, rather than reconstructing `entry::Id` or assuming
+it is a QString/QUuid. Guard the supplied controller and its Library before
+lookup, watch Library replacement/readiness and the existing selected chain,
+require one exact native method, pin its returned QObject before further permit
+callbacks, then recheck the relationships. Return scalar facts only; keep
+existing observation behavior unchanged when the optional join is absent.
+Any singleton/helper preparation must precede this guarded sample, remain on the
+same GUI engine/thread, and retain the original operation deadline. No event
+pumping, waiting for readiness or automatic retry is permitted.
+
+- [x] Implement the optional same-wrapper join without an action API.
+- [x] Verify typed invocation, a same-ID distinct wrapper, missing/wrong method,
+  unavailable/unready Library, replacement/ABA, destruction, cancellation and
+  reentry on owned Qt fixtures; preserve the existing observer checks.
+  Host Qt 6.4.2 and ARM Qt 6.10.3 under QEMU pass the observer and one-request
+  entry suites. Qualified native class names and notification guards preceding
+  optional getters have independent review and regression coverage. This does
+  not qualify stock execution of the new join.
+- [ ] Prepare and review a separate one-request entry/profile before a native
+  join experiment. The successful selected-observation candidate is spent.
+- [ ] Record any admitted native join separately; a positive sampled join is
+  conditional on the inspected wrapper/cache invariant and is not atomicity,
+  worker serialization, creation, rendering or persistence qualification.
+
 No canonical specification is synced or archived by this research increment.
 
 The separate request entry publishes readiness after file/process binding and

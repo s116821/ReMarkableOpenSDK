@@ -28,11 +28,15 @@ struct Observation {
     bool loading = true, pageError = true, documentError = true, awaitingTiles = true, pendingTiles = true, working = true;
     // A sampled status conjunction only: not a render fence or an action gate.
     bool ready = false;
+    // Optional source relationship only; never a mutation or ownership lease.
+    bool creationJoinObserved = false;
     // Even an accepted snapshot establishes none of these authorities.
     bool nativeAuthority = false, renderAuthority = false, durableAuthority = false;
 };
 
 namespace detail {
+inline constexpr char CreationControllerClass[] = "xofm::libs::library::DocumentController";
+inline constexpr char CreationLibraryClass[] = "xofm::libs::library::Library";
 class Epoch final : public QObject {
     Q_OBJECT
 public:
@@ -54,6 +58,8 @@ class Sample {
     QPointer<QQuickItem> root;
     QPointer<QQmlEngine> engine;
     QPointer<QQmlContext> lexicalSeed;
+    QPointer<QObject> creationController;
+    bool joinRequested;
     QElapsedTimer timer;
     int budget;
     const std::function<bool()> &permit;
@@ -238,8 +244,61 @@ class Sample {
         return uuid.match(out).hasMatch() && out != QStringLiteral("00000000-0000-0000-0000-000000000000")
             ? true : no("document-id-format");
     }
+    bool nativeClass(QObject *p, const char *name) {
+        QPointer<QObject> pin = p;
+        if (!retain(pin) || !live()) return false;
+        QQmlEngine *associated = qmlEngine(pin);
+        if (associated && associated != engine) return no("foreign-engine");
+        const QMetaObject *m = pin->metaObject();
+        for (int depth = 0; m && depth < 16; ++depth, m = m->superClass())
+            if (qstrcmp(m->className(), name) == 0) return live();
+        return no("creation-type");
+    }
+    QObject *lookup(QObject *library, QObject *document) {
+        QPointer<QObject> lib = library, doc = document;
+        if (!nativeClass(lib, CreationLibraryClass) || !live() || !doc) return nullptr;
+        // Preserve the native metatype and its owned QVariant storage. Neither
+        // a QString conversion nor a reconstructed entry::Id layout is needed.
+        const QVariant nativeId = value(doc, "id");
+        if (!failure.isEmpty() || !nativeId.isValid() || nativeId.metaType().flags().testFlag(QMetaType::IsPointer) || !live()) return nullptr;
+        QMetaMethod method;
+        int matches = 0;
+        const QMetaObject *m = lib->metaObject();
+        if (m->methodCount() > 512) { no("method-cap"); return nullptr; }
+        for (int i = 0; i < m->methodCount(); ++i) {
+            const QMetaMethod candidate = m->method(i);
+            if (candidate.name() != "entryForId") continue;
+            ++matches;
+            method = candidate;
+        }
+        if (matches != 1 || !method.isValid() || method.access() != QMetaMethod::Public ||
+            (method.methodType() != QMetaMethod::Method && method.methodType() != QMetaMethod::Slot) ||
+            qstrcmp(method.enclosingMetaObject()->className(), CreationLibraryClass) != 0 ||
+            method.parameterCount() != 1 || method.parameterMetaType(0) != nativeId.metaType() ||
+            !method.returnMetaType().flags().testFlag(QMetaType::PointerToQObject)) {
+            no("creation-lookup-method"); return nullptr;
+        }
+        const QMetaType resultType = method.returnMetaType();
+        const QByteArray argumentName = method.parameterTypes().first();
+        const char *resultName = method.typeName();
+        QVariant result(resultType);
+        if (argumentName.isEmpty() || !resultName || !*resultName || !result.isValid() || !live() || !lib || !doc) return nullptr;
+        const bool called = method.invoke(lib, Qt::DirectConnection,
+            QGenericReturnArgument(resultName, result.data()),
+            QGenericArgument(argumentName.constData(), nativeId.constData()));
+        // The lookup may allocate/cache a wrapper. Guard its returned pointer
+        // before any post-call callback; do not change QObject/QML ownership.
+        QPointer<QObject> returned = called ? result.value<QObject *>() : nullptr;
+        if (!called || !returned) { no("creation-lookup-refused"); return nullptr; }
+        if (!retain(returned) || !live()) return nullptr;
+        QQmlEngine *associated = qmlEngine(returned);
+        if (associated && associated != engine) { no("foreign-engine"); return nullptr; }
+        return live() ? returned.data() : nullptr;
+    }
 public:
-    Sample(QQuickWindow *w, const std::function<bool()> &permission, int ms) : budget(ms), permit(permission) {
+    Sample(QQuickWindow *w, const std::function<bool()> &permission, int ms,
+           QObject *creation = nullptr, bool join = false)
+        : creationController(creation), joinRequested(join), budget(ms), permit(permission) {
         timer.start();
         app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
         if (!app || QThread::currentThread() != app->thread() || !w || w->thread() != app->thread()) {
@@ -257,6 +316,17 @@ public:
         if (!failure.isEmpty() || !live() || !retain(window) || !retain(root) || !retain(engine)) return refuse();
         if (!signal(app, "focusWindowChanged(QWindow*)") || !signal(window, "activeChanged()") ||
             !signal(window, "visibleChanged(bool)")) return refuse();
+        QPointer<QObject> creationLibrary;
+        if (joinRequested) {
+            if (!nativeClass(creationController, CreationControllerClass) ||
+                !watchMany(creationController, {"library"})) return refuse();
+            creationLibrary = object(creationController, "library");
+            bool ready = false;
+            if (!creationLibrary || !nativeClass(creationLibrary, CreationLibraryClass) ||
+                !watchMany(creationLibrary, {"isReady"}) || !boolean(creationLibrary, "isReady", ready) || !ready) {
+                no("creation-library-unready"); return refuse();
+            }
+        }
         // Search every effectively visible and enabled visual branch within its
         // bounds. A valid selected chain requires both states. Retain/watch an
         // excluded boundary before pruning, so later reveal/enable (even ABA)
@@ -372,6 +442,26 @@ public:
             !boolean(current, "awaitingInitialTileSet", r.awaitingTiles) || !boolean(tiles, "pendingTiles", r.pendingTiles) ||
             !boolean(controller, "working", r.working)) return refuse();
         if (facadeStatus != r.status || facadePageStatus != r.pageStatus) return refuse();
+        if (joinRequested) {
+            if (!relationship() || !creationController || !creationLibrary ||
+                object(creationController, "library") != creationLibrary || !live()) return refuse();
+            if (lookup(creationLibrary, document) != document) {
+                no("creation-wrapper-inconclusive"); return refuse();
+            }
+            bool ready = false;
+            if (!creationController || !creationLibrary || !live() ||
+                object(creationController, "library") != creationLibrary ||
+                !boolean(creationLibrary, "isReady", ready) || !ready || !relationship()) return refuse();
+            mapped.clear(); roundtrip = -1;
+            if (!live() || !QMetaObject::invokeMethod(document, "idForPage", Qt::DirectConnection,
+                    Q_RETURN_ARG(QString, mapped), Q_ARG(int, r.pageIndex)) || !live() ||
+                !QMetaObject::invokeMethod(document, "pageForId", Qt::DirectConnection,
+                    Q_RETURN_ARG(int, roundtrip), Q_ARG(QString, r.pageId)) || !live() ||
+                mapped != r.pageId || roundtrip != r.pageIndex) {
+                no("page-map-refused"); return refuse();
+            }
+            r.creationJoinObserved = true;
+        }
         QString finalId, finalPage;
         if (!id(document, finalId) || !string(reader, "currentPageId", finalPage) || finalId != r.documentId || finalPage != r.pageId ||
             !relationship() || !owners(false) || !live(false)) return refuse();
@@ -387,5 +477,14 @@ inline Observation observe(QQuickWindow *window, const std::function<bool()> &pe
     if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
     detail::EntryScope scope;
     return detail::Sample(window, permit, budgetMs).run();
+}
+
+// The caller resolves the existing controller on this engine's GUI thread before
+// entering the sample. No pointer escapes the call; no singleton is resolved here.
+inline Observation observeWithCreationController(QQuickWindow *window, QObject *controller,
+        const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000) {
+    if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
+    detail::EntryScope scope;
+    return detail::Sample(window, permit, budgetMs, controller, true).run();
 }
 } // namespace reader_selected

@@ -1,9 +1,10 @@
 # SceneView, document wrappers and the library controller
 
-Status: October 13, 2026 exact-build static interoperability findings. This is
-preparation for a separately justified source-identity follow-up, not an observer
-implementation or native qualification. The accepted `passive-visual-sftp-v1`
-route, manifest, caps and first measurement scope at `91f0973` remain unchanged.
+Status: October 13, 2026 exact-build static findings, supplemented October 22
+with the Library wrapper-cache path. These findings justify a source-identity
+follow-up; they do not qualify a native adapter. The separate
+`passive-visual-sftp-v1` route, manifest, caps and first measurement scope at
+`91f0973` remain unchanged.
 
 The saved executable establishes a concrete relationship from `SceneView` to
 `QmlDocumentWrapper`, its backing `Document`, and the document's worker. The
@@ -23,6 +24,12 @@ Raw disassembly, exact layout evidence and reproducibility scripts remain in
 private evidence; they have no public download link. No proprietary source body
 is incorporated here. Layout observations are build-specific, not SDK APIs.
 
+The October 22 follow-up used the same rehashed executable and retained GNU
+ARM objdump `2.42.0.20240723` in the existing pinned tool image. Five bounded
+disassembly slices, metadata, prior traces and exact tool/input/output hashes
+are retained privately. These are normal-tool static findings, **not REA
+Evidence records**. No target code was executed or tablet contacted.
+
 The earlier [R2 registered-controller observation](native-platform-ledger.md#completed-development-observation-r2-4096-controller-chain)
 is historical runtime evidence for finding an existing `DocumentController`,
 not a current address or displayed-document binding. The
@@ -40,6 +47,8 @@ relationship and its limits.
 | `SceneView.controller` to `SceneController` | The view exposes a separate controller member. `SceneController.worker` resolves its own guarded worker reference; its `pageId` is a shared string. These are useful consistency checks on a future fresh relationship, not a library-controller alias. |
 | `DocumentController.library` to `Library` | Its property getter resolves a guarded library reference. The traced insertion entrypoint uses that same member when resolving the explicit `documentId` argument. |
 | Controller ID resolution to `Document` | The controller resolves an entry through its library and dynamically casts it from `Entry` to `Document`, preserving the resolved shared ownership on success. It does not derive the displayed source from the controller pointer. |
+| `Library.entryForId` to the same resolver | Native metadata declares one `entryForId(entry::Id)` returning `QmlEntryWrapper*`. Its actual dispatch calls the same native resolver as the controller, using its own receiver Library. The controller's public Library getter and its document resolver use the same guarded Library member. |
+| Resolved entry to returned wrapper | The method first checks that entry's guarded cached QObject. A valid cache is returned; a document cache miss constructs `QmlDocumentWrapper` from the exact resolved shared pair and writes the weak wrapper cache. The wrapper constructor retains the same backing document in its base and derived members. |
 
 The setter returns early when the proposed wrapper has the same backing document
 as the view's retained document. Thus wrapper replacement and document identity
@@ -51,6 +60,27 @@ An empty ID follows a special branch; it must not be treated as a valid displaye
 document ID or silently repaired into one. The ordinary lookup compares key
 length and contents before returning the retained entry. None of these paths is
 authorization to call the resolver, acquire a worker or invoke insertion.
+
+## Meaning and effects of the wrapper lookup
+
+A fresh positive **same live wrapper pointer** between the selected document and
+the current creation controller's `library.entryForId` would support the missing
+source join under the inspected constructor/cache invariant. A still-live
+wrapper retains its backing native entry, preventing that allocation from being
+recycled while the wrapper remains alive under this invariant. Different
+wrappers with identical IDs remain inconclusive about backing identity.
+
+This is a bounded static argument. All cache writers, cache initialization and
+destruction paths, and wrapper backing-member writers were not globally
+enumerated. It is not an unconditional proof that stale-cache relationships are
+impossible. A future live diagnostic must keep the exact controller, Library,
+selected wrapper and selected chain guarded within its observation interval.
+
+The lookup is stateful: even a cache hit touches shared ownership; a miss
+allocates a QObject wrapper, installs connections and changes the weak cache.
+The inspected normal document path contains no direct known worker-acquisition
+or explicit entry-load request. Generic Qt hooks and secondary effects were not
+exhaustively analyzed, so this is not a global absence-of-effects claim.
 
 ## What remains missing
 
@@ -64,7 +94,9 @@ The unresolved join is **current displayed view -> current wrapper/backing
 Document -> entry ID -> the fresh controller's Library resolving that ID to the
 same backing Document**, within a justified observation interval. Static
 construction and lookup paths establish the meaning of that proposed join;
-this investigation supplies no live values for it. Historical R2 addresses
+the [first selected-page observation](../experiments/selected-reader-observation-result.md)
+established the selected-view half on October 22, but acquired no creation
+controller/Library join. Historical R2 addresses
 cannot fill the gap. Equality of document IDs alone would establish a logical
 key match, not current object identity, ownership or a lifetime guarantee.
 
@@ -75,9 +107,12 @@ properties on `SceneController` must not be substituted for library-document
 identity. Guard checks and repeated reads do not eliminate ABA reuse or make
 cross-object reads atomic.
 
-A later proposal would need to justify its lifetime/coherence and ID-validation
-rules and its exact bounded access mechanism. It must not call the property
-getters under a passive-read claim: the inherited ID and page-ID paths copy
-shared data, while worker acquisition can create/start work. No additional
-process-memory reads, library-table traversal, API/DTO, native payload or device
-operation is introduced by these findings.
+The optional follow-up diagnostic uses the actual `id` property's owned QVariant
+and an exactly matching Qt meta-method parameter type, without reconstructing an
+`entry::Id` layout or dispatching through JavaScript. It watches controller
+Library replacement/readiness and the selected chain, pins the lookup return
+before subsequent permit callbacks, and accepts only the same live wrapper.
+It must not change QObject ownership, acquire a worker, wait/retry, or turn
+sampled agreement into permission for a later mutation. Native entry preparation
+and admission remain separate and unqualified; no additional process-memory
+reads or library-table traversal are introduced here.

@@ -79,6 +79,40 @@ different questions. They must not be combined into a claim of native success.
   separate preservation obligations. The one-shot diagnostic's stock restoration
   is a test arrangement, not the production conversation workflow.
 
+## Optional creation-controller source join
+
+`observeWithCreationController` adds a separate experimental question to the
+same guarded sample: does the supplied existing creation controller's own
+Library return the exact selected document wrapper? Ordinary `observe` does not
+perform this lookup. The current one-request native entry still calls ordinary
+`observe`; no new native join result or activation is supplied by this change.
+
+The optional path checks the exact build's qualified controller/Library Qt class
+names, associated engine/thread/lifetimes, Library readiness and notifications.
+It passes an owned QVariant from the actual `id` property to one public native
+`entryForId` meta-method with the exact same parameter metatype. Return storage
+uses the declared return metatype; generic invocation uses the method's declared
+type spellings. It does not reconstruct private types, use JavaScript dispatch,
+change QObject ownership, or fall back to a string argument. The returned QObject
+is guarded before post-call permit callbacks. A positive result additionally
+requires the same live selected wrapper, unchanged Library/readiness, selected
+relationships and the selected page's index/key round trip. Only scalar
+`creationJoinObserved` escapes; all authority flags remain false.
+
+The [static resolver/cache finding](scene-document-controller-relationship.md)
+explains the conditional backing-identity interpretation and its limits. This
+lookup can create/cache a wrapper, so it is not passive. Different wrappers with
+equal IDs are inconclusive. The caller must establish provenance for an existing
+controller before this sample; the diagnostic neither constructs a singleton
+nor creates a new QML engine. Separate request-entry integration and a fresh
+native profile remain unfinished. No page creation or worker access is added.
+
+Owned fixtures cover exact qualified class names, a non-QString ID value and
+mismatched argument rejection, same-ID distinct wrappers, absent/unready and
+ambiguous lookup, foreign engines, notification ABA, destruction, cancellation,
+reentry, deadline expiry and unchanged QObject ownership. These are model checks,
+not evidence that the join has run on stock objects.
+
 ## Reproduction on owned objects
 
 Run from the repository root on a host with Qt6 Core/Qml/Gui/Quick development

@@ -13,9 +13,9 @@ public:
     explicit FocusFixture(QQuickItem *parent = nullptr) : QQuickItem(parent) { setFlag(ItemIsFocusScope); }
 };
 
-class DocumentFixture final : public QObject {
+class DocumentFixture : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QString id READ id CONSTANT)
+    Q_PROPERTY(QByteArray id READ id CONSTANT)
     Q_PROPERTY(int pageCount READ pageCount NOTIFY pageCountChanged)
     Q_PROPERTY(bool loadError READ loadError WRITE setLoadError NOTIFY loadErrorChanged)
 public:
@@ -23,7 +23,7 @@ public:
     QString key = QStringLiteral("10000000-0000-0000-0000-000000000001");
     QStringList pages{QStringLiteral("fixture-page-a"), QStringLiteral("fixture-page-b")};
     bool error = false;
-    QString id() const { return key; }
+    QByteArray id() const { return key.toUtf8(); }
     int pageCount() const { return pages.size(); }
     bool loadError() const { return error; }
     void setLoadError(bool e) { if (error != e) { error = e; emit loadErrorChanged(); } }
@@ -33,6 +33,12 @@ signals:
     void pageCountChanged();
     void pageMapChanged();
     void loadErrorChanged();
+};
+class StringIdDocument final : public DocumentFixture {
+    Q_OBJECT
+    Q_PROPERTY(QString id READ stringId CONSTANT)
+public:
+    QString stringId() const { return key; }
 };
 class ControllerFixture final : public QObject {
     Q_OBJECT
@@ -50,6 +56,49 @@ signals:
     void pageIdChanged();
     void workingChanged();
 };
+namespace xofm { namespace libs { namespace library {
+class Library : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(bool isReady READ isReady WRITE setReady NOTIFY readyChanged)
+public:
+    using QObject::QObject;
+    bool ready = true;
+    int calls = 0;
+    QByteArray lastId;
+    QPointer<QObject> result;
+    std::function<void()> onLookup;
+    mutable std::function<void()> onReadyRead;
+    bool isReady() const { if (onReadyRead) { auto f = std::move(onReadyRead); onReadyRead = {}; f(); } return ready; }
+    void setReady(bool value) { if (ready != value) { ready = value; emit readyChanged(); } }
+    Q_INVOKABLE QObject *entryForId(const QByteArray &id) {
+        ++calls; lastId = id;
+        if (onLookup) onLookup();
+        return result;
+    }
+signals:
+    void readyChanged();
+};
+class AmbiguousLibrary final : public Library {
+    Q_OBJECT
+public:
+    using Library::Library;
+    Q_INVOKABLE QObject *entryForId(int) { return nullptr; }
+};
+class DocumentController final : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QObject* library READ library WRITE setLibrary NOTIFY libraryChanged)
+public:
+    using QObject::QObject;
+    QPointer<QObject> lib;
+    QObject *library() const { return lib; }
+    void setLibrary(QObject *value) { if (lib != value) { lib = value; emit libraryChanged(); } }
+signals:
+    void libraryChanged();
+};
+} } }
+using xofm::libs::library::Library;
+using xofm::libs::library::AmbiguousLibrary;
+using xofm::libs::library::DocumentController;
 class TilesFixture final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool pendingTiles READ pendingTiles WRITE setPendingTiles NOTIFY pendingTilesChanged)
@@ -105,7 +154,7 @@ static void require(bool ok, const char *message) {
 }
 static void refused(const reader_selected::Observation &r, const char *message) {
     require(!r.observed && !r.refusal.isEmpty() && r.documentId.isEmpty() && r.pageId.isEmpty() &&
-            !r.mapCoherent && !r.ready && !r.nativeAuthority && !r.renderAuthority && !r.durableAuthority, message);
+            !r.mapCoherent && !r.ready && !r.creationJoinObserved && !r.nativeAuthority && !r.renderAuthority && !r.durableAuthority, message);
 }
 static void write(const QString &path, const QByteArray &data) {
     QFile f(path); require(f.open(QIODevice::WriteOnly), "fixture file open");
@@ -216,6 +265,140 @@ int main(int argc, char **argv) {
     qmlRegisterType<QQuickItem>("OwnedProbe", 1, 0, "Item");
     qmlRegisterType<FocusFixture>("OwnedProbe", 1, 0, "FocusScope");
     qmlRegisterType<SceneView>("OwnedProbe", 1, 0, "SceneFixture");
+    {
+        Fixture f;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        const auto join = [&] { return reader_selected::observeWithCreationController(&f.window, &creation); };
+        const auto r = join();
+        require(r.observed && r.creationJoinObserved && r.ready && library.calls == 1 && library.lastId == f.document.id(),
+                "exact QByteArray metatype lookup joins selected wrapper once without string reconstruction");
+        require(QByteArray(library.metaObject()->className()) == "xofm::libs::library::Library" &&
+                QByteArray(creation.metaObject()->className()) == "xofm::libs::library::DocumentController",
+                "owned metaobjects reproduce exact qualified native class names");
+        require(!f.sample().creationJoinObserved && library.calls == 1, "ordinary observation does not call creation lookup");
+        require(QQmlEngine::objectOwnership(&f.document) == QQmlEngine::CppOwnership,
+                "direct meta-call leaves externally owned wrapper ownership unchanged");
+        DocumentFixture other;
+        require(other.id() == f.document.id(), "distinct wrapper has identical logical ID");
+        library.result = &other;
+        refused(join(), "equal IDs in distinct live wrappers are inconclusive");
+        library.result = nullptr;
+        refused(join(), "missing native wrapper refuses");
+        library.result = &f.document;
+        library.setReady(false);
+        const int calls = library.calls;
+        refused(join(), "unready Library refuses without waiting or lookup");
+        require(library.calls == calls, "unready Library is not called");
+        creation.setLibrary(nullptr);
+        refused(join(), "missing Library refuses");
+        refused(reader_selected::observeWithCreationController(&f.window, nullptr), "missing creation controller refuses");
+        refused(reader_selected::observeWithCreationController(&f.window, &f.controller), "SceneController cannot substitute for DocumentController");
+        AmbiguousLibrary ambiguous;
+        ambiguous.result = &f.document; creation.setLibrary(&ambiguous);
+        refused(join(), "overloaded/shadowed lookup cannot select a convenient signature");
+        require(ambiguous.calls == 0, "ambiguous native method never invoked");
+        StringIdDocument stringDocument;
+        require(f.reader->setProperty("document", QVariant::fromValue<QObject *>(&stringDocument)), "string ID document setup");
+        creation.setLibrary(&library); library.setReady(true); library.result = &stringDocument;
+        const int beforeMismatch = library.calls;
+        refused(join(), "QString ID cannot substitute for exact QByteArray argument storage");
+        require(library.calls == beforeMismatch, "mismatched ID metatype never invoked");
+    }
+    for (int change = 0; change < 5; ++change) {
+        Fixture f;
+        Library library, replacement;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        library.onLookup = [&] {
+            switch (change) {
+            case 0: creation.setLibrary(&replacement); creation.setLibrary(&library); break;
+            case 1: library.setReady(false); library.setReady(true); break;
+            case 2: f.controller.setWorking(true); f.controller.setWorking(false); break;
+            case 3: reader_selected::observeWithCreationController(&f.window, &creation); break;
+            case 4: emit f.document.pageMapChanged(); break;
+            }
+        };
+        refused(reader_selected::observeWithCreationController(&f.window, &creation),
+                "lookup-time Library/readiness/selected-chain ABA and sampler reentry refuse");
+        require(library.calls == 1, "lookup is not retried after invalidation");
+    }
+    {
+        Fixture f;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        library.onReadyRead = [&] { emit app.focusWindowChanged(nullptr); emit app.focusWindowChanged(&f.window); };
+        const auto r = reader_selected::observeWithCreationController(&f.window, &creation);
+        refused(r, "direct focus notification ABA during initial Library getter refuses");
+        require(r.refusal == "generation-changed" && library.calls == 0, "global notification guards precede optional getters");
+    }
+    {
+        Fixture f;
+        Library library;
+        auto creation = std::make_unique<DocumentController>();
+        creation->setLibrary(&library); library.result = &f.document;
+        library.onLookup = [&] { creation.reset(); };
+        refused(reader_selected::observeWithCreationController(&f.window, creation.get()), "creation controller destroyed inside lookup refuses");
+    }
+    {
+        Fixture f;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library);
+        auto returned = std::make_unique<DocumentFixture>();
+        library.result = returned.get();
+        bool called = false, deleted = false;
+        library.onLookup = [&] { called = true; };
+        refused(reader_selected::observeWithCreationController(&f.window, &creation, [&] {
+            if (called && returned) { returned.reset(); deleted = true; }
+            return true;
+        }), "returned lookup QObject is guarded before post-call permit destruction");
+        require(deleted, "post-lookup permit lifetime fixture reached");
+    }
+    {
+        Fixture f;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        bool canceled = false;
+        library.onLookup = [&] { canceled = true; };
+        refused(reader_selected::observeWithCreationController(&f.window, &creation, [&] { return !canceled; }),
+                "lookup-time cancellation refuses scalar result without retry");
+    }
+    for (const bool foreignLibrary : {false, true}) {
+        Fixture f;
+        QQmlEngine foreign;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        QQmlEngine::setContextForObject(foreignLibrary ? static_cast<QObject *>(&library) : &creation, foreign.rootContext());
+        refused(reader_selected::observeWithCreationController(&f.window, &creation), "foreign-associated controller or Library engine refuses");
+        require(library.calls == 0, "foreign engine refuses before resolver call");
+    }
+    {
+        Fixture f;
+        auto library = std::make_unique<Library>();
+        DocumentController creation;
+        creation.setLibrary(library.get()); library->result = &f.document;
+        bool called = false;
+        library->onLookup = [&] { called = true; };
+        refused(reader_selected::observeWithCreationController(&f.window, &creation, [&] {
+            if (called && library) library.reset();
+            return true;
+        }), "Library destroyed in first post-call callback refuses");
+    }
+    {
+        Fixture f;
+        Library library;
+        DocumentController creation;
+        creation.setLibrary(&library); library.result = &f.document;
+        library.onLookup = [] { std::this_thread::sleep_for(std::chrono::milliseconds(1100)); };
+        const auto r = reader_selected::observeWithCreationController(&f.window, &creation);
+        refused(r, "lookup cannot extend the original sample budget");
+        require(library.calls == 1 && r.refusal == "deadline", "lookup reached and budget has deadline refusal");
+    }
     {
         Fixture f(false, true);
         QObject *helper = f.reader->findChild<QObject *>("DocumentView.ToolSettings", Qt::FindDirectChildrenOnly);
@@ -460,7 +643,7 @@ int main(int argc, char **argv) {
         f.current->pageRead = [&] { replacement.reset(); };
         refused(f.sample(), "external controller destroyed inside accessor refuses");
     }
-    QTextStream(stdout) << "PASS selected view owned Qt: separate lexical contexts, external ownership, native type/nonfirst selection, bounded eligible visual discovery/effective hidden-disabled pruning/reveal-enable ABA/nonvisual exclusion/ambiguity/distinct caps, discovery name/visual ABA and separate guards, returned QObject post-read lifetime, map/UUID/refusals, error/loading/tiles/work, value/pointer/map/visual/focus/visibility ABA, destruction, sampler/event reentry, cancellation/deadline/thread/window/context; native_authority=false render_authority=false durable_authority=false\n";
+    QTextStream(stdout) << "PASS selected view owned Qt: typed creation-Library same-wrapper join, same-ID distinct-wrapper refusal, absent/unready/ambiguous lookup, ownership, lookup ABA/destruction/reentry/cancellation; separate lexical contexts, external ownership, native type/nonfirst selection, bounded eligible visual discovery/effective hidden-disabled pruning/reveal-enable ABA/nonvisual exclusion/ambiguity/distinct caps, discovery name/visual ABA and separate guards, returned QObject post-read lifetime, map/UUID/refusals, error/loading/tiles/work, value/pointer/map/visual/focus/visibility ABA, destruction, sampler/event reentry, cancellation/deadline/thread/window/context; native_authority=false render_authority=false durable_authority=false\n";
     return 0;
 }
 #include "reader_selected_view_fixture.moc"
