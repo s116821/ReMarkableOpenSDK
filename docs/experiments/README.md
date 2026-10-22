@@ -13,6 +13,7 @@ packet or past trial is not permission to execute a new one.
 | [Existing-fixture navigation/join diagnostic](fixture-navigation-source-join.md) | One fixed stock route, separate fresh target/source check and shared original deadline; dispatch is not readiness or qualified SDK navigation |
 | [First fixed-fixture navigation attempt](fixture-navigation-source-join-result.md) | Different eligible live wrappers caused pre-dispatch refusal; no open/join, stock restored and all eighteen files unchanged |
 | [Navigator ownership census](navigation-ownership-census.md) | Separate metadata-only owner/context/layout diagnostic; no navigation or selected identity claim |
+| [First stock ownership census](navigation-ownership-census-result.md) | Three boot-UI owners over fourteen visited boundaries; layout ready was true during splash, no document composition, unchanged fixture/restored stock |
 | [Same-grab reader structure](capture-window-reader-structure-result.md) | Normal loading capture with two 35-object/zero-anchor samples; remaining creation/containment gap |
 | [Reader metadata census result](reader-metadata-census-result.md) | Actual bounded anchor refusal, context limits, recovery failure and unchanged request-time entry semantics |
 | [Visual-only Qt source verification](visual-only-capture-owned.md) | New one-grab bounded-output entry, focused owned public-grab/preload/sink/publication controls, separate native/whole-packet gates |

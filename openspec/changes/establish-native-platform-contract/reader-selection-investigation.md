@@ -158,6 +158,11 @@ separately reviewed composition-based selector may use these findings.
   incomplete caps, cancellation/destruction/reentry/deadline and wire bounds.
 - [ ] Freeze a fresh read-only profile, record actual stock owner/layout facts,
   preserve restoration and before/after files, and derive the narrow selector.
+  The [first completed census](../../../docs/experiments/navigation-ownership-census-result.md)
+  found only three boot-UI owners at about four seconds, all reporting the
+  splash route despite ready=true. Stock restoration/all eighteen unchanged
+  files passed; a separate later observation within the original setup window
+  is needed before deriving the receiver selector.
 
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second
