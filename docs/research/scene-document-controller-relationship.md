@@ -90,14 +90,18 @@ negative finding, not proof that no such relationship exists anywhere in the
 program. A direct pointer is not required by the observed controller API: it
 accepts a document ID and performs a library lookup.
 
-The unresolved join is **current displayed view -> current wrapper/backing
+The join under investigation was **current displayed view -> current wrapper/backing
 Document -> entry ID -> the fresh controller's Library resolving that ID to the
 same backing Document**, within a justified observation interval. Static
 construction and lookup paths establish the meaning of that proposed join;
 the [first selected-page observation](../experiments/selected-reader-observation-result.md)
 established the selected-view half on October 22, but acquired no creation
-controller/Library join. Historical R2 addresses
-cannot fill the gap. Equality of document IDs alone would establish a logical
+controller/Library join. The subsequent [stock navigation/join result](../experiments/legacy-composition-navigation-join-result.md)
+observed same-live-wrapper agreement for the fresh selected document and
+creation Library lookup on the exact RM2 candidate. This closes that sampled
+join under the inspected invariant; worker serialization and mutation-time
+ownership remain unresolved. Historical R2 addresses
+cannot fill those gaps. Equality of document IDs alone would establish a logical
 key match, not current object identity, ownership or a lifetime guarantee.
 
 Even a fresh matching relationship would not prove that the selected page key

@@ -174,10 +174,16 @@ opportunity inside the original shared twenty-second budget and marks its wire
 scope explicitly. Other wrappers and the older selector remain unchanged.
 
 - [x] Verify this selector and both Entry variants on owned host/ARM Qt.
-- [ ] Freeze and independently review a fresh native profile; open only the
+- [x] Freeze and independently review a fresh native profile; open only the
   known existing fixture, observe a fresh selected-page/controller join and
   preserve actual metadata changes, immutable files and independent recovery.
   Dispatch, delay and source-only checks do not fulfill this native gate.
+  The [completed exact RM2 result](../../../docs/experiments/legacy-composition-navigation-join-result.md)
+  observed the expected fifth page, readiness and same-live-wrapper source join
+  in 9409 ms including the queued opportunity. All eighteen files were unchanged,
+  independent restoration/cleanup passed, and authority flags remained false.
+  Worker serialization, matching insertion completion and lifecycle qualification
+  remain separate unfinished requirements.
 
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second

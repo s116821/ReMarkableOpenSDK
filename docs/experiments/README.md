@@ -16,6 +16,7 @@ packet or past trial is not permission to execute a new one.
 | [First stock ownership census](navigation-ownership-census-result.md) | Three boot-UI owners over fourteen visited boundaries; layout ready was true during splash, no document composition, unchanged fixture/restored stock |
 | [Ownership after boot](navigation-ownership-postboot-result.md) | Eight owners over 454 visited boundaries; linked legacy root/MainView share native navigator/layout, unchanged fixture/restored stock |
 | [Linked MainView navigation/join](legacy-composition-navigation-join.md) | Optional composition selector with final linked-state recheck, one fixed open and fresh observation inside the original shared deadline |
+| [Stock navigation/source join result](legacy-composition-navigation-join-result.md) | Expected fifth page and same-live-wrapper creation join observed; all eighteen files unchanged and stock restored, without mutation authority |
 | [Same-grab reader structure](capture-window-reader-structure-result.md) | Normal loading capture with two 35-object/zero-anchor samples; remaining creation/containment gap |
 | [Reader metadata census result](reader-metadata-census-result.md) | Actual bounded anchor refusal, context limits, recovery failure and unchanged request-time entry semantics |
 | [Visual-only Qt source verification](visual-only-capture-owned.md) | New one-grab bounded-output entry, focused owned public-grab/preload/sink/publication controls, separate native/whole-packet gates |
