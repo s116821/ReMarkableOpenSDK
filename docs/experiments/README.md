@@ -8,6 +8,7 @@ packet or past trial is not permission to execute a new one.
 | Reusable guide | Evidence scope |
 | --- | --- |
 | [Caller-selected insertion result](caller-selected-insertion-result.md) | One exact UUID persisted with originals preserved; deadline recovery and unexpected-close UI leave lifecycle qualification open |
+| [Stock selected-page result](selected-reader-observation-result.md) | One live document/page-five observation, sampled readiness and mapping; separate restoration/preservation pass, without mutation/render/durability authority |
 | [Same-grab reader structure](capture-window-reader-structure-result.md) | Normal loading capture with two 35-object/zero-anchor samples; remaining creation/containment gap |
 | [Reader metadata census result](reader-metadata-census-result.md) | Actual bounded anchor refusal, context limits, recovery failure and unchanged request-time entry semantics |
 | [Visual-only Qt source verification](visual-only-capture-owned.md) | New one-grab bounded-output entry, focused owned public-grab/preload/sink/publication controls, separate native/whole-packet gates |

@@ -25,8 +25,12 @@ Implementation and checks:
   reentrant A-to-B-to-A notification on owned fixtures.
 - [x] Build on the retained ARM toolchain; distinguish QEMU from native results.
 - [x] Review callback lifetime, failure/retry and integration requirements.
+- [x] Record one admitted stock observation of the expected document/page five,
+  sampled readiness and selected mapping, with independent restoration and
+  unchanged fixture. See the [exact result](../../../docs/experiments/selected-reader-observation-result.md).
 - [ ] Qualify an exact candidate on a disposable device fixture only after its
-  activation/recovery admission. This gate remains open without device evidence.
+  activation/recovery admission. The single positive observation above is a
+  bounded checkpoint; broader native operation/state qualification remains open.
 
 No canonical specification is synced or archived by this research increment.
 
@@ -46,7 +50,9 @@ returned only `deadline` at the old one-second cap. All request, cancellation,
 lifetime and notification checks remain. Direct callers retain a one-second
 default. The operator must separately budget publication and collection inside
 the original setup deadline and retain independent recovery; cooperative checks
-cannot preempt a blocked getter. Native timing and actual identity remain open.
+cannot preempt a blocked getter. One exact native sample now established the
+expected selected identity in 1028 ms; timing across other states and full native
+qualification remain open.
 
 The operator's matching ninety-second window requires a 285-second startup
 reserve within its original 360-second actor deadline, retaining the 185-second

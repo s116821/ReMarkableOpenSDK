@@ -4,6 +4,9 @@ Status: experimental interoperability tooling. No supported native adapter,
 qualified stock-Reader capability, page creation, durability receipt or crash repair is supplied
 by this increment. Standalone owned fixtures may run on a host, under QEMU or on
 an admitted tablet; those scopes must be recorded separately.
+The [October 22 stock result](../experiments/selected-reader-observation-result.md)
+identified the expected document and page five in one exact admitted sample;
+full native adapter qualification remains open.
 The original implementation uses public Qt APIs; extracted
 firmware source and disassembly are not included.
 
@@ -22,8 +25,9 @@ bounded ascent from that root alone therefore misses its internal `root` and
 context the observer ascends at most 16 parents, requiring both ids to equal the
 exact discovered Reader and device objects, the same engine and direct helper
 ownership. Final checks retain the helper's original creation context and engine.
-Owned nested-component tests reproduce the old failure and verify this fix;
-actual stock-context accessibility remains a separate device check.
+Owned nested-component tests reproduce the old failure and verify this fix.
+The October 22 result completed this path on its exact stock candidate; access
+across other documents, states and firmware remains a separate device check.
 
 Discovery follows the window's visual item tree and checks direct QObject
 children for the Reader helper. A valid helper must have the visual Reader as
