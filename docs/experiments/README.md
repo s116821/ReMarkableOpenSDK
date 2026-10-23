@@ -8,6 +8,7 @@ packet or past trial is not permission to execute a new one.
 | Reusable guide | Evidence scope |
 | --- | --- |
 | [Identity-capture entry and consumer](identity-capture-entry-owned-result.md) | Default-off Entry, inode-pinned separate commits, shutdown controls and original-byte validation; owned/source checkpoint, not native capture or live image-pair admission |
+| [Original capture pair readback](identity-capture-readback-owned-result.md) | Pinned original file collection, own-process/clock controls and strict length frame; whole native operator/target/provider admission remains separate |
 | [Native worker-local page order](worker-local-order-result.md) | Six expected ID/index reads, matching callback completion, settled owner release and unchanged20 files; no atomic insertion exclusion |
 | [Already-running callback cancellation](worker-running-cancellation-result.md) | Logical cancellation retains owners through six passive reads and one separately matching late completion; no request revival/release, full preservation and stock restoration |
 | [Caller-selected insertion result](caller-selected-insertion-result.md) | One exact UUID persisted with originals preserved; deadline recovery and unexpected-close UI leave lifecycle qualification open |

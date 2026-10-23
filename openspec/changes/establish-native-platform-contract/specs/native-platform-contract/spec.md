@@ -724,3 +724,19 @@ The proposed capture Entry SHALL remain default-off and follow [the separate ent
 #### Scenario: Archived bytes pass local checks
 - **WHEN** a consumer validates an original closed scalar and matching fully decoded image within its fixed supported PNG profile
 - **THEN** it reports byte-pair validation only, leaves external private-file/request/process/restoration admission unverified, and grants no native, render, durable or atomic authority.
+
+### Requirement: Original research capture readback isolation
+
+The research file/process/frame consumer SHALL follow the [file readback](../../identity-capture-readback.md) and [separate process composition](../../identity-capture-process-readback.md), retaining original bytes and explicitly separating sampled file/process observations from full target/provider/operator admission and supported capability.
+
+#### Scenario: Copied permission leaves scope
+- **WHEN** the last owned permission copy can invoke user code during destruction after reads
+- **THEN** it is destroyed while descriptors and the reentry gate remain live, and final no-callout checks precede exposing bytes; no borrowed original callback is reused afterward.
+
+#### Scenario: Original absolute clock bounds
+- **WHEN** collection uses relative Entry scalar times and an original pre-publication boot-clock lower bound
+- **THEN** it invents no Entry epoch, uses conservative original request-plus30/candidate-window/collection limits without renewal, and requires separate external admission after helper unwind and whole-reader return.
+
+#### Scenario: Incomplete original frame or external evidence
+- **WHEN** framing, binding, byte validation, a deadline or any required external target/provider/process/recovery bracket fails
+- **THEN** no accepted composed native result follows, originals remain forensic and neither the request nor uncertain collection is automatically repeated.
