@@ -1,9 +1,12 @@
 # Owned conditional coordinator and post-order composition
 
-October 23, 2026 UTC. The optional correct-source policy now composes through
+October 23, 2026 UTC, source checkpoint8e36c3f before its native trial. The optional correct-source policy composes through
 the research coordinator, a complete GUI post-order observer, closed schema2
 diagnostic and frozen startup selector. Focused owned controls and separate ARM
 link-only builds pass. **No conditional native insertion has run.**
+
+The later [fixed native result](conditional-insertion-native-result.md) records
+the actual trial separately. Statements below describe this source checkpoint.
 
 This follows the [passive condition and Core controls](conditional-insertion-owned-result.md)
 and implements the next source layer in the [conditional design](../../openspec/changes/establish-native-platform-contract/native-conditional-insertion.md).

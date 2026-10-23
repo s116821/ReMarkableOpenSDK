@@ -163,5 +163,7 @@ Source basis: existing source contracts, native negative/mutex observations and
 retained exact-binary tree/collision/comparator findings (private receipt SHA-256
 `6ef3886b1b08ac3ad26faf99e3f062671da8a42a190fbcc7ce7c618c6a8d2c2c`).
 The [owned coordinator/post-order composition](../../../docs/experiments/conditional-insertion-composition-owned-result.md)
-implements these research source layers. Actual conditional native insertion,
-selection/persistence and broader delivery remain open.
+implements these research source layers. One [fixed conditional native trial](../../../docs/experiments/conditional-insertion-native-result.md)
+observed a normal forward, complete expected post-order and persisted target with
+original content preserved. Actual Reader stayed on source. Verified adjacent
+target acquisition, selected blank/write/reopen and broader delivery remain open.
