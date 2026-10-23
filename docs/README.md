@@ -56,6 +56,7 @@ remain workflow records, not a shipping capability declaration.
 | Guard composition | [Coordinator and file handoff controls](experiments/insertion-guard-coordinator-transport-owned-result.md) | Real owned witnesses/files with explicit modeled native boundaries and original deadlines |
 | Native guard startup | [Profile passed; navigation refused](experiments/insertion-guard-startup-navigation-result.md) | Actual startup and original restoration/preservation; insertion witness unreached |
 | Child environment | [Real owned exec regression](experiments/insertion-child-environment-owned-result.md) | Six host scenarios/126 checks and parent residency; native startup cause remains a hypothesis |
+| Native negative witness | [Actual mismatch observation and refusal](experiments/insertion-guard-native-negative-result.md) | Matching native job/callback and exact preservation; conditional permitted insertion remains unimplemented |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an
