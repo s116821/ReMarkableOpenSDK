@@ -92,9 +92,17 @@ remain false.
   native call ABI and receiver can be justified. Verify owned worker-thread,
   synchronous/reentrant, early/foreign/duplicate completion, cancellation,
   destruction, timeout and delayed closure ownership cases.
-- [ ] If selected, freeze one fresh no-op native profile and independently
+- [x] If selected, freeze one fresh no-op native profile and independently
   verify the exact build/packet/operator before one target attempt. Preserve
   complete fixture bytes, actual process restoration and pending/late outcomes.
+
+Native checkpoint: [attempt 367219](../../../docs/experiments/native-worker-callback-result.md)
+observed expected pre-submission identity/readiness, one off-GUI callback and
+matching job 26 completion. All four positive counts were one; canceled count
+was zero, refusals empty, unknown false and native owners released. Original
+request/deadline binding passed. Stock 17021/start124282332 was restored, all
+eighteen fixture files and twelve provider/service entries were unchanged, and
+the exact archived RAM root was removed. Authority flags remained false.
 
 October 22 source/control checkpoint: all eight owned diagnostic suites passed
 on host Qt 6.4.2 (173.5 seconds) and ARM Qt 6.10.3/GCC 13.4 under QEMU 8.2.7
@@ -115,13 +123,13 @@ owned runtimes; its replacement respects Qt's notification-hook contract. A
 local runner initially selected ARM twice; the mislabeled duplicate was stopped
 and the distinct host run above passed. No failed run is credited as a pass.
 
-Even a successful witness would leave same-turn source/order validation and
+This successful witness leaves same-turn source/order validation and
 insertion, GUI visit ownership, matching insertion-specific completion, actual
 selected target, persistence and full lifecycle qualification unresolved. It
 must not be promoted into a worker execution/exclusion lease or repeat the already completed
 caller-selected UUID allocation experiment.
 
-Source basis: the committed native join result, retained REA/Ghidra and ARM
-disassembly findings, and original diagnostic source. Source/control review and
-native execution are separate gates. No native worker call or page mutation has
-occurred as part of this witness preparation.
+Source basis: committed native join and no-op worker results, retained REA/Ghidra
+and ARM disassembly findings, original diagnostic source and owned test evidence.
+Source/control review and native execution are separate gates. The native
+witness did not mutate a page or call document-order APIs on the worker.

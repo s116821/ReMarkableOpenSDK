@@ -190,7 +190,9 @@ investigates callback delivery/thread/job attribution before any same-turn
 insertion design. Ordinary AddPage re-enqueueing leaves a later execution gap;
 neither the successful source join nor a generic worker completion grants a
 mutation lease. The original diagnostic is implemented for source/control
-verification; exact native profile review and delivery qualification remain open.
+verification. Its separate [native delivery result](../../../docs/experiments/native-worker-callback-result.md)
+confirmed one off-GUI callback and matching completion, with the fixture unchanged
+and stock restored. Execution-time source/order exclusion and insertion remain open.
 
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second

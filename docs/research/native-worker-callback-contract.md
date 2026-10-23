@@ -7,6 +7,10 @@ returns a worker-local unsigned 64-bit job ID. This is an exact-build research
 interface, not a Qt invokable or a public SDK API. No portable native capability
 or insertion authority follows from these findings.
 
+The separate [native no-op result](../experiments/native-worker-callback-result.md)
+confirms delivery, matching completion and owner release on one exact candidate.
+It does not extend these findings to insertion or full lifecycle qualification.
+
 ## Delivery and completion
 
 The constructor copies a `std::function<void()>` through its actual native
@@ -102,8 +106,8 @@ execution. Exact assembly preserves both return words for the job ID; it takes
 precedence over the decompiler's guessed 32-bit prototype. The evidence supports
 the machine-level call contract, not recovery of original C++ const/ref spelling.
 
-A successful no-op native witness would establish callback delivery and matching
-post-return completion only. Same-turn insertion, GUI visit ownership, actual
+The separate successful no-op native witness establishes callback delivery and
+matching post-return completion only. Same-turn insertion, GUI visit ownership, actual
 inserted/selected target, render completion, multi-file persistence and complete
 resident/failure/uninstall lifecycle qualification remain separate work.
 
