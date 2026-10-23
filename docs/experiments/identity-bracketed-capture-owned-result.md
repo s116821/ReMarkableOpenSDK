@@ -109,3 +109,5 @@ no page. The broader native-contract change remains unfinished.
 Source basis: current original helper/observer/capture source, actual frozen
 owned executions, retained failed attempts and predecessor replay, and independent
 source review. Proposed native composition is not measured device behavior.
+
+Later native result, October 23, 2026: [useful identity-bracketed capture and live collection](identity-capture-native-result.md) separately records one fixed idle-RM2 result and its recovery/preservation/cleanup audits. This owned checkpoint is not relabeled as native evidence; broader native/product capability remains open.

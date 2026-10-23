@@ -114,3 +114,5 @@ mode, file publication and archived-byte validator now have a separate
 [owned implementation checkpoint](../../../docs/experiments/identity-capture-entry-owned-result.md).
 Live file/request/process/restoration consumption and a fresh native packet/load
 remain unimplemented or unqualified; this design does not grant native authority.
+
+Dated later result, October 23, 2026: the [actual identity-capture report](../../../docs/experiments/identity-capture-native-result.md) records one useful fixed idle-RM2 capture with live original-byte collection, independent restoration/preservation and audited cleanup. Earlier unimplemented/unqualified statements describe their source/design checkpoint; this later result grants no supported native capability, safe unload, writer or persistence authority.

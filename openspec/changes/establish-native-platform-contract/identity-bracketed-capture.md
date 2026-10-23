@@ -96,3 +96,5 @@ acquisition and earlier loading-image findings; public
 [Qt6.10.3 grabWindow documentation](https://doc.qt.io/qt-6.10/qquickwindow.html#grabWindow).
 The composition and expected refusal behavior are proposed design, not native
 observations or a diagnosis of the earlier loading images.
+
+Dated later result, October 23, 2026: the [actual identity-capture report](../../../docs/experiments/identity-capture-native-result.md) records one useful fixed idle-RM2 capture with live original-byte collection, independent restoration/preservation and audited cleanup. Earlier unimplemented/unqualified statements describe their source/design checkpoint; this later result grants no supported native capability, safe unload, writer or persistence authority.

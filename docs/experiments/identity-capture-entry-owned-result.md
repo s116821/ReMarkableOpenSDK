@@ -158,3 +158,5 @@ Source basis: current source, actual saved owned builds/executions, exact origin
 owned serializer bytes and independent source/artifact reviews. Native facts are
 limited to the separately linked earlier acquisition report. No fresh native
 capture or inferred backend fix is represented as measured.
+
+Later native result, October 23, 2026: [useful identity-bracketed capture and live collection](identity-capture-native-result.md) separately records one fixed idle-RM2 result and its recovery/preservation/cleanup audits. This owned checkpoint is not relabeled as native evidence; broader native/product capability remains open.

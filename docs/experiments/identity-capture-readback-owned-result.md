@@ -126,3 +126,5 @@ attempt, with no second creation or grab retry.
 Source basis: current source, actual saved owned-process/file executions,
 unaltered original C++ frames and independent source/output reviews. No SDK native
 capability or physical-page/content relationship is inferred.
+
+Later native result, October 23, 2026: [useful identity-bracketed capture and live collection](identity-capture-native-result.md) separately records one fixed idle-RM2 result and its recovery/preservation/cleanup audits. This owned checkpoint is not relabeled as native evidence; broader native/product capability remains open.
