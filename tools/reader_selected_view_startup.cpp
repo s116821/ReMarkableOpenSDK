@@ -1,5 +1,5 @@
 // Separate startup artifact; terminal entries remain resident until app exit.
-#ifdef READER_SELECTED_TESTING
+#if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING)
 #error Fixture hooks must not enter the startup artifact.
 #endif
 #include "reader_selected_view_entry.h"
@@ -20,6 +20,9 @@
 #endif
 #if defined(READER_SELECTED_LEGACY_COMPOSITION) && !defined(READER_SELECTED_OPEN_FIXTURE_JOIN)
 #error Legacy composition selection requires the fixed-fixture navigation mode.
+#endif
+#if defined(READER_SELECTED_WORKER_CALLBACK) && (!defined(READER_SELECTED_OPEN_FIXTURE_JOIN) || !defined(READER_SELECTED_LEGACY_COMPOSITION))
+#error Worker callback witness requires the fixed-fixture legacy navigation mode.
 #endif
 namespace {
 constexpr char nonce[] = READER_SELECTED_NONCE;
@@ -43,7 +46,11 @@ void startup() {
 #ifdef READER_SELECTED_NAVIGATION_OWNERSHIP
             reader_selected::Entry::Diagnostic::NavigationOwnership
 #elif defined(READER_SELECTED_OPEN_FIXTURE_JOIN)
+#ifdef READER_SELECTED_WORKER_CALLBACK
+            reader_selected::Entry::Diagnostic::NavigateCreationWorkerCallback,
+#else
             reader_selected::Entry::Diagnostic::NavigateCreationSourceJoin,
+#endif
             {QStringLiteral(READER_SELECTED_DOCUMENT_ID), READER_SELECTED_PAGE_INDEX
 #ifdef READER_SELECTED_LEGACY_COMPOSITION
                 , true

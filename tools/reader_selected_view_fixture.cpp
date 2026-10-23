@@ -44,10 +44,13 @@ class ControllerFixture final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString pageId READ pageId WRITE setPageId NOTIFY pageIdChanged)
     Q_PROPERTY(bool working READ working WRITE setWorking NOTIFY workingChanged)
+    Q_PROPERTY(QObject* worker READ worker CONSTANT)
 public:
     using QObject::QObject;
     QString page = QStringLiteral("fixture-page-a");
     bool busy = false;
+    QPointer<QObject> workerValue;
+    QObject *worker() const { return workerValue; }
     QString pageId() const { return page; }
     void setPageId(const QString &p) { if (p != page) { page = p; emit pageIdChanged(); } }
     bool working() const { return busy; }

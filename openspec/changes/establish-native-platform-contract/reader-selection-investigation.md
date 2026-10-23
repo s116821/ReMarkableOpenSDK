@@ -185,6 +185,13 @@ scope explicitly. Other wrappers and the older selector remain unchanged.
   Worker serialization, matching insertion completion and lifecycle qualification
   remain separate unfinished requirements.
 
+The next separately scoped [worker callback witness proposal](worker-callback-witness.md)
+investigates callback delivery/thread/job attribution before any same-turn
+insertion design. Ordinary AddPage re-enqueueing leaves a later execution gap;
+neither the successful source join nor a generic worker completion grants a
+mutation lease. The original diagnostic is implemented for source/control
+verification; exact native profile review and delivery qualification remain open.
+
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second
 setup window. Readiness does not observe the Reader. Only that admitted request

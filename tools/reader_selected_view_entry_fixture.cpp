@@ -30,6 +30,7 @@ static void validReceipt(const QByteArray &bytes, const QByteArray &nonce, const
     for (const QString &name : {QStringLiteral("native_authority"), QStringLiteral("render_authority"), QStringLiteral("durable_authority")})
         require(json[name].isBool() && !json[name].toBool(), "entry authority remains false");
 }
+#ifndef READER_ENTRY_OWNED_HELPERS_ONLY
 int main(int argc, char **argv) {
     QGuiApplication app(argc, argv);
     qmlRegisterType<QObject>("OwnedProbe", 1, 0, "QtObject");
@@ -498,3 +499,4 @@ Owner {
     QTextStream(stdout) << "PASS creation join entry owned Qt: no preparation before exact request, one typed join, explicit diagnostic/scalar wire, preparation cancel/restore/expiry/reentry/request replacement, uncertain publication/no retry; all authorities=false\n";
     QTextStream(stdout) << "PASS selected entry owned Qt: exact request/no early getter, binding/mode/link/FIFO refusal, pinned request, one-shot/cap/deadline, nested cancel/restore/expiry deferral, pending publication; all authorities=false\n";
 }
+#endif

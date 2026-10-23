@@ -3,6 +3,8 @@
 #include "reader_selected_view_probe.h"
 #include "reader_fixture_navigation.h"
 #include "reader_navigation_ownership.h"
+#include "reader_worker_callback_witness.h"
+#include "reader_native_worker_bridge.h"
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -35,20 +37,26 @@ inline QByteArray selfIdentity() {
 
 class Entry final : public QObject {
 public:
-    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership };
+    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership, NavigateCreationWorkerCallback };
     Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
           Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {})
         : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
           diagnostic_(diagnostic), navigation_(std::move(navigation)) { elapsed_.start(); }
-    ~Entry() override { if (root_ >= 0) ::close(root_); }
+    ~Entry() override {
+        if (worker_) worker_->cancel(QStringLiteral("entry-destroyed"));
+        worker_.reset(); // Disarm callbacks before native owners can release.
+        workerPrepared_.reset(); workerBridge_.reset();
+        if (root_ >= 0) ::close(root_);
+    }
     bool start() {
         if (started_) return false;
         started_ = true;
         if (!app_ || QThread::currentThread() != app_->thread() || thread() != app_->thread() || nonce_.size() != 32)
             return terminal_ = true, false;
         if ((diagnostic_ != Diagnostic::SelectedPage && diagnostic_ != Diagnostic::CreationSourceJoin &&
-             diagnostic_ != Diagnostic::NavigateCreationSourceJoin && diagnostic_ != Diagnostic::NavigationOwnership) ||
-            (diagnostic_ == Diagnostic::NavigateCreationSourceJoin && !navigation_.valid())) return terminal_ = true, false;
+             diagnostic_ != Diagnostic::NavigateCreationSourceJoin && diagnostic_ != Diagnostic::NavigationOwnership &&
+             diagnostic_ != Diagnostic::NavigateCreationWorkerCallback) ||
+            (navigates() && !navigation_.valid()) || (workerMode() && !navigation_.legacyComposition)) return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return terminal_ = true, false;
         identity_ = selfIdentity();
         if (identity_.isEmpty()) return terminal_ = true, false;
@@ -86,8 +94,11 @@ public:
     void postOwnershipForTest(std::function<void(NavigationOwnership &)> hook) { postOwnership_ = std::move(hook); }
     void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
     void preLinkForTest(std::function<void()> hook) { preLink_ = std::move(hook); }
+    void workerSubmitForTest(std::function<qulonglong(QObject *, const std::function<void()> &)> hook) { workerSubmitTest_ = std::move(hook); }
 #endif
 private:
+    bool workerMode() const { return diagnostic_ == Diagnostic::NavigateCreationWorkerCallback; }
+    bool navigates() const { return diagnostic_ == Diagnostic::NavigateCreationSourceJoin || workerMode(); }
     qint64 now() const {
 #ifdef READER_SELECTED_TESTING
         return elapsed_.elapsed() + offset_;
@@ -167,6 +178,7 @@ private:
     }
     void disarm() {
         disarmed_ = true; timer_.stop(); navigationTimer_.stop(); navigationPending_ = false;
+        if (worker_) worker_->cancel(QStringLiteral("entry-disarmed"));
         const auto paths = watcher_.directories();
         if (!paths.isEmpty()) watcher_.removePaths(paths);
     }
@@ -178,10 +190,34 @@ private:
             if (pendingStage_.isEmpty() || stage == QStringLiteral("setup-expired")) pendingStage_ = std::move(stage);
             return; // Never publish or destroy an entry on its sample stack.
         }
+        if (workerMode() && worker_) {
+            const auto current = worker_->snapshot();
+            if (current.finished || !workerResult_.finished) workerResult_ = current;
+        }
+        // Native owner release may run a deleter/notifications. It belongs on
+        // this GUI path with callbacks disarmed and publication deferred.
+        if (workerPrepared_) {
+            sampling_ = true;
+            const QPointer<Entry> weak(this);
+            auto releasing = std::move(workerPrepared_);
+            const bool releaseOk = releasing->close(); releasing.reset();
+            if (!weak) return;
+            workerReleaseOk_ = releaseOk;
+            sampling_ = false;
+            if (!workerReleaseOk_) {
+                workerFailure_ = QStringLiteral("native-release-unknown");
+                workerResult_.deliveryObserved = false;
+                stage = QStringLiteral("worker-witness-refused");
+            }
+        }
         terminal_ = true;
         if (suppressed_ || !trusted()) return;
         if (!pendingStage_.isEmpty()) { stage = pendingStage_; observation = {}; ownership_ = {}; }
         if (now() >= SetupWindowMs) { stage = QStringLiteral("setup-expired"); observation = {}; ownership_ = {}; }
+        if (workerMode() && operationEnd_ >= 0 && now() >= operationEnd_) {
+            stage = QStringLiteral("worker-witness-refused"); observation = {}; observation.refusal = QStringLiteral("deadline");
+            workerResult_.deliveryObserved = false;
+        }
         if (observation.documentId.size() > 36 || observation.pageId.toUtf8().size() > 256 || observation.refusal.size() > 128) {
             stage = QStringLiteral("observation-cap"); observation = {};
         }
@@ -201,12 +237,33 @@ private:
             json.insert(QStringLiteral("diagnostic"), QStringLiteral("creation-source-join"));
             json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
         }
-        if (diagnostic_ == Diagnostic::NavigateCreationSourceJoin) {
+        if (navigates()) {
             json.insert(QStringLiteral("diagnostic"), QStringLiteral("navigate-creation-source-join"));
             json.insert(QStringLiteral("navigation_attempted"), navigationAttempted_);
             json.insert(QStringLiteral("navigation_dispatched"), navigationDispatched_);
             json.insert(QStringLiteral("creation_join_observed"), observation.creationJoinObserved);
             if (navigation_.legacyComposition) json.insert(QStringLiteral("navigation_scope"), QStringLiteral("legacy-main-composition"));
+        }
+        if (workerMode()) {
+            json.insert(QStringLiteral("diagnostic"), QStringLiteral("worker-callback-witness"));
+            json.insert(QStringLiteral("observation_phase"), QStringLiteral("before-worker-submit"));
+            json.insert(QStringLiteral("worker_prepared"), workerPreparedOnce_);
+            json.insert(QStringLiteral("worker_finished"), workerResult_.finished);
+            json.insert(QStringLiteral("worker_submission_returned"), workerResult_.submissionReturned);
+            json.insert(QStringLiteral("worker_native_attempted"), workerSubmission_.attempted);
+            json.insert(QStringLiteral("worker_native_accepted"), workerSubmission_.accepted);
+            json.insert(QStringLiteral("worker_native_unknown"), workerSubmission_.unknown);
+            json.insert(QStringLiteral("worker_job_id"), workerResult_.jobId);
+            json.insert(QStringLiteral("worker_matching_completion"), workerResult_.matchingCompletion);
+            json.insert(QStringLiteral("worker_delivery_observed"), workerResult_.deliveryObserved);
+            json.insert(QStringLiteral("worker_canceled"), workerResult_.canceled);
+            json.insert(QStringLiteral("worker_entered_count"), int(workerResult_.enteredCount));
+            json.insert(QStringLiteral("worker_returning_count"), int(workerResult_.returningCount));
+            json.insert(QStringLiteral("worker_off_gui_count"), int(workerResult_.offGuiCount));
+            json.insert(QStringLiteral("worker_canceled_count"), int(workerResult_.canceledCount));
+            json.insert(QStringLiteral("worker_completion_count"), int(workerResult_.matchingCompletionCount));
+            json.insert(QStringLiteral("worker_refusal"), workerFailure_.isEmpty() ? workerResult_.refusal : workerFailure_);
+            json.insert(QStringLiteral("worker_owners_released"), workerReleaseOk_);
         }
         if (diagnostic_ == Diagnostic::NavigationOwnership) {
             json.insert(QStringLiteral("diagnostic"), QStringLiteral("navigation-ownership"));
@@ -258,7 +315,7 @@ private:
         operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + MaxObservationMs);
         if (operationEnd_ <= now()) { finish("setup-expired"); return; }
         if (diagnostic_ == Diagnostic::NavigationOwnership) { sampleOwnership(window); return; }
-        if (diagnostic_ != Diagnostic::NavigateCreationSourceJoin) { sample(window); return; }
+        if (!navigates()) { sample(window); return; }
         const QPointer<Entry> weak(this);
         operationEngine_ = window ? qmlEngine(window) : nullptr;
         sampling_ = true;
@@ -327,22 +384,121 @@ private:
         ++samples_;
 #endif
         const auto allowed = [weak] {
-            return weak && weak->permit() && (weak->diagnostic_ != Diagnostic::NavigateCreationSourceJoin || weak->now() < weak->operationEnd_);
+            return weak && weak->permit() && (!weak->navigates() || weak->now() < weak->operationEnd_);
         };
+        ValidatedWorkerAction workerAction;
+        if (workerMode()) {
+            worker_ = std::make_unique<WorkerCallbackWitness>(this);
+            connect(worker_.get(), &WorkerCallbackWitness::finished, this, [weak] {
+                if (weak) weak->workerFinished();
+            }, Qt::QueuedConnection);
+            workerAction = [weak](QObject *creation, const QVariant &id, QObject *source,
+                    const Observation &before, const std::function<bool()> &guard) {
+                if (weak) weak->submitWorker(creation, id, source, before, guard);
+            };
+        }
         Observation observation = diagnostic_ == Diagnostic::SelectedPage
-            ? observe(window, allowed, budget) : observeCreationJoin(window, allowed, budget);
+            ? observe(window, allowed, budget) : observeCreationJoin(window, allowed, budget, std::move(workerAction));
         if (!weak) return;
         sampling_ = false; sampleEnd_ = now();
         if (!permit()) {
             finishStopped();
             return;
         }
-        if (diagnostic_ == Diagnostic::NavigateCreationSourceJoin && (now() >= operationEnd_ ||
+        if (navigates() && (now() >= operationEnd_ ||
             (observation.observed && (observation.documentId != navigation_.documentId || observation.pageIndex != navigation_.pageIndex)))) {
             const bool late = now() >= operationEnd_;
             observation = {}; observation.refusal = late ? QStringLiteral("deadline") : QStringLiteral("navigation-target-not-observed");
         }
+        if (workerMode()) {
+            workerBefore_ = observation;
+            if (workerSubmission_.accepted && worker_ && workerFailure_.isEmpty() && observation.observed && observation.ready) {
+                // finished is queued and may already be pending. Never resample.
+                if (worker_->snapshot().finished) workerFinished();
+                return;
+            }
+            if (workerFailure_.isEmpty()) workerFailure_ = observation.refusal.isEmpty()
+                ? QStringLiteral("worker-source-unobserved") : observation.refusal;
+            if (worker_) workerResult_ = worker_->snapshot();
+            finish(QStringLiteral("worker-witness-refused"), observation); return;
+        }
         finish(observation.observed ? QStringLiteral("observed") : QStringLiteral("observation-refused"), observation);
+    }
+    void submitWorker(QObject *creation, const QVariant &id, QObject *source, const Observation &before,
+                      const std::function<bool()> &guard) {
+        if (!worker_ || !guard || !guard() || !before.observed || !before.creationJoinObserved || !before.ready ||
+            before.documentId != navigation_.documentId || before.pageIndex != navigation_.pageIndex) {
+            workerFailure_ = QStringLiteral("worker-target-refused"); return;
+        }
+        QMetaMethod completion; int matches = 0;
+        const QMetaObject *meta = source ? source->metaObject() : nullptr;
+        if (!meta || meta->methodCount() > 512) { workerFailure_ = QStringLiteral("worker-completion-contract"); return; }
+        for (int i = 0; i < meta->methodCount(); ++i) {
+            const auto method = meta->method(i);
+            if (method.name() == "jobCompleted") { ++matches; completion = method; }
+        }
+        if (matches != 1 || completion.methodType() != QMetaMethod::Signal || completion.parameterCount() != 1 ||
+            completion.parameterMetaType(0) != QMetaType::fromType<qulonglong>() ||
+            completion.returnMetaType() != QMetaType::fromType<void>() ||
+            qstrcmp(completion.enclosingMetaObject()->className(), "DocumentWorker") != 0 || !guard()) {
+            workerFailure_ = QStringLiteral("worker-completion-contract"); return;
+        }
+        const QPointer<Entry> weak(this);
+#ifdef READER_SELECTED_TESTING
+        const auto testSubmit = workerSubmitTest_;
+        if (!testSubmit) {
+#endif
+            auto loading = reader_worker_native::loadPinned(guard);
+            if (!weak) return;
+            if (!loading.bridge) { workerFailure_ = loading.refusal; return; }
+            workerBridge_ = std::move(loading.bridge);
+            auto preparing = workerBridge_->prepare(creation, id, source, guard);
+            if (!weak) return;
+            if (!preparing.prepared) { workerFailure_ = preparing.refusal; workerSubmission_.unknown = preparing.unknown; return; }
+            workerPrepared_ = std::move(preparing.prepared); workerPreparedOnce_ = true;
+#ifdef READER_SELECTED_TESTING
+        } else {
+            workerPreparedOnce_ = true;
+            workerReleaseOk_ = true; // Owned model has no native leases; adapter tested separately.
+        }
+#endif
+        const int remaining = int(operationEnd_ - now());
+        if (remaining < 1 || !guard() || !weak) { if (weak) workerFailure_ = QStringLiteral("deadline"); return; }
+        worker_->start(source, completion, [weak, &guard
+#ifdef READER_SELECTED_TESTING
+                , testSubmit, source
+#endif
+                ](const std::function<void()> &callback) -> qulonglong {
+            if (!weak || !guard()) return 0;
+#ifdef READER_SELECTED_TESTING
+            if (testSubmit) {
+                weak->workerSubmission_.attempted = true;
+                try {
+                    const auto job = testSubmit(source, callback);
+                    if (weak) { weak->workerSubmission_.jobId = job; weak->workerSubmission_.accepted = job != 0; }
+                    return job;
+                } catch (...) { if (weak) weak->workerSubmission_.unknown = true; throw; }
+            }
+#endif
+            const auto submitted = weak->workerPrepared_->submit(callback, guard);
+            if (weak) weak->workerSubmission_ = submitted;
+            return submitted.accepted ? submitted.jobId : 0;
+        }, remaining);
+        // The guarded function borrows Sample's stack and is destroyed by start
+        // before returning. Only the witness's atomic closure is queued natively.
+        if (weak && !workerSubmission_.accepted && workerFailure_.isEmpty())
+            workerFailure_ = workerSubmission_.refusal.isEmpty() ? QStringLiteral("worker-submission-refused") : workerSubmission_.refusal;
+    }
+    void workerFinished() {
+        if (terminal_ || disarmed_ || !worker_ || sampling_) return;
+        if (!permit()) { finishStopped(); return; }
+        workerResult_ = worker_->snapshot(); sampleEnd_ = now();
+        if (!workerResult_.finished) return;
+        const bool ok = workerSubmission_.accepted && workerBefore_.observed && workerBefore_.ready &&
+            workerBefore_.creationJoinObserved && workerResult_.deliveryObserved && workerFailure_.isEmpty() && now() < operationEnd_;
+        if (!ok && workerFailure_.isEmpty()) workerFailure_ = now() >= operationEnd_
+            ? QStringLiteral("deadline") : workerResult_.refusal;
+        finish(ok ? QStringLiteral("worker-witness-observed") : QStringLiteral("worker-witness-refused"), workerBefore_);
     }
     QPointer<QGuiApplication> app_;
     QString path_, pendingStage_;
@@ -351,6 +507,14 @@ private:
     FixtureNavigation navigation_;
     NavigationOwnership ownership_;
     QPointer<QQmlEngine> operationEngine_;
+    std::unique_ptr<WorkerCallbackWitness> worker_;
+    std::unique_ptr<reader_worker_native::Bridge> workerBridge_;
+    std::unique_ptr<reader_worker_native::Prepared> workerPrepared_;
+    reader_worker_native::Submission workerSubmission_;
+    WorkerCallbackResult workerResult_;
+    Observation workerBefore_;
+    QString workerFailure_;
+    bool workerPreparedOnce_ = false, workerReleaseOk_ = false;
     int root_ = -1, checks_ = 0;
     struct stat rootStat_{}, requestStat_{};
     QElapsedTimer elapsed_;
@@ -370,6 +534,7 @@ private:
     std::function<void()> postLink_;
     std::function<void()> preLink_;
     std::function<void(NavigationOwnership &)> postOwnership_;
+    std::function<qulonglong(QObject *, const std::function<void()> &)> workerSubmitTest_;
 #endif
 };
 } // namespace reader_selected
