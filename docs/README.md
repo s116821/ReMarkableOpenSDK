@@ -52,6 +52,8 @@ remain workflow records, not a shipping capability declaration.
 | Owned insertion guard | [ARM interception and unwind result](experiments/insertion-guard-owned-result.md) | Two real hooks and original cleanup on owned code; no native predicate or capability |
 | Passive predicate | [Owned bounded read controls](experiments/insertion-guard-predicate-owned-result.md) | Checked span, frozen searches and refusal evidence; no native admission or insertion grant |
 | Negative hook core | [Owned pair installation and rejection](experiments/insertion-guard-hooks-owned-result.md) | Complete-pair byte checks, scoped rejection and independent ARM replay; native integration remains open |
+| Guard support | [Borrowed carrier, job snapshot and loader](experiments/insertion-guard-support-owned-result.md) | Owned controls and separately unexecuted combined ARM startup build; native qualification remains open |
+| Guard composition | [Coordinator and file handoff controls](experiments/insertion-guard-coordinator-transport-owned-result.md) | Real owned witnesses/files with explicit modeled native boundaries and original deadlines |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

@@ -1,0 +1,179 @@
+// Owned file protocol only. No Coordinator success, hook or native action is modeled.
+#define READER_INSERTION_GUARD_TRANSPORT_TESTING 1
+#include "reader_insertion_guard_transport.h"
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
+#include <QTextStream>
+#include <memory>
+
+namespace reader_insertion_transport {
+struct TestAccess {
+    static bool trusted(Entry &e) { return e.trusted(); }
+    static bool read(Entry &e, const char *name, const QByteArray &bytes) { return e.read(name, bytes); }
+    static void tick(Entry &e) { e.tick(); }
+    static void bind(Entry &e, QQuickWindow *window) {
+        if (!e.read("selected-request", e.config_.nonce + ' ' + e.identity_, &e.requestStat_)) qFatal("owned request binding");
+        e.consumed_ = true; e.begin_ = e.clock_.elapsed(); e.deadline_ = Entry::Clock::now() + std::chrono::seconds(30);
+        e.window_ = window; e.engine_ = qmlEngine(window); e.heartbeat_.stop(); e.opportunity_.stop();
+    }
+    static bool publish(Entry &e, const QByteArray &bytes, bool positive = true) {
+        return e.publish("selected-result", ".pending-result", bytes, positive);
+    }
+    static void terminal(Entry &e) { e.terminal_ = true; }
+    static void expire(Entry &e) { e.deadline_ = Entry::Clock::now() - std::chrono::milliseconds(1); }
+    static void expireSetup(Entry &e) { e.setupDeadline_ = Entry::Clock::now() - std::chrono::milliseconds(1); }
+    static void failure(Entry &e) { e.failure_ = QStringLiteral("owned-failure"); }
+    static void hooks(Entry &e, std::function<void()> pre, std::function<void()> post) { e.preLink_ = std::move(pre); e.postLink_ = std::move(post); }
+};
+}
+namespace {
+using Entry = reader_insertion_transport::Entry;
+using Access = reader_insertion_transport::TestAccess;
+int checks = 0;
+void check(bool yes, const char *what) { if (!yes) qFatal("FAIL %s", what); ++checks; }
+void put(const QString &path, const QByteArray &bytes, mode_t mode = 0600) {
+    const auto name = path.toLocal8Bit();
+    const int fd = ::open(name.constData(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, mode);
+    check(fd >= 0 && ::fchmod(fd, mode) == 0, "owned exclusive file");
+    check(::write(fd, bytes.constData(), size_t(bytes.size())) == bytes.size(), "owned complete file write");
+    check(::close(fd) == 0, "owned file close");
+}
+QByteArray get(const QString &path) { QFile f(path); return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray(); }
+struct stat meta(const QString &path) { struct stat st{}; check(::lstat(path.toLocal8Bit().constData(), &st) == 0, "owned stat"); return st; }
+void pump() { for (int i = 0; i < 3; ++i) QCoreApplication::processEvents(QEventLoop::AllEvents, 1); }
+reader_insertion_transport::Config configuration() {
+    reader_insertion_transport::Config c; c.nonce = QByteArray(32, 'a');
+    auto &r = c.coordinator.request;
+    r.documentId = QStringLiteral("10000000-0000-0000-0000-000000000100");
+    for (int i = 1; i <= 4; ++i) r.expectedPages.append(QStringLiteral("10000000-0000-0000-0000-%1").arg(i, 12, 10, QLatin1Char('0')));
+    r.sourceIndex = 1; r.sourcePageId = r.expectedPages[1]; r.targetPageId = QStringLiteral("10000000-0000-0000-0000-000000000099");
+    c.coordinator.wrongSourceIndex = 2; c.navigation = {r.documentId, 1, true}; return c;
+}
+struct Files {
+    QTemporaryDir base;
+    QString root, held;
+    QByteArray identity = reader_selected::selfIdentity();
+    reader_insertion_transport::Config config = configuration();
+    Files() {
+        check(base.isValid() && !identity.isEmpty(), "owned base and actual PID/start");
+        root = base.path() + "/root"; held = base.path() + "/held";
+        check(QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "private owned root");
+        put(root + "/owner", config.nonce); put(root + "/attempt.identity", identity);
+    }
+    QByteArray request() const { return config.nonce + ' ' + identity; }
+    void replaceRoot() {
+        check(QDir().rename(root, held) && QDir().mkdir(root) && ::chmod(root.toLocal8Bit().constData(), 0700) == 0, "owned root replacement");
+        put(root + "/owner", config.nonce); put(root + "/attempt.identity", identity); put(root + "/selected-request", request());
+    }
+};
+void startupCase(const QByteArray &mode, QGuiApplication &app) {
+    Files f;
+    if (mode == "root-mode") check(::chmod(f.root.toLocal8Bit().constData(), 0755) == 0, "root mode changed");
+    if (mode == "root-symlink") {
+        check(QDir().rename(f.root, f.held) && ::symlink(f.held.toLocal8Bit().constData(), f.root.toLocal8Bit().constData()) == 0, "owned root symlink");
+    }
+    if (mode == "owner-mode") check(::chmod((f.root + "/owner").toLocal8Bit().constData(), 0644) == 0, "owner mode changed");
+    if (mode == "owner-link") check(::link((f.root + "/owner").toLocal8Bit().constData(), (f.root + "/owner-link").toLocal8Bit().constData()) == 0, "owner hardlink");
+    if (mode == "owner-symlink") {
+        check(QFile::rename(f.root + "/owner", f.root + "/owner-real"), "preserve owner");
+        check(::symlink("owner-real", (f.root + "/owner").toLocal8Bit().constData()) == 0, "owner symlink");
+    }
+    if (mode == "wrong-nonce") f.config.nonce[0] = 'b';
+    if (mode == "nonce-case") f.config.nonce[0] = 'A';
+    if (mode == "identity") { check(QFile::remove(f.root + "/attempt.identity"), "remove identity"); put(f.root + "/attempt.identity", "2 3\n"); }
+    if (mode == "ready-existing") put(f.root + "/selected-ready", "preserved");
+    if (mode == "result-existing") put(f.root + "/selected-result", "preserved");
+    if (mode == "pending-existing") put(f.root + "/.pending-ready", "preserved");
+    if (mode == "cancel") put(f.root + "/selected-cancel", "stop");
+    if (mode == "restore") check(::symlink("nonexistent", (f.root + "/restore.claim").toLocal8Bit().constData()) == 0, "restore symlink present");
+    Entry e(&app, f.root, f.config, {});
+    const bool expected = mode == "valid";
+    check(e.start() == expected && !e.start(), "startup once and strict file contract");
+    if (expected) {
+        check(get(f.root + "/selected-ready") == f.request(), "ready exact nonce PID/start bytes");
+        const auto s = meta(f.root + "/selected-ready");
+        check(S_ISREG(s.st_mode) && (s.st_mode & 07777) == 0600 && s.st_uid == ::geteuid() && s.st_nlink == 1, "ready private singlelink");
+        check(Access::trusted(e) && !QFile::exists(f.root + "/selected-result"), "no result or native action before request");
+    } else if (mode == "ready-existing") check(get(f.root + "/selected-ready") == "preserved", "ready never overwritten");
+    QTextStream(stdout) << "PASS start-" << mode << '\n';
+}
+void requestCase(const QByteArray &mode, QGuiApplication &app) {
+    Files f; Entry e(&app, f.root, f.config, {}); check(e.start(), "request fixture starts");
+    const QString path = f.root + "/selected-request";
+    if (mode == "fifo") check(::mkfifo(path.toLocal8Bit().constData(), 0600) == 0, "request FIFO");
+    else if (mode == "directory") check(QDir().mkdir(path), "request directory");
+    else if (mode == "symlink") { put(f.root + "/real-request", f.request()); check(::symlink("real-request", path.toLocal8Bit().constData()) == 0, "request symlink"); }
+    else {
+        QByteArray bytes = f.request();
+        if (mode == "wrong-nonce") bytes[0] = 'b';
+        if (mode == "wrong-pid") bytes = f.config.nonce + " 2 3\n";
+        if (mode == "partial") bytes.chop(1);
+        if (mode == "oversize") bytes.append(QByteArray(80, 'p'));
+        put(path, bytes, mode == "mode" ? 0644 : 0600);
+        if (mode == "hardlink") check(::link(path.toLocal8Bit().constData(), (f.root + "/request-link").toLocal8Bit().constData()) == 0, "request hardlink");
+    }
+    check(!Access::read(e, "selected-request", f.request()), "request rejects shape type mode identity bytes");
+    Access::tick(e); check(e.terminal(), "malformed request reaches terminal once without navigation");
+    const auto result = QJsonDocument::fromJson(get(f.root + "/selected-result")).object();
+    check(result["stage"] == "insertion-refusal-incomplete" && !result["creation_attempted"].toBool() && !result["navigation_attempted"].toBool() &&
+        !result["native_authority"].toBool() && !result["render_authority"].toBool() && !result["durable_authority"].toBool(), "negative wire distinct from native proof");
+    QTextStream(stdout) << "PASS request-" << mode << '\n';
+}
+void publicationCase(const QByteArray &mode, QGuiApplication &app) {
+    Files f; QQmlEngine engine; auto window = std::make_unique<QQuickWindow>();
+    QQmlEngine::setContextForObject(window.get(), engine.rootContext()); window->show(); window->requestActivate(); pump();
+    Entry e(&app, f.root, f.config, {}); check(e.start(), "publication fixture starts");
+    put(f.root + "/selected-request", f.request()); Access::bind(e, window.get()); Access::terminal(e);
+    check(Access::trusted(e), "exact consumed request binding");
+    const QByteArray payload = mode == "cap4096" ? QByteArray(4096, 'p') : mode == "cap4097" ? QByteArray(4097, 'p') :
+        QByteArray("owned-transport-only; not-native-success\n");
+    if (mode == "expired") Access::expire(e);
+    if (mode == "setup-expired") Access::expireSetup(e);
+    if (mode == "failure") Access::failure(e);
+    if (mode == "window-death") window.reset();
+    if (mode == "request-replaced") { check(QFile::rename(f.root + "/selected-request", f.root + "/old-request"), "preserve admitted request"); put(f.root + "/selected-request", f.request()); }
+    if (mode == "root-replaced") f.replaceRoot();
+    if (mode == "result-exists") put(f.root + "/selected-result", "preserved");
+    if (mode == "pending-exists") put(f.root + "/.pending-result", "preserved");
+    if (mode == "pending-symlink") { put(f.root + "/outside", "preserved"); check(::symlink("outside", (f.root + "/.pending-result").toLocal8Bit().constData()) == 0, "pending symlink"); }
+    auto change = [&] {
+        if (mode.endsWith("cancel")) put(f.root + "/selected-cancel", "stop");
+        if (mode.endsWith("restore")) put(f.root + "/restore.claim", "restore");
+        if (mode.endsWith("expiry")) Access::expire(e);
+        if (mode.endsWith("root")) f.replaceRoot();
+        if (mode.endsWith("request")) { check(QFile::rename(f.root + "/selected-request", f.root + "/old-request"), "preserve consumed request"); put(f.root + "/selected-request", f.request()); }
+        if (mode == "pre-pending-replace") { check(QFile::rename(f.root + "/.pending-result", f.root + "/saved-pending"), "preserve pending"); put(f.root + "/.pending-result", "substitution"); }
+        if (mode == "pre-pending-mode") check(::chmod((f.root + "/.pending-result").toLocal8Bit().constData(), 0644) == 0, "pending mode change");
+    };
+    if (mode.startsWith("pre-")) Access::hooks(e, change, {});
+    if (mode.startsWith("post-")) Access::hooks(e, {}, change);
+    const bool positive = mode != "negative";
+    const bool published = Access::publish(e, payload, positive);
+    const bool expected = mode == "valid" || mode == "negative" || mode == "cap4096";
+    check(published == expected, "publication exact permission and pending identity");
+    if (expected) {
+        check(get(f.root + "/selected-result") == payload && !QFile::exists(f.root + "/.pending-result"), "closed result exact payload once");
+        const auto s = meta(f.root + "/selected-result");
+        check((s.st_mode & 07777) == 0600 && s.st_nlink == 1 && s.st_uid == ::geteuid(), "committed private singlelink");
+        check(!Access::publish(e, "second", positive) && get(f.root + "/selected-result") == payload, "result cannot overwrite on retry");
+    } else if (mode.startsWith("post-")) {
+        const QString root = mode == "post-root" ? f.held : f.root;
+        const auto result = meta(root + "/selected-result"), pending = meta(root + "/.pending-result");
+        check(result.st_ino == pending.st_ino && result.st_nlink == 2 && pending.st_nlink == 2, "post-link uncertainty preserves two links");
+    } else if (mode == "result-exists") check(get(f.root + "/selected-result") == "preserved", "existing result preserved");
+    else if (mode == "pending-symlink") check(get(f.root + "/outside") == "preserved", "no-follow pending leaves target unchanged");
+    else check(!QFile::exists(f.root + "/selected-result"), "refused publication leaves no result");
+    QTextStream(stdout) << "PASS publish-" << mode << '\n';
+}
+}
+int main(int argc, char **argv) {
+    QGuiApplication app(argc, argv);
+    for (const QByteArray mode : {"valid", "root-mode", "root-symlink", "owner-mode", "owner-link", "owner-symlink", "wrong-nonce", "nonce-case",
+            "identity", "ready-existing", "result-existing", "pending-existing", "cancel", "restore"}) startupCase(mode, app);
+    for (const QByteArray mode : {"fifo", "directory", "symlink", "wrong-nonce", "wrong-pid", "partial", "oversize", "mode", "hardlink"}) requestCase(mode, app);
+    for (const QByteArray mode : {"valid", "negative", "expired", "setup-expired", "failure", "window-death", "request-replaced", "root-replaced",
+            "result-exists", "pending-exists", "pending-symlink", "pre-cancel", "pre-restore", "pre-expiry", "pre-root", "pre-request",
+            "post-cancel", "post-restore", "post-expiry", "post-root", "post-request", "pre-pending-replace", "pre-pending-mode", "cap4096", "cap4097"}) publicationCase(mode, app);
+    QTextStream(stdout) << "PASS owned transport checks=" << checks << "; no Coordinator or native success\n"; return 0;
+}

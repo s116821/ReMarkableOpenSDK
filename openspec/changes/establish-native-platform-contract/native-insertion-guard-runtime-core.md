@@ -39,6 +39,8 @@ destructible global or temporary wrapper. The eventual native loader's exact
 linked init_array ordering must be reviewed, including selected library static
 initialization before installation and installation before application workers.
 This core alone does not establish that ordering.
+The separate [owned pre-main study](native-insertion-guard-loader-study.md)
+tests that startup question without resolving native target addresses.
 
 ## Carriers and registration
 
@@ -48,6 +50,9 @@ class is declared or synthesized. Public Qt UUID/QString arguments may be
 interpreted only under their separately qualified exact public ABI/lifetime.
 Match the observed eight outer argument locations and six inner locations;
 do not narrow the inner sixth word to bool.
+The separate [ordinary caller-borrowed policy](native-insertion-guard-caller-borrowing.md)
+distinguishes ephemeral stack arguments and unused source storage from values
+that can actually be frozen by the public explicit-size invocation.
 
 Registration happens once, after native owner/binding/thread facts and immutable
 UUIDs have been frozen outside the critical section. It requires a fully
@@ -119,6 +124,15 @@ This is not mutex probing to infer original final-map ownership. Exact offsets,
 call provenance, pthread ABI/providers and all return paths still need their
 own source/profile review. The passive predicate never acquires this mutex.
 An injected callback and owned tests do not establish that native contract.
+The [one-shot snapshot design](native-insertion-guard-job-snapshot.md) specifies
+its separate public-pthread adapter and focused owned controls.
+
+The [support result](../../../docs/experiments/insertion-guard-support-owned-result.md)
+records the later borrowed-policy, owned job snapshot/loader controls and
+unexecuted combined ARM build. The separate [coordinator/transport result](../../../docs/experiments/insertion-guard-coordinator-transport-owned-result.md)
+records their explicit modeled boundaries. These intermediate source results
+do not close the native packet, original unwind, critical-section or lifecycle
+requirements below.
 
 Retain original failures and exact input/library/output hashes. Owned tests
 cannot qualify the actual native loader, original native cleanup, borrowed map

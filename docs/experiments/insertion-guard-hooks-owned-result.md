@@ -1,6 +1,10 @@
 # Owned negative-only hook core
 
-The separate original [hook core](../../tools/reader_insertion_guard_hooks.h)
+This records the historical exact-owned inputs at commit454b96a4b066085271fd4a9a5d2eb5ea378714db.
+The later borrowed-policy controls are documented in the
+[support followup](insertion-guard-support-owned-result.md#borrowed-ordinary-call-carrier).
+
+The separate original [hook core](https://github.com/s116821/ReMarkableOpenSDK/blob/454b96a4b066085271fd4a9a5d2eb5ea378714db/tools/reader_insertion_guard_hooks.h)
 passes 17 normal cases / 209 assertions and 15 fail-stop subprocess controls
 on the pinned ARM SDK/QEMU image. Independent source review and an actual
 rebuild/replay reproduce the same binary and results. This is owned-code
@@ -30,8 +34,8 @@ by the second installer is detected before any operation submission. These
 fixture writes check mapping and protection calls, restore RX, flush caches
 and reread the changed bytes. They are not a native patching implementation.
 
-The [focused script](../../tools/reader_insertion_guard_hooks_test.sh) builds
-the [original fixture](../../tools/reader_insertion_guard_hooks_fixture.cpp).
+The [focused script](https://github.com/s116821/ReMarkableOpenSDK/blob/454b96a4b066085271fd4a9a5d2eb5ea378714db/tools/reader_insertion_guard_hooks_test.sh) builds
+the [original fixture](https://github.com/s116821/ReMarkableOpenSDK/blob/454b96a4b066085271fd4a9a5d2eb5ea378714db/tools/reader_insertion_guard_hooks_fixture.cpp).
 It requires the supplied SDK environment, matching Dobby public headers and
 the repaired archive documented in [the earlier owned result](insertion-guard-owned-result.md#later-arm-mode-repair-and-remaining-installation-limits).
 Every subprocess is bounded by the verified GNU timeout tool. The image is
@@ -55,10 +59,11 @@ declared instruction profile. The final controls use checked power-of-two page
 arithmetic and explicit bounds. Passing results do not reclassify those failures
 or establish their unobserved cause.
 
-Native integration remains open. This core's current exact-pointer binding is
+Native integration remains open. This historical core's exact-pointer binding is
 an owned interface: the ordinary native caller constructs its optional argument
 on its own stack, so a future caller-borrowed mode cannot require a GUI-known
-address. Size values may be compared only when their presence is established.
+address. The subsequent borrowed-policy owned result addresses that source
+limitation; it does not supply native qualification. Size values may be compared only when their presence is established.
 Native public-Qt ABI, original caller/cleanup, job correlation, providers, loader
 ordering and retained owners require separate qualification. A pointer or caller
 admission flag does not establish those facts. Completed snapshots are not

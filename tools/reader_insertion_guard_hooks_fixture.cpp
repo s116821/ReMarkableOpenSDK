@@ -9,6 +9,8 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <limits>
+#include <climits>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -125,6 +127,15 @@ static bool outsideThrow=false,lockFree=false,forwarding=true,nested=false;
 alignas(8) static unsigned char workerStorage[512];
 static void *worker=workerStorage,*map=workerStorage+200;
 static int optional=7;
+static const void *borrowedOptional=nullptr;
+static int borrowedSource=0;
+static QSizeF borrowedSize;
+static bool borrowedScenario() { return scenario.rfind("borrowed-",0)==0; }
+static bool badRegistration() { return scenario.rfind("borrowed-reg-",0)==0; }
+static bool borrowedPositive() {
+    return scenario=="borrowed-stack-a" || scenario=="borrowed-stack-b" ||
+        scenario=="borrowed-stack-c" || scenario=="borrowed-boundary";
+}
 static const QString real=QStringLiteral("11111111-1111-4111-8111-111111111111");
 static const QString right=QStringLiteral("22222222-2222-4222-8222-222222222222");
 static const QString wrong=QStringLiteral("33333333-3333-4333-8333-333333333333");
@@ -138,7 +149,11 @@ extern "C" void owned_inner_body(void *m,int i,const QString &u,const QString &t
 }
 extern "C" void owned_outer_body(void *w,int i,const void *o,Word p,QSizeF z,int s,Word h,const QUuid &u) {
     ++originalOuterCalls;
-    forwarding=forwarding && w==worker && i==2 && o==&optional && p==0x7f123401 && z==QSizeF(1404.25,1872.5) && s==1 && h==0x7e123400;
+    if(borrowedScenario())
+        forwarding=forwarding && w==worker && i==2 && o==borrowedOptional && p==1 && h==0 &&
+            std::memcmp(&s,&borrowedSource,sizeof s)==0 && std::memcmp(&z,&borrowedSize,sizeof z)==0;
+    else
+        forwarding=forwarding && w==worker && i==2 && o==&optional && p==0x7f123401 && z==QSizeF(1404.25,1872.5) && s==1 && h==0x7e123400;
     if(scenario=="unrelated-outer") throw std::runtime_error("owned unrelated outer");
     if(scenario=="nested" && !nested) { nested=true; invoke_outer(w,i,o,p,z,s,h,foreignId); nested=false; }
     std::unique_lock<std::mutex> lock(mapMutex);
@@ -231,15 +246,39 @@ int main(int argc,char **argv) {
     if(scenario=="bad-original"||scenario=="throw-failstop") plan.innerBytes[0]^=1;
     if(scenario=="misaligned") plan.outer=workerStorage+1;
     core->install(plan);
-    std::mutex mutex;std::condition_variable cv;bool ready=false,go=false;std::thread::id tid;
+    std::mutex mutex;std::condition_variable cv;bool ready=false,go=false,allowSubmission=true;std::thread::id tid;
     Worker thread;
     thread.body=[&] {
         {std::unique_lock<std::mutex> lock(mutex);tid=std::this_thread::get_id();ready=true;cv.notify_one();cv.wait(lock,[&]{return go;});}
+        if(!allowSubmission)return;
         try {
             const QUuid id=scenario=="foreign"||scenario=="unrelated-outer"||scenario=="unrelated-inner" ? foreignId:targetId;
-            const int index=scenario=="binding"?3:2;
+            int index=scenario=="binding"?3:2;
+            alignas(4) unsigned char dynamic[32]{};
+            const void *actualOptional=&optional;Word actualPresent=0x7f123401,actualInherit=0x7e123400;
+            int actualSource=1;QSizeF actualSize(1404.25,1872.5);void *actualWorker=worker;
+            if(borrowedScenario()) {
+                actualOptional=dynamic+(scenario=="borrowed-stack-b"?8:scenario=="borrowed-stack-c"?16:0);
+                actualPresent=1;actualInherit=0;
+                const Word sourceBits=scenario=="borrowed-stack-b"?0x80000000U:scenario=="borrowed-stack-c"?0x7fffffffU:0x87654321U;
+                static_assert(sizeof actualSource==sizeof sourceBits);
+                std::memcpy(&actualSource,&sourceBits,sizeof actualSource);
+                if(scenario=="borrowed-boundary")actualSize=QSizeF(16384,16384);
+                if(scenario=="borrowed-null")actualOptional=nullptr;
+                if(scenario=="borrowed-misaligned")actualOptional=dynamic+1;
+                if(scenario=="borrowed-present")actualPresent=0;
+                if(scenario=="borrowed-present-wide")actualPresent=0x1000001;
+                if(scenario=="borrowed-inherit")actualInherit=1;
+                if(scenario=="borrowed-inherit-wide")actualInherit=0x1000000;
+                if(scenario=="borrowed-size")actualSize=QSizeF(1404.125,1872.5);
+                if(scenario=="borrowed-worker")actualWorker=workerStorage+4;
+                if(scenario=="borrowed-index")index=3;
+                borrowedOptional=actualOptional;borrowedSource=actualSource;borrowedSize=actualSize;
+            }
+            if(scenario=="owned-pointer")actualOptional=dynamic;
+            if(scenario=="owned-source")actualSource=INT_MIN;
             ++submissions;
-            invoke_outer(worker,index,&optional,0x7f123401,QSizeF(1404.25,1872.5),1,0x7e123400,id);
+            invoke_outer(actualWorker,index,actualOptional,actualPresent,actualSize,actualSource,actualInherit,id);
             if(scenario=="duplicate") invoke_outer(worker,2,&optional,0x7f123401,QSizeF(1404.25,1872.5),1,0x7e123400,targetId);
         } catch(const std::runtime_error &) {outsideThrow=true;}
         lockFree=mapMutex.try_lock();if(lockFree)mapMutex.unlock();
@@ -252,6 +291,39 @@ int main(int argc,char **argv) {
     r.admission={true,true,true,true,true,true};r.residentNativeOwners=workerStorage;
     r.deadline=std::chrono::steady_clock::now()+std::chrono::seconds(scenario=="deadline"?-1:30);
     r.binding={worker,map,tid,reinterpret_cast<std::uintptr_t>(outer_return),reinterpret_cast<std::uintptr_t>(inner_return),2,1,&optional,0x7f123401,0x7e123400,QSizeF(1404.25,1872.5)};
+    if(borrowedScenario()) {
+        r.binding.policy=CallerPolicy::BorrowedExplicitSize;r.binding.optional=nullptr;
+        r.binding.sizePresent=1;r.binding.inherit=0;r.binding.sourceIndex=42;
+        if(scenario=="borrowed-boundary")r.binding.size=QSizeF(16384,16384);
+        if(scenario=="borrowed-caller")r.binding.outerReturnPC+=4;
+        if(scenario=="borrowed-thread")r.binding.thread=std::this_thread::get_id();
+        if(badRegistration()) {
+            const Binding valid=r.binding;
+            if(scenario=="borrowed-reg-pointer")r.binding.optional=&optional;
+            if(scenario=="borrowed-reg-present")r.binding.sizePresent=0;
+            if(scenario=="borrowed-reg-present-wide")r.binding.sizePresent=0x1000001;
+            if(scenario=="borrowed-reg-inherit")r.binding.inherit=1;
+            if(scenario=="borrowed-reg-inherit-wide")r.binding.inherit=0x1000000;
+            if(scenario=="borrowed-reg-zero-width")r.binding.size.setWidth(0);
+            if(scenario=="borrowed-reg-zero-height")r.binding.size.setHeight(0);
+            if(scenario=="borrowed-reg-negative")r.binding.size.setWidth(-1);
+            if(scenario=="borrowed-reg-negative-zero")r.binding.size.setHeight(-0.0);
+            if(scenario=="borrowed-reg-infinity")r.binding.size.setWidth(std::numeric_limits<double>::infinity());
+            if(scenario=="borrowed-reg-nan")r.binding.size.setHeight(std::numeric_limits<double>::quiet_NaN());
+            if(scenario=="borrowed-reg-cap-width")r.binding.size.setWidth(16385);
+            if(scenario=="borrowed-reg-cap-height")r.binding.size.setHeight(16385);
+            if(scenario=="borrowed-reg-unknown")r.binding.policy=static_cast<CallerPolicy>(255);
+            check(!core->registerOnce(std::move(r)),"malformed borrowed registration refused");
+            check(!core->snapshot().terminal && submissions==0 && originalOuterCalls==0 && originalInnerCalls==0,"malformed policy has no dispatch/publication");
+            r.binding=valid;
+            check(core->registerOnce(std::move(r)),"invalid policy did not consume registration");
+            allowSubmission=false;
+            {std::lock_guard<std::mutex> lock(mutex);go=true;cv.notify_one();}thread.wait();
+            check(submissions==0 && originalOuterCalls==0 && originalInnerCalls==0 && attributions==0,"corrected owned registration still submits nothing");
+            std::printf("{\"passed\":true,\"scenario\":\"%s\",\"checks\":%u,\"tracked_forward\":0,\"native_qualification\":false}\n",scenario.c_str(),checks);
+            return 0;
+        }
+    }
     check(core->registerOnce(std::move(r)),"registration after verified pair");
     Registration empty;check(!core->registerOnce(std::move(empty)),"no second registration");
     if(scenario=="cancel")core->cancel();
@@ -262,16 +334,23 @@ int main(int argc,char **argv) {
     else {
         check(result.terminal,"tracked terminal");check(originalInnerCalls==(scenario=="nested"?1U:0U),"no tracked insertion forward");
         check(result.trackedForwards==0,"unconditional zero-forward fact");
-        if(scenario=="binding"||scenario=="cancel"||scenario=="deadline"||scenario=="job-zero"||scenario=="job-false"||scenario=="job-cancel") check(!result.privateCaught&&originalOuterCalls==0,"early refusal no outer call");
+        if(scenario=="binding"||scenario=="cancel"||scenario=="deadline"||scenario=="job-zero"||scenario=="job-false"||scenario=="job-cancel" ||
+           (borrowedScenario()&&!borrowedPositive()) || scenario=="owned-pointer" || scenario=="owned-source")
+            check(!result.privateCaught&&originalOuterCalls==0,"early refusal no outer call");
         else {check(result.privateCaught&&cleanup==(scenario=="nested"?2U:1U),"private caught after original cleanup");
             check(result.observedMismatch==(scenario!="transformed-target"&&scenario!="transformed-index"&&scenario!="cancel-inner"),"predicate outcome exact");}
         if(scenario=="duplicate"||scenario=="nested")check(result.interference,"interference observable");
-        check(result.witness==(scenario=="mismatch"||scenario=="job-valid"),"only uncontested mismatch is passing witness");
+        check(result.witness==(scenario=="mismatch"||scenario=="job-valid"||borrowedPositive()),"only uncontested mismatch is passing witness");
         if(scenario=="cancel-predicate")check(result.canceled&&result.refusal==Refusal::Canceled,"cancel during passive read remains distinct");
     }
     const unsigned expectedAttributions=(scenario.rfind("job-",0)==0||scenario=="duplicate")?1U:0U;
     check(attributions==expectedAttributions,"attribution exactly once only eligible tracked call");
     if(scenario=="job-valid"||scenario=="duplicate"||scenario=="job-cancel")check(result.attributed&&result.jobId==UINT64_C(0xfedcba9876543210),"full64 job attribution");
     if(scenario=="job-false"||scenario=="job-zero")check(!result.attributed&&result.jobId==0&&result.refusal==Refusal::Attribution,"failed attribution unpublished");
+    if(borrowedPositive()) {
+        check(forwarding && borrowedOptional!=&optional && borrowedOptional,"dynamic opaque optional and source/size bits preserved through original");
+        check(result.privateCaught && result.observedMismatch && cleanup==1 && result.trackedForwards==0,"borrowed negative barrier and native-like cleanup unchanged");
+    } else if(borrowedScenario() || scenario=="owned-pointer" || scenario=="owned-source")
+        check(result.refusal==Refusal::Binding && !result.observedMismatch && originalOuterCalls==0 && attributions==0,"binding mismatch never reaches original or attribution");
     std::printf("{\"passed\":true,\"scenario\":\"%s\",\"checks\":%u,\"tracked_forward\":%u,\"native_qualification\":false}\n",scenario.c_str(),checks,result.trackedForwards);
 }

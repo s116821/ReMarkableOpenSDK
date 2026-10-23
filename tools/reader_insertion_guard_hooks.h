@@ -5,6 +5,7 @@
 #include <QUuid>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <thread>
@@ -25,6 +26,7 @@ struct Install {
     void *outer=nullptr, *inner=nullptr;
     std::array<unsigned char,8> outerBytes{}, innerBytes{};
 };
+enum class CallerPolicy { ExactOwned, BorrowedExplicitSize };
 struct Binding {
     void *worker=nullptr, *map=nullptr;
     std::thread::id thread;
@@ -33,6 +35,7 @@ struct Binding {
     const void *optional=nullptr;
     Word sizePresent=0, inherit=0;
     QSizeF size;
+    CallerPolicy policy=CallerPolicy::ExactOwned;
 };
 enum class Refusal { None, Binding, Duplicate, Canceled, Deadline, Attribution, Predicate, MissingInner, UnrelatedException };
 struct Outcome {
@@ -112,6 +115,16 @@ class Core final {
     static bool sameSize(const QSizeF &a,const QSizeF &b) {
         return std::memcmp(&a,&b,sizeof(QSizeF))==0;
     }
+    static bool validPolicy(const Binding &b) {
+        switch(b.policy) {
+        case CallerPolicy::ExactOwned: return true;
+        case CallerPolicy::BorrowedExplicitSize:
+            return !b.optional && b.sizePresent==1 && b.inherit==0 &&
+                std::isfinite(b.size.width()) && std::isfinite(b.size.height()) &&
+                b.size.width()>0 && b.size.height()>0 && b.size.width()<=16384 && b.size.height()<=16384;
+        }
+        return false;
+    }
     static void finish(Record *r) { r->outcome.terminal=true; r->terminal.store(true,std::memory_order_release); }
     static Core *ready() {
         Core *c=active_.load(std::memory_order_acquire);
@@ -134,8 +147,10 @@ class Core final {
         }
         r->outcome.outerCalls=1;
         const Binding &b=r->input.binding;
-        if(previous || worker!=b.worker || index!=b.index || optional!=b.optional || present!=b.sizePresent ||
-           !sameSize(size,b.size) || source!=b.sourceIndex || inherit!=b.inherit || pc!=b.outerReturnPC ||
+        const bool borrowed=b.policy==CallerPolicy::BorrowedExplicitSize;
+        const bool optionalMatches=borrowed ? optional && address(optional)%4==0 : optional==b.optional;
+        if(previous || worker!=b.worker || index!=b.index || !optionalMatches || present!=b.sizePresent ||
+           !sameSize(size,b.size) || (!borrowed && source!=b.sourceIndex) || inherit!=b.inherit || pc!=b.outerReturnPC ||
            std::this_thread::get_id()!=b.thread) {
             r->outcome.refusal=Refusal::Binding; finish(r); return;
         }
@@ -216,7 +231,8 @@ public:
     bool registerOnce(Registration &&input) {
         if(phase_.load(std::memory_order_acquire)!=Phase::Verified || input.target.isNull() || !input.frozen ||
            !input.binding.worker || !input.binding.map || !input.binding.outerReturnPC || !input.binding.innerReturnPC ||
-           input.binding.thread==std::thread::id{} || !input.residentNativeOwners || input.target.toString(QUuid::WithoutBraces)!=input.frozen->requestedTarget()) return false;
+           input.binding.thread==std::thread::id{} || !input.residentNativeOwners || !validPolicy(input.binding) ||
+           input.target.toString(QUuid::WithoutBraces)!=input.frozen->requestedTarget()) return false;
         bool no=false; if(!registered_.compare_exchange_strong(no,true,std::memory_order_acq_rel)) return false;
         record_.store(new Record(std::move(input)),std::memory_order_release); return true;
     }

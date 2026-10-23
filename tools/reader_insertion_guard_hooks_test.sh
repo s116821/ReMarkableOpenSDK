@@ -25,6 +25,15 @@ for name in mismatch foreign binding cancel deadline cancel-inner cancel-predica
  timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr"
  cat "$out/$name.stdout"
 done
+for name in borrowed-stack-a borrowed-stack-b borrowed-stack-c borrowed-boundary \
+ borrowed-null borrowed-misaligned borrowed-present borrowed-present-wide borrowed-inherit borrowed-inherit-wide \
+ borrowed-size borrowed-worker borrowed-thread borrowed-caller borrowed-index owned-pointer owned-source \
+ borrowed-reg-pointer borrowed-reg-present borrowed-reg-present-wide borrowed-reg-inherit borrowed-reg-inherit-wide \
+ borrowed-reg-zero-width borrowed-reg-zero-height borrowed-reg-negative borrowed-reg-negative-zero \
+ borrowed-reg-infinity borrowed-reg-nan borrowed-reg-cap-width borrowed-reg-cap-height borrowed-reg-unknown; do
+ timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr"
+ cat "$out/$name.stdout"
+done
 for name in bad-original misaligned bad-protection second-install-fails null-original early-entry bad-entry bad-trampoline wrong-callsite duplicate-inner throw-installer throw-failstop overlap second-corrupts-entry second-corrupts-trampoline; do
  status=0
  timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr" || status=$?
