@@ -54,9 +54,9 @@ recovery reserve and final stock restoration; no wait extends those clocks.
   verify exact/missing/foreign/duplicate/canceled/nested source cases on host/ARM.
 - [x] Add a separate frozen Entry/startup scenario and owned waiting/cancellation,
   continued-read, quiescent-report, deadline and normal-mode regression controls.
-- [ ] Freeze/review a fresh source/artifact/profile and run once if concrete
+- [x] Freeze/review a fresh source/artifact/profile and run once if concrete
   gates pass; preserve full bytes, actual restoration and exact cleanup.
-- [ ] Interpret actual owner retention/late completion separately from normal
+- [x] Interpret actual owner retention/late completion separately from normal
   request success, native cancellation, teardown or supported capability.
 
 Source basis: current quarantine/Entry source, exact native callback copying and
@@ -71,4 +71,7 @@ the two-second worker deadline, requiring zero accessor calls, and nested late
 notification, parent cancellation, deadline, request replacement, missing and
 duplicate completion. The expiry field records the actual clock deadline;
 an early parent cancellation does not itself imply that deadline elapsed.
-All are owned fixtures. No cancellation-mode native result is claimed here.
+All are owned fixtures. The later [native cancellation result](../../../docs/experiments/worker-running-cancellation-result.md)
+separately records one exact-candidate retained-owner/late-completion observation,
+complete unchanged fixture bytes and restoration/cleanup. It does not qualify
+general cancellation, post-quarantine reclamation or unload.

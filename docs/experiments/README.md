@@ -8,6 +8,7 @@ packet or past trial is not permission to execute a new one.
 | Reusable guide | Evidence scope |
 | --- | --- |
 | [Native worker-local page order](worker-local-order-result.md) | Six expected ID/index reads, matching callback completion, settled owner release and unchanged20 files; no atomic insertion exclusion |
+| [Already-running callback cancellation](worker-running-cancellation-result.md) | Logical cancellation retains owners through six passive reads and one separately matching late completion; no request revival/release, full preservation and stock restoration |
 | [Caller-selected insertion result](caller-selected-insertion-result.md) | One exact UUID persisted with originals preserved; deadline recovery and unexpected-close UI leave lifecycle qualification open |
 | [Stock selected-page result](selected-reader-observation-result.md) | One live document/page-five observation, sampled readiness and mapping; separate restoration/preservation pass, without mutation/render/durability authority |
 | [First creation-source join attempt](creation-source-join-observation-result.md) | Stock preparation reached Reader discovery but refused nonunique/missing eligible anchors; no wrapper join, with independent restoration and all eighteen files unchanged |
