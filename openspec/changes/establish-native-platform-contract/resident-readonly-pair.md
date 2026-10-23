@@ -44,9 +44,15 @@ THEN a later fresh B may observe under its own identity and permission.
   single-request artifacts unchanged.
 - [x] Verify owned valid/failure/lifetime/window/deadline/publication paths and
   same-window fresh Sample scopes on host and ARM.
-- [ ] Freeze/review a new exact native source/payload/package and fresh baseline.
-- [ ] If selected, record actual A retirement then B join in one process, complete
+- [x] Freeze/review a new exact native source/payload/package and fresh baseline.
+- [x] Record actual A retirement then B join in one process, complete
   preservation, original final restoration and exact cleanup.
+
+The [actual ef23 native result](../../../docs/experiments/resident-readonly-pair-result.md)
+closes this fixed pair: both fresh joins are ready, A retired/cleaned before B,
+the process/window/engine remain identical and all twenty document files are
+byte-identical after final restoration. Broader resident/failure qualification
+and execution-time mutation exclusion remain open.
 
 Source/control checkpoint: the retirement core passes 743 checks on host Qt 6.4.2
 and ARM Qt 6.10.3/GCC 13.4 under QEMU. The fixed pair passes 19 modes and five

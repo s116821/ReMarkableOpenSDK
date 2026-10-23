@@ -18,9 +18,11 @@ This handler is not a replacement for the whole ordinary controller:
 
 - It drops and reacquires its page-map mutex. The available ID/index accessors
   individually lock a read and release before returning; they do not export a
-  transaction. Holding the same nonqualified mutex externally risks recursive
-  locking. A separate public meta-callable page-count writer also uses the map
-  lock; the existence of that entry is not proof of concurrent stock invocation.
+  transaction. The [execution-time boundary follow-up](execution-time-page-order-boundary.md)
+  establishes a normally nonrecursive mutex and an actual renderer DirectConnection
+  to the private meta-callable page-count writer. Holding the mutex across an
+  already-locking getter/handler self-deadlocks; after-ready concurrent emission
+  remains unproven rather than excluded.
 - It can load/access Scenes, call a configured Scene factory and invoke a
   configured template callback. Native initialization and filesystem operations
   are not a leaf operation. Absence of blocking/reentrant dependencies is unproven.
