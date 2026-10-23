@@ -11,7 +11,7 @@ else
 fi
 "$moc" tools/reader_worker_owner_quarantine.h -o "$work/moc_quarantine.cpp"
 "$moc" tools/reader_worker_owner_quarantine_fixture.cpp -o "$work/reader_worker_owner_quarantine_fixture.moc"
-${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -pthread -I"$work" -Itools \
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -pthread ${READER_QUARANTINE_SANITIZE_FLAGS:-} -I"$work" -Itools \
     tools/reader_worker_owner_quarantine_fixture.cpp "$work/moc_quarantine.cpp" \
     $(pkg-config --cflags --libs Qt6Core Qt6Gui) -o "$work/fixture"
 if [ -n "${QT_PROBE_BINARY_OUT:-}" ]; then cp "$work/fixture" "$QT_PROBE_BINARY_OUT"; fi

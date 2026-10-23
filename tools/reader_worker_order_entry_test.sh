@@ -21,11 +21,14 @@ if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
 else
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software "$work/fixture"
 fi
-${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -pthread -shared -Wl,-z,defs -I"$work" -Itools \
+for variant in tuple cancel-running; do
+if [ "$variant" = cancel-running ]; then scenario_define=-DREADER_WORKER_ORDER_CANCEL_RUNNING=1; else scenario_define=; fi
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O2 -fPIC -pthread -shared -Wl,-z,defs -I"$work" -Itools $scenario_define \
  '-DREADER_WORKER_ORDER_NONCE="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"' \
  '-DREADER_WORKER_ORDER_DOCUMENT_ID="10000000-0000-0000-0000-000000000001"' -DREADER_WORKER_ORDER_SOURCE_INDEX=1 -DREADER_WORKER_ORDER_PAGE_COUNT=3 \
  '-DREADER_WORKER_ORDER_LEFT_ID="20000000-0000-0000-0000-000000000001"' '-DREADER_WORKER_ORDER_SOURCE_ID="20000000-0000-0000-0000-000000000002"' '-DREADER_WORKER_ORDER_RIGHT_ID="20000000-0000-0000-0000-000000000003"' \
  tools/reader_worker_order_startup.cpp "$work/moc_reader_selected_view_probe.cpp" "$work/moc_reader_worker_callback_witness.cpp" \
  "$work/moc_reader_joined_creation_witness.cpp" "$work/moc_reader_worker_owner_quarantine.cpp" tools/qt_qml_creation_bridge.cpp \
- $(pkg-config --cflags --libs Qt6Core Qt6Gui Qt6Qml Qt6Quick) -ldl -o "$work/worker-order-owned.so"
-printf 'PASS compile-only worker order startup; SO never loaded\n'
+ $(pkg-config --cflags --libs Qt6Core Qt6Gui Qt6Qml Qt6Quick) -ldl -o "$work/worker-order-$variant-owned.so"
+done
+printf 'PASS compile-only default and cancellation worker order startup; SOs never loaded\n'

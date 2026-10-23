@@ -4,15 +4,18 @@
 #include "reader_worker_order_accessors.h"
 #include "reader_worker_owner_quarantine.h"
 #include <QJsonArray>
+#include <chrono>
 
 namespace reader_worker_order_entry {
+enum class Scenario { Tuple, CancelRunning };
 struct Config {
     QByteArray nonce;
     reader_selected::FixtureNavigation navigation;
     std::array<QString,3> pageIds;
     int pageCount=-1;
+    Scenario scenario=Scenario::Tuple;
     bool valid() const {
-        if(nonce.size()!=32||!navigation.valid()||!navigation.legacyComposition||pageCount<3||pageCount>32||
+        if((scenario!=Scenario::Tuple&&scenario!=Scenario::CancelRunning)||nonce.size()!=32||!navigation.valid()||!navigation.legacyComposition||pageCount<3||pageCount>32||
            navigation.pageIndex<1||navigation.pageIndex>=pageCount-1)return false;
         for(char c:nonce)if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')))return false;
         return bool(reader_worker_order::freeze(navigation.pageIndex,pageCount,pageIds).frozen);
@@ -22,8 +25,12 @@ class Entry final : public QObject {
 public:
     Entry(QGuiApplication *app,QString path,Config config,QObject *parent=nullptr)
         :QObject(parent?parent:app),app_(app),path_(std::move(path)),config_(std::move(config)),
-         pool_(reader_worker_quarantine::ResidentStorage::create(),this) {clock_.start();}
+         pool_(reader_worker_quarantine::ResidentStorage::create(),this) {
+        clock_.start();poll_.setParent(this);poll_.setInterval(5);
+        connect(&poll_,&QTimer::timeout,this,[this]{if(++polls_>400)fail(QStringLiteral("cancel-observer-poll-cap"));else outcome();});
+    }
     ~Entry() override {
+        if(work_)work_->parentCanceled.store(true,std::memory_order_release);
         pool_.cancel(token_,QStringLiteral("entry-destroyed"));
         if(root_>=0)::close(root_);
         // Pool destruction quarantines an unresolved lease; it never closes it.
@@ -43,6 +50,7 @@ public:
         connect(&opportunity_,&QTimer::timeout,this,[this]{sample();});
         connect(&pool_,&reader_worker_quarantine::Pool::released,this,[this](quint64){queueOutcome();});
         connect(&pool_,&reader_worker_quarantine::Pool::settled,this,[this](quint64){queueOutcome();});
+        connect(&pool_,&reader_worker_quarantine::Pool::lateCompletion,this,[this](quint64){queueOutcome();});
         connect(&pool_,&reader_worker_quarantine::Pool::quarantined,this,[this](quint64){queueOutcome();});
         connect(app_,&QCoreApplication::aboutToQuit,this,[this]{suppressed_=true;fail(QStringLiteral("application-closing"));});
         setup_.setSingleShot(true);operation_.setSingleShot(true);opportunity_.setSingleShot(true);opportunity_.setTimerType(Qt::PreciseTimer);
@@ -64,6 +72,8 @@ public:
     bool samplingForTest()const{return sampling_;}
     void advanceForTest(qint64 amount){offset_+=amount;}
     void postLinkForTest(std::function<void()> hook){postLink_=std::move(hook);}
+    void beforeCancelForTest(std::function<void()> hook){beforeCancel_=std::move(hook);}
+    void pauseExpiredWorkWaitForTest(){if(work_)work_->pauseExpiredWait.store(true,std::memory_order_release);}
 #endif
 private:
     struct WorkState {
@@ -71,12 +81,41 @@ private:
         std::shared_ptr<const reader_worker_order::Frozen> frozen;
         reader_worker_order::Result result;
         std::atomic<bool> ready{false};
+        const bool cancelScenario;
+        std::atomic<bool> waiting{false},releaseHold{false},cancelGranted{false},parentCanceled{false};
+        bool observedCancel=false,waitExpired=false;
+#ifdef READER_WORKER_ORDER_ENTRY_TESTING
+        std::atomic<bool> pauseExpiredWait{false};
+#endif
+        explicit WorkState(bool cancel):cancelScenario(cancel){}
         static void run(void *worker,void *context)noexcept {
             auto *state=static_cast<WorkState*>(context);
+            if(state->cancelScenario){
+                state->waiting.store(true,std::memory_order_release);
+                const auto until=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+                while(!state->releaseHold.load(std::memory_order_acquire)&&!state->parentCanceled.load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<until)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+#ifdef READER_WORKER_ORDER_ENTRY_TESTING
+                // Owned race interleaving only: hold between timeout and final
+                // handshake loads. No hook enters a native startup artifact.
+                if(state->pauseExpiredWait.load(std::memory_order_acquire)){
+                    const auto testUntil=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+                    while(!state->releaseHold.load(std::memory_order_acquire)&&!state->parentCanceled.load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<testUntil)
+                        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                }
+#endif
+                const bool granted=state->releaseHold.load(std::memory_order_acquire)&&state->cancelGranted.load(std::memory_order_acquire)&&!state->parentCanceled.load(std::memory_order_acquire);
+                state->waitExpired=std::chrono::steady_clock::now()>=until;
+                state->observedCancel=granted&&!state->waitExpired;
+                if(!state->observedCancel){state->ready.store(true,std::memory_order_release);return;}
+                // These six passive reads were admitted by the parent forensic
+                // plan. The canceled logical token never regains permission.
+            }
             state->result=state->accessors->read(static_cast<QObject*>(worker),*state->frozen);
             state->ready.store(true,std::memory_order_release);
         }
     };
+    bool cancelScenario()const{return config_.scenario==Scenario::CancelRunning;}
     struct LeaseBox {
         std::unique_ptr<reader_worker_native::Prepared> prepared;
         static bool close(void *p){return static_cast<LeaseBox*>(p)->prepared->close();}
@@ -174,6 +213,7 @@ private:
         sampling_=false;sampleEnd_=now();
         if(!failure_.isEmpty()){finish();return;}
         if(!qualified(before_)||!token_||!submission_.accepted){fail(before_.refusal.isEmpty()?QStringLiteral("worker-source-or-submit-refused"):before_.refusal);return;}
+        if(cancelScenario())poll_.start();
         queueOutcome();
     }
     void submit(QObject *controller,const QVariant&id,QObject *worker,const reader_selected::Observation&before,
@@ -200,7 +240,7 @@ private:
         loading=reader_worker_order::loadPinned(guard);
         if(!weak)return;
         if(!loading.accessors){fail(loading.refusal);return;}
-        auto context=std::make_shared<WorkState>();context->accessors=std::move(loading.accessors);context->frozen=std::move(frozen.frozen);
+        auto context=std::make_shared<WorkState>(cancelScenario());context->accessors=std::move(loading.accessors);context->frozen=std::move(frozen.frozen);
         reader_worker_quarantine::Lease lease;
         std::unique_ptr<LeaseBox> box;
 #ifdef READER_WORKER_ORDER_ENTRY_TESTING
@@ -225,6 +265,7 @@ private:
 #endif
             fail(QStringLiteral("before-install-disarmed"));return;
         }
+        if(cancelScenario()&&end_-now()<3000){fail(QStringLiteral("cancel-reserve-insufficient"));return;}
         auto *submittedBox=box.get();
         const auto installed=pool_.install(worker,completion,lease,{&WorkState::run,context},int(end_-now()));
         if(installed)box.release(); // Transfer before any post-install facade access.
@@ -259,14 +300,46 @@ private:
         if(terminal_||sampling_)return;
         if(!permitted()||!sameWindow()){fail(QStringLiteral("worker-window-or-deadline"));return;}
         const auto snapshot=pool_.snapshot(token_);
+        if(cancelScenario()){cancellationOutcome(snapshot);return;}
         if(snapshot.phase==reader_worker_quarantine::Phase::Quarantined){fail(snapshot.refusal.isEmpty()?QStringLiteral("quarantined"):snapshot.refusal);return;}
         if(snapshot.phase!=reader_worker_quarantine::Phase::Released||!snapshot.settled||snapshot.depth)return;
         if(!work_||!work_->ready.load(std::memory_order_acquire)||!work_->result.observed){fail(QStringLiteral("worker-tuple-refused"));return;}
         finish();
     }
+    void cancellationOutcome(const reader_worker_quarantine::Snapshot&snapshot) {
+        if(!work_){fail(QStringLiteral("cancel-work-missing"));return;}
+        const bool ready=work_->ready.load(std::memory_order_acquire);
+        if(!cancelCheckpoint_){
+            if(snapshot.phase==reader_worker_quarantine::Phase::Quarantined){fail(snapshot.refusal);return;}
+            if(ready){fail(QStringLiteral("cancel-handshake-missed"));return;}
+            if(!work_->waiting.load(std::memory_order_acquire)||snapshot.depth)return;
+            if(snapshot.phase!=reader_worker_quarantine::Phase::Submitted||snapshot.entered!=1||snapshot.returning||snapshot.offGui!=1||snapshot.closed||snapshot.destroyed){fail(QStringLiteral("cancel-waiting-facts"));return;}
+            const QPointer<Entry> weak(this);
+#ifdef READER_WORKER_ORDER_ENTRY_TESTING
+            const auto hook=beforeCancel_;
+            if(hook)hook();
+            if(!weak)return;
+            if(!permitted()||!sameWindow()){fail(QStringLiteral("cancel-parent-disarmed"));return;}
+#endif
+            pool_.cancel(token_,QStringLiteral("diagnostic-cancel-while-running"));
+            if(!weak)return;
+            const auto canceled=pool_.snapshot(token_);
+            if(canceled.phase!=reader_worker_quarantine::Phase::Quarantined||canceled.depth||canceled.closed||canceled.destroyed||canceled.entered!=1||canceled.returning||canceled.offGui!=1){fail(QStringLiteral("cancel-checkpoint-refused"));return;}
+            cancelCheckpoint_=true;cancelAt_=now();
+            work_->cancelGranted.store(true,std::memory_order_relaxed);
+            work_->releaseHold.store(true,std::memory_order_release);
+            return;
+        }
+        if(snapshot.phase!=reader_worker_quarantine::Phase::Quarantined||snapshot.refusal!=QStringLiteral("diagnostic-cancel-while-running")||snapshot.closed||snapshot.destroyed){fail(QStringLiteral("cancel-state-changed"));return;}
+        if(snapshot.lateCompletions>1){fail(QStringLiteral("cancel-completion-repeated"));return;}
+        if(!ready||snapshot.lateCompletions!=1||snapshot.depth)return;
+        if(!work_->observedCancel||work_->waitExpired||!work_->result.observed){fail(QStringLiteral("cancel-read-refused"));return;}
+        finish();
+    }
     void fail(QString reason) {
         if(terminal_)return;
         if(failure_.isEmpty())failure_=std::move(reason);
+        if(work_)work_->parentCanceled.store(true,std::memory_order_release);
         const QPointer<Entry> weak(this);pool_.cancel(token_,failure_);if(!weak)return;
         if(!sampling_)finish();
     }
@@ -280,10 +353,14 @@ private:
         const auto snapshot=pool_.snapshot(token_);
         const bool tupleReady=work_&&work_->ready.load(std::memory_order_acquire);
         const auto tuple=tupleReady?work_->result:reader_worker_order::Result{};
-        const bool success=failure_.isEmpty()&&permitted()&&sameWindow()&&qualified(before_)&&submission_.accepted&&
-            snapshot.phase==reader_worker_quarantine::Phase::Released&&snapshot.settled&&!snapshot.depth&&snapshot.entered==1&&snapshot.returning==1&&snapshot.offGui==1&&
-            !snapshot.duplicates&&!snapshot.skipped&&snapshot.completions==1&&snapshot.closed&&snapshot.destroyed&&tupleReady&&tuple.observed&&tuple.calls==6;
-        terminal_=true;setup_.stop();operation_.stop();opportunity_.stop();
+        const bool normal=!cancelScenario()&&snapshot.phase==reader_worker_quarantine::Phase::Released&&snapshot.settled&&snapshot.completions==1&&snapshot.closed&&snapshot.destroyed;
+        const bool canceled=cancelScenario()&&cancelCheckpoint_&&tupleReady&&work_->observedCancel&&!work_->waitExpired&&
+            snapshot.phase==reader_worker_quarantine::Phase::Quarantined&&snapshot.refusal==QStringLiteral("diagnostic-cancel-while-running")&&
+            snapshot.lateCompletions==1&&snapshot.completions==0&&!snapshot.closeAttempted&&!snapshot.destroyAttempted&&!snapshot.closed&&!snapshot.destroyed&&!snapshot.settled;
+        const bool success=failure_.isEmpty()&&permitted()&&sameWindow()&&qualified(before_)&&submission_.accepted&&!submission_.unknown&&submission_.jobId&&
+            (normal||canceled)&&!snapshot.depth&&snapshot.entered==1&&snapshot.returning==1&&snapshot.offGui==1&&
+            !snapshot.duplicates&&!snapshot.skipped&&tupleReady&&tuple.observed&&tuple.calls==6;
+        terminal_=true;setup_.stop();operation_.stop();opportunity_.stop();poll_.stop();
         if(suppressed_||!trusted())return;
         const auto identity=identity_.trimmed().split(' ');if(identity.size()!=2)return;
         QJsonArray entries;for(const auto&e:tuple.entries)entries.append(QJsonObject{{"index",e.index},{"inverse",e.inverse},{"page_id",QString::fromLatin1(e.id.data())}});
@@ -291,21 +368,27 @@ private:
             {"native_attempted",submission_.attempted},{"native_accepted",submission_.accepted},{"native_unknown",submission_.unknown},{"native_refusal",submission_.refusal},
             {"entered",int(snapshot.entered)},{"returning",int(snapshot.returning)},{"off_gui",int(snapshot.offGui)},{"duplicates",int(snapshot.duplicates)},{"skipped",int(snapshot.skipped)},
             {"completion_count",int(snapshot.completions)},{"owners_closed",snapshot.closed},{"owners_destroyed",snapshot.destroyed},{"settled",snapshot.settled},{"depth",int(snapshot.depth)},{"refusal",snapshot.refusal}};
-        QJsonObject json{{"schema",1},{"diagnostic","worker-order-tuple"},{"nonce",QString::fromLatin1(config_.nonce)},{"pid",QString::fromLatin1(identity[0])},{"start",QString::fromLatin1(identity[1])},
-            {"stage",success?"worker-order-observed":"worker-order-refused"},{"refusal",success?QString():failure_.isEmpty()?QStringLiteral("incomplete"):failure_},{"before_worker",facts(before_)},{"worker",worker},
+        const QString stage=cancelScenario()?(success?QStringLiteral("worker-cancel-observed"):QStringLiteral("worker-cancel-refused")):(success?QStringLiteral("worker-order-observed"):QStringLiteral("worker-order-refused"));
+        QJsonObject json{{"schema",1},{"diagnostic",cancelScenario()?"worker-order-cancel":"worker-order-tuple"},{"nonce",QString::fromLatin1(config_.nonce)},{"pid",QString::fromLatin1(identity[0])},{"start",QString::fromLatin1(identity[1])},
+            {"stage",stage},{"refusal",success?QString():failure_.isEmpty()?QStringLiteral("incomplete"):failure_},{"before_worker",facts(before_)},{"worker",worker},
             {"tuple_ready",tupleReady},{"tuple_observed",tuple.observed},{"tuple_calls",int(tuple.calls)},{"tuple_refusal",int(tuple.refusal)},{"entries",entries},
             {"navigation_attempted",navigationAttempted_},{"navigation_dispatched",navigationDispatched_},{"same_process",reader_selected::selfIdentity()==identity_},{"same_window_engine",sameWindow()},
             {"plan_begin_ms",begin_},{"source_begin_ms",sampleBegin_},{"source_end_ms",sampleEnd_},{"plan_end_ms",now()},{"native_authority",false},{"render_authority",false},{"durable_authority",false}};
+        if(cancelScenario())json.insert("cancellation",QJsonObject{{"planned",true},{"while_waiting",cancelCheckpoint_},{"at_ms",cancelAt_},
+            {"work_observed_cancel",tupleReady?work_->observedCancel:false},{"work_wait_expired",tupleReady?work_->waitExpired:false},{"late_completions",int(snapshot.lateCompletions)},
+            {"owners_retained",snapshot.phase==reader_worker_quarantine::Phase::Quarantined&&!snapshot.closeAttempted&&!snapshot.destroyAttempted&&!snapshot.closed&&!snapshot.destroyed},
+            {"request_released",snapshot.phase==reader_worker_quarantine::Phase::Released}});
         publish("selected-result",".pending-result",QJsonDocument(json).toJson(QJsonDocument::Compact)+'\n',success);
     }
     QPointer<QGuiApplication> app_;QString path_;Config config_;reader_worker_quarantine::Pool pool_;reader_worker_quarantine::Token token_;
     std::shared_ptr<WorkState>work_;reader_worker_native::Submission submission_;reader_selected::Observation before_;
-    QPointer<QQuickWindow>window_;QPointer<QQmlEngine>engine_;QElapsedTimer clock_;QFileSystemWatcher watcher_;QTimer setup_,operation_,opportunity_;
+    QPointer<QQuickWindow>window_;QPointer<QQmlEngine>engine_;QElapsedTimer clock_;QFileSystemWatcher watcher_;QTimer setup_,operation_,opportunity_,poll_;
     QByteArray identity_;struct stat rootStat_{},requestStat_{};int root_=-1,checks_=0;qint64 begin_=-1,end_=-1,sampleBegin_=-1,sampleEnd_=-1;
     bool started_=false,terminal_=false,consumed_=false,queued_=false,outcomeQueued_=false,sampling_=false,sampled_=false,suppressed_=false,navigationAttempted_=false,navigationDispatched_=false;QString failure_;
+    bool cancelCheckpoint_=false;int polls_=0;qint64 cancelAt_=-1;
 #ifdef READER_WORKER_ORDER_ENTRY_TESTING
     qint64 offset_=0;reader_worker_order::detail::IdAt firstTest_=nullptr;reader_worker_order::detail::IndexFor secondTest_=nullptr;
-    PrepareTest prepareTest_;reader_worker_quarantine::Pool::Submit submitTest_;std::function<void()>postLink_;
+    PrepareTest prepareTest_;reader_worker_quarantine::Pool::Submit submitTest_;std::function<void()>postLink_,beforeCancel_;
 #endif
 };
 } // namespace reader_worker_order_entry

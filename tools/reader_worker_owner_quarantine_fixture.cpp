@@ -5,10 +5,12 @@
 #include <cstdio>
 #include <stdexcept>
 #include <vector>
+#include <chrono>
 using namespace reader_worker_quarantine;
 static unsigned checks=0;
+static const char *activeCase="startup";
 static void check(bool value,const char *message) {
-    ++checks;if(!value) { std::fprintf(stderr,"FAIL %s\n",message);std::abort(); }
+    ++checks;if(!value) { std::fprintf(stderr,"FAIL %s: %s (check %u)\n",activeCase,message,checks);std::abort(); }
 }
 static void pump(int ms=8) {
     QEventLoop loop;QTimer::singleShot(ms,&loop,&QEventLoop::quit);loop.exec();
@@ -185,6 +187,99 @@ static void cancelDuring() {
     check(gate->reads==1 && pool.snapshot(token).phase==Phase::Quarantined,"cancel race may complete work but remains pinned");
     check(count->closes==0,"matching completion cannot undo cancellation");
 }
+static void lateCancellation(const QString &mode) {
+    const auto label=QByteArray("late-")+mode.toLatin1();activeCase=label.constData();
+    auto *storage=ResidentStorage::create();Pool pool(storage);OwnedSource source,foreign;
+    auto count=std::make_shared<Counts>();
+    struct Held {
+        std::atomic<bool> waiting{false},canceledCheckpoint{false},go{false},expired{false};
+        std::atomic<unsigned> afterCancelReads{0};
+    };
+    auto held=std::make_shared<Held>();
+    const Work work{[](void *worker,void *context) noexcept {
+        auto *state=static_cast<Held*>(context);
+        state->waiting.store(true,std::memory_order_release);
+        const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+        while(!state->go.load(std::memory_order_acquire) && std::chrono::steady_clock::now()<end)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // Already-entered work uses only owned state. No QObject dereference.
+        if(state->go.load(std::memory_order_acquire) && state->canceledCheckpoint.load(std::memory_order_acquire) && worker)
+            state->afterCancelReads.fetch_add(1,std::memory_order_relaxed);
+        else state->expired.store(true,std::memory_order_release);
+    },held};
+    const int budget=mode=="deadline"?100:1500;
+    auto token=pool.install(&source,source.completion(),{new OwnedLease{count},&source,closeLease,destroyLease},work,budget);
+    check(bool(token),"held cancellation installed");
+    unsigned notifications=0;bool nested=false;
+    QObject::connect(&pool,&Pool::lateCompletion,&pool,[&](quint64 generation) {
+        ++notifications;const auto result=pool.snapshot(token);
+        check(generation==token.generation() && result.phase==Phase::Quarantined,"late generation stays quarantined");
+        check(result.depth>0 && !result.settled,"late notification retains Relay Frame");
+        QMetaObject::invokeMethod(&pool,[&] {
+            check(pool.snapshot(token).depth>0,"nested queued late consumer cannot report quiescent");nested=true;
+        },Qt::QueuedConnection);
+        pump();
+        check(count->closes==0 && count->destroys==0,"late nested loop cannot release owners");
+        auto *extra=new OwnedLease{count};
+        check(!pool.install(&source,source.completion(),{extra,&source,closeLease,destroyLease},{},100),"late notification cannot rearm");delete extra;
+    });
+    source.id=37;source.emitCompletion=mode!="missing" && mode!="foreign-source";
+    const bool submitted=pool.submit(token,[&](const std::function<void()> &callback)->qulonglong {
+        source.body=callback;source.start();
+        // Model an enqueue whose receiver started before the caller learned an
+        // ambiguous/zero outcome. Otherwise cancellation correctly skips Work.
+        if(mode=="unknown" || mode=="zero")until([&]{return held->waiting.load(std::memory_order_acquire);});
+        if(mode=="unknown")throw std::runtime_error("owned unknown submission");
+        return mode=="zero"?0:37;
+    });
+    check(submitted==(mode!="unknown" && mode!="zero"),"held submission mechanics retained");
+    until([&]{return held->waiting.load(std::memory_order_acquire);});
+    const auto before=pool.snapshot(token);
+    check(before.entered==1 && before.returning==0 && before.offGui==1 && before.depth==0,"cancel checkpoint observes running offGUI callback after submit unwind");
+    check(!before.closed && !before.destroyed && count->closes==0 && count->destroys==0,"cancel checkpoint native owners held");
+    pool.cancel(token,QStringLiteral("planned-logical-cancel"));
+    check(pool.snapshot(token).phase==Phase::Quarantined,"logical cancellation acknowledged before hold release");
+    held->canceledCheckpoint.store(true,std::memory_order_release);
+    if(mode=="foreign-id") { source.send(999);pump();check(pool.snapshot(token).lateCompletions==0,"foreign late ID ignored"); }
+    if(mode=="early") { source.send(37);pump();check(pool.snapshot(token).lateCompletions==0,"completion before returning marker ignored"); }
+    if(mode=="deadline")pump(120);
+    held->go.store(true,std::memory_order_release);source.wait();pump();
+    check(held->afterCancelReads.load()==1 && !held->expired.load(),"already-entered owned work continues only after cancel handshake");
+    if(mode=="foreign-source") {
+        auto *relay=pool.findChild<detail::Relay*>();check(relay,"original held Relay exists");
+        const auto method=relay->metaObject()->method(relay->metaObject()->indexOfSlot("completed(qulonglong)"));
+        const auto connected=QObject::connect(&foreign,foreign.completion(),relay,method,Qt::QueuedConnection);
+        check(bool(connected),"owned foreign sender connected");foreign.send(37);pump();
+        check(pool.snapshot(token).lateCompletions==0,"foreign sender cannot supply matching late completion");
+        source.send(37);pump();QObject::disconnect(connected);
+    }
+    const bool attributed=mode!="unknown" && mode!="zero" && mode!="missing" && mode!="deadline";
+    check(pool.snapshot(token).lateCompletions==(attributed?1u:0u),"only known exact returned late completion attributed");
+    check(notifications==(attributed?1u:0u),"late notification matches attributed counter");
+    if(mode=="duplicate") {
+        for(int i=0;i<6;++i)source.send(37);
+        pump();
+        check(pool.snapshot(token).lateCompletions==2 && notifications==2,"late duplicates saturate at two with bounded notifications");
+    }
+    const auto after=pool.snapshot(token);
+    check(after.phase==Phase::Quarantined && after.depth==0 && !after.settled,"late Frame unwinds without resurrection");
+    check(after.completions==0 && !after.closed && !after.destroyed && count->closes==0 && count->destroys==0,"late facts never enter normal completion or owner cleanup");
+    check(!attributed || nested,"nested late eventloop exercised");
+    // Historical records and native owners intentionally remain resident.
+}
+static void deletedOnLateCompletion() {
+    activeCase="deleted-on-late";
+    auto *storage=ResidentStorage::create();auto *pool=new Pool(storage);OwnedSource source;
+    auto count=std::make_shared<Counts>();auto token=install(*pool,source,count);
+    std::function<void()> callback;
+    pool->submit(token,[&](const std::function<void()> &body) {callback=body;return 41;});
+    offGui(callback);pool->cancel(token);
+    const QPointer<Pool> weak(pool);
+    QObject::connect(pool,&Pool::lateCompletion,&source,[&](quint64) {delete pool;pool=nullptr;});
+    source.send(41);pump();
+    check(!weak && !pool && count->closes==0 && count->destroys==0,"late listener deletion preserves quarantined native owners");
+    offGui(callback);check(count->reads==1,"late copied callback cannot reuse raw receiver after observer deletion");
+}
 static void finalization(const QString &mode) {
     auto *storage=ResidentStorage::create();auto *pool=new Pool(storage);OwnedSource source;
     auto count=std::make_shared<Counts>();auto token=install(*pool,source,count);bool closeStack=false,finish=false;
@@ -268,10 +363,12 @@ static void noInstallEvents() {
 }
 int main(int argc,char **argv) {
     QGuiApplication app(argc,argv);
-    positive();twoSuccesses();noInstallEvents();
-    for(const char *mode: {"throw","zero","overflow","cancel-before","inline","no-callback","deadline","source-deleted","no-completion","duplicate-callback","duplicate-completion","reenter"})negative(mode);
-    cancelDuring();ownerDestroyed();submitCapture(false);submitCapture(true);deletedOnSubmit();
-    for(const auto &mode:{"good","false","throw-close","throw-destroy","delete-close","delete-destroy","cancel-close"})finalization(QString::fromLatin1(mode));
+    activeCase="positive";positive();activeCase="two-successes";twoSuccesses();activeCase="no-install-events";noInstallEvents();
+    for(const char *mode: {"throw","zero","overflow","cancel-before","inline","no-callback","deadline","source-deleted","no-completion","duplicate-callback","duplicate-completion","reenter"}) {activeCase=mode;negative(mode);}
+    activeCase="cancel-during";cancelDuring();activeCase="owner-destroyed";ownerDestroyed();activeCase="capture-normal";submitCapture(false);activeCase="capture-throw";submitCapture(true);activeCase="deleted-on-submit";deletedOnSubmit();
+    for(const auto &mode:{"valid","foreign-id","foreign-source","early","unknown","zero","missing","duplicate","deadline"})lateCancellation(QString::fromLatin1(mode));
+    deletedOnLateCompletion();
+    for(const auto &mode:{"good","false","throw-close","throw-destroy","delete-close","delete-destroy","cancel-close"}) {activeCase=mode;finalization(QString::fromLatin1(mode));}
     std::printf("PASS %u owned quarantine checks; no native qualification\n",checks);return 0;
 }
 #include "reader_worker_owner_quarantine_fixture.moc"

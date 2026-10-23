@@ -25,9 +25,10 @@ that no private predicate exists anywhere in the executable.
 
 Worker renderer setup installs an explicit DirectConnection from
 DocumentRenderer.pageCountChanged(int) to the worker's private Qt slot
-doSetPageCount. That slot locks the worker map mutex, resizes the map, unlocks and
-emits map/count/pages notifications. This is a real stock connection; the later
-temporary-observer disconnect does not remove it.
+doSetPageCount. That slot locks the worker map mutex and resizes only when the
+clamped incoming count differs from its stored native/base count, then unlocks
+and emits map/count/pages notifications. This is a real stock connection; the
+later temporary-observer disconnect does not remove it.
 
 Exact PdfRenderer initialization assembly shows a synchronous branch obtaining
 the PDF page count, comparing/storing its cached count and emitting when changed.
@@ -35,14 +36,63 @@ The caller's PDF mutex guard is still armed at emission. Under the normal guard
 contract this suggests PDF-backend mutex then direct worker map mutex ordering;
 the helper's internal behavior was not separately audited, so this is an
 inference rather than a complete lock-order proof. DirectConnection introduces
-no queued thread handoff. Another metadata branch's scheduling/emitting thread
-remains unresolved. Reader-ready state does not prove that later page-count
-emission or other writers are impossible.
+no queued thread handoff. At the initial checkpoint, another metadata branch's
+scheduling/emitting thread remained unresolved. The scoped followup below closes
+that callback-timing question for the inspected path. Reader-ready state still
+does not prove that later page-count emission or other writers are impossible.
 
 The native resize utility can add generated IDs, remove entries and update count
 and clock-like fields. Those private fields have not been established as a
 complete revision predicate across all writers. The utility depends on caller
 coordination; it is not an exported ownership token.
+
+## Scoped PDF count followup — October 23, 2026 UTC
+
+Exact static followup resolves the alternate initialization callback chain. The
+current-request IPC routine sends, polls and receives synchronously, matches its
+64-bit request ID and discards late results with other IDs. The initialization
+decoder invokes the metadata callback inline and returns to that same IPC stack.
+The inspected chain does not retain the borrowed metadata callback for delivery
+after initialization returns. A load reply is handled separately; a failed load
+reply does not invoke the requested command's reply callback. This closes the
+specific deferred-callback hypothesis. It does not establish that QProcess waits,
+signals or direct application receivers cannot reenter while initialization is
+still active, nor does a renderer subprocess restart alone establish a later
+count notification.
+
+There are two distinct count comparisons. The renderer emits only when its
+cached PDF count changes. The worker then clamps the argument to at least one,
+compares it with its stored native/base PDF count under the map mutex and returns
+without resizing or notifications when equal. In this exact layout that worker
+field is at `+328`, equivalent to PageMap `+128`; it is distinct from the complete
+page-vector length. These private offsets describe inspected evidence, not a new
+getter or supported cache-field API. The GUI total of nine pages does not prove
+that the native/base PDF count is nine.
+
+Two renderer constructors initialize the renderer's cached count to zero. A new
+renderer can consequently re-emit the same positive PDF count N, but recreation
+and re-emission alone do not establish a worker-map mutation: the worker's own
+equal-N guard still applies. Conversely, unchanged PDF bytes do not establish
+successful count metadata on every initialization attempt. The synchronous
+missing-backend/PDF-handle branch constructs zero count metadata and reaches the
+ordinary emission comparison; the worker would clamp an emitted zero to one.
+That is a conditional initialization failure path, not evidence that it occurred
+or can recur after the admitted ready observation.
+
+The bounded conclusion is therefore conditional: if every later count emission
+is the same positive N and this worker's native/base count remains N, this
+connection cannot reach resize. An immutable-file check and a GUI-ready join do
+not yet establish those conditions. The remaining proof is the relationship
+between native GUI readiness and successful initialization of this actual
+worker's renderer, its native/base count N, and the fixed-PDF callers that can
+reset or replace that renderer afterward. No actual post-ready reset, failure or
+concurrent count delivery was established by this followup, and no exhaustive
+absence of other map writers is claimed.
+
+The [native worker observation](../experiments/worker-local-order-result.md)
+separately qualifies its six individual reads and their matching completion in
+one exact candidate. It does not supply this renderer-lifetime invariant, a
+shared map version across the reads or an atomic ordinary-creation precondition.
 
 ## An external map lock is not the solution
 
@@ -96,6 +146,27 @@ unrelated pseudocode; that mismatched body was rejected. A recovered renderToIma
 body did not answer the count-emitter question. Exact pending-map/PDF branches
 and constructor/metadata facts above use separately scoped raw ELF/ARM assembly,
 RTTI and compile-only header assertions, not those rejected decompilations.
+
+The October 23 followup used the same exact target with REA 6.7/Ghidra 12.1.4.
+Evidence
+`ev_dccb9a773a8bc2a86af5af5c7007def7dbfca8cb9a73fd6694f240c8e190b712`
+accepted canonical bodies `0x71e178`, `0x704a20` and `0x711160`. The requested
+`0x70347c` was reported unknown and accompanied by unrelated `0x711470`
+pseudocode; that body was rejected. Separate exact assembly shows the requested
+small method copying a refcounted value without resetting the renderer count
+cache or mode. Decoder/register-flow and constructor/failure facts use scoped
+raw ELF/ARM assembly; incomplete decompiler argument recovery is not treated as
+an exact C++ signature.
+
+The new private neutral export has 31 evidence records and 13 workflow entries,
+1672238 bytes, SHA-256
+`384f0d70ab3db9cfd7cc87b09bbae2d946b6c9b1ea2e42b6523ba9753db19013`.
+The private finding receipt has SHA-256
+`49c93cf38955e0a87d66fb4b6dd3d0b0ebb3aaa913f3bda2fcd2544d724d18f7`.
+The owned session closed at 03:54:42 UTC after export and its containers were
+absent. The earlier neutral snapshot restored evidence, not a Program database;
+the followup performed fresh analysis. No persistent database reuse, device
+action, renderer hook or direct-handler execution is claimed.
 
 Source basis: exact shipped-artifact records and retained Task evidence,
 new scoped REA results with rejected resolutions preserved, and vendor ARM

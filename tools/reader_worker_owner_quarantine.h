@@ -63,7 +63,7 @@ struct Slot {
     Lease lease;
     std::shared_ptr<Plain> plain;
     quint64 generation=0,jobId=0;
-    unsigned depth=0,completionCount=0,earlyCount=0;
+    unsigned depth=0,completionCount=0,earlyCount=0,lateCompletions=0;
     std::array<qulonglong,8> early{};
     QElapsedTimer elapsed;
     int budget=0;
@@ -85,7 +85,7 @@ struct Snapshot {
     Phase phase=Phase::Invalid;
     quint64 generation=0;
     QString jobId,refusal;
-    unsigned depth=0,entered=0,returning=0,offGui=0,duplicates=0,skipped=0,completions=0;
+    unsigned depth=0,entered=0,returning=0,offGui=0,duplicates=0,skipped=0,completions=0,lateCompletions=0;
     bool attempted=false,submissionReturned=false,closeAttempted=false,closed=false,destroyAttempted=false,destroyed=false,settled=false;
 };
 // FIRST local / LAST destruction, including reentrant capture and parameter
@@ -240,7 +240,7 @@ public:
         r.phase=s->phase;r.generation=s->generation;r.jobId=QString::number(s->jobId);r.refusal=s->refusal;r.depth=s->depth;
         r.entered=s->plain->entered.load();r.returning=s->plain->returning.load(std::memory_order_acquire);
         r.offGui=s->plain->offGui.load();r.duplicates=s->plain->duplicates.load();r.skipped=s->plain->skipped.load();
-        r.completions=s->completionCount;r.attempted=s->consumed;r.submissionReturned=s->returned;
+        r.completions=s->completionCount;r.lateCompletions=s->lateCompletions;r.attempted=s->consumed;r.submissionReturned=s->returned;
         r.closeAttempted=s->closeAttempted;r.closed=s->closeSucceeded;r.destroyAttempted=s->destroyAttempted;r.destroyed=s->destroySucceeded;r.settled=s->settled;return r;
     }
 signals:
@@ -249,14 +249,29 @@ signals:
     // signal has no tracked Frame; no native lease/capture remains to finalize.
     void settled(quint64 generation);
     void quarantined(quint64 generation);
+    // Diagnostic only, under the original Relay Frame. Never resumes/reclaims
+    // canceled work. A consumer must wait for depth zero before publishing.
+    void lateCompletion(quint64 generation);
 private:
     friend class detail::Relay;
     void completed(detail::Slot *s,QObject *signalSource,qulonglong id) {
         if(!gui() || !bound_)return;
-        if(!s || s!=storage_->current || s->facade!=this || s->phase==Phase::Quarantined || s->phase==Phase::Released)return;
+        if(!s || s!=storage_->current || s->facade!=this || s->phase==Phase::Released)return;
         const Frame frame(s);
         if(signalSource!=s->source || !s->source) { quarantine(s,QStringLiteral("completion-source"));return; }
         if(expired(s)) { quarantine(s,QStringLiteral("deadline"));return; }
+        if(s->phase==Phase::Quarantined) {
+            // No unreturned/zero/foreign ID is attributed. This branch never
+            // increments normal completion facts or clears cancellation.
+            if(s->returned && s->jobId && id==s->jobId &&
+               s->plain->returning.load(std::memory_order_acquire)==1 &&
+               s->plain->entered.load()==1 && s->plain->offGui.load()==1 && s->lateCompletions<2) {
+                ++s->lateCompletions;
+                emit lateCompletion(s->generation);
+                return; // Listener may delete Pool; only resident Frame unwinds.
+            }
+            return;
+        }
         if(s->submitting) {
             if(s->earlyCount==s->early.size())quarantine(s,QStringLiteral("completion-overflow"));
             else s->early[s->earlyCount++]=id;
