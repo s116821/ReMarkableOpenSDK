@@ -73,10 +73,18 @@ creation and resident-pair artifacts unchanged.
   foreign/early/duplicate completion, late callback and finalization controls.
 - [x] Integrate one separate registration/startup and verify its source/clock,
   binding, publication and original recovery controls on host and ARM.
-- [ ] Freeze/review a fresh native profile; execute once if its concrete gates
+- [x] Freeze/review a fresh native profile; execute once if its concrete gates
   pass, preserve complete document bytes and record restoration/cleanup.
-- [ ] Interpret the result without claiming execution-time mutation exclusion,
+- [x] Interpret the result without claiming execution-time mutation exclusion,
   full lifecycle qualification, supported capability, canonical sync or archive.
+
+Native checkpoint: [attempt 9276](../../../docs/experiments/worker-local-order-result.md)
+observed all six expected worker ID/index reads, one off-GUI callback and exact
+job 25 completion, explicit GUI owner release and settled depth-zero publication.
+The original stop/restoration succeeded, all twenty fixture files were unchanged,
+and the exact archived inactive RAM root was removed. This closes the fixed
+success-path diagnostic, not native cancellation, atomic insertion exclusion or
+the broader platform/consumer capability gates.
 
 Owned checkpoint: the accessor passes 99 checks each on host, ARM and host
 ASAN/UBSAN; the quarantine passes 170 checks on host and ARM. The separate Entry

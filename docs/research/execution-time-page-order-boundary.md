@@ -65,6 +65,13 @@ It would narrow stale-cache/queued-execution uncertainty, without making a later
 ordinary insertion atomic. Full-order/count claims additionally need safe,
 bounded accessor semantics. No new native getter call is qualified here.
 
+The later [fixed native worker witness](../experiments/worker-local-order-result.md)
+observed three expected ID/index roundtrips on the associated strong-owned worker,
+with exact callback completion, GUI reference release and unchanged fixture bytes.
+That separate candidate result narrows worker/GUI correspondence uncertainty; it
+does not establish a full worker count/order, shared read version or insertion
+execution predicate. The boundary findings below remain unresolved.
+
 For a supported mutator, the remaining question is a native predicate after
 dequeue and before mutation that preserves the ordinary Task's job identity,
 onAdded and store path. None is established by the inspected request/lambda.

@@ -53,7 +53,13 @@ Retained callback REA evidence:
 Raw firmware, extracted bodies and detailed private build outputs stay outside
 the repository. This page reports original contract findings only.
 
+Subsequent [native attempt 9276](../experiments/worker-local-order-result.md)
+observed the three expected worker ID/index pairs with matching completion,
+settled GUI owner release and complete unchanged fixture bytes. That separate
+candidate result does not establish a shared map version or insertion predicate.
+
 Source basis: retained REA/Ghidra dispatch evidence, exact retained-image ARM
 assembly/EHABI, vendor header declarations and a fresh compile-only typed shim.
-Quarantine and fixed tuple behavior are proposed engineering design. No new
-runtime accessor result, atomic insertion or supported capability is claimed.
+Quarantine and fixed tuple behavior were engineering design at this static
+checkpoint; the later native result is linked separately. Atomic insertion and
+supported capability are not established by either checkpoint.
