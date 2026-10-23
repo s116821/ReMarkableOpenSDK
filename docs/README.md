@@ -62,6 +62,8 @@ remain workflow records, not a shipping capability declaration.
 | Conditional controls | [Correct source, decision and owned forwarding](experiments/conditional-insertion-owned-result.md) | Passive condition and optional Core policy source checkpoint; no conditional native insertion |
 | Conditional composition | [Coordinator, post-order and closed diagnostic](experiments/conditional-insertion-composition-owned-result.md) | Owned source checkpoint and both ARM link modes, preserved separately from actual native evidence |
 | Conditional native result | [One native insertion and preserved post-order](experiments/conditional-insertion-native-result.md) | One middle insertion persisted with original content preserved; Reader stayed on source and target acquisition remains open |
+| Target acquisition controls | [Conditional adjacent continuation](experiments/conditional-target-acquisition-owned-result.md) | Owned helper/coordinator/transport controls and separate ARM link variants; source checkpoint |
+| Composed target acquisition | [One creation, one Next and fresh target identity](experiments/conditional-target-acquisition-native-result.md) | One fixed idle-RM2 native result with complete order, persisted target and original-content preservation; broader capability remains open |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

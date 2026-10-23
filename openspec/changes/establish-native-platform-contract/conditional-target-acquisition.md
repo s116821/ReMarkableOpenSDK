@@ -102,3 +102,12 @@ established by that checkpoint.
 Source basis: current conditional result, retained shipped QML/REA findings and
 the earlier actual adjacent-selection result. This document is a proposed
 composition; it does not claim an integrated native selection result.
+
+## Later fixed native result
+
+The separately [executed and reconciled composed trial](../../../docs/experiments/conditional-target-acquisition-native-result.md)
+observed one conditional creation, source-selected full post-order, one stock Next
+and a fresh ready-target join in the retained runtime. Complete preservation and
+stock restoration passed. The current saved fixture is eleven pages/24 files;
+the earlier ten-page admission above is historical. Rendering, write/reopen,
+other positions/types, resident failures and supported capability remain open.

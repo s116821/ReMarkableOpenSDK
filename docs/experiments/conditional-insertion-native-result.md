@@ -10,6 +10,10 @@ All indices below are zero based. The disposable mixed PDF/added-page fixture
 changed from9 to10 pages: source5, inserted target6, old right neighbor6 became7.
 No automatic second creation or rollback was performed. This nonce is spent.
 
+The later [composed target-acquisition result](conditional-target-acquisition-native-result.md)
+qualifies one fresh creation-to-Next continuation on a distinct candidate. It
+does not change this trial's source-selected outcome.
+
 ## Exact candidate and admission
 
 | Item | Recorded value |

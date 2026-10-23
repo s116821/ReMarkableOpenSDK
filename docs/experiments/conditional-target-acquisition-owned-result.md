@@ -5,6 +5,10 @@ adjacent page turn and a separate fresh target observation. Owned Qt controls an
 ARM link checks pass. This checkpoint contains **no new tablet execution** and
 does not establish a supported navigation or creation capability.
 
+The later [composed native result](conditional-target-acquisition-native-result.md)
+records the separately executed candidate. The source-only statements and
+ten-page baseline below describe this earlier checkpoint.
+
 The [conditional native result](conditional-insertion-native-result.md) left the
 actual Reader on its source despite remembered document metadata selecting the
 new page. The earlier [joined creation result](joined-creation-selection-result.md)
