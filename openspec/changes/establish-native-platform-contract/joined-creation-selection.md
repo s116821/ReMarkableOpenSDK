@@ -64,10 +64,16 @@ REA investigation continues independently.
   cancellation/deadline, absent/duplicate target and no retry.
 - [x] Implement and review Entry phase integration, fresh guarded adjacency,
   original absolute deadline and bounded closed wire; rerun affected suites.
-- [ ] Freeze a distinct exact source/build/package with one absent target UUID;
+- [x] Freeze a distinct exact source/build/package with one absent target UUID;
   independently review artifacts/operator/backup/recovery before target selection.
-- [ ] If selected, perform one creation/at-most-one adjacent Next and separately
+- [x] Perform one creation/at-most-one adjacent Next and separately
   verify actual selected identity, original preservation, persistence and recovery.
+
+The [actual a7 native result](../../../docs/experiments/joined-creation-selection-result.md)
+records the one ordinary creation and one adjacent Next, ready target at index 5
+of 9, complete original page-object/file preservation, sampled saved target/order,
+original stock restoration and exact owned cleanup. It does not close the
+execution-time source/order or resident/failure/consumer gates.
 
 Source/control checkpoint: all ten owned suites passed on distinct host Qt 6.4.2
 (272.6 seconds) and ARM Qt 6.10.3/GCC 13.4 under QEMU 8.2.7 (407.1 seconds), with

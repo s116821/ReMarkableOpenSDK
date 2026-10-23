@@ -237,5 +237,5 @@ application qualification remain outside that owned proof.
 - [x] 16.1 Record the [exact selected Reader/controller join](../../../docs/experiments/legacy-composition-navigation-join-result.md), preserving sampled-fact and native-authority boundaries.
 - [x] 16.2 Implement/review the [worker no-op witness](worker-callback-witness.md) and record its separate native delivery/restoration result; no insertion/exclusion authority follows.
 - [x] 16.3 Implement, independently review and verify owned controls for [joined ordinary creation and adjacent selection](joined-creation-selection.md), keeping direct-handler findings separate.
-- [ ] 16.4 Independently freeze/review a fresh native creation profile, then if selected record actual target/order/selection, original preservation, persistence and recovery without retry.
+- [x] 16.4 Independently freeze/review a fresh native creation profile and record [actual target/order/selection, original preservation, sampled persistence and recovery](../../../docs/experiments/joined-creation-selection-result.md) without retry. This closes the idle-fixture diagnostic, not execution-time exclusion or supported capability.
 - [ ] 16.5 Resolve execution-time source/order exclusion and complete resident/failure/consumer qualification before supported capability, canonical sync or archive.
