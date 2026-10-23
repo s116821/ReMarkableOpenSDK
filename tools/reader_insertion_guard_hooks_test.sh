@@ -64,3 +64,14 @@ for name in bad-original misaligned bad-protection second-install-fails null-ori
  esac
 done
 printf 'PASS owned hook core: normal and fail-stop cases completed\n'
+for name in forward-valid forward-end forward-single forward-borrowed forward-inflight \
+ forward-wrong-source forward-wrong-right forward-wrong-count forward-tree-collision forward-transformed-index forward-transformed-target \
+ forward-cancel-before forward-cancel-before-inner forward-cancel-predicate forward-cancel-in-inner forward-cancel-tail forward-cancel-after-terminal \
+ forward-deadline-in-inner forward-throw-inner forward-throw-tail forward-no-inner forward-duplicate forward-nested-untracked forward-interference-tail \
+ forward-untracked forward-binding forward-wrong-thread forward-admission \
+ forward-reg-both-forms forward-reg-missing-form forward-reg-target forward-reg-read forward-reg-search forward-reg-equal forward-reg-tree forward-reg-find \
+ forward-reg-negative-mixed forward-reg-policy forward-reg-post-probe; do
+ timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr"
+ cat "$out/$name.stdout"
+done
+printf 'PASS owned conditional-forward control flow; no native insertion qualification\n'

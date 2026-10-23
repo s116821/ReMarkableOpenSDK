@@ -61,6 +61,17 @@ If cancellation wins, reject through the original private-unwind path. If commit
 wins, invoke originalInner exactly once with unchanged arguments; later
 cancellation cannot revoke it or throw the private rejection after an effect.
 
+Keep this transition in a separate original owned helper
+`reader_insertion_forward_decision::Decision`, with State{Pending,Canceled,
+Rejected,ForwardCommitted}. forward()/cancel()/reject() each attempt one strong
+pending-state compare/exchange and return Transition{changed,state}; current()
+reads the state. No clock, callback, allocation or I/O belongs to this primitive.
+It does not dispatch an insertion, imply original return or record all later
+cancellation requests. The coordinator/Core must retain those separate facts.
+Test deterministic winner cases and real owned competing threads before wiring
+the helper into Core. A committed state means the tracked forward was admitted,
+not that an insertion happened.
+
 Record forward attempted, inner returned and outer returned separately. Change
 normal outer-return handling only for this new policy; the negative policy keeps
 its existing MissingInner interpretation. Any original inner/outer-tail exception

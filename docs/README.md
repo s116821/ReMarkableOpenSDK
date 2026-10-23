@@ -59,6 +59,7 @@ remain workflow records, not a shipping capability declaration.
 | Native negative witness | [Actual mismatch observation and refusal](experiments/insertion-guard-native-negative-result.md) | Matching native job/callback and exact preservation; conditional permitted insertion remains unimplemented |
 | Post-rejection controls | [Owned cleanup and probe controls](experiments/post-rejection-map-lock-owned-result.md) | Default-off witness, owned failure cases and separately unexecuted default-mode composition |
 | Post-rejection mutex | [Actual native reacquisition and release](experiments/post-rejection-map-lock-native-result.md) | One nonrecursive map mutex reused after rejection, unchanged fixture and restored stock; permitted insertion remains open |
+| Conditional controls | [Correct source, decision and owned forwarding](experiments/conditional-insertion-owned-result.md) | Separate passive condition and optional Core policy pass owned tests; native startup still selects the negative path |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

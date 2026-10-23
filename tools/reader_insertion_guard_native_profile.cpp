@@ -30,11 +30,13 @@ namespace reader_insertion_native_profile {
 namespace {
 constexpr std::uintptr_t OuterAddress=0x841728,InnerAddress=0x7b4bb4;
 constexpr std::uintptr_t SearchAddress=0x7b1f60,EqualAddress=0x144d9c;
+constexpr std::uintptr_t FindAddress=0x46d4a4,CompareSlot=0x14fe5a4;
 constexpr std::uintptr_t WorkerMeta=0xe624d8;
 constexpr const char MainHash[]="071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df";
 constexpr const char LibcHash[]="8d741a0db9727c97faebfd17e7f8409183c382241ff3d4c9b55a52e98d8dd832";
 constexpr const char QtHash[]="43b0e210d64e59b534490d78c4c82cc1d2958999b0969aa0f77e11a082704e5d";
 constexpr const char EqualSymbol[]="_ZN9QtPrivate12equalStringsE11QStringViewS0_";
+constexpr const char CompareSymbol[]="_ZN9QtPrivate14compareStringsE11QStringViewS0_N2Qt15CaseSensitivityE";
 [[noreturn]] void die() noexcept {std::_Exit(119);}
 void need(bool value) {if(!value)die();}
 bool add(std::uintptr_t a,std::size_t n,std::uintptr_t &end) {
@@ -223,12 +225,17 @@ struct State {
     reader_insertion_hooks::Core *core=nullptr;
     using Search=std::uint32_t(*)(std::uint32_t,const QString&);
     using Equal=std::uint32_t(*)(const QString&,const QString&);
+    // Observed AAPCS32 carriers, not a recovered original private declaration.
+    using Find=std::uint32_t(*)(std::uint32_t,const QString&);
     Search search=nullptr;Equal equal=nullptr;
+    Find find=nullptr;
+    bool conditionSelected=false; // Immutable before resident publication.
     int(*tryLock)(pthread_mutex_t*)=nullptr;int(*unlock)(pthread_mutex_t*)=nullptr;
     Module main;
     Map metaMapping;
     std::atomic<bool> installed{false},partsUsed{false};
     std::atomic<std::uint32_t> wordAddress{0},searchReceiver{0};
+    std::atomic<std::uint32_t> treeReceiver{0};
     unsigned taskCount=0;
 };
 namespace {
@@ -247,6 +254,41 @@ std::uint32_t search(std::uint32_t receiver,const QString &value) {
 bool equal(const QString &a,const QString &b) {
     auto *s=resident.load(std::memory_order_acquire);return s&&s->installed.load(std::memory_order_acquire)&&s->wordAddress.load(std::memory_order_acquire)&&s->equal(a,b)!=0;
 }
+bool conditionWords(std::uint32_t address,reader_insertion_condition::Words &out) {
+    auto *s=resident.load(std::memory_order_acquire);
+    if(!s||!s->conditionSelected||!s->installed.load(std::memory_order_acquire)||
+       !s->treeReceiver.load(std::memory_order_acquire)||!address||address!=s->wordAddress.load(std::memory_order_acquire))return false;
+    std::uint32_t words[2];std::memcpy(words,reinterpret_cast<const void*>(std::uintptr_t(address)),8);
+    out={words[0],words[1]};return true;
+}
+std::uint32_t conditionSearch(std::uint32_t receiver,const QString &value) {
+    auto *s=resident.load(std::memory_order_acquire);
+    if(!s||!s->conditionSelected||!s->installed.load(std::memory_order_acquire)||
+       !s->treeReceiver.load(std::memory_order_acquire)||!receiver||receiver!=s->searchReceiver.load(std::memory_order_acquire))return 0;
+    return s->search(receiver,value);
+}
+bool conditionEqual(const QString &a,const QString &b) {
+    auto *s=resident.load(std::memory_order_acquire);
+    return s&&s->conditionSelected&&s->installed.load(std::memory_order_acquire)&&
+        s->treeReceiver.load(std::memory_order_acquire)&&s->equal(a,b)!=0;
+}
+bool conditionTree(std::uint32_t receiver,reader_insertion_condition::Tree &out) {
+    auto *s=resident.load(std::memory_order_acquire);
+    if(!s||!s->conditionSelected||!s->installed.load(std::memory_order_acquire)||
+       !receiver||receiver!=s->treeReceiver.load(std::memory_order_acquire))return false;
+    // The owned result carrier is not the native noncontiguous header layout.
+    const auto address=std::uintptr_t(receiver);
+    std::uint32_t root=0,count=0;
+    std::memcpy(&root,reinterpret_cast<const void*>(address+8),4);
+    std::memcpy(&count,reinterpret_cast<const void*>(address+20),4);
+    out={root,count};return true;
+}
+std::uint32_t conditionFind(std::uint32_t receiver,const QString &value) {
+    auto *s=resident.load(std::memory_order_acquire);
+    if(!s||!s->conditionSelected||!s->installed.load(std::memory_order_acquire)||!s->find||
+       !receiver||receiver!=s->treeReceiver.load(std::memory_order_acquire))return 0;
+    return s->find(receiver,value);
+}
 bool installRead(void*,std::uintptr_t at,unsigned char *out,std::size_t n) {std::memcpy(out,reinterpret_cast<const void*>(at),n);return true;}
 bool installMap(void*,std::uintptr_t at,reader_insertion_hooks::Mapping &out) {
     const auto all=maps();const auto *m=cover(all,at,1,false);if(!m)return false;
@@ -255,10 +297,12 @@ bool installMap(void*,std::uintptr_t at,reader_insertion_hooks::Mapping &out) {
 int installHook(void*,void *at,void *replacement,void **original) {return DobbyHook(at,replacement,original);}
 }
 Facilities::Facilities(State *state):state_(state),core(state->core),passiveCalls{readWords,search,equal},
-    baseAdmission{true,false,false,false,false,false},outerReturnPC(0x6ee780),innerReturnPC(0x841988),
+    baseAdmission{true,false,false,false,false,false},
+    baseConditionAdmission{state->conditionSelected,false,false,false,false,false},conditionQualified(state->conditionSelected),
+    outerReturnPC(0x6ee780),innerReturnPC(0x841988),
     observedTaskCount(state->taskCount),applicationAbsent(true) {}
 
-Facilities *installBeforeMain() {
+Facilities *installBeforeMain(bool wantCondition) {
     try {
 #if !defined(__arm__) || defined(__thumb__) || !defined(__ARM_PCS_VFP) || __BYTE_ORDER__!=__ORDER_LITTLE_ENDIAN__
         die();
@@ -285,6 +329,17 @@ Facilities *installBeforeMain() {
         const auto eqSymbol=qtFile.function(EqualSymbol);exactExport(qtFile,qt,qtEqual,EqualSymbol,eqSymbol.st_value,eqSymbol.st_size);
         const auto slot=main.jumpSlot(EqualSymbol);need(fileRange(main,s->main,all,slot,4));
         std::uint32_t bound=0;std::memcpy(&bound,reinterpret_cast<const void*>(slot),4);need(bound==reinterpret_cast<std::uintptr_t>(qtEqual));
+        if(wantCondition) {
+            need(inLoad(s->main,FindAddress,208,true)&&cover(all,FindAddress,208,true));
+            void *qtCompare=version(CompareSymbol,"Qt_6");
+            // Reuse the already hash/code-qualified Qt module; do not call it.
+            exactExport(qtFile,qt,qtCompare,CompareSymbol,0x1b3748,148);
+            const auto compareSlot=main.jumpSlot(CompareSymbol);
+            need(compareSlot==CompareSlot&&fileRange(main,s->main,all,compareSlot,4));
+            std::uint32_t compareBound=0;std::memcpy(&compareBound,reinterpret_cast<const void*>(compareSlot),4);
+            need(compareBound==reinterpret_cast<std::uintptr_t>(qtCompare));
+            s->find=reinterpret_cast<State::Find>(FindAddress);s->conditionSelected=true;
+        }
         s->tryLock=reinterpret_cast<int(*)(pthread_mutex_t*)>(try_);s->unlock=reinterpret_cast<int(*)(pthread_mutex_t*)>(unlock_);
         s->search=reinterpret_cast<State::Search>(SearchAddress);s->equal=reinterpret_cast<State::Equal>(EqualAddress);
         main.stable();libcFile.stable();qtFile.stable();need(!QCoreApplication::instance());
@@ -296,8 +351,9 @@ Facilities *installBeforeMain() {
     }catch(...){die();}
 }
 
-AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejectProbe)const {
+AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejectProbe,bool wantCondition)const {
     try {
+        if((wantCondition&&wantPostRejectProbe)||(wantCondition&&!state_->conditionSelected))return {};
         auto *app=QCoreApplication::instance();
         if(!app||QThread::currentThread()!=app->thread()||!worker||!state_->installed.load(std::memory_order_acquire)||state_->partsUsed.exchange(true,std::memory_order_acq_rel))return {};
         QPointer<QObject> guarded(worker);
@@ -315,6 +371,16 @@ AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejec
         reader_insertion_job_snapshot::Config c;c.mutex=reinterpret_cast<pthread_mutex_t*>(mutex);c.words=reinterpret_cast<const std::uint32_t*>(words);
         c.mutexStorage={mutex,mutex+24};c.wordStorage={words,end};c.tryLock=state_->tryLock;c.unlock=state_->unlock;
         auto *context=reader_insertion_job_snapshot::Snapshot::create(c);if(!context)return {};
+        std::uintptr_t tree=0;
+        reader_insertion_condition::Calls conditionCalls;
+        if(wantCondition) {
+            std::uintptr_t treeEnd=0;
+            if(!add(w,296,tree)||!add(tree,24,treeEnd))return {};
+            const auto *header=cover(all,tree,24,false);if(!header||header->x||!guarded)return {};
+            // Only storage admission here; values are read later under the
+            // caller's original final map mutex, not on this GUI stack.
+            conditionCalls={conditionWords,conditionSearch,conditionEqual,conditionTree,conditionFind};
+        }
         reader_insertion_mutex_probe::Probe *postRejectProbe=nullptr;
         if(wantPostRejectProbe) {
             std::uintptr_t finalMutex=0,finalKind=0,finalEnd=0;
@@ -328,7 +394,8 @@ AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejec
             postRejectProbe=reader_insertion_mutex_probe::Probe::create(probe);if(!postRejectProbe)return {};
         }
         state_->wordAddress.store(std::uint32_t(first),std::memory_order_release);state_->searchReceiver.store(std::uint32_t(receiver),std::memory_order_release);
-        return {reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute,postRejectProbe};
+        if(wantCondition)state_->treeReceiver.store(std::uint32_t(tree),std::memory_order_release);
+        return {reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute,postRejectProbe,conditionCalls};
     }catch(...){return {};}
 }
 }

@@ -1,7 +1,10 @@
 #pragma once
-// Original research-only negative hook core. No native resolver or ownership grant.
+// Original research hook core, default-negative. Optional conditional forwarding
+// requires separate qualifications; this supplies no native resolver/ownership.
 #include "reader_insertion_guard_predicate.h"
 #include "reader_insertion_mutex_probe.h"
+#include "reader_insertion_condition.h"
+#include "reader_insertion_forward_decision.h"
 #include <QSizeF>
 #include <QUuid>
 #include <atomic>
@@ -38,7 +41,9 @@ struct Binding {
     QSizeF size;
     CallerPolicy policy=CallerPolicy::ExactOwned;
 };
-enum class Refusal { None, Binding, Duplicate, Canceled, Deadline, Attribution, Predicate, MissingInner, UnrelatedException };
+enum class Policy { NegativeOnly, ForwardIfCurrent };
+enum class Refusal { None, Binding, Duplicate, Canceled, Deadline, Attribution, Predicate, MissingInner, UnrelatedException,
+    Condition, PostForwardCanceled, PostForwardDeadline, PostForwardInterference };
 struct Outcome {
     bool terminal=false, privateCaught=false, observedMismatch=false, unknown=false, interference=false;
     bool canceled=false, witness=false;
@@ -48,6 +53,8 @@ struct Outcome {
     Refusal refusal=Refusal::None;
     reader_insertion_predicate::Result predicate;
     reader_insertion_mutex_probe::Result postReject;
+    bool forwardCommitted=false,innerReturned=false,outerReturned=false,reconciliationRequired=false;
+    reader_insertion_condition::Result condition;
 };
 struct Registration {
     QUuid target;
@@ -61,12 +68,17 @@ struct Registration {
     void *attributionContext=nullptr;
     bool (*attribute)(void *,std::uint64_t &) noexcept=nullptr;
     reader_insertion_mutex_probe::Probe *postRejectProbe=nullptr;
+    Policy policy=Policy::NegativeOnly;
+    std::unique_ptr<const reader_insertion_condition::Frozen> frozenCondition;
+    reader_insertion_condition::Calls conditionCalls;
+    reader_insertion_condition::CallerAdmission conditionAdmission;
 };
 class Core final {
     struct Record {
         Registration input;
         std::atomic<bool> claimed{false}, canceled{false}, terminal{false}, interference{false};
         Outcome outcome;
+        reader_insertion_forward_decision::Decision decision;
         explicit Record(Registration &&r):input(std::move(r)) {}
     };
     struct Scope { Core *core; Record *record; Scope *previous; bool inner=false; };
@@ -128,7 +140,10 @@ class Core final {
         }
         return false;
     }
-    static void finish(Record *r) { r->outcome.terminal=true; r->terminal.store(true,std::memory_order_release); }
+    static void finish(Record *r) {
+        if(r->input.policy==Policy::ForwardIfCurrent) r->decision.reject();
+        r->outcome.terminal=true; r->terminal.store(true,std::memory_order_release);
+    }
     static Core *ready() {
         Core *c=active_.load(std::memory_order_acquire);
         if(!c) std::_Exit(119);
@@ -172,9 +187,16 @@ class Core final {
         struct Restore { Scope *old; ~Restore(){scope_=old;} } restore{previous};
         try {
             originalOuter_(worker,index,optional,present,size,source,inherit,target);
-            r->outcome.unknown=true; r->outcome.refusal=Refusal::MissingInner;
+            if(r->input.policy==Policy::ForwardIfCurrent) r->outcome.outerReturned=true;
+            if(r->input.policy==Policy::ForwardIfCurrent && r->outcome.forwardCommitted && r->outcome.innerReturned && r->outcome.trackedForwards==1) {
+                if(r->interference.load(std::memory_order_acquire)) {r->outcome.unknown=true;r->outcome.refusal=Refusal::PostForwardInterference;}
+                else if(r->canceled.load(std::memory_order_acquire)) {r->outcome.unknown=true;r->outcome.refusal=Refusal::PostForwardCanceled;}
+                else if(std::chrono::steady_clock::now()>=r->input.deadline) {r->outcome.unknown=true;r->outcome.refusal=Refusal::PostForwardDeadline;}
+            } else {r->outcome.unknown=true; r->outcome.refusal=Refusal::MissingInner;}
         } catch(const Rejected &rejected) {
             if(rejected.record!=r) stop("foreign-private-rejection");
+            if(r->input.policy==Policy::ForwardIfCurrent && r->decision.current()==reader_insertion_forward_decision::State::ForwardCommitted)
+                stop("private-rejection-after-forward-commit");
             r->outcome.privateCaught=true;
             if(r->input.postRejectProbe && r->outcome.observedMismatch && r->outcome.refusal==Refusal::None &&
                !r->outcome.unknown && !r->interference.load(std::memory_order_acquire)) {
@@ -199,6 +221,33 @@ class Core final {
         if(s->core!=this || s->inner || pc!=r->input.binding.innerReturnPC || map!=r->input.binding.map ||
            std::this_thread::get_id()!=r->input.binding.thread) stop("unqualified-tracked-inner");
         s->inner=true; r->outcome.innerCalls=1;
+        if(r->input.policy==Policy::ForwardIfCurrent) {
+            const auto w=address(r->input.binding.worker),m=address(map);
+            if(w>UINT32_MAX || m>UINT32_MAX) stop("condition-address-width");
+            if(r->canceled.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Canceled;
+            else if(std::chrono::steady_clock::now()>=r->input.deadline) r->outcome.refusal=Refusal::Deadline;
+            else {
+                reader_insertion_condition::Frame frame{Word(w),Word(m),index,&target};
+                r->outcome.condition=reader_insertion_condition::observe(*r->input.frozenCondition,frame,r->input.conditionCalls,r->input.conditionAdmission);
+                if(!r->outcome.condition.matched) r->outcome.refusal=Refusal::Condition;
+                if(r->canceled.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Canceled;
+                else if(std::chrono::steady_clock::now()>=r->input.deadline) r->outcome.refusal=Refusal::Deadline;
+                else if(r->interference.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Condition;
+            }
+            if(r->outcome.refusal!=Refusal::None) {r->decision.reject();throw Rejected{r};}
+            const auto selected=r->decision.forward();
+            if(!selected.changed) {
+                if(selected.state==reader_insertion_forward_decision::State::ForwardCommitted) stop("forward-commit-reused");
+                r->outcome.refusal=selected.state==reader_insertion_forward_decision::State::Canceled ? Refusal::Canceled : Refusal::Condition;
+                throw Rejected{r};
+            }
+            // The first tracked forward is admitted. No private rejection after
+            // this point: a later error/cancel requires read-only reconciliation.
+            r->outcome.forwardCommitted=true;r->outcome.trackedForwards=1;
+            originalInner_(map,index,target,templ,fifth,sixth);
+            r->outcome.innerReturned=true;
+            return;
+        }
         if(r->canceled.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Canceled;
         else if(std::chrono::steady_clock::now()>=r->input.deadline) r->outcome.refusal=Refusal::Deadline;
         else {
@@ -213,7 +262,7 @@ class Core final {
             if(r->canceled.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Canceled;
             else if(std::chrono::steady_clock::now()>=r->input.deadline) r->outcome.refusal=Refusal::Deadline;
         }
-        // Unconditional negative-only barrier. There is no tracked call to originalInner_.
+        // Default negative-only barrier. This policy never forwards a tracked call.
         throw Rejected{r};
     }
 public:
@@ -242,21 +291,53 @@ public:
         } catch(...) { stop("installation-exception"); }
     }
     bool registerOnce(Registration &&input) {
-        if(phase_.load(std::memory_order_acquire)!=Phase::Verified || input.target.isNull() || !input.frozen ||
+        if(phase_.load(std::memory_order_acquire)!=Phase::Verified || input.target.isNull() ||
            !input.binding.worker || !input.binding.map || !input.binding.outerReturnPC || !input.binding.innerReturnPC ||
-           input.binding.thread==std::thread::id{} || !input.residentNativeOwners || !validPolicy(input.binding) ||
-           input.target.toString(QUuid::WithoutBraces)!=input.frozen->requestedTarget()) return false;
+           input.binding.thread==std::thread::id{} || !input.residentNativeOwners || !validPolicy(input.binding)) return false;
+        switch(input.policy) {
+        case Policy::NegativeOnly:
+            if(!input.frozen || input.frozenCondition || input.target.toString(QUuid::WithoutBraces)!=input.frozen->requestedTarget()) return false;
+            break;
+        case Policy::ForwardIfCurrent:
+            if(input.frozen || !input.frozenCondition || input.postRejectProbe ||
+               input.target.toString(QUuid::WithoutBraces)!=input.frozenCondition->target() ||
+               !input.conditionCalls.readWords || !input.conditionCalls.search || !input.conditionCalls.equal ||
+               !input.conditionCalls.readTree || !input.conditionCalls.find) return false;
+            break;
+        default:return false;
+        }
         bool no=false; if(!registered_.compare_exchange_strong(no,true,std::memory_order_acq_rel)) return false;
         record_.store(new Record(std::move(input)),std::memory_order_release); return true;
     }
-    void cancel() { if(auto *r=record_.load(std::memory_order_acquire)) r->canceled.store(true,std::memory_order_release); }
+    void cancel() { if(auto *r=record_.load(std::memory_order_acquire)) {
+        if(r->input.policy==Policy::ForwardIfCurrent) r->decision.cancel();
+        r->canceled.store(true,std::memory_order_release);
+    } }
     Outcome snapshot() const {
         auto *r=record_.load(std::memory_order_acquire);
-        if(!r || !r->terminal.load(std::memory_order_acquire)) return {};
+        if(!r) return {};
+        if(!r->terminal.load(std::memory_order_acquire)) {
+            if(r->input.policy==Policy::ForwardIfCurrent && r->decision.current()==reader_insertion_forward_decision::State::ForwardCommitted) {
+                Outcome pending;pending.forwardCommitted=true;pending.reconciliationRequired=true;pending.unknown=true;return pending;
+            }
+            return {};
+        }
         Outcome result=r->outcome;
         result.interference=r->interference.load(std::memory_order_acquire);
         result.canceled=r->canceled.load(std::memory_order_acquire);
-        result.witness=result.privateCaught && result.observedMismatch && !result.unknown &&
+        if(r->input.policy==Policy::ForwardIfCurrent) {
+            result.reconciliationRequired=result.forwardCommitted && (result.unknown||result.interference||result.canceled||
+                result.refusal!=Refusal::None||!result.innerReturned||!result.outerReturned);
+            if(result.reconciliationRequired) {
+                result.unknown=true;
+                if(result.refusal==Refusal::None) {
+                    if(result.interference) result.refusal=Refusal::PostForwardInterference;
+                    else if(result.canceled) result.refusal=Refusal::PostForwardCanceled;
+                }
+            }
+            result.witness=result.forwardCommitted && result.innerReturned && result.outerReturned && result.condition.matched &&
+                result.trackedForwards==1 && !result.reconciliationRequired;
+        } else result.witness=result.privateCaught && result.observedMismatch && !result.unknown &&
             !result.interference && !result.canceled && result.refusal==Refusal::None &&
             (!r->input.postRejectProbe || reader_insertion_mutex_probe::successful(result.postReject));
         return result;

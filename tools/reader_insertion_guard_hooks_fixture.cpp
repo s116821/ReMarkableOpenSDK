@@ -123,6 +123,12 @@ static std::string scenario;
 static std::string testName;
 static bool postRequested=false;
 static unsigned postTries=0,postUnlocks=0;
+static bool forwardRequested=false;
+static int forwardSourceIndex=1,forwardCount=8,operationIndex=2;
+static unsigned conditionReads=0,conditionSearches=0,conditionTrees=0,conditionFinds=0;
+static std::mutex inFlightMutex;
+static std::condition_variable inFlightCv;
+static bool inFlightEntered=false,inFlightReleased=false;
 static Core *core=nullptr;
 static unsigned originalOuterCalls=0,originalInnerCalls=0,cleanup=0,hookCalls=0,submissions=0,attributions=0;
 static void *firstTrampoline=nullptr;
@@ -147,7 +153,14 @@ static const QUuid targetId(target),foreignId(QStringLiteral("55555555-5555-4555
 static std::mutex mapMutex;
 extern "C" void owned_inner_body(void *m,int i,const QString &u,const QString &t,std::int32_t a,std::int32_t b) {
     ++originalInnerCalls;
-    forwarding=forwarding && m==map && i==2 && !u.isEmpty() && t==real && a==-123456789 && b==0x7f123456;
+    forwarding=forwarding && m==map && i==(forwardRequested?operationIndex:2) && !u.isEmpty() && t==real && a==-123456789 && b==0x7f123456;
+    if(forwardRequested && testName=="forward-inflight") {
+        std::unique_lock<std::mutex> guard(inFlightMutex);inFlightEntered=true;inFlightCv.notify_one();
+        inFlightCv.wait(guard,[]{return inFlightReleased;});
+    }
+    if(testName=="forward-cancel-in-inner")core->cancel();
+    if(testName=="forward-deadline-in-inner")std::this_thread::sleep_for(std::chrono::milliseconds(350));
+    if(testName=="forward-throw-inner")throw std::runtime_error("owned committed inner");
     if(scenario=="unrelated-inner") throw std::runtime_error("owned unrelated inner");
 }
 extern "C" void owned_outer_body(void *w,int i,const void *o,Word p,QSizeF z,int s,Word h,const QUuid &u) {
@@ -155,6 +168,8 @@ extern "C" void owned_outer_body(void *w,int i,const void *o,Word p,QSizeF z,int
     if(borrowedScenario())
         forwarding=forwarding && w==worker && i==2 && o==borrowedOptional && p==1 && h==0 &&
             std::memcmp(&s,&borrowedSource,sizeof s)==0 && std::memcmp(&z,&borrowedSize,sizeof z)==0;
+    else if(forwardRequested)
+        forwarding=forwarding && w==worker && i==operationIndex && o==&optional && p==0x7f123401 && z==QSizeF(1404.25,1872.5) && s==forwardSourceIndex && h==0x7e123400;
     else
         forwarding=forwarding && w==worker && i==2 && o==&optional && p==0x7f123401 && z==QSizeF(1404.25,1872.5) && s==1 && h==0x7e123400;
     if(scenario=="unrelated-outer") throw std::runtime_error("owned unrelated outer");
@@ -163,6 +178,7 @@ extern "C" void owned_outer_body(void *w,int i,const void *o,Word p,QSizeF z,int
     QString temporary=QStringLiteral("owned temporary");
     struct Cleanup { ~Cleanup(){++cleanup;} } counted;
     if(testName=="post-normal")return;
+    if(testName=="forward-no-inner")return;
     if(testName=="post-busy")lock.release(); // Owned defect control: original fails to unlock.
     if(scenario=="cancel-inner") core->cancel();
     const QString effective=scenario=="transformed-target" ? right : u.toString(QUuid::WithoutBraces);
@@ -172,6 +188,11 @@ extern "C" void owned_outer_body(void *w,int i,const void *o,Word p,QSizeF z,int
         try {invoke_inner(map,effectiveIndex,effective,real,-123456789,0x7f123456);}catch(...){}
         invoke_inner(map,effectiveIndex,effective,real,-123456789,0x7f123456);
     } else invoke_inner(map,effectiveIndex,effective,real,-123456789,0x7f123456);
+    if(testName=="forward-cancel-tail")core->cancel();
+    if(testName=="forward-throw-tail")throw std::runtime_error("owned committed tail");
+    if(testName=="forward-interference-tail" && u==targetId) {
+        lock.unlock();invoke_outer(w,i,o,p,z,s,h,foreignId);
+    }
     check(!temporary.isEmpty(),"owned temporary alive on normal path");
 }
 static bool query(void*,std::uintptr_t at,Mapping &m) {
@@ -232,6 +253,31 @@ static reader_insertion_predicate::Address search(reader_insertion_predicate::Ad
     return 0x1040;
 }
 static bool equal(const QString &a,const QString &b) { return a==b; }
+static bool conditionWords(reader_insertion_condition::Address at,reader_insertion_condition::Words &v) {
+    ++conditionReads;check(at==reinterpret_cast<std::uintptr_t>(map)+84,"condition span receiver exact");
+    const unsigned count=testName=="forward-wrong-count"?unsigned(forwardCount+1):unsigned(forwardCount);
+    v={0x1000,0x1000+count*8};return true;
+}
+static reader_insertion_condition::Address conditionSearch(reader_insertion_condition::Address at,const QString &id) {
+    ++conditionSearches;check(at==reinterpret_cast<std::uintptr_t>(map)+80,"condition order receiver exact");
+    if(testName=="forward-cancel-predicate")core->cancel();
+    if(id==real)return 0x1000+8*unsigned(testName=="forward-wrong-source"?0:forwardSourceIndex);
+    if(id==right)return 0x1000+8*unsigned(forwardSourceIndex+(testName=="forward-wrong-right"?2:1));
+    return 0x1000+unsigned(forwardCount)*8;
+}
+static bool conditionTree(reader_insertion_condition::Address at,reader_insertion_condition::Tree &v) {
+    ++conditionTrees;check(at==reinterpret_cast<std::uintptr_t>(map)+96,"condition tree receiver exact");
+    v={0x9000,unsigned(forwardCount)};return true;
+}
+static reader_insertion_condition::Address conditionFind(reader_insertion_condition::Address at,const QString &id) {
+    ++conditionFinds;check(at==reinterpret_cast<std::uintptr_t>(map)+96 && id==target,"condition find receiver and frozen target exact");
+    return testName=="forward-tree-collision"?0x9000:at+4;
+}
+static bool forwardBadRegistration(){return testName.rfind("forward-reg-",0)==0;}
+static auto conditionFrozen() {
+    return reader_insertion_condition::freeze({forwardSourceIndex,forwardCount,real,target,
+        forwardSourceIndex+1<forwardCount?right:QString()});
+}
 static int postTry(pthread_mutex_t *mutex) {
     ++postTries;
     check(cleanup==1 && originalOuterCalls==1 && originalInnerCalls==0,"probe runs after original owned cleanup");
@@ -257,10 +303,26 @@ class Worker final:public QThread { public:std::function<void()> body; void run(
 int main(int argc,char **argv) {
     QCoreApplication app(argc,argv); check(argc==2,"one scenario"); scenario=argv[1];testName=scenario;
     postRequested=scenario.rfind("post-",0)==0;
+    forwardRequested=scenario.rfind("forward-",0)==0;
     if(postRequested) {
         scenario=scenario.substr(5);
         if(scenario=="valid"||scenario=="busy"||scenario=="unlock-failure"||scenario=="after-cancel"||scenario=="after-deadline"||scenario=="normal"||scenario=="wrong-thread")scenario="mismatch";
         if(scenario=="unrelated")scenario="unrelated-outer";
+    }
+    if(forwardRequested) {
+        if(testName=="forward-end")forwardSourceIndex=7;
+        if(testName=="forward-single"){forwardSourceIndex=0;forwardCount=1;}
+        operationIndex=forwardSourceIndex+1;
+        scenario="mismatch";
+        if(testName=="forward-cancel-before")scenario="cancel";
+        if(testName=="forward-cancel-before-inner")scenario="cancel-inner";
+        if(testName=="forward-transformed-index")scenario="transformed-index";
+        if(testName=="forward-transformed-target")scenario="transformed-target";
+        if(testName=="forward-duplicate")scenario="duplicate";
+        if(testName=="forward-nested-untracked")scenario="nested";
+        if(testName=="forward-untracked")scenario="foreign";
+        if(testName=="forward-binding")scenario="binding";
+        if(testName=="forward-borrowed")scenario="borrowed-stack-a";
     }
     core=Core::create({nullptr,hook,readBytes,query,stopped});
     Install plan; plan.outer=reinterpret_cast<void*>(&owned_outer_entry);plan.inner=reinterpret_cast<void*>(&owned_inner_entry);
@@ -276,10 +338,10 @@ int main(int argc,char **argv) {
         if(!allowSubmission)return;
         try {
             const QUuid id=!postRequested && (scenario=="foreign"||scenario=="unrelated-outer"||scenario=="unrelated-inner") ? foreignId:targetId;
-            int index=scenario=="binding"?3:2;
+            int index=scenario=="binding"?3:forwardRequested?operationIndex:2;
             alignas(4) unsigned char dynamic[32]{};
             const void *actualOptional=&optional;Word actualPresent=0x7f123401,actualInherit=0x7e123400;
-            int actualSource=1;QSizeF actualSize(1404.25,1872.5);void *actualWorker=worker;
+            int actualSource=forwardRequested?forwardSourceIndex:1;QSizeF actualSize(1404.25,1872.5);void *actualWorker=worker;
             if(borrowedScenario()) {
                 actualOptional=dynamic+(scenario=="borrowed-stack-b"?8:scenario=="borrowed-stack-c"?16:0);
                 actualPresent=1;actualInherit=0;
@@ -303,6 +365,7 @@ int main(int argc,char **argv) {
             ++submissions;
             invoke_outer(actualWorker,index,actualOptional,actualPresent,actualSize,actualSource,actualInherit,id);
             if(scenario=="duplicate") invoke_outer(worker,2,&optional,0x7f123401,QSizeF(1404.25,1872.5),1,0x7e123400,targetId);
+            if(testName=="forward-cancel-after-terminal")core->cancel();
         } catch(const std::runtime_error &) {outsideThrow=true;}
         lockFree=mapMutex.try_lock();if(lockFree)mapMutex.unlock();
     };
@@ -354,11 +417,91 @@ int main(int argc,char **argv) {
             return 0;
         }
     }
+    if(forwardRequested) {
+        r.policy=Policy::ForwardIfCurrent;r.frozen.reset();
+        auto condition=conditionFrozen();check(bool(condition.frozen),"owned condition freeze");r.frozenCondition=std::move(condition.frozen);
+        r.conditionCalls={conditionWords,conditionSearch,equal,conditionTree,conditionFind};
+        r.conditionAdmission={true,true,true,true,true,true};
+        r.attribute=attribute;r.binding.index=operationIndex;
+        if(!borrowedScenario())r.binding.sourceIndex=forwardSourceIndex;
+        if(testName=="forward-wrong-thread")r.binding.thread=std::this_thread::get_id();
+        if(testName=="forward-deadline-in-inner")r.deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(250);
+        if(testName=="forward-admission")r.conditionAdmission.finalLock=false;
+        if(forwardBadRegistration()) {
+            const auto goodCalls=r.conditionCalls;
+            if(testName=="forward-reg-both-forms"||testName=="forward-reg-negative-mixed")r.frozen=reader_insertion_predicate::freeze(config).frozen;
+            if(testName=="forward-reg-missing-form")r.frozenCondition.reset();
+            if(testName=="forward-reg-target")r.target=foreignId;
+            if(testName=="forward-reg-read")r.conditionCalls.readWords=nullptr;
+            if(testName=="forward-reg-search")r.conditionCalls.search=nullptr;
+            if(testName=="forward-reg-equal")r.conditionCalls.equal=nullptr;
+            if(testName=="forward-reg-tree")r.conditionCalls.readTree=nullptr;
+            if(testName=="forward-reg-find")r.conditionCalls.find=nullptr;
+            if(testName=="forward-reg-negative-mixed")r.policy=Policy::NegativeOnly;
+            if(testName=="forward-reg-policy")r.policy=static_cast<Policy>(255);
+            if(testName=="forward-reg-post-probe") {
+                auto *mutex=mapMutex.native_handle();const auto at=reinterpret_cast<std::uintptr_t>(mutex);
+                r.postRejectProbe=reader_insertion_mutex_probe::Probe::create({mutex,{at,at+sizeof(*mutex)},postTry,postUnlock});
+                check(r.postRejectProbe!=nullptr,"invalid mixed policy has real typed probe");
+            }
+            check(!core->registerOnce(std::move(r)),"invalid forward policy registration refused");
+            check(!core->snapshot().terminal&&!submissions&&!originalOuterCalls&&!originalInnerCalls,"invalid forward configuration no execution/publication");
+            r.policy=Policy::ForwardIfCurrent;r.frozen.reset();r.frozenCondition=conditionFrozen().frozen;
+            r.target=targetId;r.conditionCalls=goodCalls;r.postRejectProbe=nullptr;
+            check(core->registerOnce(std::move(r)),"bad config did not consume registration");
+            allowSubmission=false;
+            {std::lock_guard<std::mutex> lock(mutex);go=true;cv.notify_one();}thread.wait();
+            check(!submissions&&!originalOuterCalls&&!originalInnerCalls&&!attributions,"corrected configuration still not dispatched");
+            std::printf("{\"passed\":true,\"scenario\":\"%s\",\"checks\":%u,\"tracked_forward\":0,\"native_qualification\":false}\n",testName.c_str(),checks);return 0;
+        }
+    }
     check(core->registerOnce(std::move(r)),"registration after verified pair");
     Registration empty;check(!core->registerOnce(std::move(empty)),"no second registration");
     if(scenario=="cancel")core->cancel();
-    {std::lock_guard<std::mutex> lock(mutex);go=true;cv.notify_one();}thread.wait();
+    {std::lock_guard<std::mutex> lock(mutex);go=true;cv.notify_one();}
+    if(testName=="forward-inflight") {
+        std::unique_lock<std::mutex> guard(inFlightMutex);inFlightCv.wait(guard,[]{return inFlightEntered;});
+        const auto pending=core->snapshot();
+        check(!pending.terminal&&pending.forwardCommitted&&pending.unknown&&pending.reconciliationRequired,"inflight forward snapshot conservatively requests reconciliation");
+        check(!pending.innerReturned&&!pending.outerReturned&&!pending.witness&&!pending.trackedForwards&&!pending.jobId&&!pending.condition.matched,"no unfinished plain outcome fields exposed");
+        inFlightReleased=true;inFlightCv.notify_one();
+    }
+    thread.wait();
     const auto result=core->snapshot();check(lockFree,"original mutex released");
+    if(forwardRequested) {
+        check(forwarding,"unchanged full ARM carriers into original bodies");
+        check(!result.privateCaught||!result.forwardCommitted,"private rejection never follows forward commitment");
+        check(!postTries&&!postUnlocks,"positive policy never invokes negative post-reject probe");
+        if(testName=="forward-untracked") {
+            check(!result.terminal&&!result.forwardCommitted&&!attributions&&originalInnerCalls==1,"untracked original path remains transparent and unattributed");
+        } else {
+            const bool positive=testName=="forward-valid"||testName=="forward-end"||testName=="forward-single"||testName=="forward-borrowed"||testName=="forward-inflight";
+            const bool effect=positive||testName=="forward-cancel-in-inner"||testName=="forward-cancel-tail"||testName=="forward-cancel-after-terminal"||
+                testName=="forward-deadline-in-inner"||testName=="forward-throw-inner"||testName=="forward-throw-tail"||testName=="forward-duplicate"||testName=="forward-interference-tail";
+            check(result.terminal&&result.witness==positive,"only known complete uncontested forward is a passing control-flow witness");
+            check(result.forwardCommitted==effect&&result.trackedForwards==unsigned(effect),"first forward commit and attempted count exact");
+            check(originalInnerCalls==unsigned(effect)+(testName=="forward-nested-untracked"||testName=="forward-interference-tail"?1U:0U),"one tracked original call plus only intentional untracked controls");
+            check(result.reconciliationRequired==(effect&&!positive),"possible postcommit effects require reconciliation");
+            if(effect) {
+                check(result.condition.matched&&!result.privateCaught&&result.innerCalls==1&&result.outerCalls==1,"committed path has complete condition and no private rejection");
+                check(result.innerReturned==(testName!="forward-throw-inner")&&result.outerReturned==(testName!="forward-throw-inner"&&testName!="forward-throw-tail"),"inner and outer normal return tracked independently");
+                check(result.unknown==!positive,"late cancel/error/interference never a known successful outcome");
+                check(conditionSearches==unsigned(forwardSourceIndex+1==forwardCount?1:2)&&conditionFinds==1&&conditionTrees==2&&conditionReads==2,"one complete bounded condition before first forward");
+                if(testName=="forward-throw-inner"||testName=="forward-throw-tail")check(outsideThrow&&result.refusal==Refusal::UnrelatedException,"unrelated postforward exception propagated after owned cleanup");
+                if(testName=="forward-cancel-in-inner"||testName=="forward-cancel-tail"||testName=="forward-cancel-after-terminal")check(result.canceled&&result.refusal==Refusal::PostForwardCanceled,"late cancellation recorded without revocation");
+                if(testName=="forward-duplicate"||testName=="forward-interference-tail")check(result.interference&&result.refusal==Refusal::PostForwardInterference,"late duplicate/untracked interference records uncertain effect");
+                if(testName=="forward-deadline-in-inner")check(result.refusal==Refusal::PostForwardDeadline,"postforward deadline does not pretend pre-effect refusal");
+            } else if(testName=="forward-no-inner") {
+                check(result.outerReturned&&!result.innerReturned&&!result.privateCaught&&result.unknown&&result.refusal==Refusal::MissingInner,"success-shaped outer return without inner never proves forwarding or insertion");
+            } else if(testName=="forward-cancel-before"||testName=="forward-binding"||testName=="forward-wrong-thread") {
+                check(!result.privateCaught&&!originalOuterCalls&&!conditionReads&&!attributions,"early qualified admission refusal never reaches original or condition");
+            } else {
+                check(result.privateCaught&&!result.unknown&&!result.innerReturned&&!result.outerReturned,"failed pre-forward condition uses original private unwind only");
+            }
+            check(cleanup==originalOuterCalls,"all entered original owned cleanup scopes finish");
+        }
+        std::printf("{\"passed\":true,\"scenario\":\"%s\",\"checks\":%u,\"tracked_forward\":%u,\"native_qualification\":false}\n",testName.c_str(),checks,result.trackedForwards);return 0;
+    }
     if(postRequested) {
         const bool tried=testName=="post-valid"||testName=="post-after-cancel"||testName=="post-after-deadline";
         check(postTries==unsigned(tried)&&postUnlocks==unsigned(tried),"probe only after qualified successful private unwind");
