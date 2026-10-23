@@ -77,7 +77,9 @@ successful count metadata on every initialization attempt. The synchronous
 missing-backend/PDF-handle branch constructs zero count metadata and reaches the
 ordinary emission comparison; the worker would clamp an emitted zero to one.
 That is a conditional initialization failure path, not evidence that it occurred
-or can recur after the admitted ready observation.
+or can recur after the admitted ready observation. The later readiness followup
+below further restricts it: fresh cached zero and failure metadata zero do not
+emit a changed count, so this is not an every-failure shrink-to-one mechanism.
 
 The bounded conclusion is therefore conditional: if every later count emission
 is the same positive N and this worker's native/base count remains N, this
@@ -93,6 +95,90 @@ The [native worker observation](../experiments/worker-local-order-result.md)
 separately qualifies its six individual reads and their matching completion in
 one exact candidate. It does not supply this renderer-lifetime invariant, a
 shared map version across the reads or an atomic ordinary-creation precondition.
+
+## Initial readiness/lifetime followup — October 23, 2026 UTC
+
+The actual source admission checks selected SceneView Active/pageStatus Ready,
+no initial/pending tiles, no controller work, no facade loading/page error or
+document load error, plus the creation Library relationship/readiness. It does
+not directly observe PdfRenderer initialization, its cached PDF count, the
+worker's native/base count or a renderer generation. Exact status-update code
+derives SceneView status from its controller and controller counters; the
+page-status setter consumes a supplied Page::Status. Those getter/setter
+definitions alone do not establish the producer of every admitted Ready state.
+
+Normal worker ordering gives stronger evidence than those definitions alone:
+the inspected processJob path calls `ensureRenderer` before normal work for job
+types greater than15 and returns on failure. The page-lines loader also has an
+already-Ready fast path. These facts do not establish how every Ready state was
+produced or whether it can outlive renderer shutdown/replacement. No actual
+ready-but-failed counterexample was observed.
+
+`ensureRenderer` immediately returns when this worker already has a renderer;
+that ordinary path does not reinitialize the same instance. A newly created
+renderer starts with cached PDF count zero, receives the direct count connection
+and is initialized; failed initialization clears/deletes it. Fresh failure
+metadata zero compared with cached zero produces **no changed-count emission**.
+A fresh replacement emitting the same positive N also leaves the worker map
+unchanged when its native/base count remains N. Initialization success checks
+reply status, not an independently observed positive-count predicate. Neither
+success nor failure can be substituted for an actual count observation.
+
+The failed-init error bridge is also distinct from the count writer. Worker
+`documentError` is a signal, connected in retained construction to native
+Document `setLoadError` using AutoConnection (0). The setter updates the field
+read by the wrapper's `loadError` property. A cross-thread GUI receiver can lag
+emission under normal AutoConnection delivery; this is a threading inference,
+not an observed scheduling race or an exhaustive affinity/receiver proof.
+
+The inspected reset candidates narrow recurrence further. An idle empty queue
+waits; renderer deletion there requires the shutdown flag. The other identified
+regeneration branch has an EPUB filetype guard and supplies no fixed-PDF reset
+example. The bounded store scan does not cover aliases, all instruction forms or
+indirect/external writers. A generic renderer meta-property write arm can change
+the count, but no stock caller of that write was established. The password setter
+only assigns its string and does not invoke initialize. None of these mechanisms
+is a demonstrated fixed-PDF post-ready reinitialization or a proposed setter API.
+
+A concrete remaining indirect consumer is the export path: it ensures the
+current renderer, supplies that actual pointer to a factory-created exporter and
+invokes the exporter's virtual method. This is not itself a direct second call
+to renderer initialization; the downstream exporter was outside the initial
+batch. Exact Ready production and concrete indirect renderer/reset callers
+remain bounded proof gaps. No post-ready count race, stable-generation invariant,
+absence of other writers or atomic creation predicate follows from this batch.
+
+## Final insertion lock and Task outcome followup — October 23 UTC
+
+The ordinary handler takes its final worker-map mutex at `0x841824`, calls
+the insertion helper at `0x841984` and unlocks at `0x841a44`, without an
+intervening unlock. A direct-map predicate at this call is a possible design
+point, not an existing API. Calling the established locking getters there
+would recursively acquire a nonrecursive mutex. No existing expected-source
+argument or clean predicate-refusal branch was found.
+
+Invalid insertion indexes normalize to append. A requested UUID collision
+substitutes a generated UUID instead of refusing the operation. A future guard
+must retain outer operation eligibility through both transformations. Earlier
+source loading/status effects and later allocation/store effects also mean
+that preventing insertion is not a transaction rollback of all effects.
+
+The matching generic job-completion path can finish the Task and invoke its
+no-argument JavaScript continuation without a pageAdded event. Without that
+event, the onAdded dirty/store path does not run. Therefore Task completion
+alone cannot distinguish insertion from an explicit adapter refusal; the latter
+would need its own operation-bound outcome channel.
+
+The dispatcher and worker-loop exception regions around this handler are
+cleanup-only, not normal rejection handlers. Unrelated catch regions elsewhere
+do not cover these calls. At the exact insertion call, the handler's LSDA row
+routes through temporary QString destruction, mutex unlock and unwind resume.
+That establishes original cleanup coverage, not a safe native interception ABI.
+
+The proposed [owned interposition study](../../openspec/changes/establish-native-platform-contract/insertion-predicate-interposition-study.md)
+tests a private rejection exception caught by an owned outer wrapper. No native
+hook, executable predicate, refusal protocol or supported capability is
+established by this design or its original-callsite cleanup evidence.
 
 ## An external map lock is not the solution
 
@@ -167,6 +253,56 @@ The owned session closed at 03:54:42 UTC after export and its containers were
 absent. The earlier neutral snapshot restored evidence, not a Program database;
 the followup performed fresh analysis. No persistent database reuse, device
 action, renderer hook or direct-handler execution is claimed.
+
+The later initial readiness/lifetime checkpoint used twelve procedure requests
+and two xref queries on the same exact target. Its frozen private findings have
+SHA-256 `959bf83c5ca94559df404809eafb8e6d68e45742215d0fb464d875b410a08039`;
+the initial receipt has SHA-256
+`16c355457a823eef70e4bdb54e37ab77cc236e656d500a63451b270480276f67`.
+Ready-propagation/caller evidence is
+`ev_4e63a937778f180a643d0942868b4a967490c0c62fa3ca9a39a99a8e6d67a07b`;
+SceneView evidence is
+`ev_365a6d011b7fd7274c2117ef56ed21bd0f1c51953a5c580c3d261873bd4b711c`.
+
+Seven requested canonical starts matched. Requested SceneView update/check
+entries resolved to a merged metacall, and two worker callers resolved to the
+dispatcher; these are context rather than standalone requested bodies. An
+unknown load-error setter request returned an unrelated body, which was rejected;
+its small actual setter and the exact status branches use separate ARM slices.
+All raw replies and accepted/rejected mappings remain retained. This initial
+receipt records raw evidence export and a warm session reserved for the parent's
+separate followup, **not** a final neutral snapshot export or session closure.
+The earlier closed-session receipts above remain historical facts for their
+own batches.
+
+The final-lock batch accepted canonical procedures `0x841728`, `0x7b4bb4`
+and `0x3e6d94`, with evidence
+`ev_f0fba5e379a8c3beef6e0e5eff04a041279214e5cc47c25d44c7195590564518`.
+Its private receipt SHA-256 is
+`440bbba4308f62a0de1fe85827bf043d25f7305c7ecfb7772782b1aa00ffc8ae`.
+The Task-terminal batch accepted `0x6b2580` and `0x6ba4e8`, with evidence
+`ev_6fa3d9382816bdba9b6d56ab656aa189d551730dce358306df7a72450e2ab76e`.
+An unknown `0x7c040c` request returned unrelated `0x7cfdb8` pseudocode,
+which was rejected; the actual small finish stub uses retained ARM/RTTI.
+The terminal receipt SHA-256 is
+`b84a06a49b21706e6bae116e0c4dc1452dcc7c4a745a8478c0f8d3487898ca33`.
+
+The later retained ABI/LSDA review receipt SHA-256 is
+`8c0993ad8730109cde2635da001e59f45df99be5e903ae0c630337d0c55b9f32`.
+At the insertion BL, the decoded LSDA row is start `0x25c`, length four,
+landing offset `0x978`, action zero, leading to cleanup at `0x8420a0`.
+Relocation evidence independently binds its personality to
+`__gxx_personality_v0`. Machine argument locations and selected callsite
+behavior were recovered; original C++ type spellings, native trampoline
+relocation, VFP forwarding and wrapper unwind behavior remain unqualified.
+
+The final neutral export has 3166590 bytes, SHA-256
+`98c23a474c5eede18f78098a809b3f8f0a937378ce368b2ff9c69059f4356a76`.
+The owned session closed at 05:48:43 UTC and its container was verified absent.
+Closure receipt SHA-256 is
+`02dbaed1cd0fd8122b0e9cc3caaaef3ff61b74cd3872a9fbeaa5ac24090f6567`.
+This closes the warm followup recorded above without rewriting that initial
+checkpoint or claiming a persistent Ghidra Program database export.
 
 Source basis: exact shipped-artifact records and retained Task evidence,
 new scoped REA results with rejected resolutions preserved, and vendor ARM

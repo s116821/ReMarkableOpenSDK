@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(OwnedDobbyArmCompatibility LANGUAGES C CXX ASM)
+add_subdirectory(/source upstream)
+foreach(target dobby dobby_static)
+  set_property(TARGET ${target} PROPERTY CXX_STANDARD 17)
+  target_compile_options(${target} PRIVATE -include /inputs/compat-gcc-armv7.h)
+endforeach()

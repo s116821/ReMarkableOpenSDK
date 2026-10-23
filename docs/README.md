@@ -49,6 +49,7 @@ remain workflow records, not a shipping capability declaration.
 | Rust compatibility | [Minimum-compiler verification](reference/rust-minimum-verification.md) | Locked dependencies tested with Rust 1.88.0 on Windows; native and other target gates remain open |
 | Consumer build | [Ordinary dependency boundary](reference/consumer-build-boundary.md) | Actual SDK with no enabled features; expected compiler refusals for development modules; REM-50 owns hosted integration |
 | Distribution | [License, provenance and API record](reference/distribution-license-gaps.md) | Authorized GPL-3.0-only grant, complete original dependency notices and contained package inputs; technical release/native gates remain |
+| Owned insertion guard | [ARM interception and unwind result](experiments/insertion-guard-owned-result.md) | Two real hooks and original cleanup on owned code; no native predicate or capability |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an
