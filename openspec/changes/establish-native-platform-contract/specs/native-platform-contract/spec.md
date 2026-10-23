@@ -338,6 +338,14 @@ Production adapters SHALL preserve ordinary tablet startup/use with fail-closed 
 - **WHEN** an AArch64 artifact builds but no Paper Pro native acceptance evidence exists
 - **THEN** its native capabilities remain explicitly unqualified and it is not advertised as hardware-tested
 
+#### Scenario: Mutation completes while a producer stack remains active
+- **WHEN** a request reports completion from a coordinator, witness or JS producer that still holds reentrant locals or capture destruction
+- **THEN** terminal permission is revoked immediately, request cleanup and the next request wait for all tracked GUI scopes and cleanup to unwind, and native owners/code remain resident unless separately qualified for release
+
+#### Scenario: Mutation retires before a fresh observation
+- **WHEN** one mutation's request resources have retired and its effect still requires reconciliation
+- **THEN** a fresh read-only request may observe the unchanged admitted process/window/engine with a new source join, while another mutation remains blocked and no retry or native drain is implied
+
 #### Scenario: Native mechanism requires fragile boot changes
 - **WHEN** a candidate requires automatic cold-boot injection, persistent injection-enabling xochitl/preload/startup changes, configuration that recreates injection or crash loops across cold boots, or recovery dependent on the modified UI
 - **THEN** it is excluded from production regardless of successful research demonstrations

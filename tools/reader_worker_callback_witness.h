@@ -1,4 +1,5 @@
 #pragma once
+#include "reader_request_scope.h"
 // Original resident delivery diagnostic. No worker/document/action lease.
 #include <QElapsedTimer>
 #include <QGuiApplication>
@@ -32,7 +33,8 @@ class WorkerCallbackWitness final : public QObject {
     Q_OBJECT
 public:
     using Submit = std::function<qulonglong(const std::function<void()> &)>;
-    explicit WorkerCallbackWitness(QObject *parent = nullptr) : QObject(parent) {
+    explicit WorkerCallbackWitness(QObject *parent = nullptr,reader_request_scope::Binding binding={})
+        : QObject(parent),binding_(std::move(binding)) {
         timer_.setParent(this); timer_.setSingleShot(true);
         connect(&timer_, &QTimer::timeout, this, [this] { cancel(QStringLiteral("deadline")); });
     }
@@ -42,6 +44,9 @@ public:
         QObject::disconnect(destroyedConnection_);
     }
     bool start(QObject *source, QMetaMethod completion, Submit submit, int remainingMs) {
+        if(!gui())return false;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return false;
         if (!gui()) return false;
         if (started_) {
             if (!terminal_) cancel(QStringLiteral("witness-reentered"));
@@ -125,6 +130,9 @@ public:
         return true; // A returned submission ID, never delivery success.
     }
     void cancel(QString reason = QStringLiteral("canceled")) {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.entered())return;
         if (!gui() || terminal_) return;
         if (!started_) { started_ = true; stop(reason.left(128)); return; }
         stop(expired() ? QStringLiteral("deadline") : reason.left(128));
@@ -137,6 +145,9 @@ signals:
     void finished();
 private slots:
     void completed(qulonglong id) {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return;
         if (!gui() || terminal_ || !started_ || !pendingReason_.isEmpty()) return;
         if (expired()) { stop(QStringLiteral("deadline")); return; }
         if (!source_) { stop(QStringLiteral("source-destroyed")); return; }
@@ -171,6 +182,9 @@ private:
     }
     bool expired() const { return elapsed_.isValid() && elapsed_.elapsed() >= budget_; }
     void stop(QString reason) {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.entered())return;
         if (terminal_) return;
         if (pendingReason_.isEmpty()) pendingReason_ = reason.isEmpty() ? QStringLiteral("canceled") : reason.left(128);
         if (state_) state_->canceled.store(true, std::memory_order_release);
@@ -186,6 +200,9 @@ private:
         if (!submitting_) queueFinish();
     }
     void queueFinish() {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return;
         if (terminal_ || submitting_ || finishQueued_) return;
         finishQueued_ = true;
         const QPointer<WorkerCallbackWitness> weak(this);
@@ -194,6 +211,9 @@ private:
         }
     }
     void freeze() {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return;
         if (terminal_ || submitting_) return;
         finishQueued_ = false;
         if (expired() && pendingReason_.isEmpty()) pendingReason_ = QStringLiteral("deadline");
@@ -228,6 +248,7 @@ private:
         callback_.reset(); // Native copies and any active submit local own State.
         emit finished(); // Always a queued GUI turn after submission unwinds.
     }
+    const reader_request_scope::Binding binding_;
     QPointer<QObject> source_;
     QMetaObject::Connection completionConnection_, destroyedConnection_;
     QTimer timer_;

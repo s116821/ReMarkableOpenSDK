@@ -68,7 +68,14 @@ remain workflow records, not a shipping capability declaration.
 | Identity-capture handoff | [Entry, private files and original-byte consumer](experiments/identity-capture-entry-owned-result.md) | Owned publication/shutdown controls, original synthetic pair and separate ARM link; live consumer/native capture remain open |
 | Original capture readback | [Pinned files, process clocks and frame](experiments/identity-capture-readback-owned-result.md) | Owned descriptor/callable lifetime, actual own-process admission and original-byte framing; whole operator and native capture remain open |
 | Native identity capture | [Useful PDF/ink pixels and live collection](experiments/identity-capture-native-result.md) | One fixed idle-RM2 result with original-byte admission, exact preservation and audited cleanup; broader capability remains open |
+| Request lifetime | [Optional mutation scopes and owned controls](experiments/mutation-request-scope-owned-result.md) | Owned callback/unwind/cleanup boundaries; native resident composition and reclamation remain open |
+| Pen release | [Source and vendor event ABI](research/pen-event-release-boundary.md) | Device-free ABI observation and unresolved independent recovery; no fresh drawing or writer qualification |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
+
+For simulator work, start with the [evidence and fidelity map](reference/simulator-evidence-map.md)
+and its complete searchable SDK Markdown catalog. It separates existing SDK/Qt
+controls from the Buddy application simulator and links native findings to the
+behavior a calibrated model should reproduce.
 
 Read dated sections as historical checkpoints. Later evidence does not erase an
 earlier refusal, and a passed host fixture, ARM cross-build or sampled controller

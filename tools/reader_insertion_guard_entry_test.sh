@@ -13,7 +13,7 @@ fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 sha256sum "$root/reader_insertion_guard_entry.h" "$root/reader_insertion_guard_entry_fixture.cpp" \
     "$root/reader_insertion_post_order.h" "$root/reader_insertion_target_acquisition.h" > "$out/direct-input-hashes.txt"
-for header in reader_insertion_guard_entry reader_selected_view_probe reader_worker_callback_witness reader_joined_creation_witness; do
+for header in reader_request_retirement reader_insertion_guard_entry reader_selected_view_probe reader_worker_callback_witness reader_joined_creation_witness; do
     "$moc" "$root/$header.h" -o "$out/moc_$header.cpp"
 done
 "$moc" "$root/qt_qml_creation_bridge.h" -o "$out/qt_qml_creation_bridge.moc"
@@ -25,7 +25,7 @@ sanitize=
 if [ "${INSERTION_ENTRY_SANITIZERS:-0}" = 1 ]; then sanitize='-fsanitize=address,undefined -fno-omit-frame-pointer'; fi
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitize -DREADER_INSERTION_GUARD_ENTRY_TESTING -I"$out" -I"$root" \
     "$root/reader_insertion_guard_entry_fixture.cpp" "$out/moc_reader_insertion_guard_entry.cpp" \
-    "$out/moc_reader_selected_view_probe.cpp" "$out/moc_reader_worker_callback_witness.cpp" "$out/moc_reader_joined_creation_witness.cpp" \
+    "$out/moc_reader_request_retirement.cpp" "$out/moc_reader_selected_view_probe.cpp" "$out/moc_reader_worker_callback_witness.cpp" "$out/moc_reader_joined_creation_witness.cpp" \
     "$root/qt_qml_creation_bridge.cpp" $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -ldl -o "$out/fixture"
 # Production branch compile-only: test seams cannot conceal native path errors.
 printf '#include "reader_insertion_guard_entry.h"\n' > "$out/production.cpp"

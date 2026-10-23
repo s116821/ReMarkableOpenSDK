@@ -40,18 +40,22 @@ struct Result {
 class Witness final : public QObject {
     Q_OBJECT
 public:
-    explicit Witness(QObject *parent=nullptr) : QObject(parent) {
+    explicit Witness(QObject *parent=nullptr,reader_request_scope::Binding binding={})
+        : QObject(parent),binding_(std::move(binding)) {
         timer_.setParent(this); timer_.setSingleShot(true);
         connect(&timer_, &QTimer::timeout, this, [this] { cancel(QStringLiteral("deadline")); });
     }
     ~Witness() override { if (bridge_) bridge_->disarm(); }
     bool prepare(QQmlEngine *engine) {
+        if(!gui())return false;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return false;
         if (!gui() || prepared_ || started_) return false;
         const QPointer<Witness> weak(this);
         QPointer<QQmlEngine> pin(engine);
         if (!pin || pin->thread()!=thread()) return false;
         engine_=pin;
-        auto *bridge=new qml_access::CreationBridge(this);
+        auto *bridge=new qml_access::CreationBridge(this,binding_);
         bridge_=bridge;
         QQmlEngine::setObjectOwnership(bridge, QQmlEngine::CppOwnership);
         bridge->callback=[weak] { if (weak) weak->callback(); };
@@ -74,6 +78,9 @@ public:
     bool submit(QObject *controller, QObject *document, const QVariant &actualId,
                 const reader_selected::Observation &before, const Request &request,
                 const std::function<bool()> &synchronousGuard, int remainingMs) {
+        if(!gui())return false;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return false;
         if (!gui()) return false;
         const QPointer<Witness> weak(this);
         if (started_) { if (!terminal_) cancel(QStringLiteral("witness-reentered")); return false; }
@@ -83,11 +90,11 @@ public:
         const QPointer<QQmlEngine> e=engine_;
         const auto fail=[weak](const char *reason) { if(weak) weak->stop(QString::fromLatin1(reason)); return false; };
         const auto live=[&] {
-            if (!weak || !c || !d || !e || !weak->gui() || weak->terminal_ || !weak->pending_.isEmpty() || weak->expired() ||
+            if (!scope.active() || !weak || !c || !d || !e || !weak->gui() || weak->terminal_ || !weak->pending_.isEmpty() || weak->expired() ||
                 c->thread()!=QThread::currentThread() || d->thread()!=QThread::currentThread() ||
                 (qmlEngine(c) && qmlEngine(c)!=e) || (qmlEngine(d) && qmlEngine(d)!=e)) return false;
             if (!synchronousGuard || !synchronousGuard()) return false;
-            return weak && c && d && e && weak->gui() && !weak->terminal_ && weak->pending_.isEmpty() && !weak->expired() &&
+            return scope.active() && weak && c && d && e && weak->gui() && !weak->terminal_ && weak->pending_.isEmpty() && !weak->expired() &&
                 c->thread()==QThread::currentThread() && d->thread()==QThread::currentThread();
         };
         submitting_=true; // Defer completion through all preflight/argument destructors.
@@ -166,6 +173,9 @@ public:
         return invoked;
     }
     void cancel(QString reason=QStringLiteral("canceled")) {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.entered())return;
         if (!gui() || terminal_) return;
         started_=true; result_.canceled=true;
         stop(reason.isEmpty()?QStringLiteral("canceled"):reason.left(128));
@@ -193,6 +203,9 @@ private:
     }
     bool expired() const { return elapsed_.isValid() && elapsed_.elapsed()>=budget_; }
     void callback() {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return;
         if (!gui() || terminal_ || !started_ || !pending_.isEmpty()) return;
         if (expired()) { cancel(QStringLiteral("deadline")); return; }
         if (result_.callbackCount<2) ++result_.callbackCount;
@@ -200,6 +213,9 @@ private:
         if (!submitting_) queueFinish();
     }
     void stop(QString reason) {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.entered())return;
         if (terminal_) return;
         if(pending_.isEmpty()) pending_=reason.left(128);
         if(bridge_) bridge_->disarm();
@@ -207,12 +223,18 @@ private:
         if(!submitting_) queueFinish();
     }
     void queueFinish() {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return;
         if(terminal_ || submitting_ || queued_) return;
         queued_=true;
         const QPointer<Witness> weak(this);
         QMetaObject::invokeMethod(this,[weak]{if(weak)weak->freeze();},Qt::QueuedConnection);
     }
     void freeze() {
+        if(!gui())return;
+        const reader_request_scope::Scope scope(binding_);
+        if(!scope.active())return;
         queued_=false;
         if(terminal_ || submitting_) return;
         if(pending_.isEmpty() && expired()) pending_=QStringLiteral("deadline");
@@ -224,6 +246,7 @@ private:
         timer_.stop(); if(bridge_)bridge_->disarm();
         emit finished();
     }
+    const reader_request_scope::Binding binding_;
     QPointer<QQmlEngine> engine_;
     QPointer<qml_access::CreationBridge> bridge_;
     QJSValue callback_;

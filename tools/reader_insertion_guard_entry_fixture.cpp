@@ -2,6 +2,7 @@
 // real Qt witnesses, copied callbacks, worker thread and typed ordinary method run.
 #define READER_INSERTION_GUARD_ENTRY_TESTING 1
 #include "reader_insertion_guard_entry.h"
+#include "reader_retirement_scope.h"
 #define READER_JOINED_CREATION_OWNED_CLASSES_ONLY
 #include "reader_joined_creation_witness_fixture.cpp"
 #include <QSemaphore>
@@ -102,7 +103,131 @@ struct Model {
         }
     }
 };
+struct PermitRevocation {
+    bool onCopyDestruction = false, revoked = false;
+    int calls = 0, destructors = 0;
+    std::function<void()> retire;
+};
+// std::function moves the original target into start(); only allowed()'s
+// explicitly copied target triggers the destruction-boundary regression.
+struct RevokingPermit {
+    std::shared_ptr<PermitRevocation> state;
+    bool copied = false;
+    explicit RevokingPermit(std::shared_ptr<PermitRevocation> value) : state(std::move(value)) {}
+    RevokingPermit(const RevokingPermit &other) : state(other.state), copied(true) {}
+    RevokingPermit(RevokingPermit &&) noexcept = default;
+    ~RevokingPermit() noexcept {
+        if (state && copied && state->onCopyDestruction && !state->revoked) {
+            ++state->destructors;
+            state->retire();
+        }
+    }
+    bool operator()() const {
+        ++state->calls;
+        if (!state->onCopyDestruction) state->retire();
+        return true; // Fresh token permission must override this stale answer.
+    }
+};
+void permitRevocation(bool onCopyDestruction) {
+    reader_retirement::Fence fence;
+    const auto token = fence.begin(QByteArray(32, onCopyDestruction ? 'e' : 'd'), reader_retirement::Kind::Mutation);
+    check(bool(token), "permit regression token admitted");
+    const auto binding = reader_retirement::binding(&fence, token);
+    QQmlEngine engine;
+    QQuickWindow window;
+    QQmlEngine::setContextForObject(&window, engine.rootContext());
+    window.show(); window.requestActivate(); pump();
+    QmlDocumentWrapper doc;
+    Controller controller;
+    const reader_insertion_entry::Config config{requestFor(doc), 5, 2000};
+    check(config.valid(), "permit regression has valid config");
+    auto counts = std::make_shared<Model>();
+    reader_insertion_entry::Runtime runtime;
+    runtime.calls = {words, search, equal}; runtime.admission = {true, true, true, true, true, true};
+    runtime.outerReturnPC = 0x1000; runtime.innerReturnPC = 0x2000;
+    runtime.makeAttribution = [counts](QObject *) { ++counts->acquisitions; return reader_insertion_entry::Attribution{}; };
+    std::unique_ptr<Entry> holder;
+    {
+        const reader_request_scope::Scope construction(binding);
+        holder.reset(new Entry(runtime, nullptr, binding));
+    }
+    QPointer<Entry> weak = holder.get();
+    Entry::TestBoundary test;
+    test.sample = [counts](QQuickWindow *, const reader_insertion_entry::Permit &, int,
+            const reader_selected::ValidatedSourceAction &) { ++counts->samples; return reader_selected::Observation{}; };
+    test.acquire = [counts](QObject *, const QVariant &, QObject *, const reader_insertion_entry::Permit &) {
+        ++counts->acquisitions; return false;
+    };
+    test.submitProbe = [counts](const std::function<void()> &, const reader_insertion_entry::Permit &) {
+        ++counts->probes; return reader_worker_native::Submission{};
+    };
+    test.registerOnce = [counts](reader_insertion_hooks::Registration &&) { ++counts->registrations; return false; };
+    test.snapshot = [counts] { return counts->snapshot(); };
+    test.cancel = [counts] { ++counts->canceled; };
+    holder->testing(std::move(test));
+    int cleanups = 0, bReads = 0;
+    bool retired = false, failed = false, startReturned = false;
+    QObject::connect(holder.get(), &Entry::finished, &window, [&] {
+        // This explicit modeled continuation must never receive a successful A.
+        if (holder && holder->snapshot().observed) {
+            ++bReads;
+            (void)doc.property("pageCount");
+        }
+    });
+    QObject::connect(&fence, &reader_retirement::Fence::retired, &fence, [&](quint64 generation, QByteArray) {
+        check(generation == token.generation() && startReturned && cleanups == 1 && !weak,
+            "permit refusal retires only after start and complete deletion");
+        retired = true;
+    });
+    QObject::connect(&fence, &reader_retirement::Fence::retirementFailed, &fence, [&] { failed = true; });
+    auto state = std::make_shared<PermitRevocation>();
+    state->onCopyDestruction = onCopyDestruction;
+    state->retire = [&] {
+        check(!state->revoked && !startReturned && fence.snapshot(token).depth > 0,
+            "permit body or copied destructor remains inside start frames");
+        state->revoked = true;
+        check(fence.requestRetire(token, [&] {
+            const reader_request_scope::Scope deletion(binding);
+            check(deletion.entered() && !deletion.active() && startReturned,
+                "revoked permit cleanup holds terminal deletion scope");
+            ++cleanups;
+            holder.reset();
+        }, reader_retirement::Effect::NoMutationAttempted), "permit revocation consumes original retirement once");
+        pump(4);
+        check(!cleanups && !bReads && weak && fence.snapshot(token).phase == reader_retirement::Phase::Terminal,
+            "nested permit unwind cannot run cleanup or B");
+    };
+    reader_insertion_entry::Permit permit = RevokingPermit(state);
+    bool started = true;
+    {
+        const reader_request_scope::Scope startScope(binding);
+        started = holder->start(&window, config, std::move(permit));
+        startReturned = true;
+        check(!started && state->revoked && state->calls == 1 && cleanups == 0,
+            "revocation in body or last copied destructor refuses start admission");
+    }
+    check(state->destructors == (onCopyDestruction ? 1 : 0), "only intended copied permit destructor revokes");
+    QElapsedTimer elapsed; elapsed.start();
+    while (!retired && !failed && elapsed.elapsed() < 1000) pump();
+    check(retired && !failed && cleanups == 1 && !weak && bReads == 0,
+        "permit refusal cleans once and never starts B");
+    check(counts->samples == 0 && counts->acquisitions == 0 && counts->registrations == 0 &&
+        counts->probes == 0 && controller.calls == 0, "revoked permission precedes every sample or native-modeled action");
+    check(!fence.snapshot(token).reconciliationRequired, "no attempted mutation is classified honestly");
+    state->retire = {};
+    QTextStream(stdout) << "PASS permit-" << (onCopyDestruction ? "copy-destruction" : "body") << "-revocation\n";
+}
 void scenario(const QByteArray &mode) {
+    const bool retirement = mode.startsWith("conditional-retirement-");
+    reader_retirement::Fence fence;
+    reader_retirement::Token token;
+    reader_request_scope::Binding binding;
+    if(retirement) {
+        token=fence.begin(QByteArray(32,'a'),reader_retirement::Kind::Mutation);
+        check(bool(token),"mutation retirement token admitted");
+        binding=reader_retirement::binding(&fence,token);
+    }
+    int cleanups=0,bReads=0;bool retirementFailed=false,cleanupDone=false,childGone=false;
     const bool conditional = mode.startsWith("conditional-");
     const bool select = mode.startsWith("conditional-select-");
     QQmlEngine engine; QQuickWindow window;
@@ -159,7 +284,50 @@ void scenario(const QByteArray &mode) {
         if (mode == "conditional-missing-call") result.conditionCalls.find = nullptr;
         return result;
     };
-    std::unique_ptr<Entry> holder(new Entry(runtime)); entry = holder.get(); QPointer<Entry> weak = entry;
+    std::unique_ptr<Entry> holder;
+    {
+        const reader_request_scope::Scope construction(binding);
+        holder.reset(new Entry(runtime,nullptr,binding));
+    }
+    entry = holder.get(); QPointer<Entry> weak = entry;
+    if(retirement) {
+        auto *child=new QObject(entry);
+        QObject::connect(child,&QObject::destroyed,&fence,[&] {
+            check(fence.snapshot(token).depth>0 && fence.snapshot(token).phase==reader_retirement::Phase::Retiring,
+                "child destruction covered by complete deletion frame");
+            pump(2);check(!bReads,"no B during child destruction");childGone=true;
+        });
+        QObject::connect(&fence,&reader_retirement::Fence::retirementFailed,&fence,[&] { retirementFailed=true; });
+        QObject::connect(&fence,&reader_retirement::Fence::retired,&fence,[&](quint64 generation,QByteArray) {
+            if(generation!=token.generation())return;
+            check(cleanupDone && childGone && !weak && fence.snapshot(token).depth==0,"A resource cleanup precedes retired notice");
+            check(!fence.begin(QByteArray(32,'b'),reader_retirement::Kind::ReadOnly),"B cannot start inside retired notification");
+            QTimer::singleShot(0,&fence,[&] {
+                check(!retirementFailed && cleanupDone && !weak,"registration healthy before fresh B");
+                auto b=fence.begin(QByteArray(32,'b'),reader_retirement::Kind::ReadOnly);
+                check(bool(b) && b.generation()!=token.generation(),"fresh readonly B while mutation unresolved");
+                check(!fence.begin(QByteArray(32,'c'),reader_retirement::Kind::Mutation),"another mutation remains refused");
+                {
+                    const auto frame=fence.enter(b);
+                    check(frame.valid() && fence.accepts(b),"fresh B frame and active permit");
+                    auto joined=before;joined.pageCount=doc.pages.size(); // Explicit modeled fresh identity join.
+                    const auto order=reader_insertion_post_order::observe(&engine,&doc,QVariant::fromValue(doc.key),
+                        config.request,joined,[&] { return fence.accepts(b); });
+                    check(order.observed && order.ids==doc.pages,"fresh B uses real Qt full-order helper");
+                    ++bReads;
+                    check(fence.requestRetire(b,{},reader_retirement::Effect::NoMutationAttempted),"B retires without reconciling mutation A");
+                }
+            });
+        });
+        const auto children=entry->findChildren<reader_joined_creation::Witness*>();
+        check(children.size()==1,"one real ordinary callback witness");
+        if(mode=="conditional-retirement-producer")QObject::connect(children.first(),&reader_joined_creation::Witness::finished,&fence,[&] {
+            // Constructor queued Coordinator advancement before this receiver.
+            // This loop can finish A while the child emitting method is active.
+            pump(20);
+            check(!cleanups && !bReads && fence.snapshot(token).depth>0,"child producer stack blocks retirement despite nested advance");
+        });
+    }
     reader.onNext = [&] {
         oldEpochLost = true;
         if (mode != "conditional-select-no-change") selected = true;
@@ -279,6 +447,23 @@ void scenario(const QByteArray &mode) {
     int finished = 0;
     QObject::connect(entry, &Entry::finished, &window, [&] {
         ++finished; if (nestedFinished) qFatal("publication on ordinary invoke stack");
+        if(retirement) {
+            saved=entry->snapshot();
+            check(saved.observed && saved.finished && controller.calls==1,"one modeled mutation A finished");
+            check(!entry->disarmForRetirement(),"active token cannot suppress default destructor cancellation");
+            check(fence.requestRetire(token,[&] {
+                const reader_request_scope::Scope deletion(binding);
+                ++cleanups;
+                check(deletion.entered() && !deletion.active() && fence.snapshot(token).depth>0,"terminal cleanup is entered not active");
+                const int canceled=model->canceled;
+                if(mode!="conditional-retirement-no-disarm")check(entry->disarmForRetirement(),"controlled normal retirement disarms late logical cancel");
+                holder.reset();entry=nullptr;
+                check(model->canceled==canceled+(mode=="conditional-retirement-no-disarm" ? 1 : 0),"default cancel retained unless controlled normal disarm");
+                if(mode=="conditional-retirement-no-disarm")throw std::runtime_error("owned registration rejects undisarmed cleanup");
+                cleanupDone=true;
+            },reader_retirement::Effect::ReconciliationRequired),"A terminal disposition keeps mutation unresolved");
+            pump(4);check(!cleanups && !bReads,"finished listener loop cannot retire its producer");
+        }
         if (mode == "delete-finished") { saved = entry->snapshot(); delete entry; entry = nullptr; }
     });
     controller.onCall = [&] {
@@ -314,15 +499,31 @@ void scenario(const QByteArray &mode) {
         else if (mode != "missing-js") controller.mode = Controller::Async;
         nestedFinished = false;
     };
-    const bool started = entry->start(&window, config, [&] {
-        if (cancelAfterAcquire) { cancelAfterAcquire = false; entry->cancel(); }
-        return permit;
-    });
+    bool started=false;
+    {
+        const reader_request_scope::Scope startScope(binding);
+        started=entry->start(&window, config, [&] {
+            if (cancelAfterAcquire) { cancelAfterAcquire = false; entry->cancel(); }
+            return permit;
+        });
+    }
     check(started == (mode != "invalid-config" && mode != "expired-before-start" && mode != "conditional-both-modes" &&
         mode != "conditional-wrong-index-config" && mode != "conditional-no-core" && mode != "conditional-select-invalid-mode"), "start admission result");
     if (mode == "before-cancel") entry->cancel();
     QElapsedTimer elapsed; elapsed.start();
     while (weak && !weak->snapshot().finished && elapsed.elapsed() < (select ? 4500 : 1300)) pump();
+    if(retirement) {
+        while(!retirementFailed && !bReads && elapsed.elapsed()<2000)pump();
+        check(cleanups==1 && !weak && childGone && finished==1,"one complete request facade cleanup");
+        check(controller.calls==1 && model->registrations==1 && model->probes==1,"one modeled effect with no retry");
+        if(mode=="conditional-retirement-no-disarm")check(retirementFailed && !bReads && fence.snapshot(token).phase==reader_retirement::Phase::Failed,
+            "undisarmed cleanup failure is sticky and cannot admit B");
+        else check(cleanupDone && bReads==1 && fence.snapshot(token).reconciliationRequired && !retirementFailed,
+            "A retires before one fresh B while original mutation stays unresolved");
+        runtime.makeAttribution={};owner.reset();
+        check(!ownerWeak.expired(),"native owner model remains process resident");
+        QTextStream(stdout)<<"PASS "<<mode<<'\n';return;
+    }
     if (mode == "delete-probe" || mode == "factory-delete" || mode == "delete-finished" ||
         mode == "conditional-post-delete" || mode == "conditional-snapshot-delete" || mode == "conditional-select-delete") {
         check(!weak, "facade destroyed by guarded callout"); holder.release(); pump(10);
@@ -414,6 +615,12 @@ int main(int argc, char **argv) {
             "conditional-select-readiness", "conditional-select-first-missing", "conditional-select-second-reader", "conditional-select-second-document",
             "conditional-select-post-reader", "conditional-select-no-change", "conditional-select-after-order", "conditional-select-late-core",
             "conditional-select-cancel", "conditional-select-throw", "conditional-select-delete", "conditional-select-deadline", "conditional-select-invalid-mode"}) scenario(mode);
-    QTextStream(stdout) << "PASS target acquisition coordinator checks=" << checks << '\n'; return 0;
+    QTextStream(stdout) << "PASS target acquisition coordinator checks=" << checks << '\n';
+    checks=0;
+    for(const QByteArray mode : {"conditional-retirement-normal","conditional-retirement-producer","conditional-retirement-no-disarm"})scenario(mode);
+    QTextStream(stdout)<<"PASS mutation retirement coordinator checks="<<checks<<'\n';
+    checks=0;
+    permitRevocation(false);permitRevocation(true);
+    QTextStream(stdout)<<"PASS permit revocation coordinator checks="<<checks<<'\n';return 0;
 }
 #include "reader_insertion_guard_entry_fixture.moc"

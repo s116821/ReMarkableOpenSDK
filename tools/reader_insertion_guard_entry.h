@@ -75,9 +75,10 @@ public:
     };
     void testing(TestBoundary value) { if (!started_) test_ = std::move(value); }
 #endif
-    explicit Coordinator(Runtime runtime, QObject *parent = nullptr)
-        : QObject(parent), resident_(new Resident(std::move(runtime))), probe_(new reader_selected::WorkerCallbackWitness(this)),
-          creation_(new reader_joined_creation::Witness(this)) {
+    explicit Coordinator(Runtime runtime,QObject *parent=nullptr,reader_request_scope::Binding binding={})
+        : QObject(parent),binding_(std::move(binding)),resident_(new Resident(std::move(runtime))),
+          probe_(new reader_selected::WorkerCallbackWitness(this,binding_)),
+          creation_(new reader_joined_creation::Witness(this,binding_)) {
         timer_.setParent(this); timer_.setSingleShot(true);
         postTimer_.setParent(this); postTimer_.setSingleShot(true);
         connect(&timer_, &QTimer::timeout, this, [this] { refuse(QStringLiteral("deadline")); });
@@ -88,9 +89,12 @@ public:
     ~Coordinator() override {
         // Deliberately leak Resident, including native owners and plain callback state.
         // QObject children disarm their observers; no native lease closes here.
-        if (started_) cancelCore();
+        if (started_ && !retirementDisarmed_) cancelCore();
     }
     bool start(QQuickWindow *window, Config config, Permit permit) {
+        if(!gui())return false;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return false;
         if (!gui()) return false;
         if (started_) { if (!result_.finished) refuse(QStringLiteral("start-reentered")); return false; }
         started_ = true; result_.started = true; config_ = std::move(config); permit_ = std::move(permit);
@@ -109,8 +113,26 @@ public:
         timer_.start(remaining()); phase_ = Phase::First; schedule(); return true;
     }
     void cancel() {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.entered())return;
         if (!gui() || result_.finished) return;
         result_.canceled = true; refuse(QStringLiteral("canceled"));
+    }
+    // Selected normal cleanup only, under the registration's outer frame.
+    // Logical disarm never cancels/drains native work or releases its owners.
+    bool disarmForRetirement() {
+        if(!gui())return false;
+        const reader_request_scope::Scope scope(binding_);
+        if(!binding_.bound() || !scope.entered() || scope.active() || !result_.finished ||
+            !result_.observed || result_.unknown || result_.canceled || !result_.refusal.isEmpty())return false;
+        const QPointer<Coordinator> weak(this);
+        timer_.stop();postTimer_.stop();
+        auto permit=std::move(permit_);
+        permit={}; // Capture destruction remains under this and the outer frame.
+        if(!weak)return false;
+        retirementDisarmed_=true;
+        return true;
     }
     Result snapshot() const { return result_; } // GUI-only scalar snapshot, no publication authority.
 signals:
@@ -142,6 +164,8 @@ private:
         explicit Frame(Coordinator *value) : p(value) { ++p->depth_; }
         ~Frame() { if (p && --p->depth_ == 0 && p->dirty_) p->schedule(); }
     };
+    const reader_request_scope::Binding binding_;
+    bool retirementDisarmed_=false;
     Resident *const resident_; // No destructor path may delete this process-resident record.
     reader_selected::WorkerCallbackWitness *probe_;
     reader_joined_creation::Witness *creation_;
@@ -171,14 +195,18 @@ private:
         return ms <= 0 ? 0 : (ms > 30000 ? 30000 : int(ms));
     }
     bool allowed() const {
+        if(!gui())return false;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return false;
         QPointer<Coordinator> weak(const_cast<Coordinator *>(this));
         QPointer<QQuickWindow> w = window_; QPointer<QQmlEngine> e = engine_;
         if (!gui() || !started_ || result_.finished || !result_.refusal.isEmpty() || !remaining() || !w || !e || !permit_ ||
             w->thread() != thread() || e->thread() != thread() || qmlEngine(w) != e ||
             QGuiApplication::focusWindow() != w || !w->isActive() || !w->isVisible()) return false;
-        const Permit permit = permit_;
+        Permit permit = permit_;
         bool yes = false; try { yes = permit(); } catch (...) {}
-        return weak && w && e && yes && weak->gui() && !weak->result_.finished && weak->result_.refusal.isEmpty() &&
+        permit = {}; // Last copied captures unwind before final admission.
+        return requestScope.active() && weak && w && e && yes && weak->gui() && !weak->result_.finished && weak->result_.refusal.isEmpty() &&
             weak->remaining() > 0 && weak->window_ == w && weak->engine_ == e && qmlEngine(w) == e &&
             QGuiApplication::focusWindow() == w && w->isActive() && w->isVisible();
     }
@@ -232,6 +260,9 @@ private:
         return complete == 1 && pages == 1 && index == config_.request.sourceIndex + 1;
     }
     void refuse(const QString &reason) {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.entered())return;
         if (result_.finished) return;
         if (result_.refusal.isEmpty()) result_.refusal = reason.left(128);
         const QPointer<Coordinator> weak(this);
@@ -241,14 +272,20 @@ private:
         timer_.stop(); postTimer_.stop(); dirty_ = true; schedule();
     }
     void schedule() {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         dirty_ = true;
         if (queued_ || depth_ || result_.finished) return;
         queued_ = true;
         const QPointer<Coordinator> weak(this);
-        if (!QMetaObject::invokeMethod(this, [weak] { if (weak) { weak->queued_ = false; weak->step(); } }, Qt::QueuedConnection))
+        if (!QMetaObject::invokeMethod(this, [weak] { if(!weak)return; const reader_request_scope::Scope scope(weak->binding_); if(!scope.active())return; weak->queued_ = false; weak->step(); }, Qt::QueuedConnection))
             queued_ = false; // Original deadline remains armed; no alternate submission.
     }
     void finish(bool positive) {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         timer_.stop(); postTimer_.stop();
         const QPointer<Coordinator> weak(this);
         const auto completion = completed_, addition = added_, destruction = destroyed_;
@@ -284,6 +321,9 @@ private:
         emit finished();
     }
     void record(qulonglong id, bool added, int index = -1) {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         if (!gui() || result_.finished || !result_.refusal.isEmpty()) return;
         if (events_.size() >= 32) { refuse(QStringLiteral("worker-event-cap")); return; }
         events_.append({id, added, index}); schedule();
@@ -302,6 +342,9 @@ private:
         return found;
     }
     QObject *readWorker(QObject *reader, const Permit &guard) {
+        if(!gui())return nullptr;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return nullptr;
         QPointer<QObject> root(reader);
         const QPointer<Coordinator> weak(this);
         if (!root || !guard || !guard() || !weak || !root) return nullptr;
@@ -327,6 +370,9 @@ private:
             o.pageIndex == r.sourceIndex && o.pageCount == r.expectedPages.size();
     }
     reader_selected::Observation sample(const reader_selected::ValidatedSourceAction &action) {
+        if(!gui())return {};
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return {};
         const QPointer<Coordinator> weak(this);
         const Permit permit = [weak] { return weak && weak->allowed(); };
         const int ms = qMin(remaining(), reader_selected::MaxObservationMs);
@@ -337,6 +383,9 @@ private:
     }
     void first(QObject *reader, QObject *document, QObject *controller, const QVariant &id,
                const reader_selected::Observation &before, const Permit &guard) {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         const QPointer<Coordinator> weak(this);
         QPointer<QObject> controllerPin(controller);
         Resident *const resident = resident_;
@@ -399,6 +448,9 @@ private:
     }
     void second(QObject *reader, QObject *document, QObject *controller, const QVariant &id,
                 const reader_selected::Observation &before, const Permit &guard) {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         const QPointer<Coordinator> weak(this);
         QPointer<QObject> documentPin(document), controllerPin(controller);
         if (!expected(before)) { refuse(QStringLiteral("second-source")); return; }
@@ -469,6 +521,9 @@ private:
         creation_->submit(controllerPin, documentPin, id, before, r, guard, remaining());
     }
     bool connectTask() {
+        if(!gui())return false;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return false;
         const QPointer<Coordinator> weak(this); QPointer<QObject> worker = resident_->worker;
         const auto completion = signal(worker, "jobCompleted", false), addition = signal(worker, "pageAdded", true);
         if (!worker || !completion.isValid() || !addition.isValid()) return false;
@@ -481,6 +536,9 @@ private:
         return completed_ && added_ && destroyed_ && worker;
     }
     void conditionalTask() {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         const QPointer<Coordinator> weak(this);
         const auto outcome = coreSnapshot(); if (!weak) return;
         updateForward(outcome); result_.creation = creation_->snapshot();
@@ -498,6 +556,9 @@ private:
         if (outcome.terminal && indexedEvents() && c.finished) { phase_ = Phase::Post; schedule(); }
     }
     void post(bool afterNext = false) {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         const QPointer<Coordinator> weak(this);
         const auto latest = coreSnapshot(); if (!weak) return;
         updateForward(latest);
@@ -563,6 +624,9 @@ private:
         postTimer_.start(qMin(100, remaining()));
     }
     void step() {
+        if(!gui())return;
+        const reader_request_scope::Scope requestScope(binding_);
+        if(!requestScope.active())return;
         if (result_.finished) return;
         if (depth_) { dirty_ = true; return; }
         dirty_ = false;
