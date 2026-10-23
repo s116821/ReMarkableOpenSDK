@@ -13,7 +13,19 @@
 #if defined(READER_INSERTION_POST_REJECT_PROBE) && READER_INSERTION_POST_REJECT_PROBE != 1
 #error The selected post-rejection probe value must be exactly one.
 #endif
+#if defined(READER_INSERTION_FORWARD) && READER_INSERTION_FORWARD != 1
+#error The selected conditional-forward value must be exactly one.
+#endif
+#if defined(READER_INSERTION_FORWARD) && defined(READER_INSERTION_POST_REJECT_PROBE)
+#error Conditional forwarding and the post-rejection probe are separate experiments.
+#endif
 namespace {
+#ifdef READER_INSERTION_FORWARD
+constexpr bool wantConditionalForward=true;
+static_assert(READER_INSERTION_WRONG_INDEX==-1,"Conditional mode cannot use a deliberately wrong source");
+#else
+constexpr bool wantConditionalForward=false;
+#endif
 #ifdef READER_INSERTION_POST_REJECT_PROBE
 constexpr bool wantPostRejectProbe=true;
 #else
@@ -68,8 +80,9 @@ bool admitted() {
 __attribute__((constructor)) void install() {
     try {
         if(!admitted())stop();
-        auto *value=reader_insertion_native_profile::installBeforeMain();
+        auto *value=reader_insertion_native_profile::installBeforeMain(wantConditionalForward);
         if(!value||!value->core||!value->baseAdmission.profileAndProviders||!value->applicationAbsent||!admitted())stop();
+        if(wantConditionalForward&&(!value->conditionQualified||!value->baseConditionAdmission.profileAndProviders))stop();
         // Qualification has consumed LD_BIND_NOW and verified eager bindings.
         // Keep this DSO resident, but do not inject it into future exec helpers.
         if(!reader_child_environment::clearInheritedInjection())stop();
@@ -85,6 +98,7 @@ void startup() {
             if(!gui||!f||QThread::currentThread()!=gui->thread()||!admitted())stop();
             reader_insertion_transport::Config config;config.nonce=nonce;
             config.coordinator.wantPostRejectProbe=wantPostRejectProbe;
+            config.coordinator.wantConditionalForward=wantConditionalForward;
             config.navigation={QStringLiteral(READER_INSERTION_DOCUMENT_ID),READER_INSERTION_SOURCE_INDEX,true};
             auto &request=config.coordinator.request;
             request.documentId=QStringLiteral(READER_INSERTION_DOCUMENT_ID);request.sourceIndex=READER_INSERTION_SOURCE_INDEX;
@@ -97,10 +111,16 @@ void startup() {
             // PCs/scope/thread, Coordinator retains owners, profile pins lock path.
             runtime.admission.originalCallsite=true;runtime.admission.operationScope=true;runtime.admission.workerThread=true;
             runtime.admission.nativeOwners=true;runtime.admission.finalLock=true;
+            if(wantConditionalForward) {
+                runtime.conditionAdmission=f->baseConditionAdmission;
+                runtime.conditionAdmission.originalCallsite=true;runtime.conditionAdmission.operationScope=true;
+                runtime.conditionAdmission.workerThread=true;runtime.conditionAdmission.nativeOwners=true;runtime.conditionAdmission.finalLock=true;
+            }
             runtime.outerReturnPC=f->outerReturnPC;runtime.innerReturnPC=f->innerReturnPC;
-            runtime.makeAttribution=[f](QObject *worker){const auto a=f->attributionParts(worker,wantPostRejectProbe);return reader_insertion_entry::Attribution{a.map,a.context,a.read64,a.postRejectProbe};};
+            runtime.makeAttribution=[f](QObject *worker){const auto a=f->attributionParts(worker,wantPostRejectProbe,wantConditionalForward);return reader_insertion_entry::Attribution{a.map,a.context,a.read64,a.postRejectProbe,a.conditionCalls};};
             QJsonObject facts{{"profile_qualified",f->baseAdmission.profileAndProviders},{"application_absent_at_install",f->applicationAbsent},
                 {"tasks_at_install",int(f->observedTaskCount)},{"bind_now",true},{"native_authority",false}};
+            if(wantConditionalForward)facts.insert("condition_qualified",f->conditionQualified);
             auto *entry=new reader_insertion_transport::Entry(gui,QString::fromLatin1(rootPath),std::move(config),std::move(runtime),facts);
             if(!entry->start())stop();
         }catch(...){stop();}

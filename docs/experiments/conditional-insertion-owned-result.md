@@ -1,9 +1,12 @@
 # Owned conditional insertion controls
 
-October 23, 2026 UTC. The separate correct-source condition, one-forward decision
+October 23, 2026 UTC, source checkpoint d3d0b11. The separate correct-source condition, one-forward decision
 and optional Core policy pass focused owned controls. The existing coordinator
 and transport still use the default negative path. **No conditional native
 insertion has run.** This is source/control composition, not a supported adapter.
+
+The later [coordinator/post-order source composition](conditional-insertion-composition-owned-result.md)
+records the next layer separately; statements below describe this checkpoint.
 
 The [design](../../openspec/changes/establish-native-platform-contract/native-conditional-insertion.md)
 keeps the earlier deliberate wrong-source witness separate from correct-source

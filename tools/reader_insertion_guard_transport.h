@@ -2,6 +2,7 @@
 // Fixed research file handoff. Native/runtime admission is supplied separately.
 #include "reader_insertion_guard_entry.h"
 #include "reader_selected_view_entry.h"
+#include <QJsonArray>
 #include <chrono>
 
 namespace reader_insertion_transport {
@@ -151,10 +152,18 @@ private:
         if(terminal_||busy_)return;
         const auto r=coordinator_->snapshot();
         if(!r.finished&&failure_.isEmpty())return;
-        const bool success=failure_.isEmpty()&&permitted()&&sameWindow()&&r.observed&&!r.unknown&&!r.canceled;
+        const bool forward=config_.coordinator.wantConditionalForward;
+        const bool success=failure_.isEmpty()&&permitted()&&sameWindow()&&r.observed&&!r.unknown&&!r.canceled&&
+            (!forward||(r.forwardObserved&&!r.reconciliationRequired&&r.postOrder.observed));
         terminal_=true;heartbeat_.stop();opportunity_.stop();
         if(suppressed_||!trusted())return;
-        const auto identity=identity_.trimmed().split(' ');if(identity.size()!=2)return;
+        const auto body=wireBody(r,success);if(body.isEmpty())return;
+        const auto bytes=QJsonDocument(body).toJson(QJsonDocument::Compact)+'\n';
+        publish("selected-result",".pending-result",bytes,success);
+    }
+    QJsonObject wireBody(const reader_insertion_entry::Result &r,bool success)const {
+        const bool forward=config_.coordinator.wantConditionalForward;
+        const auto identity=identity_.trimmed().split(' ');if(identity.size()!=2)return {};
         QJsonObject core{{"terminal",r.core.terminal},{"witness",r.core.witness},{"private_caught",r.core.privateCaught},{"source_mismatch",r.core.observedMismatch},
             {"attributed",r.core.attributed},{"job_id",QString::number(r.core.jobId)},{"outer_calls",int(r.core.outerCalls)},{"inner_calls",int(r.core.innerCalls)},
             {"tracked_forwards",int(r.core.trackedForwards)},{"unknown",r.core.unknown},{"interference",r.core.interference},{"canceled",r.core.canceled},{"refusal",int(r.core.refusal)}};
@@ -173,8 +182,33 @@ private:
             body.insert("post_reject_probe",QJsonObject{{"required",true},{"attempted",p.attempted},{"acquired",p.acquired},
                 {"released",p.released},{"try_result",p.tryResult},{"unlock_result",p.unlockResult},{"native_authority",false}});
         }
-        const auto bytes=QJsonDocument(body).toJson(QJsonDocument::Compact)+'\n';
-        publish("selected-result",".pending-result",bytes,success);
+        if(forward) {
+            const auto &c=r.core.condition;
+            QJsonObject condition{{"matched",c.matched},{"refusal",int(c.refusal)},{"word_reads",int(c.wordReads)},
+                {"tree_reads",int(c.treeReads)},{"searches",int(c.searches)},{"equalities",int(c.equalities)},
+                {"finds",int(c.finds)},{"count",int(c.count)},{"tree_count",qint64(c.treeCount)},
+                {"source_position",c.sourcePosition},{"right_position",c.rightPosition},{"source_at_index",c.sourceAtIndex},
+                {"right_adjacent",c.rightAdjacent},{"end_source",c.endSource},{"target_matches",c.targetMatches},
+                {"target_absent",c.targetAbsent},{"span_unchanged",c.spanUnchanged},{"tree_unchanged",c.treeUnchanged},
+                {"native_authority",false},{"insertion_permission",false}};
+            core.insert("condition",condition);
+            core.insert("forward_committed",r.core.forwardCommitted);core.insert("inner_returned",r.core.innerReturned);
+            core.insert("outer_returned",r.core.outerReturned);core.insert("reconciliation_required",r.core.reconciliationRequired);
+            body.insert("core",core);body.insert("schema",2);body.insert("diagnostic","insertion-guard-conditional");
+            body.insert("stage",success?QStringLiteral("insertion-forward-observed"):QStringLiteral("insertion-forward-incomplete"));
+            const auto &request=config_.coordinator.request;
+            QJsonArray expected;for(const auto &id:request.expectedPages)expected.append(id);
+            body.insert("document_id",request.documentId);body.insert("expected_pages",expected);
+            body.insert("source_index",request.sourceIndex);body.insert("target_id",request.targetPageId);
+            body.insert("forward_observed",r.forwardObserved);body.insert("reconciliation_required",r.reconciliationRequired);
+            body.insert("page_added_index",r.pageAddedIndex);
+            const auto &p=r.postOrder;QJsonArray ids;for(const auto &id:p.ids)ids.append(id);
+            body.insert("post_order",QJsonObject{{"observed",p.observed},{"target_selected",p.targetSelected},
+                {"page_count",p.pageCount},{"current_page_index",p.currentPageIndex},{"current_page_id",p.currentPageId},
+                {"ids",ids},{"calls",int(p.calls)},{"refusal",p.refusal},{"native_authority",false},
+                {"render_authority",false},{"durable_authority",false}});
+        }
+        return body;
     }
     QPointer<QGuiApplication> app_;QString path_;Config config_;QJsonObject startup_;reader_insertion_entry::Coordinator *coordinator_;
     QElapsedTimer clock_;QTimer heartbeat_,opportunity_;QPointer<QQuickWindow> window_;QPointer<QQmlEngine> engine_;

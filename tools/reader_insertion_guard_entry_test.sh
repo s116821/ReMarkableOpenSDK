@@ -1,5 +1,6 @@
 #!/bin/sh
-# Owned models only. No hooks, native addresses, transport or device resources.
+# Owned models only: legacy negative controls plus conditional orchestration and
+# the real public-metaobject post-order helper. No native addresses/device I/O.
 set -eu
 out=${INSERTION_ENTRY_OUTPUT:?set INSERTION_ENTRY_OUTPUT to a fresh writable directory}
 mkdir -p "$out"
@@ -10,6 +11,8 @@ else
     moc=${QT_HOST_MOC:-/usr/lib/qt6/libexec/moc}
 fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+sha256sum "$root/reader_insertion_guard_entry.h" "$root/reader_insertion_guard_entry_fixture.cpp" \
+    "$root/reader_insertion_post_order.h" > "$out/direct-input-hashes.txt"
 for header in reader_insertion_guard_entry reader_selected_view_probe reader_worker_callback_witness reader_joined_creation_witness; do
     "$moc" "$root/$header.h" -o "$out/moc_$header.cpp"
 done

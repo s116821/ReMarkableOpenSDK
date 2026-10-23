@@ -4,6 +4,7 @@
 #include "reader_native_worker_bridge.h"
 #include "reader_joined_creation_witness.h"
 #include "reader_worker_callback_witness.h"
+#include "reader_insertion_post_order.h"
 #include <QList>
 
 namespace reader_insertion_entry {
@@ -14,10 +15,12 @@ struct Config {
     int budgetMs = 30000;
     std::chrono::steady_clock::time_point absoluteDeadline{};
     bool wantPostRejectProbe = false;
+    bool wantConditionalForward = false;
     bool valid() const {
-        return request.valid() && request.expectedPages.size() <= 16 && request.sourceIndex + 1 < request.expectedPages.size() &&
-            wrongSourceIndex >= 0 && wrongSourceIndex < request.expectedPages.size() && wrongSourceIndex != request.sourceIndex &&
-            budgetMs > 0 && budgetMs <= 30000;
+        if (!request.valid() || request.expectedPages.size() > 16 || budgetMs <= 0 || budgetMs > 30000) return false;
+        if (wantConditionalForward) return !wantPostRejectProbe && wrongSourceIndex == -1;
+        return request.sourceIndex + 1 < request.expectedPages.size() && wrongSourceIndex >= 0 &&
+            wrongSourceIndex < request.expectedPages.size() && wrongSourceIndex != request.sourceIndex;
     }
 };
 struct Attribution {
@@ -25,6 +28,7 @@ struct Attribution {
     void *context = nullptr; // Immutable, process-resident storage; never a facade/GUI stack pointer.
     bool (*read)(void *, std::uint64_t &) noexcept = nullptr;
     reader_insertion_mutex_probe::Probe *postRejectProbe = nullptr;
+    reader_insertion_condition::Calls conditionCalls{};
 };
 struct Runtime {
     reader_insertion_hooks::Core *core = nullptr; // Already installed and independently qualified.
@@ -33,6 +37,7 @@ struct Runtime {
     std::uintptr_t outerReturnPC = 0, innerReturnPC = 0;
     // GUI callout. Its returned context and all captures must survive candidate exit.
     std::function<Attribution(QObject *)> makeAttribution;
+    reader_insertion_condition::CallerAdmission conditionAdmission{};
 };
 struct Result {
     bool started = false, finished = false, observed = false, canceled = false, unknown = false;
@@ -43,6 +48,9 @@ struct Result {
     reader_selected::WorkerCallbackResult probe;
     reader_joined_creation::Result creation;
     reader_insertion_hooks::Outcome core;
+    bool forwardObserved = false, reconciliationRequired = false;
+    int pageAddedIndex = -1;
+    reader_insertion_post_order::Result postOrder;
     static constexpr bool nativeAuthority = false, renderAuthority = false, durableAuthority = false;
 };
 
@@ -65,7 +73,9 @@ public:
         : QObject(parent), resident_(new Resident(std::move(runtime))), probe_(new reader_selected::WorkerCallbackWitness(this)),
           creation_(new reader_joined_creation::Witness(this)) {
         timer_.setParent(this); timer_.setSingleShot(true);
+        postTimer_.setParent(this); postTimer_.setSingleShot(true);
         connect(&timer_, &QTimer::timeout, this, [this] { refuse(QStringLiteral("deadline")); });
+        connect(&postTimer_, &QTimer::timeout, this, [this] { schedule(); });
         connect(probe_, &reader_selected::WorkerCallbackWitness::finished, this, [this] { schedule(); });
         connect(creation_, &reader_joined_creation::Witness::finished, this, [this] { schedule(); });
     }
@@ -101,10 +111,10 @@ signals:
     void finished();
 private slots:
     void completed(qulonglong id) { record(id, false); }
-    void added(qulonglong id, int) { record(id, true); }
+    void added(qulonglong id, int index) { record(id, true, index); }
 private:
     using Clock = std::chrono::steady_clock;
-    enum class Phase { Idle, First, Probe, Second, Task };
+    enum class Phase { Idle, First, Probe, Second, Task, Post };
     struct ThreadState {
         std::atomic<unsigned> claim{0};
         std::atomic<bool> ready{false};
@@ -119,7 +129,7 @@ private:
         Attribution attribution;
         explicit Resident(Runtime value) : runtime(std::move(value)) {}
     };
-    struct Event { qulonglong id; bool added; };
+    struct Event { qulonglong id; bool added; int index; };
     struct Frame {
         QPointer<Coordinator> p;
         explicit Frame(Coordinator *value) : p(value) { ++p->depth_; }
@@ -128,9 +138,10 @@ private:
     Resident *const resident_; // No destructor path may delete this process-resident record.
     reader_selected::WorkerCallbackWitness *probe_;
     reader_joined_creation::Witness *creation_;
-    QTimer timer_;
+    QTimer timer_, postTimer_;
     QPointer<QQuickWindow> window_;
     QPointer<QQmlEngine> engine_;
+    QPointer<QObject> document_;
     QMetaObject::Connection completed_, added_, destroyed_;
     Config config_;
     Permit permit_;
@@ -139,6 +150,7 @@ private:
     Phase phase_ = Phase::Idle;
     bool started_ = false, queued_ = false, dirty_ = false;
     int depth_ = 0;
+    unsigned postAttempts_ = 0;
     QList<Event> events_;
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
     TestBoundary test_;
@@ -169,8 +181,13 @@ private:
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
         core = core || (test_.registerOnce && test_.snapshot && test_.cancel);
 #endif
-        return core && r.calls.readWords && r.calls.search && r.calls.equal && r.makeAttribution && r.outerReturnPC && r.innerReturnPC &&
-            a.profileAndProviders && a.originalCallsite && a.operationScope && a.workerThread && a.nativeOwners && a.finalLock;
+        if (!core || !r.makeAttribution || !r.outerReturnPC || !r.innerReturnPC) return false;
+        if (config_.wantConditionalForward) {
+            const auto &c = r.conditionAdmission;
+            return c.profileAndProviders && c.originalCallsite && c.operationScope && c.workerThread && c.nativeOwners && c.finalLock;
+        }
+        return r.calls.readWords && r.calls.search && r.calls.equal && a.profileAndProviders && a.originalCallsite &&
+            a.operationScope && a.workerThread && a.nativeOwners && a.finalLock;
     }
     void cancelCore() {
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
@@ -182,7 +199,30 @@ private:
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
         if (test_.snapshot) { const auto fn = test_.snapshot; return fn(); }
 #endif
-        return resident_->runtime.core->snapshot();
+        return resident_->runtime.core ? resident_->runtime.core->snapshot() : reader_insertion_hooks::Outcome{};
+    }
+    static bool forwardGood(const reader_insertion_hooks::Outcome &o) {
+        return o.terminal && o.witness && o.attributed && o.jobId && o.outerCalls == 1 && o.innerCalls == 1 &&
+            o.trackedForwards == 1 && o.forwardCommitted && o.innerReturned && o.outerReturned && o.condition.matched &&
+            !o.unknown && !o.canceled && !o.interference && !o.reconciliationRequired;
+    }
+    void updateForward(const reader_insertion_hooks::Outcome &o) {
+        result_.core = o; result_.job = o.jobId;
+        // Factual normal-forward conjunction is independent of post-order success.
+        result_.forwardObserved = o.terminal && o.forwardCommitted && o.innerReturned && o.outerReturned &&
+            o.trackedForwards == 1 && o.condition.matched;
+        // An in-flight snapshot is intentionally conservative; it is not a
+        // terminal unknown outcome. A later normally settled snapshot may pass.
+        result_.reconciliationRequired = result_.reconciliationRequired || (o.terminal && (o.reconciliationRequired || o.unknown));
+        result_.unknown = result_.unknown || (o.terminal && o.unknown);
+    }
+    bool indexedEvents() {
+        unsigned complete = 0, pages = 0; int index = -1;
+        for (const auto &event : events_) if (result_.job && event.id == result_.job) {
+            if (event.added) { ++pages; index = event.index; } else ++complete;
+        }
+        result_.matchingCompletions = complete; result_.pageAdded = pages; result_.pageAddedIndex = index;
+        return complete == 1 && pages == 1 && index == config_.request.sourceIndex + 1;
     }
     void refuse(const QString &reason) {
         if (result_.finished) return;
@@ -191,7 +231,7 @@ private:
         cancelCore(); if (!weak) return;
         probe_->cancel(reason); if (!weak) return;
         creation_->cancel(reason); if (!weak) return;
-        timer_.stop(); dirty_ = true; schedule();
+        timer_.stop(); postTimer_.stop(); dirty_ = true; schedule();
     }
     void schedule() {
         dirty_ = true;
@@ -202,22 +242,36 @@ private:
             queued_ = false; // Original deadline remains armed; no alternate submission.
     }
     void finish(bool positive) {
-        timer_.stop();
+        timer_.stop(); postTimer_.stop();
         const QPointer<Coordinator> weak(this);
         const auto completion = completed_, addition = added_, destruction = destroyed_;
         QObject::disconnect(completion); if (!weak) return;
         QObject::disconnect(addition); if (!weak) return;
         QObject::disconnect(destruction); if (!weak) return;
         result_.probe = probe_->snapshot(); result_.creation = creation_->snapshot();
+        if (config_.wantConditionalForward) {
+            if (positive) { const bool permission = allowed(); if (!weak) return; positive = permission; }
+            const auto latest = coreSnapshot(); if (!weak) return;
+            updateForward(latest);
+            const auto &c = result_.creation;
+            positive = positive && result_.refusal.isEmpty() && !result_.canceled && !result_.unknown && remaining() &&
+                forwardGood(latest) && indexedEvents() && result_.postOrder.observed && c.finished &&
+                c.attempted && c.returnKnown && c.accepted && c.callbackObserved && c.callbackCount == 1 &&
+                !c.unknown && !c.duplicate && !c.canceled;
+            result_.reconciliationRequired = result_.reconciliationRequired || (latest.forwardCommitted && !positive);
+            result_.unknown = result_.unknown || latest.unknown || (latest.forwardCommitted && !positive);
+        }
         result_.unknown = result_.unknown || (result_.creation.attempted && !positive);
         result_.observed = positive; result_.finished = true;
-        result_.stage = positive ? QStringLiteral("insertion-guard-refusal-observed") : QStringLiteral("insertion-guard-refused");
+        result_.stage = config_.wantConditionalForward ? (positive ? QStringLiteral("insertion-guard-forward-observed") :
+            QStringLiteral("insertion-guard-forward-incomplete")) :
+            (positive ? QStringLiteral("insertion-guard-refusal-observed") : QStringLiteral("insertion-guard-refused"));
         emit finished();
     }
-    void record(qulonglong id, bool added) {
+    void record(qulonglong id, bool added, int index = -1) {
         if (!gui() || result_.finished || !result_.refusal.isEmpty()) return;
         if (events_.size() >= 32) { refuse(QStringLiteral("worker-event-cap")); return; }
-        events_.append({id, added}); schedule();
+        events_.append({id, added, index}); schedule();
     }
     static bool ancestry(QObject *p, const char *name) { return reader_worker_native::detail::ancestry(p, name); }
     static QMetaMethod signal(QObject *p, const char *name, bool added) {
@@ -339,13 +393,30 @@ private:
             refuse(config_.wantPostRejectProbe ? QStringLiteral("post-reject-probe-missing") :
                 QStringLiteral("post-reject-probe-unrequested")); return;
         }
+        const auto &calls = attribution.conditionCalls;
+        const bool anyCondition = calls.readWords || calls.search || calls.equal || calls.readTree || calls.find;
+        const bool allCondition = calls.readWords && calls.search && calls.equal && calls.readTree && calls.find;
+        if (config_.wantConditionalForward ? !allCondition : anyCondition) {
+            refuse(config_.wantConditionalForward ? QStringLiteral("condition-calls-missing") : QStringLiteral("condition-calls-unrequested")); return;
+        }
         resident_->attribution = attribution;
         const auto r = config_.request; // Survives facade deletion inside a borrowed guard.
-        auto freezing = reader_insertion_predicate::freeze({r.sourceIndex, config_.wrongSourceIndex, int(r.expectedPages.size()),
-            r.sourcePageId, r.expectedPages[r.sourceIndex + 1], r.expectedPages[config_.wrongSourceIndex], r.targetPageId});
-        if (!freezing.frozen) { refuse(QStringLiteral("predicate-config")); return; }
         reader_insertion_hooks::Registration registration;
-        registration.target = QUuid(r.targetPageId); registration.frozen = std::move(freezing.frozen);
+        registration.target = QUuid(r.targetPageId);
+        if (config_.wantConditionalForward) {
+            auto freezing = reader_insertion_condition::freeze({r.sourceIndex, int(r.expectedPages.size()), r.sourcePageId, r.targetPageId,
+                r.sourceIndex + 1 < r.expectedPages.size() ? r.expectedPages[r.sourceIndex + 1] : QString()});
+            if (!freezing.frozen) { refuse(QStringLiteral("condition-config")); return; }
+            registration.policy = reader_insertion_hooks::Policy::ForwardIfCurrent;
+            registration.frozenCondition = std::move(freezing.frozen);
+            registration.conditionCalls = attribution.conditionCalls;
+            registration.conditionAdmission = resident_->runtime.conditionAdmission;
+        } else {
+            auto freezing = reader_insertion_predicate::freeze({r.sourceIndex, config_.wrongSourceIndex, int(r.expectedPages.size()),
+                r.sourcePageId, r.expectedPages[r.sourceIndex + 1], r.expectedPages[config_.wrongSourceIndex], r.targetPageId});
+            if (!freezing.frozen) { refuse(QStringLiteral("predicate-config")); return; }
+            registration.frozen = std::move(freezing.frozen);
+        }
         registration.binding = {worker.data(), attribution.map, resident_->thread->id,
             resident_->runtime.outerReturnPC, resident_->runtime.innerReturnPC, r.sourceIndex + 1, 0, nullptr, 1, 0,
             r.paperSize, reader_insertion_hooks::CallerPolicy::BorrowedExplicitSize};
@@ -363,6 +434,7 @@ private:
         if (!weak) return;
         result_.registrationAccepted = registered;
         if (!registered || !guard() || !weak) { if (weak) refuse(QStringLiteral("registration-refused")); return; }
+        if (config_.wantConditionalForward) document_ = documentPin;
         phase_ = Phase::Task;
         creation_->submit(controllerPin, documentPin, id, before, r, guard, remaining());
     }
@@ -377,6 +449,56 @@ private:
         connection = connect(worker, &QObject::destroyed, this, [this] { refuse(QStringLiteral("worker-destroyed")); }, Qt::QueuedConnection);
         if (!weak) { QObject::disconnect(connection); return false; } destroyed_ = connection;
         return completed_ && added_ && destroyed_ && worker;
+    }
+    void conditionalTask() {
+        const QPointer<Coordinator> weak(this);
+        const auto outcome = coreSnapshot(); if (!weak) return;
+        updateForward(outcome); result_.creation = creation_->snapshot();
+        if (outcome.terminal && !forwardGood(outcome)) { refuse(QStringLiteral("core-forward-refused")); return; }
+        if (outcome.terminal) {
+            indexedEvents();
+            if (result_.matchingCompletions > 1 || result_.pageAdded > 1 ||
+                (result_.pageAdded && result_.pageAddedIndex != config_.request.sourceIndex + 1)) {
+                refuse(QStringLiteral("forward-worker-events")); return;
+            }
+        }
+        const auto &c = result_.creation;
+        if (c.finished && (c.unknown || !c.attempted || !c.returnKnown || !c.accepted || !c.callbackObserved ||
+            c.duplicate || c.callbackCount != 1 || c.canceled)) { refuse(QStringLiteral("ordinary-callback-refused")); return; }
+        if (outcome.terminal && indexedEvents() && c.finished) { phase_ = Phase::Post; schedule(); }
+    }
+    void post() {
+        const QPointer<Coordinator> weak(this);
+        const auto latest = coreSnapshot(); if (!weak) return;
+        updateForward(latest);
+        if (!forwardGood(latest) || !indexedEvents()) { refuse(QStringLiteral("post-core-or-events")); return; }
+        if (!document_) { refuse(QStringLiteral("post-document")); return; }
+        if (++postAttempts_ > 128) { refuse(QStringLiteral("post-observation-cap")); return; }
+        bool called = false, ready = false, waiting = false;
+        const auto observed = sample([weak, &called, &ready, &waiting](QObject *, QObject *document, QObject *, const QVariant &id,
+                const reader_selected::Observation &joined, const Permit &guard) {
+            if (!weak) return;
+            called = true;
+            QPointer<QObject> pin(document);
+            if (!pin || pin != weak->document_) { weak->refuse(QStringLiteral("post-document")); return; }
+            // Readiness may settle without a new Task. Every retry is observation only.
+            if ((!joined.ready || joined.loading || joined.working || joined.awaitingTiles || joined.pendingTiles) &&
+                !joined.pageError && !joined.documentError) { waiting = true; return; }
+            const auto order = reader_insertion_post_order::observe(weak->engine_, pin, id, weak->config_.request, joined, guard);
+            if (!weak) return;
+            weak->result_.postOrder = order;
+            if (!order.observed) { weak->refuse(QStringLiteral("post-order") + QStringLiteral(":") + order.refusal); return; }
+            ready = true;
+        });
+        if (!weak || !result_.refusal.isEmpty()) return;
+        if (observed.observed && called && ready) { finish(true); return; }
+        // Real Sample suppresses SourceAction for its fixed unready/error gate.
+        // That exact refusal is retryable; lookup/metadata/epoch failures are not.
+        const bool retry = (!called && observed.refusal == QStringLiteral("worker-source-unready")) ||
+            (called && waiting && observed.observed);
+        if (!retry) { refuse(QStringLiteral("post-join:") + observed.refusal.left(96)); return; }
+        if (!allowed() || !weak) { if (weak) refuse(QStringLiteral("post-permission")); return; }
+        postTimer_.start(qMin(100, remaining()));
     }
     void step() {
         if (result_.finished) return;
@@ -407,6 +529,7 @@ private:
             if (weak && (!observed.observed || phase_ == Phase::Second)) refuse(QStringLiteral("second-join"));
             if (weak) schedule();
         } else if (phase_ == Phase::Task) {
+            if (config_.wantConditionalForward) { conditionalTask(); return; }
             const auto outcome = coreSnapshot(); if (!weak) return;
             result_.core = outcome;
             result_.creation = creation_->snapshot();
@@ -427,6 +550,8 @@ private:
                 refuse(QStringLiteral("ordinary-callback-refused")); return;
             }
             if (outcome.terminal && result_.matchingCompletions == 1 && c.finished) { finish(true); return; }
+        } else if (phase_ == Phase::Post) {
+            post();
         }
     }
 };

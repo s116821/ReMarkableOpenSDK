@@ -16,7 +16,9 @@ done
 "$moc" "$root/qt_qml_creation_bridge.h" -o "$out/qt_qml_creation_bridge.moc"
 ${CXX:-c++} --version > "$out/compiler.txt"
 pkg-config --modversion Qt6Core >> "$out/compiler.txt"
-${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread -I"$out" -I"$root" \
+sanitize=
+if [ "${INSERTION_TRANSPORT_SANITIZERS:-0}" = 1 ]; then sanitize='-fsanitize=address,undefined -fno-omit-frame-pointer'; fi
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitize -I"$out" -I"$root" \
     "$root/reader_insertion_guard_transport_fixture.cpp" "$out/moc_reader_insertion_guard_entry.cpp" \
     "$out/moc_reader_selected_view_probe.cpp" "$out/moc_reader_worker_callback_witness.cpp" "$out/moc_reader_joined_creation_witness.cpp" \
     "$root/qt_qml_creation_bridge.cpp" $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -ldl -o "$out/fixture"
@@ -28,5 +30,6 @@ if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
         -E LANG=C.UTF-8 -E QT_QPA_PLATFORM=offscreen -E QT_QUICK_BACKEND=software \
         -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" -E QML_IMPORT_PATH="$SDKTARGETSYSROOT/usr/lib/qml" "$out/fixture"
 else
-    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout --kill-after=1s 20s "$out/fixture"
+    ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+        QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout --kill-after=1s 20s "$out/fixture"
 fi

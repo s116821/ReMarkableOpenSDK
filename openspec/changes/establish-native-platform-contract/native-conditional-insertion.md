@@ -108,9 +108,60 @@ and early/foreign/duplicate signals. Native activation requires a new reviewed
 source/artifact/provider/packet and recovery plan. No supported capability, safe
 unload or owner release follows from this design.
 
+## Conditional coordinator and fresh GUI post-order
+
+Add Config::wantConditionalForward=false, incompatible with the post-rejection
+probe. New mode requires wrongSourceIndex==-1 and permits last/single-page sources;
+old mode keeps its existing validation and wire bytes. Runtime adds separate
+conditionAdmission; Attribution adds typed conditionCalls. Only new mode freezes
+the correct-source condition and selects ForwardIfCurrent. No old frozen negative
+predicate is reinterpreted.
+
+Retain the actual strongly owned document's QPointer identity for a fresh post-task
+join. Preserve the index of every pageAdded event and require exactly one matching
+job at sourceIndex+1, plus one completion and ordinary callback. Then enter a
+separate Post phase. A bounded new observeCreationJoin may accept current selection
+on either the original source or target at its expected post-index; record which.
+Require the same retained document, process/window/engine and count N+1.
+
+Use original GUI-only `reader_insertion_post_order::observe(engine,document,
+actualId,request,joined,guard)` to copy the frozen inputs before callbacks and
+validate the complete expected post-order through public QMetaObject APIs:
+constant typed document id/text, pageCount, idForPage(int), pageForId(QString).
+Check the borrowed fresh-epoch guard before/after every getter/invocation, count
+before/after, exact IDs and inverse indexes. Bound original N<=16/post N<=17,
+metadata discovery and calls; guard reentry, exception, object/engine deletion,
+changed count/order and wrong selection refuse. Store only owned result scalars
+and strings, never the guard or borrowed objects. This is a GUI Document/Reader
+observation; it does not atomically read the worker map or establish durability.
+
+Post joins may retry only read-only observation after a no-action
+worker-source-unready result (the fixed join also uses this result for source
+error gates) or an explicitly unready joined action with clean error flags.
+Other lookup/metadata/epoch refusals stop. The original deadline remains;
+creation, registration and ordinary Task are never retried.
+On any refusal/timeout after commitment, refresh only the atomic-safe Core snapshot
+and preserve unknown/reconciliation facts. A normal forward alone is insufficient.
+Result adds forwardObserved, reconciliationRequired, pageAddedIndex and postOrder.
+Recheck the committed Core evidence when completing so late cancellation or
+interference cannot reuse an earlier passing snapshot.
+
+Only conditional transport uses closed schema 2 and a distinct diagnostic/stage.
+Include frozen original order/source index/target, complete condition/forward/
+return facts, indexed signals and owned post-order result; retain false authority
+flags and the 4096-byte cap. A distinct strict consumer binds expected input order
+and IDs from the candidate, validates original raw bytes/types/duplicates, and
+requires the full conjunction and exact N+1 order. Old schema1/default/post-reject
+consumers and bytes remain unchanged. Frozen startup selector
+READER_INSERTION_FORWARD=1 must select both pre-main condition qualification and
+coordinator/factory mode; it cannot combine with the post-rejection selector.
+This does not select the blank page when it was not already current. Guarded
+adjacent navigation and fresh target identity, write/reopen/persistence and full
+post-restoration source preservation remain separate tests.
+
 Source basis: existing source contracts, native negative/mutex observations and
 retained exact-binary tree/collision/comparator findings (private receipt SHA-256
 `6ef3886b1b08ac3ad26faf99e3f062671da8a42a190fbcc7ce7c618c6a8d2c2c`).
-APIs and controls above
-are a proposed successor; conditional implementation and native evidence remain
-open.
+The [owned coordinator/post-order composition](../../../docs/experiments/conditional-insertion-composition-owned-result.md)
+implements these research source layers. Actual conditional native insertion,
+selection/persistence and broader delivery remain open.
