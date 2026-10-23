@@ -46,7 +46,10 @@ class Reader final : public QQuickItem {
     Q_PROPERTY(QObject* sceneController READ sceneController CONSTANT)
 public:
     QPointer<QObject> value;
+    int nextCalls = 0;
+    std::function<void()> onNext;
     QObject *sceneController() const { return value; }
+    Q_INVOKABLE void moveForward() { ++nextCalls; const auto action = onNext; if (action) action(); }
 };
 namespace {
 using Entry = reader_insertion_entry::Coordinator;
@@ -101,22 +104,27 @@ struct Model {
 };
 void scenario(const QByteArray &mode) {
     const bool conditional = mode.startsWith("conditional-");
+    const bool select = mode.startsWith("conditional-select-");
     QQmlEngine engine; QQuickWindow window;
     QQmlEngine::setContextForObject(&window, engine.rootContext());
     window.show(); window.requestActivate(); pump();
     DocumentWorker worker, otherWorker;
     SceneController scene; scene.value = &worker;
     Reader reader; reader.value = &scene;
+    Reader otherReader; otherReader.value = &scene;
     QmlDocumentWrapper doc; Controller controller; controller.mode = Controller::None;
     auto config = reader_insertion_entry::Config{requestFor(doc), 5, 500};
     if (conditional) {
-        if (mode == "conditional-end") config.request.sourceIndex = doc.pages.size() - 1;
-        if (mode == "conditional-single") { doc.pages = {doc.pages.first()}; config.request.expectedPages = doc.pages; config.request.sourceIndex = 0; }
+        if (mode == "conditional-end" || mode == "conditional-select-end") config.request.sourceIndex = doc.pages.size() - 1;
+        if (mode == "conditional-single" || mode == "conditional-select-single") { doc.pages = {doc.pages.first()}; config.request.expectedPages = doc.pages; config.request.sourceIndex = 0; }
         config.request.sourcePageId = doc.pages[config.request.sourceIndex];
         config.wrongSourceIndex = -1; config.wantConditionalForward = true;
         if (mode == "conditional-both-modes") config.wantPostRejectProbe = true;
         if (mode == "conditional-wrong-index-config") config.wrongSourceIndex = 0;
     }
+    config.wantTargetAcquisition = select;
+    if (select) config.budgetMs = mode == "conditional-select-deadline" ? 200 : 3500;
+    if (mode == "conditional-select-invalid-mode") config.wantConditionalForward = false;
     if (!conditional) config.wantPostRejectProbe = mode.startsWith("post-") && mode != "post-unrequested";
     if (mode == "invalid-config") config.wrongSourceIndex = config.request.sourceIndex;
     if (mode == "deadline") config.budgetMs = 25;
@@ -128,6 +136,8 @@ void scenario(const QByteArray &mode) {
     auto owner = std::make_shared<int>(42); std::weak_ptr<int> ownerWeak = owner;
     Entry *entry = nullptr;
     bool permit = true, nestedFinished = false, cancelAfterAcquire = false;
+    bool selected = false, oldEpochLost = false;
+    int oldGuardReadsAfterNext = 0;
     reader_insertion_entry::Result saved;
     reader_insertion_entry::Runtime runtime;
     runtime.calls = {words, search, equal}; runtime.admission = {true, true, true, true, true, true};
@@ -150,6 +160,13 @@ void scenario(const QByteArray &mode) {
         return result;
     };
     std::unique_ptr<Entry> holder(new Entry(runtime)); entry = holder.get(); QPointer<Entry> weak = entry;
+    reader.onNext = [&] {
+        oldEpochLost = true;
+        if (mode != "conditional-select-no-change") selected = true;
+        if (mode == "conditional-select-cancel") entry->cancel();
+        if (mode == "conditional-select-delete") { delete entry; entry = nullptr; }
+        if (mode == "conditional-select-throw") throw std::runtime_error("owned Next throw");
+    };
     Entry::TestBoundary test;
     test.sample = [&](QQuickWindow *w, const reader_insertion_entry::Permit &guard, int budget,
                       const reader_selected::ValidatedSourceAction &action) {
@@ -157,6 +174,11 @@ void scenario(const QByteArray &mode) {
         check(w == &window && budget > 0 && budget <= config.budgetMs, "fresh sample uses original remaining budget");
         if (mode == "absolute-clamp") check(budget <= 25, "sample clamped to original external deadline");
         auto observed = before;
+        const int generation = model->samples;
+        const reader_insertion_entry::Permit epoch = [&, generation] {
+            if (select && generation == 3 && oldEpochLost) { ++oldGuardReadsAfterNext; return false; }
+            return guard();
+        };
         if (conditional && model->samples >= 3) {
             if (model->samples == 3 && (mode == "conditional-native-shape-retry" || mode == "conditional-native-shape-anchor")) {
                 observed = {};
@@ -165,7 +187,15 @@ void scenario(const QByteArray &mode) {
             }
             if (mode == "conditional-no-action") return observed;
             observed.pageCount = doc.pages.size();
-            if (mode == "conditional-target-selected") { observed.pageId = config.request.targetPageId; observed.pageIndex = config.request.sourceIndex + 1; }
+            if (mode == "conditional-target-selected" || mode == "conditional-select-already" || (select && selected)) {
+                observed.pageId = config.request.targetPageId; observed.pageIndex = config.request.sourceIndex + 1;
+            }
+            if (mode == "conditional-select-readiness" && model->samples == 4) observed.ready = false;
+            if (mode == "conditional-select-after-order" && model->samples >= 4) doc.pages.swapItemsAt(0, 1);
+            if (mode == "conditional-select-post-reader") {
+                if (epoch()) action(&otherReader, &doc, &controller, QVariant::fromValue(doc.key), observed, epoch);
+                return observed;
+            }
             if (mode == "conditional-not-ready" || (mode == "conditional-readiness-retry" && model->samples == 3)) observed.ready = false;
             if (mode == "conditional-wrong-selection") observed.pageId = doc.pages[0];
             if (mode == "conditional-post-epoch") doc.onRead = [&] { permit = false; };
@@ -181,7 +211,15 @@ void scenario(const QByteArray &mode) {
         if (model->samples == 2 && mode == "wrong-worker") scene.value = &otherWorker;
         if (model->samples == 2 && mode == "wrong-order") doc.pages.swapItemsAt(0, 1);
         if (model->samples == 2 && mode == "permission-loss") permit = false;
-        if (guard()) action(&reader, &doc, &controller, QVariant::fromValue(doc.key), observed, guard);
+        QObject *actualReader = &reader;
+        if (mode == "conditional-select-first-missing" || (mode == "conditional-select-second-reader" && model->samples == 2))
+            actualReader = mode == "conditional-select-first-missing" ? static_cast<QObject*>(&scene) : static_cast<QObject*>(&otherReader);
+        if (mode == "conditional-select-second-document" && model->samples == 2) {
+            QmlDocumentWrapper foreign;
+            if (epoch()) action(actualReader, &foreign, &controller, QVariant::fromValue(foreign.key), observed, epoch);
+            return observed;
+        }
+        if (epoch()) action(actualReader, &doc, &controller, QVariant::fromValue(doc.key), observed, epoch);
         if (mode == "conditional-post-sample-epoch" && model->samples >= 3) { observed = {}; observed.refusal = QStringLiteral("relationship-refused"); }
         return observed;
     };
@@ -228,6 +266,9 @@ void scenario(const QByteArray &mode) {
         if (mode == "conditional-inflight" && value.forwardCommitted && !value.terminal) ++model->inflightSnapshots;
         if (conditional && model->samples >= 3 && (mode == "conditional-late-core" || mode == "conditional-snapshot-delete")) {
             if (mode == "conditional-snapshot-delete") { delete entry; entry = nullptr; }
+            value.canceled = value.unknown = value.reconciliationRequired = true; value.witness = false;
+        }
+        if (mode == "conditional-select-late-core" && reader.nextCalls) {
             value.canceled = value.unknown = value.reconciliationRequired = true; value.witness = false;
         }
         return value;
@@ -278,12 +319,12 @@ void scenario(const QByteArray &mode) {
         return permit;
     });
     check(started == (mode != "invalid-config" && mode != "expired-before-start" && mode != "conditional-both-modes" &&
-        mode != "conditional-wrong-index-config" && mode != "conditional-no-core"), "start admission result");
+        mode != "conditional-wrong-index-config" && mode != "conditional-no-core" && mode != "conditional-select-invalid-mode"), "start admission result");
     if (mode == "before-cancel") entry->cancel();
     QElapsedTimer elapsed; elapsed.start();
-    while (weak && !weak->snapshot().finished && elapsed.elapsed() < 1300) pump();
+    while (weak && !weak->snapshot().finished && elapsed.elapsed() < (select ? 4500 : 1300)) pump();
     if (mode == "delete-probe" || mode == "factory-delete" || mode == "delete-finished" ||
-        mode == "conditional-post-delete" || mode == "conditional-snapshot-delete") {
+        mode == "conditional-post-delete" || mode == "conditional-snapshot-delete" || mode == "conditional-select-delete") {
         check(!weak, "facade destroyed by guarded callout"); holder.release(); pump(10);
         check(controller.calls == (mode == "delete-finished" || conditional ? 1 : 0) && !ownerWeak.expired(), "facade destruction retains owner context and no additional Task");
         if (mode == "delete-finished") check(saved.observed && saved.finished && saved.job == UINT64_MAX - 2 && finished == 1, "terminal snapshot survives deletion in finished receiver");
@@ -293,7 +334,8 @@ void scenario(const QByteArray &mode) {
         const bool positive = mode == "valid" || mode == "early-completion" || mode == "absolute-valid" || mode == "post-valid" ||
             mode == "conditional-middle" || mode == "conditional-end" || mode == "conditional-single" || mode == "conditional-early" ||
             mode == "conditional-target-selected" || mode == "conditional-readiness-retry" || mode == "conditional-inflight" ||
-            mode == "conditional-native-shape-retry";
+            mode == "conditional-native-shape-retry" || mode == "conditional-select-middle" || mode == "conditional-select-end" ||
+            mode == "conditional-select-single" || mode == "conditional-select-already" || mode == "conditional-select-readiness";
         if (r.observed != positive) QTextStream(stderr) << "mode=" << mode << " refusal=" << r.refusal << " probe=" << r.probe.refusal << " creation=" << r.creation.refusal << '\n';
         check(r.observed == positive && !r.nativeAuthority && !r.renderAuthority && !r.durableAuthority, "negative diagnostic only no authority");
         if (mode == "cancel-after-acquire") check(r.ownersRetained && r.canceled && model->probes == 0 && controller.calls == 0, "post-acquisition cancellation reports retained owners before any enqueue");
@@ -324,6 +366,20 @@ void scenario(const QByteArray &mode) {
         if (mode == "post-factory-cancel") check(model->registrations == 0 && controller.calls == 0 && r.canceled, "factory cancellation prevents requested registration");
         check(model->probes <= 1 && controller.calls <= 1 && model->registrations <= 1, "once-only all submission stages");
         check(!entry->start(&window, config, [] { return true; }), "terminal entry cannot rearm");
+        if (select) {
+            check(reader.nextCalls <= 1 && oldGuardReadsAfterNext == 0, "one Next and no old source epoch access after dispatch");
+            if (positive) check(r.targetMethod.admitted && r.targetNavigation.admitted && r.targetOrder.observed && r.targetOrder.targetSelected &&
+                r.targetOrder.ids == doc.pages && r.targetOrder.currentPageId == config.request.targetPageId,
+                "fresh complete order and ready target after correlated conditional creation");
+            if (mode == "conditional-select-already") check(!reader.nextCalls && r.targetNavigation.alreadySelected && !r.targetNavigation.attempted,
+                "already selected target skips Next");
+            if (mode == "conditional-select-first-missing") check(!model->acquisitions && !model->probes && !model->registrations && !controller.calls,
+                "unsupported method refuses before all native preparation/effects");
+            if (mode == "conditional-select-second-reader" || mode == "conditional-select-second-document") check(!controller.calls && !model->registrations,
+                "retained identity replacement refuses before creation");
+            if (reader.nextCalls && !positive) check(r.targetNavigation.attempted && r.reconciliationRequired && r.unknown,
+                "post-dispatch failure retains consumed Next and committed creation reconciliation");
+        }
         holder.reset();
     }
     runtime.makeAttribution = {}; owner.reset();
@@ -352,6 +408,12 @@ int main(int argc, char **argv) {
             "conditional-late-core", "conditional-post-epoch", "conditional-post-cancel", "conditional-post-delete", "conditional-snapshot-delete",
             "conditional-both-modes", "conditional-wrong-index-config", "conditional-missing-call", "conditional-no-core", "condition-unrequested",
             "conditional-native-shape-retry", "conditional-native-shape-anchor", "conditional-no-action", "conditional-post-sample-epoch"}) scenario(mode);
-    QTextStream(stdout) << "PASS conditional coordinator checks=" << checks << '\n'; return 0;
+    QTextStream(stdout) << "PASS conditional coordinator checks=" << checks << '\n';
+    checks = 0;
+    for (const QByteArray mode : {"conditional-select-middle", "conditional-select-end", "conditional-select-single", "conditional-select-already",
+            "conditional-select-readiness", "conditional-select-first-missing", "conditional-select-second-reader", "conditional-select-second-document",
+            "conditional-select-post-reader", "conditional-select-no-change", "conditional-select-after-order", "conditional-select-late-core",
+            "conditional-select-cancel", "conditional-select-throw", "conditional-select-delete", "conditional-select-deadline", "conditional-select-invalid-mode"}) scenario(mode);
+    QTextStream(stdout) << "PASS target acquisition coordinator checks=" << checks << '\n'; return 0;
 }
 #include "reader_insertion_guard_entry_fixture.moc"

@@ -154,7 +154,9 @@ private:
         if(!r.finished&&failure_.isEmpty())return;
         const bool forward=config_.coordinator.wantConditionalForward;
         const bool success=failure_.isEmpty()&&permitted()&&sameWindow()&&r.observed&&!r.unknown&&!r.canceled&&
-            (!forward||(r.forwardObserved&&!r.reconciliationRequired&&r.postOrder.observed));
+            (!forward||(r.forwardObserved&&!r.reconciliationRequired&&r.postOrder.observed))&&
+            (!config_.coordinator.wantTargetAcquisition||(r.targetOrder.observed&&r.targetOrder.targetSelected&&
+                r.targetNavigation.admitted&&!r.targetNavigation.unknown));
         terminal_=true;heartbeat_.stop();opportunity_.stop();
         if(suppressed_||!trusted())return;
         const auto body=wireBody(r,success);if(body.isEmpty())return;
@@ -207,6 +209,19 @@ private:
                 {"page_count",p.pageCount},{"current_page_index",p.currentPageIndex},{"current_page_id",p.currentPageId},
                 {"ids",ids},{"calls",int(p.calls)},{"refusal",p.refusal},{"native_authority",false},
                 {"render_authority",false},{"durable_authority",false}});
+            if(config_.coordinator.wantTargetAcquisition) {
+                const auto &m=r.targetMethod;const auto &n=r.targetNavigation;const auto &t=r.targetOrder;
+                QJsonObject method{{"admitted",m.admitted},{"index",m.index},{"signature",m.signature},
+                    {"class",m.declaringClass},{"return",m.returnName},{"type",m.returnTypeId},
+                    {"access",m.access},{"kind",m.kind},{"params",m.parameterCount},{"matches",m.matches},{"refusal",m.refusal}};
+                body.insert("schema",3);body.insert("diagnostic","insertion-guard-target");
+                body.insert("stage",success?QStringLiteral("insertion-target-observed"):QStringLiteral("insertion-target-incomplete"));
+                body.insert("target_acquisition",QJsonObject{{"method",method},{"admitted",n.admitted},
+                    {"attempted",n.attempted},{"dispatched",n.dispatched},{"unknown",n.unknown},
+                    {"already_selected",n.alreadySelected},{"refusal",n.refusal},
+                    {"observed",t.observed},{"target_selected",t.targetSelected},{"count",t.pageCount},
+                    {"index",t.currentPageIndex},{"id",t.currentPageId},{"calls",int(t.calls)},{"order_refusal",t.refusal}});
+            }
         }
         return body;
     }

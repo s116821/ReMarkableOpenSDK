@@ -192,8 +192,9 @@ void wireCase(bool requested,QGuiApplication &app) {
     check(body["stage"]=="insertion-refusal-incomplete"&&!body["coordinator_observed"].toBool(),"wire-only fixture is not native success");
     QTextStream(stdout)<<"PASS wire-post-reject-"<<requested<<'\n';
 }
-void conditionalWireCase(int count,int source,QGuiApplication &app) {
+void conditionalWireCase(int count,int source,QGuiApplication &app,bool select=false) {
     Files f;auto &c=f.config.coordinator;c.wantConditionalForward=true;c.wrongSourceIndex=-1;
+    c.wantTargetAcquisition=select;
     auto &q=c.request;q.expectedPages.clear();
     for(int i=1;i<=count;++i)q.expectedPages.append(QStringLiteral("10000000-0000-0000-0000-%1").arg(i,12,10,QLatin1Char('0')));
     q.sourceIndex=source;q.sourcePageId=q.expectedPages[source];f.config.navigation.pageIndex=source;
@@ -217,27 +218,36 @@ void conditionalWireCase(int count,int source,QGuiApplication &app) {
     condition.wordReads=condition.treeReads=2;condition.searches=condition.rightAdjacent?2:1;condition.equalities=condition.finds=1;
     auto &post=r.postOrder;post.observed=true;post.pageCount=count+1;post.currentPageIndex=source;post.currentPageId=q.sourcePageId;
     post.ids=q.expectedPages;post.ids.insert(source+1,q.targetPageId);post.calls=unsigned(2*post.ids.size()+5);
+    if(select) {
+        auto &m=r.targetMethod;m.admitted=true;m.index=511;m.returnTypeId=QMetaType::QVariant;
+        m.access=int(QMetaMethod::Public);m.kind=int(QMetaMethod::Slot);m.parameterCount=0;m.matches=1;
+        m.signature=QStringLiteral("moveForward()");m.declaringClass=QString(64,QLatin1Char('X'));m.returnName=QStringLiteral("QVariant");
+        r.targetNavigation.admitted=r.targetNavigation.attempted=r.targetNavigation.dispatched=true;
+        r.targetOrder=post;r.targetOrder.targetSelected=true;r.targetOrder.currentPageIndex=source+1;r.targetOrder.currentPageId=q.targetPageId;
+    }
     const auto body=Access::syntheticWire(e,r,true);
     const QByteArray bytes=QJsonDocument(body).toJson(QJsonDocument::Compact)+'\n';
     check(bytes.size()<=4096,"largest conditional wire retains the original file cap");
-    check(body["schema"].toInt()==2&&body["diagnostic"]=="insertion-guard-conditional"&&body["stage"]=="insertion-forward-observed",
+    check(body["schema"].toInt()==(select?3:2)&&body["diagnostic"]==(select?"insertion-guard-target":"insertion-guard-conditional")&&
+        body["stage"]==(select?"insertion-target-observed":"insertion-forward-observed"),
         "synthetic schema2 positive stage");
     check(!body.contains("post_reject_probe")&&body["expected_pages"].toArray().size()==count&&body["post_order"].toObject()["ids"].toArray().size()==count+1,
         "conditional full arrays and exclusive mode");
     check(body["core"].toObject()["condition"].toObject().size()==20&&body["post_order"].toObject().size()==11&&body["startup"].toObject().size()==6,
         "closed nested conditional shapes");
     for(const char *name:{"native_authority","render_authority","durable_authority"})check(body[name].isBool()&&!body[name].toBool(),"wire authority false");
-    const QString stem=QStringLiteral("/owned-wire-n%1-source%2").arg(count).arg(source);
+    const QString stem=(select?QStringLiteral("/owned-target-wire-n%1-source%2"):QStringLiteral("/owned-wire-n%1-source%2")).arg(count).arg(source);
     const QString output=QString::fromLocal8Bit(qgetenv("INSERTION_TRANSPORT_OUTPUT"));check(!output.isEmpty(),"explicit owned output");
     put(output+stem+".json",bytes);
     post.targetSelected=true;post.currentPageId=q.targetPageId;post.currentPageIndex=source+1;
+    if(select) { r.targetNavigation.alreadySelected=true;r.targetNavigation.attempted=r.targetNavigation.dispatched=false; }
     put(output+stem+"-target.json",QJsonDocument(Access::syntheticWire(e,r,true)).toJson(QJsonDocument::Compact)+'\n');
     Access::finish(e);
     const auto incomplete=QJsonDocument::fromJson(get(f.root+"/selected-result")).object();
-    check(incomplete["schema"].toInt()==2&&incomplete["stage"]=="insertion-forward-incomplete"&&!incomplete["forward_observed"].toBool(),
+    check(incomplete["schema"].toInt()==(select?3:2)&&incomplete["stage"]==(select?"insertion-target-incomplete":"insertion-forward-incomplete")&&!incomplete["forward_observed"].toBool(),
         "actual incomplete serializer never borrows synthetic success");
     put(output+stem+"-incomplete.json",get(f.root+"/selected-result"));
-    QTextStream(stdout)<<"PASS synthetic-conditional-wire n="<<count<<" source="<<source<<" bytes="<<bytes.size()<<'\n';
+    QTextStream(stdout)<<(select?"PASS synthetic-target-wire n=":"PASS synthetic-conditional-wire n=")<<count<<" source="<<source<<" bytes="<<bytes.size()<<'\n';
 }
 }
 int main(int argc, char **argv) {
@@ -252,5 +262,9 @@ int main(int argc, char **argv) {
     const int legacyChecks=checks;check(legacyChecks==795,"legacy50 scenarios keep their exact795 assertions");
     conditionalWireCase(1,0,app);conditionalWireCase(4,1,app);conditionalWireCase(4,3,app);
     conditionalWireCase(16,7,app);conditionalWireCase(16,15,app);
-    QTextStream(stdout) << "PASS owned transport checks=" << checks << "; no Coordinator or native success\n"; return 0;
+    QTextStream(stdout) << "PASS owned transport checks=" << checks << "; no Coordinator or native success\n";
+    checks=0;
+    conditionalWireCase(1,0,app,true);conditionalWireCase(4,1,app,true);conditionalWireCase(4,3,app,true);
+    conditionalWireCase(16,7,app,true);conditionalWireCase(16,15,app,true);
+    QTextStream(stdout) << "PASS target transport checks=" << checks << "; synthetic serialization only\n"; return 0;
 }

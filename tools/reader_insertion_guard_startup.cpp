@@ -19,7 +19,15 @@
 #if defined(READER_INSERTION_FORWARD) && defined(READER_INSERTION_POST_REJECT_PROBE)
 #error Conditional forwarding and the post-rejection probe are separate experiments.
 #endif
+#if defined(READER_INSERTION_SELECT_TARGET) && (READER_INSERTION_SELECT_TARGET != 1 || !defined(READER_INSERTION_FORWARD))
+#error Target acquisition requires the exact conditional-forward selector.
+#endif
 namespace {
+#ifdef READER_INSERTION_SELECT_TARGET
+constexpr bool wantTargetAcquisition=true;
+#else
+constexpr bool wantTargetAcquisition=false;
+#endif
 #ifdef READER_INSERTION_FORWARD
 constexpr bool wantConditionalForward=true;
 static_assert(READER_INSERTION_WRONG_INDEX==-1,"Conditional mode cannot use a deliberately wrong source");
@@ -99,6 +107,7 @@ void startup() {
             reader_insertion_transport::Config config;config.nonce=nonce;
             config.coordinator.wantPostRejectProbe=wantPostRejectProbe;
             config.coordinator.wantConditionalForward=wantConditionalForward;
+            config.coordinator.wantTargetAcquisition=wantTargetAcquisition;
             config.navigation={QStringLiteral(READER_INSERTION_DOCUMENT_ID),READER_INSERTION_SOURCE_INDEX,true};
             auto &request=config.coordinator.request;
             request.documentId=QStringLiteral(READER_INSERTION_DOCUMENT_ID);request.sourceIndex=READER_INSERTION_SOURCE_INDEX;

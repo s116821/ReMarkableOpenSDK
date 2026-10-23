@@ -673,3 +673,22 @@ rules. It SHALL report sampled association only, with no native effect authority
 #### Scenario: Host observer times out
 - WHEN the independent host deadline expires during an SFTP operation
 - THEN only the owned host observer/session is terminated, and server-side cleanup or target continuity not independently established remains explicitly unknown.
+
+### Requirement: Conditional research target acquisition isolation
+
+The SDK research coordinator SHALL keep optional adjacent target acquisition
+default-off and separate from negative and conditional-only diagnostics, following
+[the acquisition design](../../conditional-target-acquisition.md). This experiment
+SHALL NOT advertise supported native, render or durable capability.
+
+#### Scenario: Admitted source needs one Next
+- **WHEN** pre-creation stock method metadata remains identical, the retained Reader/document/window/engine match, conditional creation has the complete matched forward/job evidence and full expected N+1 order, and source remains selected before the original deadline
+- **THEN** the coordinator consumes one navigation claim before one stock Next, ends the old source Sample at dispatch, and reports acquisition only after a separate fresh complete-order observation selects the ready target at source+1.
+
+#### Scenario: Target already selected
+- **WHEN** the complete correlated post-creation observation already selects the ready target
+- **THEN** acquisition records that state without issuing Next, while preserving the final Core, lifetime and deadline checks.
+
+#### Scenario: Unsupported metadata or uncertain continuation
+- **WHEN** metadata admission fails before creation, or dispatch/selection subsequently becomes uncertain, canceled, expired or inconsistent
+- **THEN** pre-creation refusal has no creation dispatch, and post-commit refusal preserves forward and reconciliation facts without retrying creation or navigation or reviving an invalid old epoch.
