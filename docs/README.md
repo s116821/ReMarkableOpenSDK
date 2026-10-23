@@ -64,6 +64,7 @@ remain workflow records, not a shipping capability declaration.
 | Conditional native result | [One native insertion and preserved post-order](experiments/conditional-insertion-native-result.md) | One middle insertion persisted with original content preserved; Reader stayed on source and target acquisition remains open |
 | Target acquisition controls | [Conditional adjacent continuation](experiments/conditional-target-acquisition-owned-result.md) | Owned helper/coordinator/transport controls and separate ARM link variants; source checkpoint |
 | Composed target acquisition | [One creation, one Next and fresh target identity](experiments/conditional-target-acquisition-native-result.md) | One fixed idle-RM2 native result with complete order, persisted target and original-content preservation; broader capability remains open |
+| Identity-capture controls | [Live join, one grab and fresh join](experiments/identity-bracketed-capture-owned-result.md) | Owned real Qt samples/grabs and explicit modeled lifetime controls; no tablet capture or image-pair qualification |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

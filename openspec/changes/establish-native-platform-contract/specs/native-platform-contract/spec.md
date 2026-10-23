@@ -692,3 +692,27 @@ SHALL NOT advertise supported native, render or durable capability.
 #### Scenario: Unsupported metadata or uncertain continuation
 - **WHEN** metadata admission fails before creation, or dispatch/selection subsequently becomes uncertain, canceled, expired or inconsistent
 - **THEN** pre-creation refusal has no creation dispatch, and post-commit refusal preserves forward and reconciliation facts without retrying creation or navigation or reviving an invalid old epoch.
+
+### Requirement: Research identity-bracketed capture isolation
+
+The separate research capture helper SHALL follow [the capture design](../../identity-bracketed-capture.md), consume at most one shared grab claim, keep the existing sampled epoch intact and return only owned scalar facts. It SHALL NOT grant native, render or durable authority or change existing diagnostic modes.
+
+#### Scenario: Matching selected page around one image
+- **WHEN** the expected ready document/page is joined in the admitted window, the live borrowed guard survives one bounded grab of that exact window/root, and a distinct fresh join after unwind confirms the same owners and expected ready identity before the original deadline
+- **THEN** the helper may report sampled identity-bracketed image acquisition, without asserting useful/blank pixels, page coordinates or physical freshness.
+
+#### Scenario: Refused or ambiguous image
+- **WHEN** identity, ownership, thread, guard, epoch, deadline, reentry, claim or post-image validation fails
+- **THEN** no accepted image is reported, no old Sample guard escapes or is revived, no grab is retried, and any already-written image remains forensic only.
+
+### Requirement: Fixed research capture entry purpose
+
+The proposed capture Entry SHALL remain default-off and follow [the separate entry design](../../identity-capture-entry.md), with its original setup/operation clocks and a purpose-specific image/scalar publication admission. Existing modes and their wire contracts SHALL remain unchanged.
+
+#### Scenario: Helper returns before image-pair publication
+- **WHEN** the helper's borrowed Sample contexts have unwound and both image and scalar are ready for their separate commits
+- **THEN** the Entry freshly checks request/root/incarnation/cancellation/window context and both original deadlines at each commit, without invoking an expired Sample guard or reviving retired observation permission.
+
+#### Scenario: Partial, changed or expired pair
+- **WHEN** either commit, identity, quota, link, deadline or consumer full-decode validation fails
+- **THEN** no accepted pair is returned, original partial files remain forensic, and neither capture nor publication is retried.
