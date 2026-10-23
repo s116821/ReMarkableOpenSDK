@@ -4,6 +4,7 @@
 #endif
 #include "reader_insertion_guard_transport.h"
 #include "reader_insertion_guard_native_profile.h"
+#include "reader_insertion_child_environment.h"
 #include <atomic>
 #include <ctime>
 #if !defined(READER_INSERTION_NONCE) || !defined(READER_INSERTION_DOCUMENT_ID) || !defined(READER_INSERTION_SOURCE_INDEX) || !defined(READER_INSERTION_WRONG_INDEX) || !defined(READER_INSERTION_TARGET_ID) || !defined(READER_INSERTION_EXPECTED_PAGES)
@@ -61,6 +62,9 @@ __attribute__((constructor)) void install() {
         if(!admitted())stop();
         auto *value=reader_insertion_native_profile::installBeforeMain();
         if(!value||!value->core||!value->baseAdmission.profileAndProviders||!value->applicationAbsent||!admitted())stop();
+        // Qualification has consumed LD_BIND_NOW and verified eager bindings.
+        // Keep this DSO resident, but do not inject it into future exec helpers.
+        if(!reader_child_environment::clearInheritedInjection())stop();
         facilities.store(value,std::memory_order_release);
     }catch(...){stop();}
 }
