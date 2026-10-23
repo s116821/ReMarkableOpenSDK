@@ -44,6 +44,11 @@ before/after each step. A lost check leaves pending/hardlink evidence for refusa
 do not delete/rewrite/retry it. Then serialize and publish a separate closed
 capture scalar purpose under the same admission, with the original4096-byte
 scalar limit. Check inode/size/times/link counts consistently across both commits.
+Before closing either original writable FD, acquire and verify an O_PATH pin to
+that same regular inode. Retain the image pin through both commits and the scalar
+pin through its commit. This prevents an unlink/recreate from reusing the freed
+inode and presenting indistinguishable coarse metadata after close; stat equality
+alone does not prove continuity. Pins do not establish atomic content stability.
 PNG bytes can precede the scalar; an image alone never establishes acceptance.
 Refused helper results may publish bounded diagnostic scalars but cannot publish
 an accepted image pair. They retain claim/unknown/partial-output facts.
@@ -76,6 +81,16 @@ pending duplicates, partial commits, stale/changed/wrong-purpose pairs or unsafe
 names. Verify SHA, dimensions and complete decode locally before acceptance.
 Formatted JSON is only a parsed copy. Orphans remain forensic and are archived.
 
+The archived-byte validator is a separate part of that consumer: it cannot
+establish live file modes, link counts, request identity or process/restoration
+brackets from copied bytes. Its positive result must leave external admission
+unverified. Its fixed PNG profile accepts static truecolor RGB/RGBA at 8/16 bits,
+requires complete CRC/deflate/scanline and local pixel decode, and refuses indexed
+or grayscale data and compressed ancillary metadata (`zTXt`, `iTXt`, `iCCP`).
+Unsupported originals remain unchanged and forensic. This deliberately limited
+diagnostic decoder does not promise a general PNG reader or total decoder memory
+bound equal to the captured image's reported storage size.
+
 ## Verification and later selection
 
 Owned Entry controls must exercise real one-request files, fixed navigation seam,
@@ -94,5 +109,8 @@ full stock/process/policy verification remain required. No old spent packet,
 second creation or changed event guard substitutes for this work.
 
 Source basis: current selected-view Entry, helper/capture core and exercised
-child-environment primitive; independently reviewed source observations. The new
-mode, admission and image consumer described here are proposed and unimplemented.
+child-environment primitive; independently reviewed source observations. The
+mode, file publication and archived-byte validator now have a separate
+[owned implementation checkpoint](../../../docs/experiments/identity-capture-entry-owned-result.md).
+Live file/request/process/restoration consumption and a fresh native packet/load
+remain unimplemented or unqualified; this design does not grant native authority.

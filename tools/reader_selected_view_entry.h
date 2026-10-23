@@ -6,6 +6,8 @@
 #include "reader_worker_callback_witness.h"
 #include "reader_native_worker_bridge.h"
 #include "reader_joined_creation_witness.h"
+#include "reader_identity_capture.h"
+#include "reader_capture_files.h"
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -38,11 +40,15 @@ inline QByteArray selfIdentity() {
 
 class Entry final : public QObject {
 public:
-    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership, NavigateCreationWorkerCallback, NavigateJoinedCreation };
+    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership, NavigateCreationWorkerCallback, NavigateJoinedCreation, NavigateIdentityCapture };
     Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
-          Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {}, reader_joined_creation::Request creation = {})
+          Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {}, reader_joined_creation::Request creation = {},
+          reader_identity_capture::Expected capture = {})
         : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
-          diagnostic_(diagnostic), navigation_(std::move(navigation)), creationRequest_(std::move(creation)) { elapsed_.start(); }
+          diagnostic_(diagnostic), navigation_(std::move(navigation)), creationRequest_(std::move(creation)), captureExpected_(std::move(capture)) {
+        if (captureMode()) captureClaim_ = std::make_shared<reader_identity_capture::Claim>();
+        elapsed_.start();
+    }
     ~Entry() override {
         if (creation_) creation_->cancel(QStringLiteral("entry-destroyed"));
         creation_.reset();
@@ -58,10 +64,14 @@ public:
             return terminal_ = true, false;
         if ((diagnostic_ != Diagnostic::SelectedPage && diagnostic_ != Diagnostic::CreationSourceJoin &&
              diagnostic_ != Diagnostic::NavigateCreationSourceJoin && diagnostic_ != Diagnostic::NavigationOwnership &&
-             diagnostic_ != Diagnostic::NavigateCreationWorkerCallback && diagnostic_ != Diagnostic::NavigateJoinedCreation) ||
+             diagnostic_ != Diagnostic::NavigateCreationWorkerCallback && diagnostic_ != Diagnostic::NavigateJoinedCreation &&
+             diagnostic_ != Diagnostic::NavigateIdentityCapture) ||
             (navigates() && !navigation_.valid()) || ((workerMode() || creationMode()) && !navigation_.legacyComposition) ||
             (creationMode() && (!creationRequest_.valid() || creationRequest_.documentId != navigation_.documentId ||
-                creationRequest_.sourceIndex != navigation_.pageIndex))) return terminal_ = true, false;
+                creationRequest_.sourceIndex != navigation_.pageIndex)) ||
+            (captureMode() && (!navigation_.legacyComposition || !captureExpected_.valid() ||
+                captureExpected_.documentId != navigation_.documentId || captureExpected_.pageIndex != navigation_.pageIndex)))
+            return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return terminal_ = true, false;
         identity_ = selfIdentity();
         if (identity_.isEmpty()) return terminal_ = true, false;
@@ -71,6 +81,14 @@ public:
             return terminal_ = true, false;
         if (!absent("selected-ready") || !absent("selected-result") || !absent(".pending-ready") || !absent(".pending-result"))
             return terminal_ = true, false;
+        if (captureMode() && (!absent("visual-image.png") || !absent(".pending-image"))) return terminal_ = true, false;
+        if (captureMode()) {
+            const QPointer<Entry> weak(this);
+            auto files = reader_capture_files::Files::create(root_, [weak] { return weak && weak->permit(); });
+            if (!weak) return false;
+            if (!files) return terminal_ = true, false;
+            captureFiles_ = std::move(files);
+        }
         connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, [this] { queue(); });
         connect(&timer_, &QTimer::timeout, this, [this] { finish("setup-expired"); });
         connect(&navigationTimer_, &QTimer::timeout, this, [this] { afterNavigation(); });
@@ -108,12 +126,18 @@ public:
     bool creationPendingForTest() const { return creationTimer_.isActive(); }
     void afterCreationForTest() { creationTimer_.stop(); afterCreationOpportunity(); }
     void creationWirePaddingForTest(QString padding) { creationWirePaddingTest_ = padding.left(1024); }
+    using CaptureRunTest = std::function<reader_identity_capture::Result(QQuickWindow *, const reader_identity_capture::Expected &,
+        visual_capture::Sink &, const std::shared_ptr<reader_identity_capture::Claim> &, const std::function<bool()> &, int)>;
+    void captureRunForTest(CaptureRunTest hook) { captureRunTest_ = std::move(hook); }
+    void capturePublicationForTest(std::function<void()> hook) { capturePublicationTest_ = std::move(hook); }
+    reader_identity_capture::Result captureResultForTest() const { return captureResult_; }
 #endif
 private:
     enum class CreationPhase { Initial, BeforeNext, AfterNext };
     bool workerMode() const { return diagnostic_ == Diagnostic::NavigateCreationWorkerCallback; }
     bool creationMode() const { return diagnostic_ == Diagnostic::NavigateJoinedCreation; }
-    bool navigates() const { return diagnostic_ == Diagnostic::NavigateCreationSourceJoin || workerMode() || creationMode(); }
+    bool captureMode() const { return diagnostic_ == Diagnostic::NavigateIdentityCapture; }
+    bool navigates() const { return diagnostic_ == Diagnostic::NavigateCreationSourceJoin || workerMode() || creationMode() || captureMode(); }
     qint64 now() const {
 #ifdef READER_SELECTED_TESTING
         return elapsed_.elapsed() + offset_;
@@ -201,6 +225,7 @@ private:
         if (!paths.isEmpty()) watcher_.removePaths(paths);
     }
     void finish(QString stage, Observation observation = {}, bool allowResult = true) {
+        if (captureMode()) { finishCapture(std::move(stage), allowResult, std::move(observation.refusal)); return; }
         if (terminal_) return;
         disarm();
         if (!allowResult) suppressed_ = true;
@@ -375,12 +400,13 @@ private:
         // The first native/window selection occurs only after exact admission.
         QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
         sampleBegin_ = now();
-        operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + (creationMode() ? 30000 : MaxObservationMs));
+        operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + ((creationMode() || captureMode()) ? 30000 : MaxObservationMs));
         if (operationEnd_ <= now()) { finish("setup-expired"); return; }
         if (diagnostic_ == Diagnostic::NavigationOwnership) { sampleOwnership(window); return; }
         if (!navigates()) { sample(window); return; }
         const QPointer<Entry> weak(this);
         operationEngine_ = window ? qmlEngine(window) : nullptr;
+        if (captureMode()) { captureWindow_ = window; captureRoot_ = window ? window->contentItem() : nullptr; }
         sampling_ = true;
         const auto navigation = openFixture(window, navigation_, [weak] {
             return weak && weak->permit() && weak->now() < weak->operationEnd_;
@@ -438,6 +464,7 @@ private:
         sample(window);
     }
     void sample(QQuickWindow *window) {
+        if (captureMode()) { sampleCapture(window); return; }
         if (creationMode()) { sampleCreation(window); return; }
         const qint64 remaining = operationEnd_ - now();
         if (remaining <= 0) { Observation r; r.refusal = QStringLiteral("deadline"); sampleEnd_ = now(); finish("observation-refused", r); return; }
@@ -728,6 +755,143 @@ private:
         }
         finish(QStringLiteral("creation-selected-observed"), observation);
     }
+    bool captureContext() const {
+        return app_ && !QCoreApplication::closingDown() && QThread::currentThread() == app_->thread() &&
+            captureWindow_ && captureRoot_ && operationEngine_ &&
+            captureWindow_->thread() == app_->thread() && captureRoot_->thread() == app_->thread() &&
+            operationEngine_->thread() == app_->thread() && QGuiApplication::focusWindow() == captureWindow_ &&
+            captureWindow_->isActive() && captureWindow_->isVisible() && captureWindow_->contentItem() == captureRoot_ &&
+            qmlEngine(captureWindow_) == operationEngine_;
+    }
+    // Separate publication phase; observation permit() remains retired.
+    bool capturePublicationAllowed() const {
+        const QPointer<const Entry> weak(this);
+        try {
+#ifdef READER_SELECTED_TESTING
+            const auto test = capturePublicationTest_;
+            if (test) test();
+            if (!weak) return false;
+#endif
+            return weak && weak->capturePublishing_ && weak->terminal_ && !weak->suppressed_ && weak->consumed_ && weak->captureContext() &&
+                weak->now() < SetupWindowMs && weak->operationEnd_ > 0 && weak->now() < weak->operationEnd_ && weak->trusted();
+        } catch (...) { return false; }
+    }
+    static QJsonObject captureObservation(const Observation &r) {
+        return {{"observed",r.observed},{"map_coherent",r.mapCoherent},{"creation_join",r.creationJoinObserved},{"ready",r.ready},
+            {"document_id",r.documentId},{"page_id",r.pageId},{"index",r.pageIndex},{"count",r.pageCount},
+            {"status",r.status},{"page_status",r.pageStatus},{"loading",r.loading},{"page_error",r.pageError},
+            {"document_error",r.documentError},{"awaiting_tiles",r.awaitingTiles},{"pending_tiles",r.pendingTiles},
+            {"working",r.working},{"refusal",r.refusal}};
+    }
+    bool captureResultValid() const {
+        const auto &r = captureResult_;
+        if (!r.captured || !r.attempted || r.unknown || !r.refusal.isEmpty() || !captureClaim_ || !captureClaim_->consumed.load() ||
+            !reader_identity_capture::detail::matches(r.before, captureExpected_) ||
+            !reader_identity_capture::detail::matches(r.after, captureExpected_) ||
+            r.width <= 0 || r.width > 1872 || r.height <= 0 || r.height > 1872 ||
+            qint64(r.width) * r.height > visual_capture::PixelCap || r.storage <= 0 || r.storage > visual_capture::StorageCap ||
+            !std::isfinite(r.dpr) || r.dpr <= 0 || r.encoded <= 0 || r.encoded > visual_capture::PngCap ||
+            r.encoded != captureOutputBytes_ || r.sha.size() != 64 || r.sha != captureOutputSha_) return false;
+        for (char c : r.sha) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+        return true;
+    }
+    void finishCapture(QString stage, bool allowResult, QString failure = {}) {
+        // Shutdown suppression remains sticky during terminal publication too.
+        if (!allowResult) suppressed_ = true;
+        if (terminal_) return;
+        const QPointer<Entry> weak(this);
+        disarm();
+        if (!weak) return;
+        if (sampling_) {
+            if (pendingStage_.isEmpty() || stage == QStringLiteral("setup-expired")) pendingStage_ = std::move(stage);
+            return;
+        }
+        terminal_ = true;
+        capturePublishing_ = true;
+        const auto files = captureFiles_; // Own duplicated directory/FD across Entry destruction.
+        const auto admitted = [weak] { return weak && weak->capturePublicationAllowed(); };
+        if (!files || !admitted()) { if (weak) { weak->capturePublishing_ = false; weak->captureFiles_.reset(); } return; }
+        if (!pendingStage_.isEmpty()) { stage = pendingStage_; if (failure.isEmpty()) failure = QStringLiteral("observation-disarmed"); }
+        if (captureResult_.captured && !captureResultValid()) { stage = QStringLiteral("helper-result-refused"); failure = QStringLiteral("helper-result-contract"); }
+        reader_capture_files::Result image;
+        if (pendingStage_.isEmpty() && captureResultValid() && captureSeal_.ok && failure.isEmpty()) {
+            image = files->commitImage(admitted);
+            if (!weak) return;
+            if (!image.ok) { stage = QStringLiteral("image-publication-refused"); failure = image.refusal; }
+        }
+        if (!admitted()) { if (weak) { weak->capturePublishing_ = false; weak->captureFiles_.reset(); } return; }
+        const bool accepted = navigationAttempted_ && navigationDispatched_ && captureResultValid() && captureSeal_.ok &&
+            image.committed && pendingStage_.isEmpty() && failure.isEmpty();
+        const auto identity = identity_.trimmed().split(' ');
+        if (identity.size() != 2) { capturePublishing_ = false; captureFiles_.reset(); return; }
+        if (!accepted && failure.isEmpty()) failure = captureFailure_.isEmpty() ? captureResult_.refusal : captureFailure_;
+        QJsonObject body{{"schema",1},{"diagnostic",QStringLiteral("identity-capture")},{"nonce",QString::fromLatin1(nonce_)},
+            {"pid",QString::fromLatin1(identity[0])},{"start",QString::fromLatin1(identity[1])},
+            {"stage",accepted ? QStringLiteral("identity-image-observed") : stage},{"refusal",failure},
+            {"accepted",accepted},{"attempted",captureResult_.attempted},{"captured",captureResult_.captured},{"unknown",captureResult_.unknown},
+            {"navigation_attempted",navigationAttempted_},{"navigation_dispatched",navigationDispatched_},
+            {"navigation_scope",QStringLiteral("legacy-main-composition")},
+            {"expected",QJsonObject{{"document_id",captureExpected_.documentId},{"page_id",captureExpected_.pageId},
+                {"index",captureExpected_.pageIndex},{"count",captureExpected_.pageCount}}},
+            {"before",captureObservation(captureResult_.before)},{"after",captureObservation(captureResult_.after)},
+            {"sample_begin_ms",sampleBegin_},{"sample_end_ms",sampleEnd_},{"capture_begin_ms",captureBegin_},{"capture_end_ms",captureEnd_},
+            {"publication_ms",now()},{"operation_end_ms",operationEnd_},{"setup_limit_ms",SetupWindowMs},
+            {"image_committed",image.committed},{"image_linked",image.linked},{"image",QStringLiteral("visual-image.png")},
+            {"width",captureResult_.width},{"height",captureResult_.height},{"storage_bytes",captureResult_.storage},
+            {"dpr",captureResult_.dpr},{"encoded_bytes",captureResult_.encoded},{"output_bytes",captureOutputBytes_},
+            {"sha256",QString::fromLatin1(captureResult_.sha)},{"acquisition",QStringLiteral("QQuickWindow::grabWindow")},
+            {"coordinates",QStringLiteral("full-window")},{"identity_semantics",QStringLiteral("sampled-before-around-after")},
+            {"content_correspondence",QStringLiteral("unverified")},{"physical_freshness",QStringLiteral("unverified")},
+            {"native_authority",false},{"render_authority",false},{"durable_authority",false},{"atomic_authority",false}};
+        const auto bytes = QJsonDocument(body).toJson(QJsonDocument::Compact) + '\n';
+        files->publishScalar(bytes, accepted ? reader_capture_files::ScalarKind::AcceptedPair : reader_capture_files::ScalarKind::Diagnostic, admitted);
+        if (weak) { weak->capturePublishing_ = false; weak->captureFiles_.reset(); }
+    }
+    void sampleCapture(QQuickWindow *window) {
+        const QPointer<Entry> weak(this);
+        const auto files = captureFiles_;
+        const auto expected = captureExpected_;
+        const auto claim = captureClaim_;
+        const auto admitted = [weak] {
+            return weak && weak->permit() && weak && weak->captureContext() && weak->now() < weak->operationEnd_;
+        };
+        if (!files || window != captureWindow_ || !admitted()) { if (weak) weak->finish(QStringLiteral("capture-context-refused")); return; }
+        sampling_ = true;
+        const auto opened = files->openImage(admitted);
+        if (!weak) return;
+        if (!opened.ok) { sampling_ = false; captureFailure_ = opened.refusal; sampleEnd_ = now(); finish(QStringLiteral("image-open-refused")); return; }
+        reader_identity_capture::Result result;
+        qint64 output = 0;
+        QByteArray outputSha;
+        {
+            visual_capture::Sink sink(files->imageFd()); // Files owns FD; local Sink dies before sealing.
+            if (!weak) return;
+            captureBegin_ = now();
+            const int budget = int(qMax<qint64>(0, qMin<qint64>(20000, operationEnd_ - now())));
+            try {
+#ifdef READER_SELECTED_TESTING
+                const auto test = captureRunTest_;
+                if (test) result = test(window, expected, sink, claim, admitted, budget);
+                else
+#endif
+                    result = reader_identity_capture::run(window, expected, sink, claim, admitted, budget);
+            } catch (...) {
+                result.attempted = claim && claim->consumed.load(); result.unknown = result.attempted;
+                result.refusal = QStringLiteral("capture-exception");
+            }
+            output = sink.count();
+            outputSha = sink.digest();
+        }
+        if (!weak) return;
+        captureEnd_ = sampleEnd_ = now();
+        captureResult_ = std::move(result); captureOutputBytes_ = output; captureOutputSha_ = std::move(outputSha);
+        const auto sealed = files->sealImage(output, admitted); // Closes even an invalid/partial output FD.
+        if (!weak) return;
+        captureSeal_ = sealed;
+        if (!sealed.ok && captureResult_.captured) captureFailure_ = sealed.refusal;
+        sampling_ = false;
+        finish(captureResult_.captured && sealed.ok ? QStringLiteral("identity-image-observed") : QStringLiteral("identity-image-refused"));
+    }
     void workerFinished() {
         if (terminal_ || disarmed_ || !worker_ || sampling_) return;
         if (!permit()) { finishStopped(); return; }
@@ -751,6 +915,17 @@ private:
     std::unique_ptr<reader_worker_native::Prepared> workerPrepared_;
     reader_worker_native::Submission workerSubmission_;
     reader_joined_creation::Request creationRequest_;
+    reader_identity_capture::Expected captureExpected_;
+    reader_identity_capture::Result captureResult_;
+    reader_capture_files::Result captureSeal_;
+    std::shared_ptr<reader_capture_files::Files> captureFiles_;
+    std::shared_ptr<reader_identity_capture::Claim> captureClaim_;
+    QPointer<QQuickWindow> captureWindow_;
+    QPointer<QQuickItem> captureRoot_;
+    QString captureFailure_;
+    QByteArray captureOutputSha_;
+    qint64 captureBegin_ = -1, captureEnd_ = -1, captureOutputBytes_ = 0;
+    bool capturePublishing_ = false;
     reader_joined_creation::Result creationResult_;
     std::unique_ptr<reader_joined_creation::Witness> creation_;
     QPointer<QQuickWindow> creationWindow_;
@@ -788,6 +963,8 @@ private:
     std::function<qulonglong(QObject *, const std::function<void()> &)> workerSubmitTest_;
     CreationSubmitTest creationSubmitTest_;
     QString creationWirePaddingTest_;
+    CaptureRunTest captureRunTest_;
+    std::function<void()> capturePublicationTest_;
 #endif
 };
 } // namespace reader_selected

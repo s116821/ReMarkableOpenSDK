@@ -716,3 +716,11 @@ The proposed capture Entry SHALL remain default-off and follow [the separate ent
 #### Scenario: Partial, changed or expired pair
 - **WHEN** either commit, identity, quota, link, deadline or consumer full-decode validation fails
 - **THEN** no accepted pair is returned, original partial files remain forensic, and neither capture nor publication is retried.
+
+#### Scenario: Application begins quitting during publication
+- **WHEN** application shutdown is signaled after the capture request has become terminal but before image/scalar publication finishes
+- **THEN** shutdown suppression remains sticky, later publication checks refuse completion, and any pending or partially linked files remain forensic without retry.
+
+#### Scenario: Archived bytes pass local checks
+- **WHEN** a consumer validates an original closed scalar and matching fully decoded image within its fixed supported PNG profile
+- **THEN** it reports byte-pair validation only, leaves external private-file/request/process/restoration admission unverified, and grants no native, render, durable or atomic authority.
