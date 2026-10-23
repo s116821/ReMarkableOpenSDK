@@ -57,7 +57,8 @@ remain workflow records, not a shipping capability declaration.
 | Native guard startup | [Profile passed; navigation refused](experiments/insertion-guard-startup-navigation-result.md) | Actual startup and original restoration/preservation; insertion witness unreached |
 | Child environment | [Real owned exec regression](experiments/insertion-child-environment-owned-result.md) | Six host scenarios/126 checks and parent residency; native startup cause remains a hypothesis |
 | Native negative witness | [Actual mismatch observation and refusal](experiments/insertion-guard-native-negative-result.md) | Matching native job/callback and exact preservation; conditional permitted insertion remains unimplemented |
-| Post-rejection mutex | [Owned cleanup and probe controls](experiments/post-rejection-map-lock-owned-result.md) | Default-off trylock/unlock witness; actual native map reuse remains untested |
+| Post-rejection controls | [Owned cleanup and probe controls](experiments/post-rejection-map-lock-owned-result.md) | Default-off witness, owned failure cases and separately unexecuted default-mode composition |
+| Post-rejection mutex | [Actual native reacquisition and release](experiments/post-rejection-map-lock-native-result.md) | One nonrecursive map mutex reused after rejection, unchanged fixture and restored stock; permitted insertion remains open |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an
