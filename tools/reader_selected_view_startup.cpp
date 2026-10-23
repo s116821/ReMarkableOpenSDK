@@ -24,7 +24,24 @@
 #if defined(READER_SELECTED_WORKER_CALLBACK) && (!defined(READER_SELECTED_OPEN_FIXTURE_JOIN) || !defined(READER_SELECTED_LEGACY_COMPOSITION))
 #error Worker callback witness requires the fixed-fixture legacy navigation mode.
 #endif
+#if defined(READER_SELECTED_JOINED_CREATION) && (!defined(READER_SELECTED_OPEN_FIXTURE_JOIN) || !defined(READER_SELECTED_LEGACY_COMPOSITION) || !defined(READER_SELECTED_TARGET_PAGE_ID) || !defined(READER_SELECTED_EXPECTED_PAGES))
+#error Joined creation requires fixed legacy navigation and a fresh target UUID.
+#endif
+#if defined(READER_SELECTED_JOINED_CREATION) && defined(READER_SELECTED_WORKER_CALLBACK)
+#error Select exactly one effect diagnostic.
+#endif
 namespace {
+#ifdef READER_SELECTED_JOINED_CREATION
+reader_joined_creation::Request creationRequest() {
+    reader_joined_creation::Request request;
+    request.documentId = QStringLiteral(READER_SELECTED_DOCUMENT_ID);
+    request.sourceIndex = READER_SELECTED_PAGE_INDEX;
+    request.targetPageId = QStringLiteral(READER_SELECTED_TARGET_PAGE_ID);
+    request.expectedPages = QStringLiteral(READER_SELECTED_EXPECTED_PAGES).split(QLatin1Char(','), Qt::KeepEmptyParts);
+    request.sourcePageId = request.expectedPages.value(request.sourceIndex);
+    return request;
+}
+#endif
 constexpr char nonce[] = READER_SELECTED_NONCE;
 constexpr bool validNonce() {
     if (sizeof nonce != 33) return false;
@@ -46,7 +63,9 @@ void startup() {
 #ifdef READER_SELECTED_NAVIGATION_OWNERSHIP
             reader_selected::Entry::Diagnostic::NavigationOwnership
 #elif defined(READER_SELECTED_OPEN_FIXTURE_JOIN)
-#ifdef READER_SELECTED_WORKER_CALLBACK
+#ifdef READER_SELECTED_JOINED_CREATION
+            reader_selected::Entry::Diagnostic::NavigateJoinedCreation,
+#elif defined(READER_SELECTED_WORKER_CALLBACK)
             reader_selected::Entry::Diagnostic::NavigateCreationWorkerCallback,
 #else
             reader_selected::Entry::Diagnostic::NavigateCreationSourceJoin,
@@ -56,6 +75,9 @@ void startup() {
                 , true
 #endif
             }
+#ifdef READER_SELECTED_JOINED_CREATION
+            , creationRequest()
+#endif
 #elif defined(READER_SELECTED_CREATION_JOIN)
             reader_selected::Entry::Diagnostic::CreationSourceJoin
 #else

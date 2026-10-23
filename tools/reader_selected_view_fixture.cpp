@@ -238,10 +238,11 @@ struct Fixture {
     std::unique_ptr<QObject> object;
     QQuickItem *reader = nullptr, *device = nullptr, *container = nullptr;
     SceneView *current = nullptr;
-    explicit Fixture(bool badContext = false, bool composite = false) {
+    explicit Fixture(bool badContext = false, bool composite = false, QByteArray extraReaderMembers = {}) {
         require(dir.isValid(), "temporary directory");
         write(dir.filePath("DeviceFixture.qml"), deviceQml);
         QByteArray source = readerQml;
+        if (!extraReaderMembers.isEmpty()) source.insert(source.lastIndexOf('}'), extraReaderMembers);
         if (badContext) source.replace("sceneView", "wrongLexicalId");
         write(dir.filePath("ReaderFixture.qml"), source);
         write(dir.filePath("Main.qml"), R"QML(
@@ -325,6 +326,22 @@ int main(int argc, char **argv) {
         require(!f.sample().creationJoinObserved && library.calls == 1, "ordinary observation does not call creation lookup");
         require(QQmlEngine::objectOwnership(&f.document) == QQmlEngine::CppOwnership,
                 "direct meta-call leaves externally owned wrapper ownership unchanged");
+        int sourceActions = 0, workerActions = 0;
+        reader_selected::ValidatedSourceAction sourceAction = [&](QObject *reader, QObject *document, QObject *controller,
+                const QVariant &actualId, const reader_selected::Observation &before, const std::function<bool()> &guard) {
+            ++sourceActions;
+            require(reader == f.reader && document == &f.document && controller == &creation &&
+                actualId.metaType() == QMetaType::fromType<QByteArray>() && actualId.toByteArray() == f.document.id() &&
+                before.observed && before.creationJoinObserved && before.ready && guard(), "synchronous qualified source action consumes actual watched objects and ID");
+        };
+        const auto acted = reader_selected::observeWithCreationController(&f.window, &creation, [] { return true; }, 1000, {}, sourceAction);
+        require(acted.observed && sourceActions == 1, "source action once after complete ready join");
+        reader_selected::ValidatedWorkerAction workerAction = [&](QObject *, const QVariant &, QObject *, const reader_selected::Observation &, const std::function<bool()> &) { ++workerActions; };
+        refused(reader_selected::observeWithCreationController(&f.window, &creation, [] { return true; }, 1000, workerAction, sourceAction), "two simultaneous source actions refuse");
+        require(sourceActions == 1 && workerActions == 0, "ambiguous actions never dispatch");
+        f.controller.setWorking(true);
+        refused(reader_selected::observeWithCreationController(&f.window, &creation, [] { return true; }, 1000, {}, sourceAction), "unready source never dispatches");
+        require(sourceActions == 1, "unready action stays unused"); f.controller.setWorking(false);
         DocumentFixture other;
         require(other.id() == f.document.id(), "distinct wrapper has identical logical ID");
         library.result = &other;

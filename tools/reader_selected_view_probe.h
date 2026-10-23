@@ -41,6 +41,8 @@ struct Observation {
 // notifications after dispatch, so its Observation is explicitly BEFORE action.
 using ValidatedWorkerAction = std::function<void(QObject *, const QVariant &, QObject *,
     const Observation &, const std::function<bool()> &)>;
+using ValidatedSourceAction = std::function<void(QObject *, QObject *, QObject *, const QVariant &,
+    const Observation &, const std::function<bool()> &)>;
 
 namespace detail {
 inline constexpr char CreationControllerClass[] = "xofm::libs::library::DocumentController";
@@ -69,6 +71,7 @@ class Sample {
     QPointer<QObject> creationController;
     bool joinRequested;
     ValidatedWorkerAction workerAction;
+    ValidatedSourceAction sourceAction;
     QElapsedTimer timer;
     int budget;
     const std::function<bool()> &permit;
@@ -306,8 +309,8 @@ class Sample {
     }
 public:
     Sample(QQuickWindow *w, const std::function<bool()> &permission, int ms,
-           QObject *creation = nullptr, bool join = false, ValidatedWorkerAction action = {})
-        : creationController(creation), joinRequested(join), workerAction(std::move(action)), budget(ms), permit(permission) {
+           QObject *creation = nullptr, bool join = false, ValidatedWorkerAction action = {}, ValidatedSourceAction source = {})
+        : creationController(creation), joinRequested(join), workerAction(std::move(action)), sourceAction(std::move(source)), budget(ms), permit(permission) {
         timer.start();
         app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
         if (!app || QThread::currentThread() != app->thread() || !w || w->thread() != app->thread()) {
@@ -477,22 +480,29 @@ public:
         r.observed = true; r.mapCoherent = true;
         r.ready = !r.loading && !r.pageError && !r.documentError && r.status == active && r.pageStatus == pageReady &&
             !r.awaitingTiles && !r.pendingTiles && !r.working;
-        if (workerAction) {
+        if (workerAction || sourceAction) {
+            if (workerAction && sourceAction) { no("source-action-ambiguity"); return refuse(); }
             if (!joinRequested || !r.creationJoinObserved || !r.ready || !controller || !creationController || !live()) {
                 no("worker-source-unready"); return refuse();
             }
-            const QMetaObject *meta = controller->metaObject();
-            const int index = meta->indexOfProperty("worker");
-            if (index < 0 || !meta->property(index).isConstant()) { no("worker-property-contract"); return refuse(); }
-            QPointer<QObject> worker = object(controller, "worker");
-            if (!worker || !nativeClass(worker, "DocumentWorker") || !live()) return refuse();
+            QPointer<QObject> worker;
+            if (workerAction) {
+                const QMetaObject *meta = controller->metaObject();
+                const int index = meta->indexOfProperty("worker");
+                if (index < 0 || !meta->property(index).isConstant()) { no("worker-property-contract"); return refuse(); }
+                worker = object(controller, "worker");
+                if (!worker || !nativeClass(worker, "DocumentWorker") || !live()) return refuse();
+            }
             const QVariant actualId = value(document, "id");
             QString checkedId;
             if (!actualId.isValid() || actualId.metaType().flags().testFlag(QMetaType::IsPointer) ||
                 !id(document, checkedId) || checkedId != r.documentId || !relationship() || !live()) return refuse();
             const std::function<bool()> guarded = [&] { return live(); };
-            try { workerAction(creationController, actualId, worker, r, guarded); }
-            catch (...) { Observation failed; failed.refusal = QStringLiteral("worker-action-exception"); return failed; }
+            try {
+                if (workerAction) workerAction(creationController, actualId, worker, r, guarded);
+                else sourceAction(reader, document, creationController, actualId, r, guarded);
+            }
+            catch (...) { Observation failed; failed.refusal = workerAction ? QStringLiteral("worker-action-exception") : QStringLiteral("source-action-exception"); return failed; }
             // Intentional native submission can change working/queue state or
             // destroy its old owners. Do not inspect that epoch or pointers here.
         }
@@ -511,17 +521,17 @@ inline Observation observe(QQuickWindow *window, const std::function<bool()> &pe
 // entering the sample. No pointer escapes the call; no singleton is resolved here.
 inline Observation observeWithCreationController(QQuickWindow *window, QObject *controller,
         const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000,
-        ValidatedWorkerAction action = {}) {
+        ValidatedWorkerAction action = {}, ValidatedSourceAction source = {}) {
     if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
     detail::EntryScope scope;
-    return detail::Sample(window, permit, budgetMs, controller, true, std::move(action)).run();
+    return detail::Sample(window, permit, budgetMs, controller, true, std::move(action), std::move(source)).run();
 }
 
 // Explicit stateful preparation on the already admitted engine. Resolving an
 // imported singleton may initialize it; this never creates a separate engine.
 inline Observation observeCreationJoin(QQuickWindow *window,
         const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000,
-        ValidatedWorkerAction action = {}) {
+        ValidatedWorkerAction action = {}, ValidatedSourceAction source = {}) {
     const auto refuse = [](const char *reason) { Observation r; r.refusal = QString::fromLatin1(reason); return r; };
     if (detail::entry.busy) { detail::entry.reentered = true; return refuse("sample-reentered"); }
     detail::EntryScope scope;
@@ -562,7 +572,7 @@ inline Observation observeCreationJoin(QQuickWindow *window,
         if (!controller || !allowed()) return refuse("creation-preparation-refused");
         const int remaining = budgetMs - int(elapsed.elapsed());
         if (remaining <= 0) return refuse("deadline");
-        return detail::Sample(w, permit, remaining, controller, true, std::move(action)).run();
+        return detail::Sample(w, permit, remaining, controller, true, std::move(action), std::move(source)).run();
     }();
     // Include component/helper unwind in this mode's original cooperative cap.
     if (elapsed.elapsed() >= budgetMs) return refuse("deadline");

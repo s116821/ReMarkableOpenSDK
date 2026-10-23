@@ -5,6 +5,7 @@
 #include "reader_navigation_ownership.h"
 #include "reader_worker_callback_witness.h"
 #include "reader_native_worker_bridge.h"
+#include "reader_joined_creation_witness.h"
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -37,12 +38,14 @@ inline QByteArray selfIdentity() {
 
 class Entry final : public QObject {
 public:
-    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership, NavigateCreationWorkerCallback };
+    enum class Diagnostic { SelectedPage, CreationSourceJoin, NavigateCreationSourceJoin, NavigationOwnership, NavigateCreationWorkerCallback, NavigateJoinedCreation };
     Entry(QGuiApplication *app, QString path, QByteArray nonce, QObject *parent = nullptr,
-          Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {})
+          Diagnostic diagnostic = Diagnostic::SelectedPage, FixtureNavigation navigation = {}, reader_joined_creation::Request creation = {})
         : QObject(parent ? parent : app), app_(app), path_(std::move(path)), nonce_(std::move(nonce)),
-          diagnostic_(diagnostic), navigation_(std::move(navigation)) { elapsed_.start(); }
+          diagnostic_(diagnostic), navigation_(std::move(navigation)), creationRequest_(std::move(creation)) { elapsed_.start(); }
     ~Entry() override {
+        if (creation_) creation_->cancel(QStringLiteral("entry-destroyed"));
+        creation_.reset();
         if (worker_) worker_->cancel(QStringLiteral("entry-destroyed"));
         worker_.reset(); // Disarm callbacks before native owners can release.
         workerPrepared_.reset(); workerBridge_.reset();
@@ -55,8 +58,10 @@ public:
             return terminal_ = true, false;
         if ((diagnostic_ != Diagnostic::SelectedPage && diagnostic_ != Diagnostic::CreationSourceJoin &&
              diagnostic_ != Diagnostic::NavigateCreationSourceJoin && diagnostic_ != Diagnostic::NavigationOwnership &&
-             diagnostic_ != Diagnostic::NavigateCreationWorkerCallback) ||
-            (navigates() && !navigation_.valid()) || (workerMode() && !navigation_.legacyComposition)) return terminal_ = true, false;
+             diagnostic_ != Diagnostic::NavigateCreationWorkerCallback && diagnostic_ != Diagnostic::NavigateJoinedCreation) ||
+            (navigates() && !navigation_.valid()) || ((workerMode() || creationMode()) && !navigation_.legacyComposition) ||
+            (creationMode() && (!creationRequest_.valid() || creationRequest_.documentId != navigation_.documentId ||
+                creationRequest_.sourceIndex != navigation_.pageIndex))) return terminal_ = true, false;
         for (char c : nonce_) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return terminal_ = true, false;
         identity_ = selfIdentity();
         if (identity_.isEmpty()) return terminal_ = true, false;
@@ -69,6 +74,8 @@ public:
         connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, [this] { queue(); });
         connect(&timer_, &QTimer::timeout, this, [this] { finish("setup-expired"); });
         connect(&navigationTimer_, &QTimer::timeout, this, [this] { afterNavigation(); });
+        connect(&creationTimer_, &QTimer::timeout, this, [this] { afterCreationOpportunity(); });
+        creationTimer_.setSingleShot(true); creationTimer_.setTimerType(Qt::PreciseTimer);
         navigationTimer_.setSingleShot(true); navigationTimer_.setTimerType(Qt::PreciseTimer);
         connect(app_, &QCoreApplication::aboutToQuit, this, [this] { finish("application-closing", {}, false); });
         if (!watcher_.addPath(path_)) return terminal_ = true, false;
@@ -95,10 +102,18 @@ public:
     void postLinkForTest(std::function<void()> hook) { postLink_ = std::move(hook); }
     void preLinkForTest(std::function<void()> hook) { preLink_ = std::move(hook); }
     void workerSubmitForTest(std::function<qulonglong(QObject *, const std::function<void()> &)> hook) { workerSubmitTest_ = std::move(hook); }
+    using CreationSubmitTest = std::function<reader_joined_creation::Result(QObject *, QObject *, const QVariant &,
+        const Observation &, const reader_joined_creation::Request &, const std::function<bool()> &)>;
+    void creationSubmitForTest(CreationSubmitTest hook) { creationSubmitTest_ = std::move(hook); }
+    bool creationPendingForTest() const { return creationTimer_.isActive(); }
+    void afterCreationForTest() { creationTimer_.stop(); afterCreationOpportunity(); }
+    void creationWirePaddingForTest(QString padding) { creationWirePaddingTest_ = padding.left(1024); }
 #endif
 private:
+    enum class CreationPhase { Initial, BeforeNext, AfterNext };
     bool workerMode() const { return diagnostic_ == Diagnostic::NavigateCreationWorkerCallback; }
-    bool navigates() const { return diagnostic_ == Diagnostic::NavigateCreationSourceJoin || workerMode(); }
+    bool creationMode() const { return diagnostic_ == Diagnostic::NavigateJoinedCreation; }
+    bool navigates() const { return diagnostic_ == Diagnostic::NavigateCreationSourceJoin || workerMode() || creationMode(); }
     qint64 now() const {
 #ifdef READER_SELECTED_TESTING
         return elapsed_.elapsed() + offset_;
@@ -152,7 +167,8 @@ private:
     }
     bool publish(const char *name, const char *pending, const QByteArray &bytes, bool requireDeadline = true) const {
         const auto admitted = [&] { return trusted() && (!requireDeadline || now() < SetupWindowMs); };
-        const int cap = diagnostic_ == Diagnostic::NavigationOwnership && QByteArray(name) == "selected-result" ? 16384 : 2048;
+        const int cap = QByteArray(name) == "selected-result" ?
+            diagnostic_ == Diagnostic::NavigationOwnership ? 16384 : creationMode() ? 4096 : 2048 : 2048;
         if (bytes.isEmpty() || bytes.size() > cap || !admitted()) return false;
         const int fd = ::openat(root_, pending, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
         if (fd < 0) return false;
@@ -178,6 +194,8 @@ private:
     }
     void disarm() {
         disarmed_ = true; timer_.stop(); navigationTimer_.stop(); navigationPending_ = false;
+        creationTimer_.stop();
+        if (creation_) creation_->cancel(QStringLiteral("entry-disarmed"));
         if (worker_) worker_->cancel(QStringLiteral("entry-disarmed"));
         const auto paths = watcher_.directories();
         if (!paths.isEmpty()) watcher_.removePaths(paths);
@@ -193,6 +211,15 @@ private:
         if (workerMode() && worker_) {
             const auto current = worker_->snapshot();
             if (current.finished || !workerResult_.finished) workerResult_ = current;
+        }
+        if (creationMode() && creation_) {
+#ifdef READER_SELECTED_TESTING
+            if (!creationSubmitTest_)
+#endif
+            {
+            const auto current = creation_->snapshot();
+            if (current.finished || !creationResult_.finished) creationResult_ = current;
+            }
         }
         // Native owner release may run a deleter/notifications. It belongs on
         // this GUI path with callbacks disarmed and publication deferred.
@@ -217,6 +244,9 @@ private:
         if (workerMode() && operationEnd_ >= 0 && now() >= operationEnd_) {
             stage = QStringLiteral("worker-witness-refused"); observation = {}; observation.refusal = QStringLiteral("deadline");
             workerResult_.deliveryObserved = false;
+        }
+        if (creationMode() && operationEnd_ >= 0 && now() >= operationEnd_) {
+            stage = QStringLiteral("creation-refused"); observation = {}; observation.refusal = QStringLiteral("deadline");
         }
         if (observation.documentId.size() > 36 || observation.pageId.toUtf8().size() > 256 || observation.refusal.size() > 128) {
             stage = QStringLiteral("observation-cap"); observation = {};
@@ -265,6 +295,39 @@ private:
             json.insert(QStringLiteral("worker_refusal"), workerFailure_.isEmpty() ? workerResult_.refusal : workerFailure_);
             json.insert(QStringLiteral("worker_owners_released"), workerReleaseOk_);
         }
+        if (creationMode()) {
+            json.insert(QStringLiteral("diagnostic"), QStringLiteral("joined-creation-selection"));
+            json.insert(QStringLiteral("observation_phase"), observation.observed ?
+                creationTargetAlreadySelected_ ? QStringLiteral("after-create") : QStringLiteral("after-next") : QStringLiteral("unqualified"));
+            json.insert(QStringLiteral("creation_target_id"), creationRequest_.targetPageId);
+            json.insert(QStringLiteral("creation_source_page_id"), creationRequest_.sourcePageId);
+            json.insert(QStringLiteral("creation_source_index"), creationRequest_.sourceIndex);
+            json.insert(QStringLiteral("creation_expected_count"), creationRequest_.expectedPages.size());
+            json.insert(QStringLiteral("creation_before_observed"), creationBefore_.observed);
+            json.insert(QStringLiteral("creation_before_ready"), creationBefore_.ready);
+            json.insert(QStringLiteral("creation_before_join"), creationBefore_.creationJoinObserved);
+            json.insert(QStringLiteral("creation_before_count"), creationBefore_.pageCount);
+            json.insert(QStringLiteral("creation_attempted"), creationResult_.attempted);
+            json.insert(QStringLiteral("creation_return_known"), creationResult_.returnKnown);
+            json.insert(QStringLiteral("creation_accepted"), creationResult_.accepted);
+            json.insert(QStringLiteral("creation_unknown"), creationResult_.unknown);
+            json.insert(QStringLiteral("creation_callback_observed"), creationResult_.callbackObserved);
+            json.insert(QStringLiteral("creation_duplicate"), creationResult_.duplicate);
+            json.insert(QStringLiteral("creation_canceled"), creationResult_.canceled);
+            json.insert(QStringLiteral("creation_callback_count"), int(creationResult_.callbackCount));
+            json.insert(QStringLiteral("creation_finished"), creationResult_.finished);
+            json.insert(QStringLiteral("creation_refusal"), creationFailure_.isEmpty() ? creationResult_.refusal : creationFailure_);
+            json.insert(QStringLiteral("creation_order_observed"), creationOrderObserved_);
+            json.insert(QStringLiteral("creation_source_still_selected"), creationSourceStillSelected_);
+            json.insert(QStringLiteral("creation_target_already_selected"), creationTargetAlreadySelected_);
+            json.insert(QStringLiteral("creation_next_attempted"), creationNextAttempted_);
+            json.insert(QStringLiteral("creation_next_dispatched"), creationNextDispatched_);
+            json.insert(QStringLiteral("creation_next_unknown"), creationNextUnknown_);
+            json.insert(QStringLiteral("effect_requires_reconciliation"), creationResult_.attempted);
+#ifdef READER_SELECTED_TESTING
+            if (!creationWirePaddingTest_.isEmpty()) json.insert(QStringLiteral("owned_test_padding"), creationWirePaddingTest_);
+#endif
+        }
         if (diagnostic_ == Diagnostic::NavigationOwnership) {
             json.insert(QStringLiteral("diagnostic"), QStringLiteral("navigation-ownership"));
             json.insert(QStringLiteral("census_complete"), ownership_.complete);
@@ -279,7 +342,7 @@ private:
             json.insert(QStringLiteral("refusal"), QStringLiteral("ownership-wire-cap"));
             bytes = QJsonDocument(json).toJson(QJsonDocument::Compact) + '\n';
         }
-        if (bytes.size() > (diagnostic_ == Diagnostic::NavigationOwnership ? 16384 : 2048)) return;
+        if (bytes.size() > (diagnostic_ == Diagnostic::NavigationOwnership ? 16384 : creationMode() ? 4096 : 2048)) return;
         publish("selected-result", ".pending-result", bytes, stage == QStringLiteral("setup-expired") ? false : true);
     }
     bool permit() {
@@ -312,7 +375,7 @@ private:
         // The first native/window selection occurs only after exact admission.
         QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
         sampleBegin_ = now();
-        operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + MaxObservationMs);
+        operationEnd_ = qMin<qint64>(SetupWindowMs, sampleBegin_ + (creationMode() ? 30000 : MaxObservationMs));
         if (operationEnd_ <= now()) { finish("setup-expired"); return; }
         if (diagnostic_ == Diagnostic::NavigationOwnership) { sampleOwnership(window); return; }
         if (!navigates()) { sample(window); return; }
@@ -322,7 +385,7 @@ private:
         const auto navigation = openFixture(window, navigation_, [weak] {
             return weak && weak->permit() && weak->now() < weak->operationEnd_;
         },
-            int(operationEnd_ - now()));
+            int(qMin<qint64>(MaxObservationMs, operationEnd_ - now())));
         if (!weak) return;
         navigationAttempted_ = navigation.attempted; navigationDispatched_ = navigation.dispatched;
         sampling_ = false;
@@ -375,6 +438,7 @@ private:
         sample(window);
     }
     void sample(QQuickWindow *window) {
+        if (creationMode()) { sampleCreation(window); return; }
         const qint64 remaining = operationEnd_ - now();
         if (remaining <= 0) { Observation r; r.refusal = QStringLiteral("deadline"); sampleEnd_ = now(); finish("observation-refused", r); return; }
         const int budget = int(remaining);
@@ -489,6 +553,181 @@ private:
         if (weak && !workerSubmission_.accepted && workerFailure_.isEmpty())
             workerFailure_ = workerSubmission_.refusal.isEmpty() ? QStringLiteral("worker-submission-refused") : workerSubmission_.refusal;
     }
+    void creationFinished() {
+        if (terminal_ || disarmed_ || sampling_ || !creationInitialUnwound_ ||
+            creationPhase_ != CreationPhase::Initial || creationPhasePending_) return;
+        if (!permit()) { finishStopped(); return; }
+#ifdef READER_SELECTED_TESTING
+        if (!creationSubmitTest_)
+#endif
+            if (creation_) creationResult_ = creation_->snapshot();
+        if (!creationResult_.finished) return;
+        if (!creationResult_.attempted || !creationResult_.returnKnown || !creationResult_.accepted ||
+            creationResult_.unknown || !creationResult_.callbackObserved || creationResult_.duplicate ||
+            creationResult_.canceled || creationResult_.callbackCount != 1 || !creationResult_.refusal.isEmpty()) {
+            creationFailure_ = creationResult_.refusal.isEmpty() ? QStringLiteral("creation-completion-refused") : creationResult_.refusal;
+            finish(QStringLiteral("creation-refused")); return;
+        }
+        scheduleCreationPhase(CreationPhase::BeforeNext);
+    }
+    void scheduleCreationPhase(CreationPhase phase) {
+        if (!permit()) { finishStopped(); return; }
+        if (operationEnd_ - now() <= 2000) {
+            creationFailure_ = QStringLiteral("deadline"); finish(QStringLiteral("creation-refused")); return;
+        }
+        creationPhase_ = phase; creationPhasePending_ = true; creationTimer_.start(2000);
+    }
+    void afterCreationOpportunity() {
+        if (terminal_ || disarmed_ || sampling_ || !creationPhasePending_) return;
+        creationPhasePending_ = false;
+        if (!permit()) { finishStopped(); return; }
+        QPointer<QQuickWindow> window = qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
+        if (!window || !operationEngine_ || qmlEngine(window) != operationEngine_ || window != creationWindow_) {
+            creationFailure_ = QStringLiteral("creation-context-changed"); finish(QStringLiteral("creation-refused")); return;
+        }
+        sampleCreation(window);
+    }
+    void creationNext(QObject *reader, QObject *document, const Observation &before,
+                      const std::function<bool()> &guard) {
+        const QPointer<Entry> weak(this);
+        const auto allowed = [&] { return weak && guard && guard() && weak; };
+        auto refuse = [&] (const char *why) { if (weak) weak->creationFailure_ = QString::fromLatin1(why); };
+        if (!allowed()) { refuse("creation-source-disarmed"); return; }
+        const bool sourceSelected = before.pageId == creationRequest_.sourcePageId && before.pageIndex == creationRequest_.sourceIndex;
+        const bool targetSelected = before.pageId == creationRequest_.targetPageId && before.pageIndex == creationRequest_.sourceIndex + 1;
+        if (!before.observed || !before.ready || !before.creationJoinObserved ||
+            before.documentId != creationRequest_.documentId || (!sourceSelected && !targetSelected) ||
+            before.pageCount != creationRequest_.expectedPages.size() + 1 ||
+            creationRequest_.sourceIndex + 1 >= before.pageCount || creationNextAttempted_) {
+            refuse("creation-source-not-selected"); return;
+        }
+        QStringList expected = creationRequest_.expectedPages;
+        expected.insert(creationRequest_.sourceIndex + 1, creationRequest_.targetPageId);
+        QPointer<QObject> heldReader(reader), heldDocument(document);
+        for (int i = 0; i < expected.size(); ++i) {
+            if (!allowed() || !heldDocument || !heldReader) { refuse("creation-order-disarmed"); return; }
+            QString id; int roundtrip = -1;
+            const bool read = QMetaObject::invokeMethod(heldDocument, "idForPage", Qt::DirectConnection,
+                Q_RETURN_ARG(QString, id), Q_ARG(int, i));
+            if (!allowed() || !heldDocument || !heldReader || !read || id != expected[i]) { refuse("creation-order-refused"); return; }
+            const bool reverse = QMetaObject::invokeMethod(heldDocument, "pageForId", Qt::DirectConnection,
+                Q_RETURN_ARG(int, roundtrip), Q_ARG(QString, id));
+            if (!allowed() || !heldDocument || !heldReader || !reverse || roundtrip != i) { refuse("creation-order-refused"); return; }
+        }
+        if (!allowed() || !heldReader || !heldDocument) { refuse("creation-order-disarmed"); return; }
+        creationOrderObserved_ = true;
+        if (targetSelected) { creationTargetAlreadySelected_ = true; return; }
+        const QMetaObject *meta = heldReader->metaObject();
+        if (!meta || meta->methodCount() > 512) { refuse("creation-next-contract"); return; }
+        QMetaMethod next; int matches = 0;
+        for (int i = 0; i < meta->methodCount(); ++i) {
+            const auto method = meta->method(i);
+            if (method.name() == "moveForward") { ++matches; next = method; }
+        }
+        if (matches != 1 || next.parameterCount() != 0 || next.methodType() == QMetaMethod::Signal ||
+            (next.returnMetaType() != QMetaType::fromType<void>() && next.returnMetaType() != QMetaType::fromType<QVariant>()) ||
+            !allowed() || !heldReader || !heldDocument) { refuse("creation-next-contract"); return; }
+        creationOrderObserved_ = true; creationSourceStillSelected_ = true;
+        creationNextAttempted_ = true; // Consume before invoking; never inspect the old epoch afterward.
+        try {
+            const bool dispatched = next.invoke(heldReader, Qt::DirectConnection);
+            if (weak) { weak->creationNextDispatched_ = dispatched; weak->creationNextUnknown_ = !dispatched; }
+        } catch (...) {
+            if (weak) { weak->creationNextUnknown_ = true; weak->creationFailure_ = QStringLiteral("creation-next-threw"); }
+        }
+    }
+    void sampleCreation(QQuickWindow *window) {
+        const QPointer<Entry> weak(this);
+        if (creationPhase_ == CreationPhase::Initial && !creationWindow_) {
+            creationWindow_ = window;
+            connect(creationWindow_, &QObject::destroyed, this, [weak] {
+                if (weak && !weak->terminal_) {
+                    weak->creationFailure_ = QStringLiteral("creation-context-changed");
+                    weak->finish(QStringLiteral("creation-refused"));
+                }
+            });
+        }
+        const qint64 remaining = operationEnd_ - now();
+        if (remaining < 1) { creationFailure_ = QStringLiteral("deadline"); finish(QStringLiteral("creation-refused")); return; }
+        const auto allowed = [weak] {
+            return weak && weak->permit() && weak->creationWindow_ && QGuiApplication::focusWindow() == weak->creationWindow_ &&
+                qmlEngine(weak->creationWindow_) == weak->operationEngine_ && weak->now() < weak->operationEnd_;
+        };
+        if (creationPhase_ == CreationPhase::Initial && !creation_) {
+            creation_ = std::make_unique<reader_joined_creation::Witness>(this);
+            connect(creation_.get(), &reader_joined_creation::Witness::finished, this, [weak] {
+                if (weak) weak->creationFinished();
+            }, Qt::QueuedConnection);
+#ifdef READER_SELECTED_TESTING
+            if (!creationSubmitTest_)
+#endif
+            {
+                const bool prepared = creation_->prepare(operationEngine_);
+                if (!weak) return;
+                if (!prepared) { creationFailure_ = QStringLiteral("creation-callback-prepare-refused"); finish(QStringLiteral("creation-refused")); return; }
+            }
+        }
+        ValidatedSourceAction action;
+        if (creationPhase_ == CreationPhase::Initial) {
+            action = [weak](QObject *, QObject *document, QObject *controller, const QVariant &id,
+                    const Observation &before, const std::function<bool()> &guard) {
+                if (!weak) return;
+                weak->creationBefore_ = before;
+#ifdef READER_SELECTED_TESTING
+                const auto test = weak->creationSubmitTest_;
+                if (test) {
+                    const auto result = test(controller, document, id, before, weak->creationRequest_, guard);
+                    if (weak) weak->creationResult_ = result;
+                    return;
+                }
+#endif
+                weak->creation_->submit(controller, document, id, before, weak->creationRequest_, guard,
+                    int(weak->operationEnd_ - weak->now()));
+                if (weak) weak->creationResult_ = weak->creation_->snapshot();
+            };
+        } else if (creationPhase_ == CreationPhase::BeforeNext) {
+            action = [weak](QObject *reader, QObject *document, QObject *, const QVariant &,
+                    const Observation &before, const std::function<bool()> &guard) {
+                if (weak) weak->creationNext(reader, document, before, guard);
+            };
+        }
+        sampling_ = true;
+#ifdef READER_SELECTED_TESTING
+        ++samples_;
+#endif
+        auto observation = observeCreationJoin(window, allowed, qMin<int>(MaxObservationMs, int(operationEnd_ - now())), {}, std::move(action));
+        if (!weak) return;
+        sampling_ = false; sampleEnd_ = now();
+        if (!permit()) { finishStopped(); return; }
+        if (now() >= operationEnd_ || !observation.observed || !observation.ready || !observation.creationJoinObserved ||
+            observation.documentId != creationRequest_.documentId || !creationFailure_.isEmpty()) {
+            if (creationFailure_.isEmpty()) creationFailure_ = now() >= operationEnd_ ? QStringLiteral("deadline") :
+                observation.refusal.isEmpty() ? QStringLiteral("creation-source-unobserved") : observation.refusal;
+            finish(QStringLiteral("creation-refused")); return;
+        }
+        if (creationPhase_ == CreationPhase::Initial) {
+            creationInitialUnwound_ = true;
+            if (observation.pageId != creationRequest_.sourcePageId || observation.pageIndex != creationRequest_.sourceIndex ||
+                observation.pageCount != creationRequest_.expectedPages.size()) {
+                creationFailure_ = QStringLiteral("creation-source-mismatch"); finish(QStringLiteral("creation-refused")); return;
+            }
+            creationFinished(); return;
+        }
+        if (creationPhase_ == CreationPhase::BeforeNext) {
+            if (creationTargetAlreadySelected_ && creationOrderObserved_ && !creationNextAttempted_) {
+                finish(QStringLiteral("creation-selected-observed"), observation); return;
+            }
+            if (!creationNextDispatched_ || creationNextUnknown_ || !creationOrderObserved_ || !creationSourceStillSelected_) {
+                creationFailure_ = QStringLiteral("creation-next-refused"); finish(QStringLiteral("creation-refused")); return;
+            }
+            scheduleCreationPhase(CreationPhase::AfterNext); return;
+        }
+        if (observation.pageId != creationRequest_.targetPageId || observation.pageIndex != creationRequest_.sourceIndex + 1 ||
+            observation.pageCount != creationRequest_.expectedPages.size() + 1) {
+            creationFailure_ = QStringLiteral("creation-target-not-selected"); finish(QStringLiteral("creation-refused")); return;
+        }
+        finish(QStringLiteral("creation-selected-observed"), observation);
+    }
     void workerFinished() {
         if (terminal_ || disarmed_ || !worker_ || sampling_) return;
         if (!permit()) { finishStopped(); return; }
@@ -511,6 +750,17 @@ private:
     std::unique_ptr<reader_worker_native::Bridge> workerBridge_;
     std::unique_ptr<reader_worker_native::Prepared> workerPrepared_;
     reader_worker_native::Submission workerSubmission_;
+    reader_joined_creation::Request creationRequest_;
+    reader_joined_creation::Result creationResult_;
+    std::unique_ptr<reader_joined_creation::Witness> creation_;
+    QPointer<QQuickWindow> creationWindow_;
+    Observation creationBefore_;
+    QString creationFailure_;
+    CreationPhase creationPhase_ = CreationPhase::Initial;
+    bool creationOrderObserved_ = false, creationSourceStillSelected_ = false;
+    bool creationTargetAlreadySelected_ = false;
+    bool creationNextAttempted_ = false, creationNextDispatched_ = false, creationNextUnknown_ = false;
+    bool creationPhasePending_ = false, creationInitialUnwound_ = false;
     WorkerCallbackResult workerResult_;
     Observation workerBefore_;
     QString workerFailure_;
@@ -521,6 +771,7 @@ private:
     QFileSystemWatcher watcher_;
     QTimer timer_;
     QTimer navigationTimer_;
+    QTimer creationTimer_;
     static constexpr int NavigationDelayMs = 2000;
     static constexpr int LegacyNavigationDelayMs = 5000;
     qint64 sampleBegin_ = -1, sampleEnd_ = -1;
@@ -535,6 +786,8 @@ private:
     std::function<void()> preLink_;
     std::function<void(NavigationOwnership &)> postOwnership_;
     std::function<qulonglong(QObject *, const std::function<void()> &)> workerSubmitTest_;
+    CreationSubmitTest creationSubmitTest_;
+    QString creationWirePaddingTest_;
 #endif
 };
 } // namespace reader_selected

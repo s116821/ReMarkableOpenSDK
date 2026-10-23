@@ -231,3 +231,11 @@ application qualification remain outside that owned proof.
 
 - [x] 15.21 Independently accept the [actual 7a4 same-grab result](../../../docs/experiments/capture-window-reader-structure-result.md): normal loading PNG/scalar/Reader join, two 35-object/zero-anchor samples and original host-primary restoration plus separate final stock verification. Root inspected 88 transports/176 raw-stream hashes; full RGB decode remains receipt-reported. Downstream checks unreached; no global absence, window role, document/page, freshness, panel/native or fallback recovery qualification follows. Creation/containment source gap remains open.
 - [x] 15.22 Record the separate maintained stock screenshot's [actual utility compatibility and bounded one-shot findings](../../../docs/experiments/stock-screenshot-compatibility.md): full normalized PNG decode, saved-image inspection, recorded capture-process/cgroup absence and exact owned-file cleanup. Independent receipt/38-stream correspondence and saved-image review accepted. This is visual corroboration only; all native/current-page/root/insertion/navigation/write/persistence and held-operation gates remain unchanged.
+
+## 16. Current Reader and ordinary creation diagnostic
+
+- [x] 16.1 Record the [exact selected Reader/controller join](../../../docs/experiments/legacy-composition-navigation-join-result.md), preserving sampled-fact and native-authority boundaries.
+- [x] 16.2 Implement/review the [worker no-op witness](worker-callback-witness.md) and record its separate native delivery/restoration result; no insertion/exclusion authority follows.
+- [x] 16.3 Implement, independently review and verify owned controls for [joined ordinary creation and adjacent selection](joined-creation-selection.md), keeping direct-handler findings separate.
+- [ ] 16.4 Independently freeze/review a fresh native creation profile, then if selected record actual target/order/selection, original preservation, persistence and recovery without retry.
+- [ ] 16.5 Resolve execution-time source/order exclusion and complete resident/failure/consumer qualification before supported capability, canonical sync or archive.

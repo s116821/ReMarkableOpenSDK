@@ -194,6 +194,11 @@ verification. Its separate [native delivery result](../../../docs/experiments/na
 confirmed one off-GUI callback and matching completion, with the fixture unchanged
 and stock restored. Execution-time source/order exclusion and insertion remain open.
 
+The separate [joined creation/adjacent selection diagnostic](joined-creation-selection.md)
+uses the ordinary controller/Task path and fresh selected-source checks. It keeps
+direct-handler atomicity research separate and verifies actual target selection
+rather than treating the ordinary zero-argument callback as success.
+
 The separate request entry publishes readiness after file/process binding and
 accepts exactly one nonce/PID/start request within its original ninety-second
 setup window. Readiness does not observe the Reader. Only that admitted request
