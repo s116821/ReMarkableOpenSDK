@@ -1,6 +1,7 @@
 #pragma once
 // Original research-only negative hook core. No native resolver or ownership grant.
 #include "reader_insertion_guard_predicate.h"
+#include "reader_insertion_mutex_probe.h"
 #include <QSizeF>
 #include <QUuid>
 #include <atomic>
@@ -46,6 +47,7 @@ struct Outcome {
     unsigned outerCalls=0, innerCalls=0, trackedForwards=0;
     Refusal refusal=Refusal::None;
     reader_insertion_predicate::Result predicate;
+    reader_insertion_mutex_probe::Result postReject;
 };
 struct Registration {
     QUuid target;
@@ -58,6 +60,7 @@ struct Registration {
     void *residentNativeOwners=nullptr; // Intentionally retained, never deleted by core.
     void *attributionContext=nullptr;
     bool (*attribute)(void *,std::uint64_t &) noexcept=nullptr;
+    reader_insertion_mutex_probe::Probe *postRejectProbe=nullptr;
 };
 class Core final {
     struct Record {
@@ -173,6 +176,16 @@ class Core final {
         } catch(const Rejected &rejected) {
             if(rejected.record!=r) stop("foreign-private-rejection");
             r->outcome.privateCaught=true;
+            if(r->input.postRejectProbe && r->outcome.observedMismatch && r->outcome.refusal==Refusal::None &&
+               !r->outcome.unknown && !r->interference.load(std::memory_order_acquire)) {
+                if(r->canceled.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Canceled;
+                else if(std::chrono::steady_clock::now()>=r->input.deadline) r->outcome.refusal=Refusal::Deadline;
+                else {
+                    r->outcome.postReject=r->input.postRejectProbe->once();
+                    if(r->canceled.load(std::memory_order_acquire)) r->outcome.refusal=Refusal::Canceled;
+                    else if(std::chrono::steady_clock::now()>=r->input.deadline) r->outcome.refusal=Refusal::Deadline;
+                }
+            }
         } catch(...) {
             r->outcome.unknown=true; r->outcome.refusal=Refusal::UnrelatedException; finish(r); throw;
         }
@@ -244,7 +257,8 @@ public:
         result.interference=r->interference.load(std::memory_order_acquire);
         result.canceled=r->canceled.load(std::memory_order_acquire);
         result.witness=result.privateCaught && result.observedMismatch && !result.unknown &&
-            !result.interference && !result.canceled && result.refusal==Refusal::None;
+            !result.interference && !result.canceled && result.refusal==Refusal::None &&
+            (!r->input.postRejectProbe || reader_insertion_mutex_probe::successful(result.postReject));
         return result;
     }
     __attribute__((noinline)) static void outerEntry(void *w,int i,const void *o,Word p,QSizeF z,int s,Word h,const QUuid &u) {

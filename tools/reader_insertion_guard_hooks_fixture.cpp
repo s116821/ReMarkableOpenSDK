@@ -120,6 +120,9 @@ inner_return:
 static unsigned checks=0;
 static void check(bool value,const char *what) { ++checks; if(!value){std::fprintf(stderr,"FAILED %s\n",what);std::abort();} }
 static std::string scenario;
+static std::string testName;
+static bool postRequested=false;
+static unsigned postTries=0,postUnlocks=0;
 static Core *core=nullptr;
 static unsigned originalOuterCalls=0,originalInnerCalls=0,cleanup=0,hookCalls=0,submissions=0,attributions=0;
 static void *firstTrampoline=nullptr;
@@ -159,6 +162,8 @@ extern "C" void owned_outer_body(void *w,int i,const void *o,Word p,QSizeF z,int
     std::unique_lock<std::mutex> lock(mapMutex);
     QString temporary=QStringLiteral("owned temporary");
     struct Cleanup { ~Cleanup(){++cleanup;} } counted;
+    if(testName=="post-normal")return;
+    if(testName=="post-busy")lock.release(); // Owned defect control: original fails to unlock.
     if(scenario=="cancel-inner") core->cancel();
     const QString effective=scenario=="transformed-target" ? right : u.toString(QUuid::WithoutBraces);
     const int effectiveIndex=scenario=="transformed-index" ? i+1 : i;
@@ -227,6 +232,18 @@ static reader_insertion_predicate::Address search(reader_insertion_predicate::Ad
     return 0x1040;
 }
 static bool equal(const QString &a,const QString &b) { return a==b; }
+static int postTry(pthread_mutex_t *mutex) {
+    ++postTries;
+    check(cleanup==1 && originalOuterCalls==1 && originalInnerCalls==0,"probe runs after original owned cleanup");
+    return ::pthread_mutex_trylock(mutex);
+}
+static int postUnlock(pthread_mutex_t *mutex) {
+    ++postUnlocks;
+    const int result=::pthread_mutex_unlock(mutex);
+    if(testName=="post-after-cancel")core->cancel();
+    if(testName=="post-after-deadline")std::this_thread::sleep_for(std::chrono::milliseconds(350));
+    return testName=="post-unlock-failure" ? EPERM : result;
+}
 static bool attribute(void*,std::uint64_t &job) noexcept {
     ++attributions;
     check(originalOuterCalls==0,"attribution before handler");
@@ -238,7 +255,13 @@ static bool attribute(void*,std::uint64_t &job) noexcept {
 }
 class Worker final:public QThread { public:std::function<void()> body; void run()override{body();} };
 int main(int argc,char **argv) {
-    QCoreApplication app(argc,argv); check(argc==2,"one scenario"); scenario=argv[1];
+    QCoreApplication app(argc,argv); check(argc==2,"one scenario"); scenario=argv[1];testName=scenario;
+    postRequested=scenario.rfind("post-",0)==0;
+    if(postRequested) {
+        scenario=scenario.substr(5);
+        if(scenario=="valid"||scenario=="busy"||scenario=="unlock-failure"||scenario=="after-cancel"||scenario=="after-deadline"||scenario=="normal"||scenario=="wrong-thread")scenario="mismatch";
+        if(scenario=="unrelated")scenario="unrelated-outer";
+    }
     core=Core::create({nullptr,hook,readBytes,query,stopped});
     Install plan; plan.outer=reinterpret_cast<void*>(&owned_outer_entry);plan.inner=reinterpret_cast<void*>(&owned_inner_entry);
     if(scenario=="overlap")plan.inner=reinterpret_cast<unsigned char*>(plan.outer)+4;
@@ -252,7 +275,7 @@ int main(int argc,char **argv) {
         {std::unique_lock<std::mutex> lock(mutex);tid=std::this_thread::get_id();ready=true;cv.notify_one();cv.wait(lock,[&]{return go;});}
         if(!allowSubmission)return;
         try {
-            const QUuid id=scenario=="foreign"||scenario=="unrelated-outer"||scenario=="unrelated-inner" ? foreignId:targetId;
+            const QUuid id=!postRequested && (scenario=="foreign"||scenario=="unrelated-outer"||scenario=="unrelated-inner") ? foreignId:targetId;
             int index=scenario=="binding"?3:2;
             alignas(4) unsigned char dynamic[32]{};
             const void *actualOptional=&optional;Word actualPresent=0x7f123401,actualInherit=0x7e123400;
@@ -291,6 +314,13 @@ int main(int argc,char **argv) {
     r.admission={true,true,true,true,true,true};r.residentNativeOwners=workerStorage;
     r.deadline=std::chrono::steady_clock::now()+std::chrono::seconds(scenario=="deadline"?-1:30);
     r.binding={worker,map,tid,reinterpret_cast<std::uintptr_t>(outer_return),reinterpret_cast<std::uintptr_t>(inner_return),2,1,&optional,0x7f123401,0x7e123400,QSizeF(1404.25,1872.5)};
+    if(postRequested) {
+        auto *mutex=mapMutex.native_handle();const auto at=reinterpret_cast<std::uintptr_t>(mutex);
+        r.postRejectProbe=reader_insertion_mutex_probe::Probe::create({mutex,{at,at+sizeof(*mutex)},postTry,postUnlock});
+        check(r.postRejectProbe!=nullptr,"resident owned post-rejection probe");
+        if(testName=="post-wrong-thread")r.binding.thread=std::this_thread::get_id();
+        if(testName=="post-after-deadline")r.deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(250);
+    }
     if(borrowedScenario()) {
         r.binding.policy=CallerPolicy::BorrowedExplicitSize;r.binding.optional=nullptr;
         r.binding.sizePresent=1;r.binding.inherit=0;r.binding.sourceIndex=42;
@@ -329,6 +359,19 @@ int main(int argc,char **argv) {
     if(scenario=="cancel")core->cancel();
     {std::lock_guard<std::mutex> lock(mutex);go=true;cv.notify_one();}thread.wait();
     const auto result=core->snapshot();check(lockFree,"original mutex released");
+    if(postRequested) {
+        const bool tried=testName=="post-valid"||testName=="post-after-cancel"||testName=="post-after-deadline";
+        check(postTries==unsigned(tried)&&postUnlocks==unsigned(tried),"probe only after qualified successful private unwind");
+        check(reader_insertion_mutex_probe::successful(result.postReject)==tried,"post-rejection facts exact");
+        check(result.witness==(testName=="post-valid"),"only uncanceled unexpired full post-rejection witness");
+        check(result.trackedForwards==0&&originalInnerCalls==0,"post-rejection remains negative only");
+        if(testName=="post-unrelated")check(outsideThrow&&!result.privateCaught,"unrelated tracked original exception propagates without probe");
+        if(testName=="post-normal")check(!result.privateCaught&&result.unknown&&result.refusal==Refusal::MissingInner,"normal return never probes");
+        if(testName=="post-after-cancel")check(result.canceled&&result.refusal==Refusal::Canceled,"post-unlock cancellation suppresses witness");
+        if(testName=="post-after-deadline")check(result.refusal==Refusal::Deadline,"post-unlock original deadline suppresses witness");
+        std::printf("{\"passed\":true,\"scenario\":\"%s\",\"checks\":%u,\"tracked_forward\":0,\"native_qualification\":false}\n",testName.c_str(),checks);
+        return 0;
+    }
     if(scenario=="foreign") {check(!result.terminal,"unrelated no tracked result");check(originalInnerCalls==1&&forwarding,"transparent full carriers");}
     else if(scenario=="unrelated-outer"||scenario=="unrelated-inner") check(outsideThrow,"unrelated exception propagated");
     else {

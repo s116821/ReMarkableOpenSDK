@@ -13,6 +13,7 @@ struct Config {
     int wrongSourceIndex = -1;
     int budgetMs = 30000;
     std::chrono::steady_clock::time_point absoluteDeadline{};
+    bool wantPostRejectProbe = false;
     bool valid() const {
         return request.valid() && request.expectedPages.size() <= 16 && request.sourceIndex + 1 < request.expectedPages.size() &&
             wrongSourceIndex >= 0 && wrongSourceIndex < request.expectedPages.size() && wrongSourceIndex != request.sourceIndex &&
@@ -23,6 +24,7 @@ struct Attribution {
     void *map = nullptr; // Profile-qualified opaque receiver; Coordinator interprets no member offsets.
     void *context = nullptr; // Immutable, process-resident storage; never a facade/GUI stack pointer.
     bool (*read)(void *, std::uint64_t &) noexcept = nullptr;
+    reader_insertion_mutex_probe::Probe *postRejectProbe = nullptr;
 };
 struct Runtime {
     reader_insertion_hooks::Core *core = nullptr; // Already installed and independently qualified.
@@ -333,6 +335,10 @@ private:
             if (weak) refuse(QStringLiteral("attribution-context"));
             return;
         }
+        if (config_.wantPostRejectProbe != bool(attribution.postRejectProbe)) {
+            refuse(config_.wantPostRejectProbe ? QStringLiteral("post-reject-probe-missing") :
+                QStringLiteral("post-reject-probe-unrequested")); return;
+        }
         resident_->attribution = attribution;
         const auto r = config_.request; // Survives facade deletion inside a borrowed guard.
         auto freezing = reader_insertion_predicate::freeze({r.sourceIndex, config_.wrongSourceIndex, int(r.expectedPages.size()),
@@ -346,6 +352,7 @@ private:
         registration.calls = resident_->runtime.calls; registration.admission = resident_->runtime.admission;
         registration.deadline = deadline_; registration.residentNativeOwners = resident_;
         registration.attributionContext = attribution.context; registration.attribute = attribution.read;
+        registration.postRejectProbe = config_.wantPostRejectProbe ? attribution.postRejectProbe : nullptr;
         if (!guard() || !weak) { if (weak) refuse(QStringLiteral("registration-permission")); return; }
         bool registered = false;
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
@@ -409,6 +416,9 @@ private:
                 result_.matchingCompletions = complete; result_.pageAdded = pages;
                 if (!outcome.witness || !outcome.attributed || !outcome.jobId || outcome.outerCalls != 1 || outcome.innerCalls != 1 || outcome.trackedForwards != 0) {
                     refuse(QStringLiteral("core-refused")); return;
+                }
+                if (config_.wantPostRejectProbe && !reader_insertion_mutex_probe::successful(outcome.postReject)) {
+                    refuse(QStringLiteral("post-reject-probe-incomplete")); return;
                 }
                 if (complete > 1 || pages) { refuse(pages ? QStringLiteral("page-added") : QStringLiteral("completion-repeated")); return; }
             }

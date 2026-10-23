@@ -25,6 +25,20 @@ for name in mismatch foreign binding cancel deadline cancel-inner cancel-predica
  timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr"
  cat "$out/$name.stdout"
 done
+for name in post-valid post-binding post-cancel post-deadline post-cancel-inner post-cancel-predicate post-transformed-index post-transformed-target post-unrelated post-normal post-wrong-thread post-after-cancel post-after-deadline; do
+ timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr"
+ cat "$out/$name.stdout"
+done
+for name in post-busy post-unlock-failure; do
+ status=0
+ timeout --kill-after=1s 10s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" "$out/hooks-fixture" "$name" > "$out/$name.stdout" 2> "$out/$name.stderr" || status=$?
+ test "$status" = 119
+ test ! -s "$out/$name.stdout"
+ # The same Qt locale notice may precede any fixture mode; no helper/Core
+ # diagnostic or failStop reporter may be added on uncertain lock ownership.
+ cmp "$out/post-valid.stderr" "$out/$name.stderr"
+ printf 'PASS direct post-rejection fail-stop mode=%s exit119\n' "$name"
+done
 for name in borrowed-stack-a borrowed-stack-b borrowed-stack-c borrowed-boundary \
  borrowed-null borrowed-misaligned borrowed-present borrowed-present-wide borrowed-inherit borrowed-inherit-wide \
  borrowed-size borrowed-worker borrowed-thread borrowed-caller borrowed-index owned-pointer owned-source \

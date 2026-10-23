@@ -10,7 +10,15 @@
 #if !defined(READER_INSERTION_NONCE) || !defined(READER_INSERTION_DOCUMENT_ID) || !defined(READER_INSERTION_SOURCE_INDEX) || !defined(READER_INSERTION_WRONG_INDEX) || !defined(READER_INSERTION_TARGET_ID) || !defined(READER_INSERTION_EXPECTED_PAGES)
 #error A separately frozen nonce, document/order, source/wrong indexes and target are required.
 #endif
+#if defined(READER_INSERTION_POST_REJECT_PROBE) && READER_INSERTION_POST_REJECT_PROBE != 1
+#error The selected post-rejection probe value must be exactly one.
+#endif
 namespace {
+#ifdef READER_INSERTION_POST_REJECT_PROBE
+constexpr bool wantPostRejectProbe=true;
+#else
+constexpr bool wantPostRejectProbe=false;
+#endif
 constexpr char nonce[]=READER_INSERTION_NONCE;
 constexpr char rootPath[]="/run/rmb-qt-probe-" READER_INSERTION_NONCE;
 constexpr bool validNonce() {
@@ -76,6 +84,7 @@ void startup() {
             auto *gui=qobject_cast<QGuiApplication*>(app);auto *f=facilities.load(std::memory_order_acquire);
             if(!gui||!f||QThread::currentThread()!=gui->thread()||!admitted())stop();
             reader_insertion_transport::Config config;config.nonce=nonce;
+            config.coordinator.wantPostRejectProbe=wantPostRejectProbe;
             config.navigation={QStringLiteral(READER_INSERTION_DOCUMENT_ID),READER_INSERTION_SOURCE_INDEX,true};
             auto &request=config.coordinator.request;
             request.documentId=QStringLiteral(READER_INSERTION_DOCUMENT_ID);request.sourceIndex=READER_INSERTION_SOURCE_INDEX;
@@ -89,7 +98,7 @@ void startup() {
             runtime.admission.originalCallsite=true;runtime.admission.operationScope=true;runtime.admission.workerThread=true;
             runtime.admission.nativeOwners=true;runtime.admission.finalLock=true;
             runtime.outerReturnPC=f->outerReturnPC;runtime.innerReturnPC=f->innerReturnPC;
-            runtime.makeAttribution=[f](QObject *worker){const auto a=f->attributionParts(worker);return reader_insertion_entry::Attribution{a.map,a.context,a.read64};};
+            runtime.makeAttribution=[f](QObject *worker){const auto a=f->attributionParts(worker,wantPostRejectProbe);return reader_insertion_entry::Attribution{a.map,a.context,a.read64,a.postRejectProbe};};
             QJsonObject facts{{"profile_qualified",f->baseAdmission.profileAndProviders},{"application_absent_at_install",f->applicationAbsent},
                 {"tasks_at_install",int(f->observedTaskCount)},{"bind_now",true},{"native_authority",false}};
             auto *entry=new reader_insertion_transport::Entry(gui,QString::fromLatin1(rootPath),std::move(config),std::move(runtime),facts);

@@ -83,6 +83,8 @@ struct Model {
         outcome.terminal = outcome.privateCaught = outcome.observedMismatch = outcome.attributed = outcome.witness = true;
         outcome.jobId = mode == "zero-job" ? 0 : UINT64_MAX - 2;
         outcome.outerCalls = outcome.innerCalls = 1;
+        if (registration && registration->postRejectProbe && mode != "post-incomplete")
+            outcome.postReject = registration->postRejectProbe->once();
         if (mode == "core-refused") { outcome.witness = false; outcome.refusal = reader_insertion_hooks::Refusal::Binding; }
         if (mode == "forwarded") outcome.trackedForwards = 1;
     }
@@ -96,6 +98,7 @@ void scenario(const QByteArray &mode) {
     Reader reader; reader.value = &scene;
     QmlDocumentWrapper doc; Controller controller; controller.mode = Controller::None;
     auto config = reader_insertion_entry::Config{requestFor(doc), 5, 500};
+    config.wantPostRejectProbe = mode.startsWith("post-") && mode != "post-unrequested";
     if (mode == "invalid-config") config.wrongSourceIndex = config.request.sourceIndex;
     if (mode == "deadline") config.budgetMs = 25;
     if (mode == "expired-before-start") config.absoluteDeadline = std::chrono::steady_clock::now() - std::chrono::milliseconds(1);
@@ -110,11 +113,18 @@ void scenario(const QByteArray &mode) {
     reader_insertion_entry::Runtime runtime;
     runtime.calls = {words, search, equal}; runtime.admission = {true, true, true, true, true, true};
     runtime.outerReturnPC = 0x1000; runtime.innerReturnPC = 0x2000;
+    auto *ownedMutex = new pthread_mutex_t{}; // Intentionally resident owned storage.
+    check(::pthread_mutex_init(ownedMutex,nullptr)==0,"owned default mutex initialized");
+    const auto mutexAt = reinterpret_cast<std::uintptr_t>(ownedMutex);
+    auto *postProbe = reader_insertion_mutex_probe::Probe::create({ownedMutex,{mutexAt,mutexAt+sizeof(*ownedMutex)},::pthread_mutex_trylock,::pthread_mutex_unlock});
+    check(postProbe != nullptr, "owned optional probe created outside guarded sample");
     runtime.makeAttribution = [&, owner, model](QObject *source) {
         check(source == &worker, "snapshot context bound to retained worker");
         if (mode == "factory-cancel") entry->cancel();
         if (mode == "factory-delete") { delete entry; entry = nullptr; }
-        return reader_insertion_entry::Attribution{reinterpret_cast<void *>(0x30c8), owner.get(), attribute};
+        if (mode == "post-factory-cancel") entry->cancel();
+        return reader_insertion_entry::Attribution{reinterpret_cast<void *>(0x30c8), owner.get(), attribute,
+            mode.startsWith("post-") && mode != "post-missing" ? postProbe : nullptr};
     };
     std::unique_ptr<Entry> holder(new Entry(runtime)); entry = holder.get(); QPointer<Entry> weak = entry;
     Entry::TestBoundary test;
@@ -153,6 +163,7 @@ void scenario(const QByteArray &mode) {
     };
     test.registerOnce = [&, model](reader_insertion_hooks::Registration &&registration) {
         ++model->registrations;
+        check(bool(registration.postRejectProbe) == config.wantPostRejectProbe, "only requested registration carries typed probe");
         check(registration.binding.worker == &worker && registration.binding.policy == reader_insertion_hooks::CallerPolicy::BorrowedExplicitSize &&
             registration.binding.optional == nullptr && registration.binding.sizePresent == 1 && registration.binding.inherit == 0 &&
             registration.binding.index == 5 && registration.binding.size == config.request.paperSize, "borrowed explicit carrier bound");
@@ -202,12 +213,17 @@ void scenario(const QByteArray &mode) {
     } else {
         check(weak && weak->snapshot().finished && finished == 1, "one deferred terminal result");
         const auto r = weak->snapshot();
-        const bool positive = mode == "valid" || mode == "early-completion" || mode == "absolute-valid";
+        const bool positive = mode == "valid" || mode == "early-completion" || mode == "absolute-valid" || mode == "post-valid";
         if (r.observed != positive) QTextStream(stderr) << "mode=" << mode << " refusal=" << r.refusal << " probe=" << r.probe.refusal << " creation=" << r.creation.refusal << '\n';
         check(r.observed == positive && !r.nativeAuthority && !r.renderAuthority && !r.durableAuthority, "negative diagnostic only no authority");
         if (mode == "cancel-after-acquire") check(r.ownersRetained && r.canceled && model->probes == 0 && controller.calls == 0, "post-acquisition cancellation reports retained owners before any enqueue");
         if (positive) check(r.job == UINT64_MAX - 2 && r.probeJob == UINT64_MAX - 3 && r.matchingCompletions == 1 && !r.pageAdded &&
             r.creation.callbackCount == 1 && r.core.privateCaught && r.core.trackedForwards == 0 && r.ownersRetained, "full width job private catch callback zero added and owner retention");
+        if (mode == "post-valid") check(reader_insertion_mutex_probe::successful(r.core.postReject), "requested complete post-rejection facts required");
+        if (mode == "post-missing" || mode == "post-unrequested") check(model->registrations == 0 && controller.calls == 0 &&
+            r.refusal == (mode == "post-missing" ? QStringLiteral("post-reject-probe-missing") : QStringLiteral("post-reject-probe-unrequested")), "configuration and factory result must agree before registration");
+        if (mode == "post-incomplete") check(r.refusal == QStringLiteral("post-reject-probe-incomplete") && !r.observed, "incomplete requested facts cannot inherit modeled core witness");
+        if (mode == "post-factory-cancel") check(model->registrations == 0 && controller.calls == 0 && r.canceled, "factory cancellation prevents requested registration");
         check(model->probes <= 1 && controller.calls <= 1 && model->registrations <= 1, "once-only all submission stages");
         check(!entry->start(&window, config, [] { return true; }), "terminal entry cannot rearm");
         holder.reset();
@@ -226,7 +242,8 @@ int main(int argc, char **argv) {
             "permission-loss", "factory-cancel", "factory-delete", "registration-refused", "zero-probe", "inline-probe", "duplicate-probe",
             "cancel-probe", "delete-probe", "reentry", "deadline", "missing-completion", "foreign-completion", "duplicate-completion",
             "page-added", "missing-js", "duplicate-js", "false-accept", "cancel-task", "core-refused", "forwarded", "zero-job",
-            "expired-before-start", "absolute-clamp", "absolute-valid", "cancel-after-acquire", "delete-finished"}) scenario(mode);
+            "expired-before-start", "absolute-clamp", "absolute-valid", "cancel-after-acquire", "delete-finished",
+            "post-valid", "post-missing", "post-unrequested", "post-incomplete", "post-factory-cancel"}) scenario(mode);
     QTextStream(stdout) << "PASS owned coordinator checks=" << checks << '\n'; return 0;
 }
 #include "reader_insertion_guard_entry_fixture.moc"

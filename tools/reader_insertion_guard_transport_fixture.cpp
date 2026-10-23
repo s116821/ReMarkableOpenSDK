@@ -24,6 +24,7 @@ struct TestAccess {
     static void expire(Entry &e) { e.deadline_ = Entry::Clock::now() - std::chrono::milliseconds(1); }
     static void expireSetup(Entry &e) { e.setupDeadline_ = Entry::Clock::now() - std::chrono::milliseconds(1); }
     static void failure(Entry &e) { e.failure_ = QStringLiteral("owned-failure"); }
+    static void finish(Entry &e) { e.failure_ = QStringLiteral("owned-wire-only"); e.finish(); }
     static void hooks(Entry &e, std::function<void()> pre, std::function<void()> post) { e.preLink_ = std::move(pre); e.postLink_ = std::move(post); }
 };
 }
@@ -118,6 +119,7 @@ void requestCase(const QByteArray &mode, QGuiApplication &app) {
     const auto result = QJsonDocument::fromJson(get(f.root + "/selected-result")).object();
     check(result["stage"] == "insertion-refusal-incomplete" && !result["creation_attempted"].toBool() && !result["navigation_attempted"].toBool() &&
         !result["native_authority"].toBool() && !result["render_authority"].toBool() && !result["durable_authority"].toBool(), "negative wire distinct from native proof");
+    check(!result.contains("post_reject_probe"), "default wire has no post-rejection extension");
     QTextStream(stdout) << "PASS request-" << mode << '\n';
 }
 void publicationCase(const QByteArray &mode, QGuiApplication &app) {
@@ -166,6 +168,26 @@ void publicationCase(const QByteArray &mode, QGuiApplication &app) {
     else check(!QFile::exists(f.root + "/selected-result"), "refused publication leaves no result");
     QTextStream(stdout) << "PASS publish-" << mode << '\n';
 }
+void wireCase(bool requested,QGuiApplication &app) {
+    Files f; f.config.coordinator.wantPostRejectProbe=requested;
+    QQmlEngine engine;QQuickWindow window;
+    QQmlEngine::setContextForObject(&window,engine.rootContext());window.show();window.requestActivate();pump();
+    Entry e(&app,f.root,f.config,{});check(e.start(),"wire fixture starts");
+    put(f.root+"/selected-request",f.request());Access::bind(e,&window);Access::finish(e);
+    const auto bytes=get(f.root+"/selected-result");
+    check(!bytes.isEmpty()&&bytes.size()<=4096,"actual bounded incomplete wire published");
+    const auto body=QJsonDocument::fromJson(bytes).object();
+    check(body.contains("post_reject_probe")==requested,"extension present exactly in requested mode");
+    if(requested) {
+        const auto p=body["post_reject_probe"].toObject();
+        const QStringList keys{"acquired","attempted","native_authority","released","required","try_result","unlock_result"};
+        check(p.keys()==keys&&p["required"].isBool()&&p["required"].toBool(),"closed seven-key required object");
+        for(const char *name:{"attempted","acquired","released","native_authority"})check(p[name].isBool()&&!p[name].toBool(),"incomplete facts and authority remain false");
+        check(p["try_result"].isDouble()&&p["try_result"].toInt()==-1&&p["unlock_result"].isDouble()&&p["unlock_result"].toInt()==-1,"unattempted results retain negative sentinel");
+    }
+    check(body["stage"]=="insertion-refusal-incomplete"&&!body["coordinator_observed"].toBool(),"wire-only fixture is not native success");
+    QTextStream(stdout)<<"PASS wire-post-reject-"<<requested<<'\n';
+}
 }
 int main(int argc, char **argv) {
     QGuiApplication app(argc, argv);
@@ -175,5 +197,6 @@ int main(int argc, char **argv) {
     for (const QByteArray mode : {"valid", "negative", "expired", "setup-expired", "failure", "window-death", "request-replaced", "root-replaced",
             "result-exists", "pending-exists", "pending-symlink", "pre-cancel", "pre-restore", "pre-expiry", "pre-root", "pre-request",
             "post-cancel", "post-restore", "post-expiry", "post-root", "post-request", "pre-pending-replace", "pre-pending-mode", "cap4096", "cap4097"}) publicationCase(mode, app);
+    wireCase(false,app);wireCase(true,app);
     QTextStream(stdout) << "PASS owned transport checks=" << checks << "; no Coordinator or native success\n"; return 0;
 }

@@ -296,7 +296,7 @@ Facilities *installBeforeMain() {
     }catch(...){die();}
 }
 
-AttributionParts Facilities::attributionParts(QObject *worker)const {
+AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejectProbe)const {
     try {
         auto *app=QCoreApplication::instance();
         if(!app||QThread::currentThread()!=app->thread()||!worker||!state_->installed.load(std::memory_order_acquire)||state_->partsUsed.exchange(true,std::memory_order_acq_rel))return {};
@@ -315,8 +315,20 @@ AttributionParts Facilities::attributionParts(QObject *worker)const {
         reader_insertion_job_snapshot::Config c;c.mutex=reinterpret_cast<pthread_mutex_t*>(mutex);c.words=reinterpret_cast<const std::uint32_t*>(words);
         c.mutexStorage={mutex,mutex+24};c.wordStorage={words,end};c.tryLock=state_->tryLock;c.unlock=state_->unlock;
         auto *context=reader_insertion_job_snapshot::Snapshot::create(c);if(!context)return {};
+        reader_insertion_mutex_probe::Probe *postRejectProbe=nullptr;
+        if(wantPostRejectProbe) {
+            std::uintptr_t finalMutex=0,finalKind=0,finalEnd=0;
+            if(!add(w,176,finalMutex)||!add(finalMutex,12,finalKind)||!add(finalMutex,24,finalEnd))return {};
+            const auto *storage=cover(all,finalMutex,24,false);if(!storage||!storage->w||storage->x)return {};
+            int actualFinalKind=-1;std::memcpy(&actualFinalKind,reinterpret_cast<const void*>(finalKind),4);
+            if(actualFinalKind!=0||!guarded)return {};
+            reader_insertion_mutex_probe::Config probe;
+            probe.mutex=reinterpret_cast<pthread_mutex_t*>(finalMutex);probe.storage={finalMutex,finalEnd};
+            probe.tryLock=state_->tryLock;probe.unlock=state_->unlock;
+            postRejectProbe=reader_insertion_mutex_probe::Probe::create(probe);if(!postRejectProbe)return {};
+        }
         state_->wordAddress.store(std::uint32_t(first),std::memory_order_release);state_->searchReceiver.store(std::uint32_t(receiver),std::memory_order_release);
-        return {reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute};
+        return {reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute,postRejectProbe};
     }catch(...){return {};}
 }
 }

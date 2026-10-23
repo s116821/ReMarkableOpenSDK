@@ -168,6 +168,11 @@ private:
             {"plan_begin_ms",begin_},{"plan_end_ms",clock_.elapsed()},{"native_authority",false},{"render_authority",false},{"durable_authority",false}};
         // terminal_ is set to prevent reentry; publication uses the original
         // explicit success and clocks rather than granting another request.
+        if(config_.coordinator.wantPostRejectProbe) {
+            const auto &p=r.core.postReject;
+            body.insert("post_reject_probe",QJsonObject{{"required",true},{"attempted",p.attempted},{"acquired",p.acquired},
+                {"released",p.released},{"try_result",p.tryResult},{"unlock_result",p.unlockResult},{"native_authority",false}});
+        }
         const auto bytes=QJsonDocument(body).toJson(QJsonDocument::Compact)+'\n';
         publish("selected-result",".pending-result",bytes,success);
     }

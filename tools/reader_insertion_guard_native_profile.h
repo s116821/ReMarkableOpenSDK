@@ -2,6 +2,7 @@
 // Exact-build research facilities. No constructor, admission file, or capability.
 #include "reader_insertion_guard_hooks.h"
 #include "reader_insertion_job_snapshot.h"
+#include "reader_insertion_mutex_probe.h"
 #include <QObject>
 
 namespace reader_insertion_native_profile {
@@ -9,6 +10,7 @@ struct AttributionParts {
     void *map=nullptr;
     reader_insertion_job_snapshot::Snapshot *context=nullptr;
     bool (*read64)(void *,std::uint64_t &) noexcept=nullptr;
+    reader_insertion_mutex_probe::Probe *postRejectProbe=nullptr;
     explicit operator bool() const {return map && context && read64;}
 };
 struct State;
@@ -27,7 +29,7 @@ public:
     const bool applicationAbsent;
     // GUI/outside-critical construction only. Caller retains actual strong owners
     // through candidate exit; a QObject pointer does not supply that ownership.
-    AttributionParts attributionParts(QObject *stronglyRetainedWorker) const;
+    AttributionParts attributionParts(QObject *stronglyRetainedWorker, bool wantPostRejectProbe=false) const;
 };
 // Exact unsupported/uncertain/partial states terminate119, without an unhook or
 // logger. Caller owns nonce/root admission and actual linked init ordering.
