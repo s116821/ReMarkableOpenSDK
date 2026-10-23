@@ -50,6 +50,8 @@ remain workflow records, not a shipping capability declaration.
 | Consumer build | [Ordinary dependency boundary](reference/consumer-build-boundary.md) | Actual SDK with no enabled features; expected compiler refusals for development modules; REM-50 owns hosted integration |
 | Distribution | [License, provenance and API record](reference/distribution-license-gaps.md) | Authorized GPL-3.0-only grant, complete original dependency notices and contained package inputs; technical release/native gates remain |
 | Owned insertion guard | [ARM interception and unwind result](experiments/insertion-guard-owned-result.md) | Two real hooks and original cleanup on owned code; no native predicate or capability |
+| Passive predicate | [Owned bounded read controls](experiments/insertion-guard-predicate-owned-result.md) | Checked span, frozen searches and refusal evidence; no native admission or insertion grant |
+| Negative hook core | [Owned pair installation and rejection](experiments/insertion-guard-hooks-owned-result.md) | Complete-pair byte checks, scoped rejection and independent ARM replay; native integration remains open |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 Read dated sections as historical checkpoints. Later evidence does not erase an

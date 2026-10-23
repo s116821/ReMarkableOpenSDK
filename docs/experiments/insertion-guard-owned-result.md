@@ -83,7 +83,7 @@ source author's run.
 
 ## Limits and next question
 
-Both tested prologues relocate a simple ARM push and frame-pointer setup.
+Both first-stage prologues relocate a simple ARM push and frame-pointer setup.
 This is not coverage for Thumb, PC-relative instructions, branches, arbitrary
 generated-trampoline PCs or the shipped executable's original unwind tables.
 An upstream ARM relocator still warns about a shift count equal to its type
@@ -101,3 +101,88 @@ selected by this owned result.
 Source basis: original owned source, exact upstream archive and logged overlay,
 current compiler/ELF/QEMU outputs, independent source review and actual replay.
 The proposed transfer of this principle to xochitl remains an inference.
+
+## Separate machine-location and VFP followup
+
+A distinct owned increment passed **four cases and 56 checks**, with independent
+source/assembly review and a second actual execution. Its
+[carrier declarations](../../tools/insertion_guard_owned/abi/carriers.h),
+[compile-only callers/callees](../../tools/insertion_guard_owned/abi/compile_carriers.cpp),
+[owned entry veneers](../../tools/insertion_guard_owned/abi/owned_entries.S),
+[runtime controls](../../tools/insertion_guard_owned/abi/runtime.cpp) and
+[build script](../../tools/insertion_guard_owned/abi/build.sh) are original code.
+Mount that ABI directory at /inputs for this script, with the same upstream
+headers at /source, previously built archive at /library and fresh /out.
+
+GCC 13.4 caller/callee assembly puts the chosen owned outer carrier at
+R0/R1/R2/R3-low-byte, D0/D1 and entry stack offsets zero/four/eight. The inner
+carrier uses four core registers and two full signed 32-bit stack words.
+Public Qt size/alignment assertions support these owned declarations. They
+match observed native machine locations, not recovered native C++ types.
+The optional QString-shaped carrier is an owned object, never a fabricated
+native instance.
+
+The two actual hooks relocate generic ARM push-nine-registers/core-move
+prefixes. Subsequent VFP saves run normally. Accepted, private-rejected,
+unrelated-exception and transparent-wide-inner cases preserve exact arguments,
+original RAII/mutex cleanup and D8/D9 register sentinels. The transparent case
+retains both full stack words, including a sixth argument larger than a byte.
+The outside catch and hooks have no D8/D9 save/restore masking these probes.
+The extra owned veneer/body frame and its EHABI are explicit differences from
+the actual native body and its original unwind tables.
+
+Independent replay produced the same runtime result and identical loaded ELF
+segments, code and unwind sections. Full binary hashes differ:
+`153f7b51333664bff5988f9b3eb1742b8452acb1d18a4014f083fb2953c753ea`
+and `093c2ffe630ff5871dcd221c949f121be295029a37e9d084b19842d5c8838a1e`.
+Exact comparison attributes the only difference to a temporary object filename
+in a nonallocated STT_FILE string-table entry. The binaries are not described
+as byte-identical. The followup package receipt SHA-256 is
+`62952bad675d628dbb7e4593eaee56d46712e51b611534b8b43f7645f238002c`.
+
+This narrows carrier and simple-prefix uncertainty without qualifying live
+native installation, every relocation instruction, trampoline-PC unwinding,
+original native C++ declarations, map predicates or ownership. The
+[negative native witness proposal](../../openspec/changes/establish-native-platform-contract/native-insertion-guard-refusal-witness.md)
+therefore remains separately gated. This increment does not repeat or expand
+the first-stage 17-case matrix by counting its replay as new coverage.
+
+## Later ARM mode repair and remaining installation limits
+
+A subsequent source-only review found that the pinned library's constructor
+sets its mode flag true for Thumb addresses but does not initialize it false
+for even ARM addresses. The earlier owned paths passed, but those observations
+do not supply a general allocator-zeroing guarantee.
+
+The original [placement test](../../tools/insertion_guard_owned/repair/constructor.cpp)
+prefills storage with nonzero bytes, constructs the real class using owned data
+tokens and reads only the unsigned object representation. It never evaluates
+the old uninitialized bool and never patches or executes those token addresses.
+The old constructor reproduces the defect in two even-address cases; the new
+constructor initializes false in both while retaining true for odd addresses.
+Each variant passes 13 checks across four placement cases.
+
+A separate derived tree applies the prior logging change plus exactly one
+[mode initialization](../../tools/insertion_guard_owned/repair/thumb-mode-init.diff)
+before the existing Thumb branch. The pristine tree and earlier library/results
+remain intact. The [constructor script](../../tools/insertion_guard_owned/repair/test-constructor.sh)
+uses the same SDK and public header tree, with old/new archives at /oldlib and
+/newlib. Its /inputs contains the constructor source and the unchanged guarded
+compatibility header; use fresh /out.
+
+Repaired archive SHA-256:
+`622b17dc65d0dcad717d83264f783ad12044565ed8ea86f9e5088d9abf5328ef`.
+The unchanged 17-case/361-check and four-case/56-check sources both pass against
+this archive. Source and saved-result review are separate from the earlier
+independent executions of the prior archive. Repair-package receipt SHA-256:
+`e1876de59b4fcfa64c006039a0468b5a1bdf28afe13a457123c57f66712eb08e`.
+
+That repair does not change routing, memory protection, error returns or unload.
+The source review also finds that DobbyHook can report zero without propagating
+patch failure, while the Linux patch helper ignores protection-call results.
+Native admission must verify actual entry/trampoline bytes and mappings;
+uncertain installation fails the candidate and uses independent stock recovery.
+Registry removal is not a thread drain or safe unload. Exact source-review
+receipt SHA-256:
+`6b858a124249434f959d6cbc3edf379066cffa4cc8af06a0617f7360bfffb831`.
+The relocator warning and all native qualification boundaries remain open.

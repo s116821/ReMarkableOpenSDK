@@ -1,0 +1,4 @@
+--- pristine/source/InterceptEntry.cpp
++++ owned-derived/source/InterceptEntry.cpp
+@@ -5,0 +6 @@
++  this->thumb_mode = false;
