@@ -19,12 +19,13 @@
   - [ ] 2.3a Resolve safe native last-owner release separately from adapter-stack quiescence; bind all reusable registration APIs to their original generation and exact submitted Task lifecycle.
   - [x] 2.3b Implement and independently review a bounded non-last-only decrement primitive and private exact-control identity gate; verify owned host/ARM controls. This does not release native owners or qualify reusable capacity.
   - [ ] 2.3c Connect a typed retained-owner slot with per-owner consumption, no ordinary-release fallback, generation-bound physical retirement and native repeated-operation qualification.
-    - [x] 2.3c1 Implement the single retained acquisition slot and opaque stale-safe tokens; verify partial/unknown acquisition, per-owner consumption and refusal retention on owned host/ARM fixtures. Private retirement has no production caller yet.
+    - [x] 2.3c1 Implement the single retained acquisition slot and opaque stale-safe tokens; verify partial/unknown acquisition, per-owner consumption and refusal retention on owned host/ARM fixtures. Executor wiring is tracked below.
     - [ ] 2.3c2 Connect exact Task/callback retirement and reusable Core/Coordinator registration to the slot, then qualify native capacity and repeated operations.
-      - [x] 2.3c2a Bind Core registration, cancellation, snapshots and private retirement to opaque request tokens; adapt Coordinator token retention and verify owned normal/unwind/active/stale/foreign cases. No production retirement caller yet.
+      - [x] 2.3c2a Bind Core registration, cancellation, snapshots and private retirement to opaque request tokens; adapt Coordinator token retention and verify owned normal/unwind/active/stale/foreign cases. Executor wiring is tracked below.
       - [x] 2.3c2b Import the handoff's GUI retirement fence and request-scope binding with source provenance; verify nested cleanup, stale scopes and real Qt/JS callback disarm on host/ARM. Native executor wiring remains open.
       - [x] 2.3c2c Route Coordinator acquisition and probe submission through the retained slot, preserve its token across facade deletion and remove per-request ordinary-release fallback. Verify the real connection with owned ARM ABI callouts. Physical cleanup remains open.
       - [x] 2.3c2d Bind one-shot attribution creation to the owner-slot token and add private adapter-context cleanup before owner consumption; quarantine uncertain state across all later admissions. Final executor ordering and native validation remain open.
+      - [x] 2.3c2e Implement the resident executor's staged GUI/Core/attribution/owner retirement and bounded quarantine; independently review its lifecycle and test injected settled states on host/ARM. Full Coordinator-to-executor coverage and endpoint/native activation remain open.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery

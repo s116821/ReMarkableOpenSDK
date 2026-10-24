@@ -64,6 +64,7 @@ struct Result {
 
 class Coordinator final : public QObject {
     Q_OBJECT
+    friend class reader_worker_native::ResidentMutation;
 public:
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
     struct TestBoundary {
@@ -228,6 +229,7 @@ private:
             a.operationScope && a.workerThread && a.nativeOwners && a.finalLock;
     }
     void cancelCore() {
+        if(resident_->runtime.owners) resident_->runtime.owners->cancel(resident_->owners);
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
         if (test_.cancel) { const auto fn = test_.cancel; fn(); return; }
 #endif

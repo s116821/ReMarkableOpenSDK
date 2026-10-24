@@ -279,3 +279,37 @@ The previous Coordinator connection at
 `3c8e7b698042dc59ed0b37eb0b41a4366d08a5bd` passed
 [hosted run 40133254430](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40133254430);
 that run predates the attribution changes.
+
+### Resident executor lifecycle
+
+The executor source now connects logical terminal state, framed Coordinator
+cleanup, separate Fence notification, original Core retirement and slot
+attribution/owner retirement. Independent review caught stale success publication
+after rejected correlation or late Core evidence; the corrected implementation
+preserves late evidence, clears success and requires reconciliation. Final source
+review found no further blocker.
+
+The focused lifecycle model passes 5,194 checks on host ASan/UBSan and ARM/QEMU.
+It injects settled operation evidence and owner records while executing the real
+Fence, executor publication and slot finalizer. It covers 300 successive requests,
+stale tokens, nested event loops, completion-capture destruction before reuse,
+terminal correlation failures, late interference/cancellation/job mismatch,
+uncertain owners and bounded last-owner retention. It does not exercise the full
+Coordinator-to-executor pipeline or prove native Task quiescence.
+
+The existing Coordinator regression suite also passes on host ASan/UBSan and
+ARM/QEMU after cancellation was connected to the original slot token, including
+the 95 actual Coordinator/slot ABI checks on ARM.
+
+The production ARM adapter links successfully with the executor and real MOC
+objects, excluding all fixture seams. Artifact SHA256:
+`9b93031f86b30d41c954eb9d10643e88e54238321b46ec0d243330cf81cadf68`.
+Bootstrap remains read-only and the profile remains unqualified; no activation,
+tablet action, endpoint mutation dispatch or native repeated-operation test ran.
+Preserved failed builds include the initial private-QObject conversion compile
+error and the first fixture warning failure; neither is credited as a pass.
+
+The preceding attribution commit
+`faadbd253a3d6debae74fcbdf9788e3cc5e4ca16` passed
+[hosted run 40133916422](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40133916422).
+That run is not evidence for this later executor implementation.

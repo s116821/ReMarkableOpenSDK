@@ -44,6 +44,9 @@ public:
         std::weak_ptr<State> state_;
         explicit Token(const std::shared_ptr<State> &state):state_(state){}
         friend class ResidentSlot;
+#ifdef RESIDENT_WORKER_SLOT_TESTING
+        friend struct testing::SlotAccess;
+#endif
     public:
         Token()=default;
     };

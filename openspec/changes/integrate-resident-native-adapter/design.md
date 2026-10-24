@@ -162,34 +162,35 @@ Physical retirement must cover the exact once-submitted Task's future invocation
 possibility as well as currently active stacks; clearing a record must not turn
 a late formerly guarded call into ordinary unguarded forwarding. Any unknown
 physical mutation retains the bounded mutation slot while independent read-only
-observations remain possible. This is a design requirement, not implemented or
-native-qualified reclamation.
+observations remain possible. The executor implements this source policy;
+native reclamation and repeated-operation capacity remain unqualified.
 
 The Core source now uses opaque weak-record tokens for registration, cancellation
 and snapshots. Outer entry pins the record and records active frames before
 native dispatch; the inner predicate is unchanged. Registry locks cover only
 lookup/removal, with native calls and record destruction outside. Its private
 retirement method checks the original token and active frame count, but still
-requires the future executor's independent no-future-invocation proof. The
-Coordinator now passes its original token on every Core operation. No public
-no-argument cancel/snapshot or production retirement caller remains.
+requires the executor's independent no-future-invocation proof. The
+Coordinator passes its original token on every Core operation. Public
+no-argument cancel/snapshot operations are removed; the resident executor alone
+calls private production retirement.
 
 The imported GUI fence separates immediate logical invalidation, framed cleanup,
 and a distinct later retirement notification. Admission is later still, after
 the notification stack unwinds. Its scope binding carries no native owner and
 does not establish Task completion. The unchanged research implementation has
-a 256-nonce history bound; production integration will use one fence per request
+a 256-nonce history bound; the executor uses one fence per request
 inside the single resident mutation slot, rather than treating that history as
 a process-wide operation allowance. Durable deduplication remains the journal's
-responsibility. This executor connection is not implemented by the import.
+responsibility. Import-only tests remain separate from executor coverage.
 
 Coordinator acquisition and probe submission now require the process-resident
 slot. The returned token is retained even if a native callout deletes the GUI
 facade; the slot already owns any returned native words. The second source join
 checks the same token's Worker incarnation, and Core's owner marker identifies
 the slot. There is no per-request Bridge/Prepared fallback in this path. The
-Coordinator's plain resident record and profile attribution remain retained
-until the normal physical-cleanup executor is implemented.
+Coordinator's plain resident record is deleted by framed executor cleanup;
+profile attribution remains retained until subsequent Core and slot retirement.
 
 The exact controller path provides a narrower retirement premise than generic
 `Task.finished`: its ordinary insertion method constructs one private AddPage
@@ -213,7 +214,7 @@ dispatch addresses, destroys only adapter-owned snapshot/probe objects, then
 allows a fresh attribution. It never destroys a native mutex or native owner.
 Slot retirement performs that cleanup before consuming either native reference,
 and does not repeat it if a last/busy owner requires a later bounded retry.
-The future executor must retire Core first with the independent normal Task
+The executor retires Core first with the independent normal Task
 proof; these private cleanup primitives do not establish that proof themselves.
 
 ### Non-last-only owner policy
@@ -230,8 +231,8 @@ control storage, exact vptr, raw/control relationship and positive weak count.
 Document raw==control+16 is a strict supported-shape gate, not a claim that every
 normally returned Document pair has this layout. Refusal retains the reference.
 
-The method is private to the typed resident slot. The slot's private retirement
-method has no production caller yet. Acquisition writes into retained storage
+The method is private to the typed resident slot. The resident mutation executor
+is its sole production retirement caller. Acquisition writes into retained storage
 before native dispatch; only normal complete returns become owned references.
 Exceptional or partial pairs quarantine the slot without interpreting or releasing
 them. Successful release consumes only that owner's local words; refusal preserves
@@ -244,6 +245,34 @@ The executor must prove physical retirement independently before it can call the
 private retirement method. Last-owner or uncertain controls keep
 the bounded mutation slot occupied. Neither arithmetic fixtures nor offline ABI
 analysis establish normal native availability or repeated-operation capacity.
+
+### Resident mutation lifetime
+
+The process-resident executor owns one active request. Its private QObject base
+and destructor prevent an endpoint facade from parenting or deleting it. Each
+request has its own GUI Fence, Coordinator and original Core/owner tokens. A
+normal result requires distinct probe and mutation job IDs, exact normal probe
+delivery, conditional Core completion, one matching page-added/completed event,
+the creation callback and post-order evidence. Terminal correlation failures
+clear success and require reconciliation.
+
+After framed GUI callbacks unwind, queued cleanup disarms the Coordinator and
+destroys its facade and plain record. Native callbacks retain independent plain
+state; Core's owner marker and attribution storage belong to the retained slot.
+Only after the Fence's separate notification stack unwinds does the executor
+recheck the original Core outcome, retire that registration, clear attribution,
+and attempt Worker then Document non-last reference consumption. This relies on
+the exact consumed-command and controller no-resubmission proof above; generic
+Task finished delivery is insufficient. Late evidence changes require
+reconciliation, even if an earlier Coordinator snapshot reported success.
+
+Physical refusal retains one bounded slot. At most eight owner-retirement
+attempts occur; known operation evidence remains distinct from capacity
+availability. Publication and destruction of completion captures finish while
+the executor is still busy. Every nonnormal operation currently retains its
+slot conservatively, including known pre-effect refusals. Source integration
+does not yet connect this executor to endpoint mutation dispatch or bootstrap
+activation, and does not qualify native reuse.
 
 ## Verification and rollout
 
