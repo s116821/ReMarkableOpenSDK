@@ -760,3 +760,7 @@ The default-off write/reopen startup and [independent pen holder](../../fixed-pe
 #### Scenario: Qt parent has runtime-created threads
 - **WHEN** the native holder cannot satisfy a single-threaded prerequisite
 - **THEN** it does not merely remove that guard or fall back to the old fork route; a separately qualified mandatory spawn backend starts an exact pinned Qt-free writer image with only the designated descriptors, verifies writer/parent/original-budget identity, and retains the original one-GO, child-fencing and independent recovery semantics.
+
+#### Scenario: Startup readiness never arrives
+- **WHEN** a default-off composed trial waits for the matching holder or the legacy UI composition and then refuses, expires or is canceled
+- **THEN** its terminal refusal retains the last observed wait phase and a bounded composition refusal tag, without promoting a sampled diagnostic to current readiness, changing the readiness conditions, publishing a request or renewing an original deadline.

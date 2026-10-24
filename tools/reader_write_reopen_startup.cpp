@@ -134,7 +134,9 @@ private:
     void refuse(const char *why){
         if(done_)return;
         done_=true;
-        if(io_){reader_write_reopen::Result r;r.finished=true;r.refusal=QString::fromLatin1(why);r.finishedMs=io_->nowMs();io_->report(r);}
+        if(io_){reader_write_reopen::Result r;r.finished=true;
+            r.refusal=QString::fromLatin1(why)+QStringLiteral("|last_wait=")+lastWait_.left(160);
+            r.finishedMs=io_->nowMs();io_->report(r);}
     }
     void queue(){const QPointer<Controller> weak(this);QTimer::singleShot(250,this,[weak]{
         if(!weak)return;
@@ -146,15 +148,20 @@ private:
         const QPointer<Controller> weak(this);const auto io=io_;
         const auto allowed=[weak,io]{return weak&&weak->app_&&!QCoreApplication::closingDown()&&actorAdmission()&&io->admitted();};
         if(!ready_){
-            if(!io->readyForRequest()){queue();return;}
+            if(!io->readyForRequest()){lastWait_=QStringLiteral("holder-not-ready");queue();return;}
+            lastWait_=QStringLiteral("composition-not-sampled");
             auto *window=qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
             const auto composition=reader_selected::inspectLegacyFixture(window,
                 [](QQuickItem *,QQmlContext *,const std::function<bool()> &guard){return guard&&guard();},allowed,1000);
             if(!weak)return;
-            if(!composition.compositionObserved||!composition.refusal.isEmpty()){queue();return;}
+            if(!composition.compositionObserved||!composition.refusal.isEmpty()){
+                lastWait_=QStringLiteral("composition/")+(composition.refusal.isEmpty()?QStringLiteral("not-observed"):composition.refusal.left(128));
+                queue();return;
+            }
+            lastWait_=QStringLiteral("composition-ready");
             const auto early=io->request();
             if(!early.missing||!io->publishReady()){refuse("startup-ready-refused");return;}
-            ready_=true;queue();return;
+            ready_=true;lastWait_=QStringLiteral("request-not-published");queue();return;
         }
         const auto request=io->request();
         if(request.missing){queue();return;}
@@ -169,6 +176,7 @@ private:
     QPointer<QGuiApplication> app_;reader_write_reopen::Config config_;
     std::shared_ptr<reader_write_reopen::NativeFiles> io_;
     unsigned polls_=0;bool ready_=false,done_=false;
+    QString lastWait_=QStringLiteral("not-polled"); // sampled diagnostic, never readiness authority
 };
 void startup(){
     if(scheduled.test_and_set(std::memory_order_acq_rel)||!fingerprinted.load(std::memory_order_acquire)||

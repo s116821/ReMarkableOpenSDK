@@ -244,7 +244,7 @@
     {
       "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
       "title": "Fresh fixed-writer image and native owned-file process qualification",
-      "lf_utf8_sha256": "21e7b146b281d7e6f2793238f22169b8c5ac98a1aaf798b8a8ddecf9579ad317",
+      "lf_utf8_sha256": "c88dc2fc85a06e20b5f962cc237d4336eac9e21a7aec5ef6c79a983008cebaf5",
       "headings": [
         {
           "line": 1,
@@ -267,7 +267,7 @@
           "heading": "Later composed holder admission, with no GO"
         },
         {
-          "line": 169,
+          "line": 190,
           "heading": "Simulator calibration and remaining native work"
         }
       ]
@@ -4939,7 +4939,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/specs/native-platform-contract/spec.md",
       "title": "ADDED Requirements",
-      "lf_utf8_sha256": "c1f6a6266ad1349b8198d2f2cb9844cbff458f22847f1e03a9231a768a30e6f1",
+      "lf_utf8_sha256": "20dbaca6be88449e6301eeacb106e5b721cde0d728bfea64e315f33e03ad5e0a",
       "headings": [
         {
           "line": 1,
@@ -5636,6 +5636,10 @@
         {
           "line": 760,
           "heading": "Scenario: Qt parent has runtime-created threads"
+        },
+        {
+          "line": 764,
+          "heading": "Scenario: Startup readiness never arrives"
         }
       ]
     },
@@ -5661,7 +5665,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "c529dae0d7854bf670389efd9081f7d1c375f67d35e3677be94bec39ae219b0d",
+      "lf_utf8_sha256": "50c0063d597466f209ccc82d314691fd66154ef1efd4078ddda27c1938cc0e52",
       "headings": [
         {
           "line": 1,

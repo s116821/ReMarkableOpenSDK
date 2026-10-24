@@ -166,6 +166,27 @@ The full post-restoration backup remains byte-identical for all26 files and all
 b52f4a1b1dd55579069f63389e18d29a525e7b259f4500b8a70fe34216b163f6.
 The trial is spent. Native input, target ink and close/reopen remain unqualified.
 
+The successor startup source retains its last observed wait phase in the
+terminal refusal: holder-not-ready, composition with the bounded refusal tag,
+or request-not-published. The detail is sampled diagnostic provenance, not a
+current readiness claim. It adds no input request and changes no existing
+readiness condition, guard or original deadline. This cannot reconstruct the
+missing e219 observation.
+
+LF-normalized successor startup SHA-256:
+8fc827a698b575716a609c4e36d892a651e0774156556eb52ea9bb3abb6a13e0.
+Source-delta review verifies that removing only diagnostic assignments and
+terminal formatting recovers all previous non-diagnostic tokens. The unchanged
+actual admission fragment passes16 cases each on host, ARM-QEMU and sanitizer.
+Review receipt9d1744755b49fc572c19012a573cda444d6b38b247739273886803539533a8d6
+also preserves the first wrapper's rejected argument assumption; its successor
+uses the shipped positional test arguments. The complete ARM link,24 frozen
+inputs and8 fixture/11 conflicting-selector refusals pass, receipt
+ce1d24a5af28fe2cefff3710bd7665dacb6d4b452e2dddfce59bf3af328141d2.
+Its link-only artifact2c824096b6911914b120331bac29b71fc99dd48128a2263c3224ee34514cd0f6
+has not been executed on the tablet. A new native candidate must bind this
+source and retain the precise wait result before choosing a repair.
+
 ## Simulator calibration and remaining native work
 
 Model a multi-threaded Qt parent separately from a single-threaded fresh writer.
