@@ -336,6 +336,12 @@ no global tool registration or installation was changed.
 
 ## Simulator calibration and remaining native work
 
+The later actual intended-target input, before/ink pairs, stock close and
+incomplete final capture are recorded in the separate
+[native write/readback report](intended-target-native-write-readback.md).
+That report owns subsequent ink/persistence findings; this report retains the
+process and startup-admission evidence.
+
 Model a multi-threaded Qt parent separately from a single-threaded fresh writer.
 Preserve descriptor pin/replacement failures, explicit role mapping, extra-FD
 closure, parent loss/cancellation, one-use launch, child exit/status, observer and

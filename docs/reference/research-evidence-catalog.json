@@ -244,7 +244,7 @@
     {
       "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
       "title": "Fresh fixed-writer image and native owned-file process qualification",
-      "lf_utf8_sha256": "5b7e1c38075f33ddd6a0141ef3a641b5047a2a40def6d1d4672d462074bde444",
+      "lf_utf8_sha256": "19f54a46db63f3bbe181fcc8b514b961d28fcfb9c8b47e0e29f119edb0d57cb3",
       "headings": [
         {
           "line": 1,
@@ -632,6 +632,33 @@
         {
           "line": 121,
           "heading": "Combined compile/link-only startup"
+        }
+      ]
+    },
+    {
+      "path": "docs/experiments/intended-target-native-write-readback.md",
+      "title": "Intended-target native write and separate readback",
+      "lf_utf8_sha256": "5584261cd311f985adf17920e935b744d7e282d92d86b5dd1fbb4d4937ecf803",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Intended-target native write and separate readback"
+        },
+        {
+          "line": 7,
+          "heading": "Frozen trial"
+        },
+        {
+          "line": 24,
+          "heading": "Actual input and image evidence"
+        },
+        {
+          "line": 56,
+          "heading": "Stock close, incomplete final capture and preservation"
+        },
+        {
+          "line": 77,
+          "heading": "Distinct next question: existing-ink readback"
         }
       ]
     },
@@ -1443,7 +1470,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "680142a295a3ce87a037875751047de4b8090b1d3f68719b98e6805d62409410",
+      "lf_utf8_sha256": "1ce2c492788225e074c5b7e5fd22189bcf301653f1e565d3fdbbd7dd97827198",
       "headings": [
         {
           "line": 1,
@@ -1458,11 +1485,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 84,
+          "line": 90,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 104,
+          "line": 110,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -5665,7 +5692,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "87621bcc419953c43aafcf11de8b5c677a56e14eee7591ceb0a49855bf0f0749",
+      "lf_utf8_sha256": "b6affd904b17c7cd5d0bf61e918085a8d454ed33173af921025c60c105414e2a",
       "headings": [
         {
           "line": 1,

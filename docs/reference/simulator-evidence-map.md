@@ -75,6 +75,12 @@ readiness and current-page/capture/write/save authority. Exact native costs and
 original-window host counterexamples are indexed in the report; they are not
 portable timing guarantees or integrated Buddy simulator coverage.
 
+The [intended-target native write/readback report](../experiments/intended-target-native-write-readback.md)
+now supplies actual write/observed-stream, release, image and partial-sequence
+calibration. Preserve filtered event counts, one contact interval, independent
+release, successful close and an expired final capture as separate outcomes.
+Stored ink after restoration does not fill the missing fresh readback evidence.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

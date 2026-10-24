@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <climits>
 #include <limits>
+#include <poll.h>
+#include <signal.h>
 
 namespace capture_process_readback {
 using Expected = reader_capture_pair_read::Expected;
@@ -168,6 +170,33 @@ inline bool writeFrameOnce(int fd, const QByteArray &frame) {
     return !frame.isEmpty() && frame.size() <= reader_capture_pair_read::ScalarCap + reader_capture_pair_read::ImageCap + 256 &&
         ::write(fd, frame.constData(), size_t(frame.size())) == frame.size();
 }
+// Trusted serialized admission and owned output FD, not an arbitrary caller grant.
+inline bool armCollectionAlarm() {
+    struct sigaction action{}; action.sa_handler = SIG_DFL;
+    sigset_t unblocked{};
+    if (::sigemptyset(&action.sa_mask) || ::sigaction(SIGALRM, &action, nullptr) ||
+        ::sigemptyset(&unblocked) || ::sigaddset(&unblocked, SIGALRM) ||
+        ::sigprocmask(SIG_UNBLOCK, &unblocked, nullptr)) return false;
+    ::alarm(12); return true;
+}
+template<class Permit> bool writeFrameBounded(int fd, const QByteArray &frame, Permit &permit) {
+    if (frame.isEmpty() || frame.size() > reader_capture_pair_read::ScalarCap + reader_capture_pair_read::ImageCap + 256 || !permit()) return false;
+    const int flags = ::fcntl(fd, F_GETFL);
+    if (flags < 0 || ::fcntl(fd, F_SETFL, flags | O_NONBLOCK)) return false;
+    qsizetype sent = 0;
+    while (sent < frame.size()) {
+        if (!permit()) return false;
+        const auto count = ::write(fd, frame.constData() + sent, size_t(frame.size() - sent));
+        if (count > 0) { sent += count; continue; }
+        if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) {
+            pollfd output{fd, POLLOUT, 0};
+            if (::poll(&output, 1, 2) < 0 && errno != EINTR) return false;
+            continue;
+        }
+        return false;
+    }
+    return permit();
+}
 } // namespace capture_process_readback
 
 #ifndef READER_CAPTURE_READBACK_OWNED_HELPERS_ONLY
@@ -177,6 +206,7 @@ inline bool writeFrameOnce(int fd, const QByteArray &frame) {
 int main(int argc, char **argv) {
     using namespace capture_process_readback;
     try {
+        if (!armCollectionAlarm()) return 90;
         if (argc != 6 || ::geteuid() != 0 || QByteArray(qVersion()) != "6.10.3" ||
             std::getenv("LD_PRELOAD") || std::getenv("LD_BIND_NOW")) return 90;
         const Expected expected{QByteArray(argv[1]), QByteArray(argv[2]), QByteArray(argv[3])};
@@ -188,7 +218,8 @@ int main(int argc, char **argv) {
         const auto result = reader_capture_pair_read::readPair(admission.rootFd(), expected, [&] { return admission.permit(); });
         if (!result.observed || !admission.permit()) return 90; // After copied Permit destruction.
         const auto frame = makeFrame(result, expected, boot);
-        if (frame.isEmpty() || !admission.permit() || !writeFrameOnce(STDOUT_FILENO, frame)) return 90;
+        auto permit = [&] { return admission.permit(); };
+        if (!writeFrameBounded(STDOUT_FILENO, frame, permit)) return 90;
         return admission.permit() ? 0 : 90;
     } catch (...) { return 90; }
 }

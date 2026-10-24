@@ -64,6 +64,7 @@ bool actorAdmission() {
     for (const char *name : {"restore.claim", "selected-cancel", "stop.request"}) valid = valid && absent(name);
     QByteArray deadline;
     valid = valid && readPrivate(root.value, "deadline", deadline) && deadline.endsWith('\n');
+    if (!valid) return false;
     const auto parts = deadline.chopped(1).split(' ');
     if (valid && parts.size() == 2 && reader_selected::decimal(parts[0]) && reader_selected::decimal(parts[1])) {
         const auto begin = parts[0].toULongLong(), end = parts[1].toULongLong(); struct timespec now{};
