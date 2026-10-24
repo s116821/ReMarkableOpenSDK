@@ -1341,23 +1341,31 @@
     {
       "path": "docs/experiments/write-reopen-setup-profile-owned-result.md",
       "title": "Declared setup windows for a fresh combined diagnostic",
-      "lf_utf8_sha256": "24d3d1c3317871751b33eb70a2d41de0ab4ad9a0a729423c859045f22bb3341f",
+      "lf_utf8_sha256": "f8a9da5f989264c2aad22388b1d8e0459fad34d3c1d026277d6ee0fd501e19f2",
       "headings": [
         {
           "line": 1,
           "heading": "Declared setup windows for a fresh combined diagnostic"
         },
         {
-          "line": 9,
+          "line": 13,
           "heading": "Scope and unchanged limits"
         },
         {
-          "line": 30,
+          "line": 34,
           "heading": "Actual owned controls"
         },
         {
-          "line": 63,
+          "line": 67,
           "heading": "Fresh fixture and remaining gates"
+        },
+        {
+          "line": 85,
+          "heading": "First native setup120 attempt and the omitted unit Context"
+        },
+        {
+          "line": 125,
+          "heading": "Actual old/fixed unit-helper regression"
         }
       ]
     },
@@ -1497,7 +1505,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "56ac5e079f38f88c5835d71f838541992a68825cebb24b1ce2787e06a7a8e798",
+      "lf_utf8_sha256": "f9e51466334e930853a1dfb2181468b8ad5185e64b985cc5fd92032893bd86c5",
       "headings": [
         {
           "line": 1,
@@ -1512,11 +1520,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 99,
+          "line": 110,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 119,
+          "line": 130,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -5723,7 +5731,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "f0f2d94140abbe63da08fcacc94ec722d34869daa5d09f21e9140de8c1663aa8",
+      "lf_utf8_sha256": "ae76b826dfd49ec7e503b5fd2e24274bdd34952df5ff52f8795afa5d77ae1d18",
       "headings": [
         {
           "line": 1,
@@ -6011,7 +6019,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/write-reopen-sequence.md",
       "title": "One intended-target writing and reopen sequence",
-      "lf_utf8_sha256": "4d62d2091139d7bc7da585168f8218eb6faf3e6d26114f1dcd1900c9e7a879bf",
+      "lf_utf8_sha256": "b358dd1f82833b548017bf83297dd9e9a0aae33a16364088a20c4fa3f764bf31",
       "headings": [
         {
           "line": 1,

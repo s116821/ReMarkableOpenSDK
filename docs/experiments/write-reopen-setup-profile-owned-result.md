@@ -1,5 +1,9 @@
 # Declared setup windows for a fresh combined diagnostic
 
+Status: first native120-second attempt refused before request/GO. Stock and
+Buddy restored, all original files unchanged. The omitted unit-helper Context
+now passes old/fixed owned controls; successor native qualification remains open.
+
 October24,2026UTC. Source and owned controls now admit exactly90-second and
 120-second setup profiles for a newly declared diagnostic. This is preparation
 for another combined write/close/reopen trial, not a native result or renewal of
@@ -78,7 +82,66 @@ transferred or activated by these checks. No additional stroke or page insertion
 occurred. The original combined test and native child-failure, long-lived
 reclamation, consumer and wider device/document qualification remain open.
 
-Source basis: current source and exact normalized-source comparison, actual
-owned Linux/Qt/ARM/sanitizer outputs, archived fixture byte comparison and fresh
-read-only device/service/provider backup. Native outcomes are limited to the
-separately linked historical report; future packet behavior is prospective.
+## First native setup120 attempt and the omitted unit Context
+
+Attempt e3cd68fa001f41f1abab2bc1270751a3 executed source
+5818b92004c6be30fbeb6a3cb4fa5763fb8364ea with payload
+4f99d2a08379c01e385d2ce29802edc9899155bbbd2be02a2ba13dfa1ebec67e.
+All six actual artifacts' direct symbol/version imports resolved against eleven
+fresh baseline-matching providers; the payload has307 required imports, zero
+exports and the same initializer roles/order and6-byte TLS as its executed full
+trial predecessor. Packet/source181, composition81, emitted shell/actor26 and
+host-method15 modeled fault cases/76 checks passed. These are bounded preparation
+facts; they missed another native admission implementation.
+
+The actual candidate27113/start137026438 finished before any selected request,
+pen GO or writing phase. Its scalar records began_ms0, pen_polls0, no close or
+reopen, and startup-admission-or-cap with last_wait=holder-not-ready. The launcher
+unit's ExecMainPID27254 exited90. No holder-ready, holder stdout/stderr, pen
+result or event trace exists. Original120-second setup1370264..1370384 and
+actor1370227..1370587 were unchanged. This nonce is spent.
+
+The separate unit launch/witness executable still had a90-second-only
+Context::open check. Its source SHA-256 was
+815d16a3087a41cfda2ed421259809f11a02d06690b8077a3e496ef60d2178d7;
+selected control SHA-256 was
+455fcfcc9ec39f4b2a231f44d542d1b24337e72c57fd653dda3e243dd2c8a9e2.
+That source cannot admit120 seconds before exec of the holder. The native
+diagnostic does not uniquely identify its first internal failed branch; do not
+invent branch tracing from the final status. The missing Context coverage,
+rather than a demonstrated failure of page writing, is the actionable source gap.
+
+The98-file original runtime archive is
+fad17d6de921cee59cce51f4ecabf3dbaa2b74aa99c90c9f9aeda10daecc370e.
+Stock28601/start137040856 restored. The generic missing-holder-ack path initially
+withheld Buddy and retained recovery.failed. A separate one-use no-GO/unstarted
+helper reconciliation verified original negative records, absent effect files,
+failed/empty units/cgroups, gone original processes, exact stock/maps/policy and
+all full-baseline hashes before restoring initially active Buddy29115. It makes
+no positive pen-release claim. Fresh full readback then confirms all26 files and
+all12 IDs byte-identical to bb6cdbff..., including both the prior stroke and the
+unused index7 target. The old failure and withheld/restored outcomes remain.
+
+## Actual old/fixed unit-helper regression
+
+The isolated helper successor changes only its exact span predicate to90/120;
+reversing that one edit recovers the preceding source. Its source SHA-256 is
+fcd20912c39cea318a543679f6b9d060b4c141f375ae5b2046925146d73da54c.
+The actual C++ Context and two-phase witness pass45 owned scenarios/197 checks.
+Seven separately executed launch cases reproduce old120 refusal before output
+creation, fixed90/120 forwarding to the fixed owned script, and89/91/119/121
+refusals before output creation. A120-second window too late for the original
+recovery reserve also refuses. Existing38 cases remain included.
+
+The receipt SHA-256 is
+573cbc7281dffcc2a03d977c6dad7ff8ee7c149cd7fcfda2d70e44564ef40c61.
+Source, build inputs and outputs remain under the private continuation directory
+pen-unit-setup-profile-r10. The exec target and systemd observations are explicit
+owned models; these tests run no native unit or device IO. A successor native
+control build and a fresh complete candidate are still required. No replacement
+packet has been selected or transferred by this regression.
+
+Source basis: exact normalized-source comparisons, actual owned Linux/Qt/ARM/
+sanitizer and old/fixed helper outputs, original native failed-attempt archive,
+separate reconciliation and full read-only device/service/provider backups.
+Successor packet behavior and complete native sequence success remain unproven.

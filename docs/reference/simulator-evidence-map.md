@@ -90,6 +90,17 @@ IPC-closed flag before IPC creation is not a created-resource leak or pen releas
 These findings are searchable calibration pointers; integrated Buddy simulator
 coverage remains future work.
 
+The [setup-profile attempt and actual unit-helper regression](../experiments/write-reopen-setup-profile-owned-result.md#first-native-setup120-attempt-and-the-omitted-unit-context)
+add a distinct component-admission mismatch before holder readiness: the shell,
+holder, backend and collector accepted the new fixed setup span while another
+native C++ Context still refused it. No selected request/GO or input occurred;
+stock restoration, conservative Buddy withholding, separate no-input
+reconciliation and unchanged full fixture are distinct transitions. Future
+integrated models should represent component protocol/admission compatibility,
+instead of treating a loaded bridge or passed import audit as holder readiness.
+The actual Context/exec regression covers the repaired helper locally; it does
+not qualify another native run or implement the integrated simulator.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

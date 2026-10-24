@@ -81,8 +81,10 @@ expired after close/reopen dispatch but before the last capture. Its later
 capture-only readback is separate reconciliation, not completion of that sequence.
 For a new candidate only, permit an explicitly frozen120-second setup alongside
 the original90-second profile. Accept exactly90 or120 seconds, not an arbitrary
-duration. The holder, private-file backend and standalone collector must agree
-on that original span and retain pinned control bytes/inodes. Any subsequent
+duration. The holder, private-file backend, standalone collector and the unit
+launch/witness helper's actual C++ Context must agree on that original span and
+retain pinned control bytes/inodes. Shell models alone do not cover that Context.
+Any subsequent
 window replacement or deadline renewal must revoke admission.
 
 Keep the actor at360 seconds and the recovery reserve at185 seconds. A120-second
@@ -103,3 +105,11 @@ Exercise both accepted spans, nearby invalid spans, late-start reserve rejection
 post-admission control replacement and the original90-second operation limit
 with actual owned file/process fixtures before native selection. Building this
 variant does not select, transfer or activate it.
+
+The first120-second native packet stopped before request/GO because its unit
+helper retained an overlooked90-second-only Context. Preserve that failure and
+the separately verified stock/Buddy restoration and unchanged full fixture. A
+successor must reproduce old120 rejection before exec, then exercise the fixed
+actual C++ Context/witness/exec path with both accepted spans, nearby invalid
+spans and the original actor recovery reserve. Do not infer launcher admission
+from successful holder/backend/collector tests or static import compatibility.
