@@ -8,6 +8,8 @@ packet or past trial is not permission to execute a new one.
 | Reusable guide | Evidence scope |
 | --- | --- |
 | [Fixed stroke/release policy](fixed-stroke-release-owned-result.md) | One-use dispatch, original deadlines and serialized independent release; owned IO/pipe/child controls, no native input qualification |
+| [Read-only native pen profile](pen-device-readonly-native-result.md) | Actual checked RM2 identity/capabilities and two matching released snapshots; no event read/write, queue or recovery qualification |
+| [Fixed pen stream validator](fixed-pen-stream-owned-result.md) | Owned filtered/redundant records, sticky refusals and one-use final state match; no native input observation |
 | [Ordinary document-close helper](ordinary-reader-close-owned-result.md) | Actual owned QML slot, source/claim/lifetime/metadata controls; native Reader join modeled, no storage acknowledgement |
 | [Identity-capture entry and consumer](identity-capture-entry-owned-result.md) | Default-off Entry, inode-pinned separate commits, shutdown controls and original-byte validation; owned/source checkpoint, not native capture or live image-pair admission |
 | [Original capture pair readback](identity-capture-readback-owned-result.md) | Pinned original file collection, own-process/clock controls and strict length frame; whole native operator/target/provider admission remains separate |

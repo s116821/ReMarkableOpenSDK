@@ -73,6 +73,8 @@ remain workflow records, not a shipping capability declaration.
 | Request lifetime | [Optional mutation scopes and owned controls](experiments/mutation-request-scope-owned-result.md) | Owned callback/unwind/cleanup boundaries; native resident composition and reclamation remain open |
 | Pen release | [Source and vendor event ABI](research/pen-event-release-boundary.md) | Device-free ABI observation and unresolved independent recovery; no fresh drawing or writer qualification |
 | Fixed stroke policy | [One-use dispatch and independent release controls](experiments/fixed-stroke-release-owned-result.md) | Host/ARM/sanitizer92/2267 each, real owned pipe/child and modeled device/clock/release; native input composition remains open |
+| Native pen profile | [Read-only RM2 result](experiments/pen-device-readonly-native-result.md) | Checked kernel identity/capabilities and released snapshots; queue, writing and recovery unmeasured |
+| Pen stream model | [Sticky owned observer controls](experiments/fixed-pen-stream-owned-result.md) | Host/ARM/sanitizer257/51413 each with filtered/redundant events and sticky failure; native framing and input behavior remain open |
 | Ordinary document close | [Source boundary](research/ordinary-reader-close-source-boundary.md) and [owned terminal helper](experiments/ordinary-reader-close-owned-result.md) | Stock QML source order and actual owned QML dispatch controls; UI close is separate from saved-file/reopen evidence |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 

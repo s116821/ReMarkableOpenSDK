@@ -208,6 +208,17 @@
       ]
     },
     {
+      "path": "docs/experiments/fixed-pen-stream-owned-result.md",
+      "title": "Fixed pen stream: owned record validation",
+      "lf_utf8_sha256": "cf43342358044cab95ba2dedcfc17339de7b21724e296eefc3e3ab188c5c4777",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Fixed pen stream: owned record validation"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/fixed-stroke-release-owned-result.md",
       "title": "Fixed stroke and independent release: owned policy result",
       "lf_utf8_sha256": "d60ab3bd20f1004c8340a763d07253b74787f5a0e305b1841846646fafc1b46b",
@@ -739,6 +750,29 @@
       ]
     },
     {
+      "path": "docs/experiments/pen-device-readonly-native-result.md",
+      "title": "RM2 pen device: read-only native profile",
+      "lf_utf8_sha256": "5fabdc506184a38e6fb9f5cfb98b6b391ff5fa76744d335e9d641e6470486d62",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "RM2 pen device: read-only native profile"
+        },
+        {
+          "line": 8,
+          "heading": "Actual observed profile"
+        },
+        {
+          "line": 34,
+          "heading": "Exact candidate and actual closeout"
+        },
+        {
+          "line": 76,
+          "heading": "Preserved staging failures"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/post-rejection-map-lock-native-result.md",
       "title": "Native map mutex reuse after rejection on RM2",
       "lf_utf8_sha256": "c9a7902168addc836c4dd515eeb3c07233e169aefe0ecd694e34a4a5ba9e6cd6",
@@ -865,7 +899,7 @@
     {
       "path": "docs/experiments/README.md",
       "title": "Experiment tools and findings",
-      "lf_utf8_sha256": "2a3e0c774e51a9de9045b94ddc293bc0200f768c82a81e5fde9a286c2729513f",
+      "lf_utf8_sha256": "e6b9f3cb37e11686a051d835700f97ae1adebda97a18ed63cd331a0ee9a29855",
       "headings": [
         {
           "line": 1,
@@ -1150,7 +1184,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "07548cf4ff27692edb2a7bcacf44fdcb3422fa2b9851b90ff5ff61ef641a0682",
+      "lf_utf8_sha256": "0a1ecaa74c91ef86e2d39e78f9298923c255036c0c55e7b29a660bcaf0cc04a8",
       "headings": [
         {
           "line": 1,
@@ -1283,7 +1317,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "f764843c1d959d95f2f53be4700293e31f1e196e9dd0d4d66455cc28408b6b9e",
+      "lf_utf8_sha256": "fa1eb3ad20a6092a5dc206df18da5378853406331283a59964c418d02004ef89",
       "headings": [
         {
           "line": 1,
@@ -3121,6 +3155,40 @@
         {
           "line": 72,
           "heading": "Source checks and next gate"
+        }
+      ]
+    },
+    {
+      "path": "openspec/changes/establish-native-platform-contract/fixed-pen-holder.md",
+      "title": "Standalone fixed-pen holder",
+      "lf_utf8_sha256": "15a136a2416ec3aee20483698f7335e655f113dcad237619a99f453ea7c61df0",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Standalone fixed-pen holder"
+        },
+        {
+          "line": 3,
+          "heading": "Placement and fixed handoff"
+        },
+        {
+          "line": 28,
+          "heading": "One child, one independently held recovery"
+        },
+        {
+          "line": 55,
+          "heading": "Result and failure boundaries"
+        }
+      ]
+    },
+    {
+      "path": "openspec/changes/establish-native-platform-contract/fixed-pen-stream.md",
+      "title": "Fixed pen observer stream",
+      "lf_utf8_sha256": "74578bbdaa8f8925b7bd022707132fb2158502314e763ea5fdc931d9f4fdb841",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Fixed pen observer stream"
         }
       ]
     },
@@ -5451,7 +5519,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "05f8aa0853fb1a6d056d99a7e2980e717ffebcd79af614d650403641a513b40a",
+      "lf_utf8_sha256": "fa47b32e1e15364337c399b86317c55f80b563921627da300fafe788f981dcfd",
       "headings": [
         {
           "line": 1,
@@ -5733,6 +5801,17 @@
         {
           "line": 69,
           "heading": "Tasks"
+        }
+      ]
+    },
+    {
+      "path": "openspec/changes/establish-native-platform-contract/write-reopen-sequence.md",
+      "title": "One intended-target writing and reopen sequence",
+      "lf_utf8_sha256": "d4423b62f8723b924b0f414f9e3a2ec4d5c2ffd69553115b72299792a6bbd3cb",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "One intended-target writing and reopen sequence"
         }
       ]
     },
