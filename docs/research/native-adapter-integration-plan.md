@@ -32,7 +32,9 @@ checks; do not promise automatic compatibility from this design alone.
 
 ## Candidate boundaries
 
-GitHub reported these open draft heads at this update:
+These are preserved consumer PR heads and the executed SDK checkpoint. The SDK
+checkpoint identifies native test source; it is not the research PR's later
+documentation/test-publication head.
 
 | Candidate | Reviewed revision | Integration ownership |
 | --- | --- | --- |

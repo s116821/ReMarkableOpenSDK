@@ -1430,7 +1430,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "2bd9adec4fed04db44367ebdd0a08edb0d140c599eadf16bfa7734af8823d1bd",
+      "lf_utf8_sha256": "6308a832046003d2818191f1468d590145cfed8256b95bc757070902b5552870",
       "headings": [
         {
           "line": 1,
@@ -1826,7 +1826,7 @@
     {
       "path": "docs/research/native-adapter-integration-plan.md",
       "title": "From native diagnostics to the resident adapter",
-      "lf_utf8_sha256": "3719216b22d7ae3cd8abe838b0eafe064c1368f1066fdb707075606bdf87e244",
+      "lf_utf8_sha256": "826b4fa1ce13abb2c84114da3f60fc3740754493ec2fc7e7b832b30a736abb37",
       "headings": [
         {
           "line": 1,
@@ -1841,11 +1841,11 @@
           "heading": "Candidate boundaries"
         },
         {
-          "line": 56,
+          "line": 58,
           "heading": "Ordered implementation"
         },
         {
-          "line": 114,
+          "line": 116,
           "heading": "Required qualification and delivery"
         }
       ]
