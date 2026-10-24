@@ -119,3 +119,7 @@ verify restoration and full source/PDF/ink/order preservation. This is separate
 from intended-target writing/save/reopen, other-writer exclusion, native-owner
 reclamation, shutdown fault repair and product SDK/Buddy integration. Supported
 native, render and durable authority remain false.
+
+The subsequent [fixed native mutation/readback result](resident-mutation-readback-native-result.md)
+records its own actual runtime, persistence and restoration evidence. It does not
+change the modeled boundaries or attribution of the owned tests above.

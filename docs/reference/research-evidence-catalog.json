@@ -840,9 +840,36 @@
       ]
     },
     {
+      "path": "docs/experiments/resident-mutation-readback-native-result.md",
+      "title": "Native mutation, request retirement and fresh readback",
+      "lf_utf8_sha256": "af61be49a310cb82e043808a7c8b59598b9c435a349d75d45b1ab0040b4022ac",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Native mutation, request retirement and fresh readback"
+        },
+        {
+          "line": 18,
+          "heading": "Exact candidate"
+        },
+        {
+          "line": 48,
+          "heading": "Observed native sequence"
+        },
+        {
+          "line": 92,
+          "heading": "Restoration and preservation"
+        },
+        {
+          "line": 125,
+          "heading": "Limits and next contract work"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/resident-mutation-transport-owned-result.md",
       "title": "Resident mutation cleanup and fresh readback: owned Entry result",
-      "lf_utf8_sha256": "d48802b8be71aaa9f652c75babdd4a5ddf97f532212a34929a6de300c6ce791e",
+      "lf_utf8_sha256": "a784a8b34905c13ef466242914d3c65a6ff4f9c77d59c4ac55f52033059b8348",
       "headings": [
         {
           "line": 1,
@@ -1089,7 +1116,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "ba947c2ca21ffb168538ba01ab824453e3770579a1e5894931876e03543f8554",
+      "lf_utf8_sha256": "8b9db8882bf4c77e0993c8ee30c148784c492a40f674c649b6eecef4dcae1bd6",
       "headings": [
         {
           "line": 1,
@@ -1222,7 +1249,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "5180771f718168307bcfae085d8904b24ba11a5cb8e5d5dda5e0937284889576",
+      "lf_utf8_sha256": "704c0b7edf5280266899b4d66250ebdb7b75b4892aaa73f145ca3bed72f51079",
       "headings": [
         {
           "line": 1,
@@ -5321,7 +5348,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "2bf3be8109ae6fa21099473f6345d8ca831d8c7a4664a7b7cd70c4b7f72cfa28",
+      "lf_utf8_sha256": "c93098823c7bb4aa4b1a07699c9c1fbf8ac9303219f7d4b93b08f0e5ee6d19dd",
       "headings": [
         {
           "line": 1,
