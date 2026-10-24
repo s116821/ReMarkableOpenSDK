@@ -57,6 +57,14 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
         Command::Observe,
         Command::InsertAfter(insertion.clone()),
         Command::Reconcile(insertion),
+        Command::SelectAdjacent(SelectAdjacent {
+            expected: facts.clone(),
+            target: id(3),
+        }),
+        Command::ReconcileSelection(SelectAdjacent {
+            expected: facts.clone(),
+            target: id(3),
+        }),
     ] {
         frames.push(Frame {
             scope: scope.clone(),
@@ -76,7 +84,7 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
             after_order: vec![id(1), id(2), id(4), id(3)],
         },
         Reply::Reconciled {
-            current: facts,
+            current: facts.clone(),
             target_present: false,
         },
         Reply::Rejected(Rejection::Unsupported),
@@ -85,6 +93,20 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
         Reply::Rejected(Rejection::UnknownIdentity),
         Reply::Rejected(Rejection::Capacity),
         Reply::Indeterminate,
+        Reply::TargetObserved(
+            ReaderFacts::new(
+                PageKey {
+                    document: id(10),
+                    page: id(3),
+                },
+                facts.order().to_vec(),
+            )
+            .unwrap(),
+        ),
+        Reply::SelectionReconciled {
+            current: facts,
+            target_present: true,
+        },
     ] {
         frames.push(Frame {
             scope: scope.clone(),

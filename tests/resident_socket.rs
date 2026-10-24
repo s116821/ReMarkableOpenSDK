@@ -164,6 +164,46 @@ fn authenticated_client_against_qt_endpoint() {
     else {
         panic!()
     };
+    let selection = SelectAdjacent {
+        expected: source.clone(),
+        target: source.order()[2],
+    };
+    let selected = ReaderFacts::new(
+        remarkable_open_sdk::PageKey {
+            document: source.page().document,
+            page: selection.target,
+        },
+        source.order().to_vec(),
+    )
+    .unwrap();
+    assert_eq!(
+        client
+            .execute(
+                OperationId(id(53)),
+                Command::SelectAdjacent(selection.clone()),
+                Instant::now() + Duration::from_secs(2),
+                |request, hash| {
+                    assert_eq!(request.fingerprint().unwrap(), hash);
+                    Ok(())
+                }
+            )
+            .unwrap(),
+        Reply::TargetObserved(selected)
+    );
+    assert_eq!(
+        client
+            .execute(
+                OperationId(id(54)),
+                Command::ReconcileSelection(selection),
+                Instant::now() + Duration::from_secs(2),
+                |_, _| Ok(())
+            )
+            .unwrap(),
+        Reply::SelectionReconciled {
+            current: source.clone(),
+            target_present: true
+        }
+    );
     let mut digest = [0; 32];
     let error = client
         .execute(
@@ -190,6 +230,6 @@ fn authenticated_client_against_qt_endpoint() {
     server.0.stdin.take().unwrap().write_all(b"Q").unwrap();
     let mut count = String::new();
     output.read_line(&mut count).unwrap();
-    assert_eq!(count, "submissions=2\n");
+    assert_eq!(count, "submissions=4\n");
     assert!(server.0.wait().unwrap().success());
 }

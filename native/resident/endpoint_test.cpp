@@ -44,9 +44,19 @@ int main(int argc,char **argv) {
     if(argc==4&&QByteArray(argv[1])=="--rust-server") {
         QTemporaryDir directory;need(directory.isValid());auto c=config(directory.path());
         bool ok=false;c.peerPid=QString::fromLocal8Bit(argv[2]).toInt(&ok);need(ok&&c.peerPid>0);c.peerStart=processStart(c.peerPid);
-        const QString vectors=QString::fromLocal8Bit(argv[3]);const auto facts=vector(vectors,5);
+        const QString vectors=QString::fromLocal8Bit(argv[3]);const auto facts=vector(vectors,7);
         Endpoint *endpoint=nullptr;unsigned submitted=0;
-        Endpoint server(c,[&](Endpoint::Lease lease){++submitted;if(lease->request().kind==0)need(endpoint->finish(lease,facts));});endpoint=&server;need(server.start());
+        Endpoint server(c,[&](Endpoint::Lease lease){
+            ++submitted;const auto &request=lease->request();
+            if(request.kind==0)need(endpoint->finish(lease,facts));
+            else if(request.kind==3||request.kind==4) {
+                // Owned wire fixture only: no Reader, navigation or native authority.
+                Frame answer;answer.facts=request.facts;
+                if(request.kind==3){answer.kind=5;answer.facts.page=request.target;}
+                else {answer.kind=6;answer.targetPresent=true;}
+                need(endpoint->finish(lease,answer));
+            }
+        });endpoint=&server;need(server.start());
         auto hello=vector(vectors,0);hello.runtime=c.runtime;const auto encoded=encode(hello);
         std::printf("%s\n",QFile::encodeName(directory.path()).constData());std::fflush(stdout);
         need(::write(STDOUT_FILENO,encoded.constData(),std::size_t(encoded.size()))==encoded.size());
@@ -64,7 +74,7 @@ int main(int argc,char **argv) {
         std::printf("PASS: separate process peer credentials and exchange\n");return 0;
     }
     need(argc==2);const QString vectors=QString::fromLocal8Bit(argv[1]);
-    const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,5);
+    const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,7);
     {
         QTemporaryDir directory;auto c=config(directory.path());QProcess child;
         QString program=QCoreApplication::applicationFilePath();

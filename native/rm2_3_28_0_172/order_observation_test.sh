@@ -19,7 +19,7 @@ if [ "${ORDER_OBSERVATION_SANITIZERS:-0}" = 1 ]; then sanitize='-fsanitize=addre
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitize -I"$root" -I"$out" \
     "$root/order_observation_test.cpp" "$root/qt_qml_creation_bridge.cpp" \
     "$out/moc_reader_selected_view_probe.cpp" "$out/moc_reader_joined_creation_witness.cpp" \
-    $(pkg-config --cflags --libs Qt6Core Qt6Gui Qt6Qml Qt6Quick) -o "$out/order-observation-test"
+    $(pkg-config --cflags --libs Qt6Core Qt6Gui Qt6Qml Qt6Quick Qt6Network) -o "$out/order-observation-test"
 printf '#include "read_only_backend.h"\n' > "$out/production.cpp"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -I"$root" \
     $(pkg-config --cflags Qt6Core Qt6Gui Qt6Qml Qt6Quick Qt6Network) -c "$out/production.cpp" -o "$out/production.o"

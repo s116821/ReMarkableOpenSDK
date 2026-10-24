@@ -80,5 +80,6 @@ qualification remains separate.
 
 Source basis: current SDK helper and Coordinator post-navigation implementation,
 the REM-57 integration handoff and current REM-25 target/reuse requirements.
-The separate request/backend/consumer composition here is the selected integration
-design; it has not yet been implemented or natively qualified.
+The separate wire request and guarded existing-target inner call are implemented
+and covered by owned tests. The native executor, shared effect gate, fresh
+post-transition join and consumer composition remain unfinished and unqualified.

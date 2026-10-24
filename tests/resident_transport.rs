@@ -62,6 +62,15 @@ fn mutation() -> Command {
         target: id(13),
     })
 }
+fn effects() -> [Command; 2] {
+    [
+        mutation(),
+        Command::SelectAdjacent(SelectAdjacent {
+            expected: facts(),
+            target: id(12),
+        }),
+    ]
+}
 fn read_frame(stream: &mut UnixStream) -> Frame {
     let mut prefix = [0; 4];
     stream.read_exact(&mut prefix).unwrap();
@@ -284,128 +293,147 @@ fn retained_directory_descriptor_survives_path_replacement() {
 }
 
 #[test]
-fn journal_failure_expiry_and_socket_replacement_send_no_mutation() {
-    for case in 0..3 {
-        let f = Fixture::new();
-        let peer = f.peer(|mut stream| {
-            let mut byte = [0];
-            assert_eq!(stream.read(&mut byte).unwrap(), 0);
-        });
-        let mut client = f.connect(scope()).unwrap();
-        let end = if case == 1 {
-            Instant::now() + Duration::from_millis(30)
-        } else {
-            deadline()
-        };
-        let error = client
-            .execute(OperationId(id(999)), mutation(), end, |_, _| match case {
-                0 => Err(io::Error::other("owned journal refusal")),
-                1 => {
-                    thread::sleep(Duration::from_millis(60));
-                    Ok(())
-                }
-                _ => {
-                    fs::remove_file(f.path.join("sdk.sock"))?;
-                    let replacement = UnixListener::bind(f.path.join("sdk.sock"))?;
-                    fs::set_permissions(f.path.join("sdk.sock"), Permissions::from_mode(0o600))?;
-                    drop(replacement);
-                    Ok(())
-                }
-            })
-            .unwrap_err();
-        assert_eq!(error.lost, LostRequest::NoPendingMutation);
-        match case {
-            0 => assert!(matches!(error.cause, Failure::Journal(_))),
-            1 => assert!(matches!(error.cause, Failure::Deadline)),
-            _ => assert!(matches!(error.cause, Failure::Identity)),
+fn journal_failure_expiry_and_socket_replacement_send_no_effect() {
+    for effect in effects() {
+        for case in 0..3 {
+            let f = Fixture::new();
+            let peer = f.peer(|mut stream| {
+                let mut byte = [0];
+                assert_eq!(stream.read(&mut byte).unwrap(), 0);
+            });
+            let mut client = f.connect(scope()).unwrap();
+            let end = if case == 1 {
+                Instant::now() + Duration::from_millis(30)
+            } else {
+                deadline()
+            };
+            let error = client
+                .execute(
+                    OperationId(id(999)),
+                    effect.clone(),
+                    end,
+                    |_, _| match case {
+                        0 => Err(io::Error::other("owned journal refusal")),
+                        1 => {
+                            thread::sleep(Duration::from_millis(60));
+                            Ok(())
+                        }
+                        _ => {
+                            fs::remove_file(f.path.join("sdk.sock"))?;
+                            let replacement = UnixListener::bind(f.path.join("sdk.sock"))?;
+                            fs::set_permissions(
+                                f.path.join("sdk.sock"),
+                                Permissions::from_mode(0o600),
+                            )?;
+                            drop(replacement);
+                            Ok(())
+                        }
+                    },
+                )
+                .unwrap_err();
+            assert_eq!(error.lost, LostRequest::NoPendingMutation);
+            match case {
+                0 => assert!(matches!(error.cause, Failure::Journal(_))),
+                1 => assert!(matches!(error.cause, Failure::Deadline)),
+                _ => assert!(matches!(error.cause, Failure::Identity)),
+            }
+            peer.join().unwrap();
         }
-        peer.join().unwrap();
     }
 }
 
 #[test]
 fn eof_mismatch_indeterminate_and_partial_response_preserve_original_loss() {
-    for case in 0..5 {
-        let f = Fixture::new();
-        let peer = f.peer(move |mut stream| {
-            let request = read_frame(&mut stream);
-            let mut reply = response(&request, Reply::Indeterminate);
-            match case {
-                0 => {} // EOF after dispatch
-                1 => {
-                    reply.operation = OperationId(id(9999));
-                    write_frame(&mut stream, &reply);
+    for effect in effects() {
+        for case in 0..5 {
+            let f = Fixture::new();
+            let peer = f.peer(move |mut stream| {
+                let request = read_frame(&mut stream);
+                let mut reply = response(&request, Reply::Indeterminate);
+                match case {
+                    0 => {} // EOF after dispatch
+                    1 => {
+                        reply.operation = OperationId(id(9999));
+                        write_frame(&mut stream, &reply);
+                    }
+                    2 => write_frame(&mut stream, &reply),
+                    3 => {
+                        stream.write_all(&reply.encode().unwrap()[..12]).unwrap();
+                    }
+                    _ => {
+                        stream
+                            .write_all(&((MAX_FRAME as u32) + 1).to_be_bytes())
+                            .unwrap();
+                    }
                 }
-                2 => write_frame(&mut stream, &reply),
-                3 => {
-                    stream.write_all(&reply.encode().unwrap()[..12]).unwrap();
-                }
-                _ => {
-                    stream
-                        .write_all(&((MAX_FRAME as u32) + 1).to_be_bytes())
-                        .unwrap();
-                }
+            });
+            let mut client = f.connect(scope()).unwrap();
+            let mut digest = [0; 32];
+            let result = client.execute(
+                OperationId(id(999)),
+                effect.clone(),
+                deadline(),
+                |_, hash| {
+                    digest = hash;
+                    Ok(())
+                },
+            );
+            let expected = LostRequest::Indeterminate {
+                operation: OperationId(id(999)),
+                request_sha256: digest,
+            };
+            if case == 2 {
+                assert_eq!(result.unwrap(), Reply::Indeterminate);
+            } else {
+                assert_eq!(result.unwrap_err().lost, expected);
             }
-        });
-        let mut client = f.connect(scope()).unwrap();
-        let mut digest = [0; 32];
-        let result = client.execute(OperationId(id(999)), mutation(), deadline(), |_, hash| {
-            digest = hash;
-            Ok(())
-        });
-        let expected = LostRequest::Indeterminate {
-            operation: OperationId(id(999)),
-            request_sha256: digest,
-        };
-        if case == 2 {
-            assert_eq!(result.unwrap(), Reply::Indeterminate);
-        } else {
-            assert_eq!(result.unwrap_err().lost, expected);
+            assert_eq!(client.close(), expected);
+            assert_eq!(
+                client
+                    .execute(
+                        OperationId(id(1000)),
+                        effect.clone(),
+                        deadline(),
+                        |_, _| panic!("closed must not journal")
+                    )
+                    .unwrap_err()
+                    .lost,
+                expected
+            );
+            peer.join().unwrap();
         }
-        assert_eq!(client.close(), expected);
-        assert_eq!(
-            client
-                .execute(
-                    OperationId(id(1000)),
-                    mutation(),
-                    deadline(),
-                    |_, _| panic!("closed must not journal")
-                )
-                .unwrap_err()
-                .lost,
-            expected
-        );
-        peer.join().unwrap();
     }
 }
 
 #[test]
 fn slow_fragment_progress_does_not_extend_deadline() {
-    let f = Fixture::new();
-    let peer = f.peer(|mut stream| {
-        let request = read_frame(&mut stream);
-        let bytes = response(&request, Reply::Indeterminate).encode().unwrap();
-        for byte in bytes {
-            if stream.write_all(&[byte]).is_err() {
-                break;
+    for effect in effects() {
+        let f = Fixture::new();
+        let peer = f.peer(|mut stream| {
+            let request = read_frame(&mut stream);
+            let bytes = response(&request, Reply::Indeterminate).encode().unwrap();
+            for byte in bytes {
+                if stream.write_all(&[byte]).is_err() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(10));
             }
-            thread::sleep(Duration::from_millis(10));
-        }
-    });
-    let mut client = f.connect(scope()).unwrap();
-    let start = Instant::now();
-    let error = client
-        .execute(
-            OperationId(id(999)),
-            mutation(),
-            start + Duration::from_millis(80),
-            |_, _| Ok(()),
-        )
-        .unwrap_err();
-    assert!(matches!(error.cause, Failure::Deadline));
-    assert!(matches!(error.lost, LostRequest::Indeterminate { .. }));
-    assert!(start.elapsed() < Duration::from_millis(500));
-    peer.join().unwrap();
+        });
+        let mut client = f.connect(scope()).unwrap();
+        let start = Instant::now();
+        let error = client
+            .execute(
+                OperationId(id(999)),
+                effect.clone(),
+                start + Duration::from_millis(80),
+                |_, _| Ok(()),
+            )
+            .unwrap_err();
+        assert!(matches!(error.cause, Failure::Deadline));
+        assert!(matches!(error.lost, LostRequest::Indeterminate { .. }));
+        assert!(start.elapsed() < Duration::from_millis(500));
+        peer.join().unwrap();
+    }
 }
 
 #[test]
@@ -421,4 +449,62 @@ fn handshake_timeout_is_bounded() {
         ),
         Err(Failure::Deadline)
     ));
+}
+
+#[test]
+fn selection_is_journaled_before_socket_bytes_and_returns_exact_target() {
+    use std::sync::{Arc, atomic::AtomicBool};
+    let f = Fixture::new();
+    let published = Arc::new(AtomicBool::new(false));
+    let seen = published.clone();
+    let peer = f.peer(move |mut stream| {
+        let request = read_frame(&mut stream);
+        assert!(seen.load(Ordering::Acquire));
+        let Message::Request(Command::SelectAdjacent(selection)) = &request.message else {
+            panic!()
+        };
+        assert_eq!(selection.target, id(12));
+        let selected = ReaderFacts::new(
+            PageKey {
+                document: id(10),
+                page: selection.target,
+            },
+            selection.expected.order().to_vec(),
+        )
+        .unwrap();
+        write_frame(
+            &mut stream,
+            &response(&request, Reply::TargetObserved(selected)),
+        );
+    });
+    let mut client = f.connect(scope()).unwrap();
+    let reply = client
+        .execute(
+            OperationId(id(1001)),
+            effects()[1].clone(),
+            deadline(),
+            |frame, digest| {
+                assert_eq!(frame.fingerprint().unwrap(), digest);
+                assert_eq!(frame.operation, OperationId(id(1001)));
+                assert_eq!(frame.message, Message::Request(effects()[1].clone()));
+                published.store(true, Ordering::Release);
+                Ok(())
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        reply,
+        Reply::TargetObserved(
+            ReaderFacts::new(
+                PageKey {
+                    document: id(10),
+                    page: id(12)
+                },
+                vec![id(11), id(12)]
+            )
+            .unwrap()
+        )
+    );
+    assert_eq!(client.close(), LostRequest::NoPendingMutation);
+    peer.join().unwrap();
 }

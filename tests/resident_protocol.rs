@@ -127,12 +127,14 @@ fn rejects_unknown_schema_trailing_bytes_nil_ids_and_duplicate_order() {
         .begin(OperationId(id(30)), Command::Observe)
         .unwrap();
     let bytes = frame.encode().unwrap();
-    let mut future = bytes[4..].to_vec();
-    future[5] = 2;
-    assert_eq!(
-        Frame::decode(&future),
-        Err(ProtocolError::UnsupportedVersion)
-    );
+    for revision in [1, 3] {
+        let mut incompatible = bytes[4..].to_vec();
+        incompatible[5] = revision;
+        assert_eq!(
+            Frame::decode(&incompatible),
+            Err(ProtocolError::UnsupportedVersion)
+        );
+    }
     let mut unknown = bytes[4..].to_vec();
     *unknown.last_mut().unwrap() = 255;
     assert_eq!(Frame::decode(&unknown), Err(ProtocolError::Malformed));
@@ -442,4 +444,175 @@ fn fresh_server_nonce_prevents_old_reply_even_if_caller_reuses_its_nonce() {
         inserted()
     );
     assert_eq!(fresh.close(), LostRequest::NoPendingMutation);
+}
+
+#[test]
+fn selection_is_present_current_or_immediate_next_never_insertion_shaped() {
+    for target in [id(2), id(3)] {
+        for command in [
+            Command::SelectAdjacent(SelectAdjacent {
+                expected: facts(),
+                target,
+            }),
+            Command::ReconcileSelection(SelectAdjacent {
+                expected: facts(),
+                target,
+            }),
+        ] {
+            let frame = session().begin(OperationId(id(30)), command).unwrap();
+            let bytes = frame.encode().unwrap();
+            assert_eq!(Frame::decode(&bytes[4..]).unwrap(), frame);
+        }
+    }
+    for target in [id(1), id(4)] {
+        assert_eq!(
+            session().begin(
+                OperationId(id(30)),
+                Command::SelectAdjacent(SelectAdjacent {
+                    expected: facts(),
+                    target
+                })
+            ),
+            Err(ProtocolError::InvalidOrder)
+        );
+    }
+}
+#[test]
+fn selection_response_requires_original_target_and_unchanged_order() {
+    for target in [id(2), id(3)] {
+        let mut s = session();
+        let request = s
+            .begin(
+                OperationId(id(30)),
+                Command::SelectAdjacent(SelectAdjacent {
+                    expected: facts(),
+                    target,
+                }),
+            )
+            .unwrap();
+        for wrong in [
+            Reply::Observed(facts()),
+            inserted(),
+            Reply::TargetObserved(
+                ReaderFacts::new(
+                    PageKey {
+                        document: id(11),
+                        page: target,
+                    },
+                    facts().order().to_vec(),
+                )
+                .unwrap(),
+            ),
+            Reply::TargetObserved(
+                ReaderFacts::new(
+                    PageKey {
+                        document: id(10),
+                        page: id(1),
+                    },
+                    facts().order().to_vec(),
+                )
+                .unwrap(),
+            ),
+            Reply::TargetObserved(
+                ReaderFacts::new(
+                    PageKey {
+                        document: id(10),
+                        page: target,
+                    },
+                    vec![id(2), id(3), id(1)],
+                )
+                .unwrap(),
+            ),
+        ] {
+            assert_eq!(
+                s.complete(&response(&request, wrong)),
+                Err(ProtocolError::WrongResponse)
+            );
+        }
+        let selected = Reply::TargetObserved(
+            ReaderFacts::new(
+                PageKey {
+                    document: id(10),
+                    page: target,
+                },
+                facts().order().to_vec(),
+            )
+            .unwrap(),
+        );
+        assert_eq!(
+            s.complete(&response(&request, selected.clone())),
+            Ok(selected)
+        );
+        assert_eq!(s.close(), LostRequest::NoPendingMutation);
+    }
+}
+#[test]
+fn uncertain_selection_keeps_original_digest_across_repeated_close() {
+    for explicit in [false, true] {
+        let mut s = session();
+        let request = s
+            .begin(
+                OperationId(id(30)),
+                Command::SelectAdjacent(SelectAdjacent {
+                    expected: facts(),
+                    target: id(3),
+                }),
+            )
+            .unwrap();
+        if explicit {
+            assert_eq!(
+                s.complete(&response(&request, Reply::Indeterminate)),
+                Ok(Reply::Indeterminate)
+            );
+        }
+        let expected = LostRequest::Indeterminate {
+            operation: request.operation,
+            request_sha256: request.fingerprint().unwrap(),
+        };
+        assert_eq!(s.close(), expected);
+        assert_eq!(s.close(), expected);
+        assert_eq!(
+            s.begin(OperationId(id(31)), Command::Observe),
+            Err(ProtocolError::Closed)
+        );
+    }
+}
+#[test]
+fn selection_reconciliation_is_read_only_and_checks_actual_presence() {
+    let mut s = session();
+    let request = s
+        .begin(
+            OperationId(id(30)),
+            Command::ReconcileSelection(SelectAdjacent {
+                expected: facts(),
+                target: id(3),
+            }),
+        )
+        .unwrap();
+    assert_eq!(
+        s.complete(&response(
+            &request,
+            Reply::Reconciled {
+                current: facts(),
+                target_present: true
+            }
+        )),
+        Err(ProtocolError::WrongResponse)
+    );
+    assert_eq!(
+        s.complete(&response(
+            &request,
+            Reply::SelectionReconciled {
+                current: facts(),
+                target_present: false
+            }
+        )),
+        Err(ProtocolError::WrongResponse)
+    );
+    let reply = Reply::SelectionReconciled {
+        current: facts(),
+        target_present: true,
+    };
+    assert_eq!(s.complete(&response(&request, reply.clone())), Ok(reply));
+    assert_eq!(s.close(), LostRequest::NoPendingMutation);
 }

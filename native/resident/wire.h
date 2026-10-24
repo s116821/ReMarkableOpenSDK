@@ -1,5 +1,5 @@
 #pragma once
-// SDK resident protocol v1. Parsed values are peer assertions, not native leases.
+// SDK resident protocol v2. Parsed values are peer assertions, not native leases.
 #include <QByteArray>
 #include <QCryptographicHash>
 #include <QSet>
@@ -35,6 +35,12 @@ inline bool validFacts(const Facts &facts) {
     QSet<Id> seen;
     for(const auto &id:facts.order)if(!validId(id)||seen.contains(id))return false;else seen.insert(id);
     return seen.contains(facts.page);
+}
+inline bool validSelection(const Facts &facts,const Id &target) {
+    if(!validFacts(facts)||!validId(target))return false;
+    for(std::size_t n=0;n<facts.order.size();++n)if(facts.order[n]==facts.page)
+        return target==facts.page||(n+1<facts.order.size()&&facts.order[n+1]==target);
+    return false;
 }
 namespace detail {
 class Reader {
@@ -80,7 +86,7 @@ public:
 inline std::optional<Frame> decode(const QByteArray &payload) {
     if(payload.size()>MaxFrame)return {};
     detail::Reader r(payload);Frame f;
-    if(r.take(4)!="RSDK"||r.number<quint16>()!=1)return {};
+    if(r.take(4)!="RSDK"||r.number<quint16>()!=2)return {};
     f.runtime=r.take(140);
     if(f.runtime.size()!=140)return {};
     for(int offset:{0,32,64})if(f.runtime.mid(offset,32)==QByteArray(32,0))return {};
@@ -91,19 +97,20 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
     if(f.message>3 || ((f.message<2)!=(f.sequence==0)) ||
        (f.message==0?f.server!=QByteArray(16,0):!validId(f.server)))return {};
     if(f.message==2) {
-        f.kind=r.number<quint8>();if(f.kind>2)return {};
+        f.kind=r.number<quint8>();if(f.kind>4)return {};
         if(f.kind) {
             f.facts=r.facts();f.target=r.id();
-            for(const auto &id:f.facts.order)if(id==f.target)return {};
+            if(f.kind<=2){for(const auto &id:f.facts.order)if(id==f.target)return {};}
+            else if(!validSelection(f.facts,f.target))return {};
             if(f.kind==1&&f.facts.order.size()==MaxPages)return {};
         }
     } else if(f.message==3) {
-        f.requestDigest=r.take(32);f.kind=r.number<quint8>();if(f.kind>4)return {};
-        if(f.kind==0)f.facts=r.facts();
+        f.requestDigest=r.take(32);f.kind=r.number<quint8>();if(f.kind>6)return {};
+        if(f.kind==0||f.kind==5)f.facts=r.facts();
         else if(f.kind==1) {
             f.facts.document=r.id();f.target=r.id();f.facts.page=f.target;f.facts.order=r.order();
             if(!validFacts(f.facts))return {};
-        } else if(f.kind==2) {
+        } else if(f.kind==2||f.kind==6) {
             f.facts=r.facts();const auto present=r.number<quint8>();if(present>1)return {};f.targetPresent=present;
         } else if(f.kind==3) {f.rejection=r.number<quint8>();if(f.rejection>4)return {};}
     }
@@ -114,11 +121,11 @@ inline QByteArray encode(const Frame &f) {
     // Reject oversized fields before appending any caller-controlled collection.
     if(f.runtime.size()!=140||f.client.size()!=16||f.server.size()!=16||f.operation.size()!=16||
        f.facts.order.size()>MaxPages)return {};
-    if((f.message==2&&f.kind)||(f.message==3&&f.kind<3)) {
+    if((f.message==2&&f.kind)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
         if(!validFacts(f.facts))return {};
     }
     if(((f.message==2&&f.kind)||(f.message==3&&f.kind==1))&&!validId(f.target))return {};
-    detail::Writer w;w.bytes="RSDK";w.number<quint16>(1);w.bytes+=f.runtime;
+    detail::Writer w;w.bytes="RSDK";w.number<quint16>(2);w.bytes+=f.runtime;
     w.bytes+=f.client;w.bytes+=f.server;w.number<quint64>(f.sequence);w.bytes+=f.operation;w.number<quint8>(f.message);
     if(f.message==2) {
         w.number<quint8>(f.kind);
@@ -126,9 +133,9 @@ inline QByteArray encode(const Frame &f) {
     } else if(f.message==3) {
         if(f.requestDigest.size()!=32)return {};
         w.bytes+=f.requestDigest;w.number<quint8>(f.kind);
-        if(f.kind==0)w.facts(f.facts);
+        if(f.kind==0||f.kind==5)w.facts(f.facts);
         else if(f.kind==1){w.bytes+=f.facts.document;w.bytes+=f.target;w.order(f.facts.order);}
-        else if(f.kind==2){w.facts(f.facts);w.number<quint8>(f.targetPresent?1:0);}
+        else if(f.kind==2||f.kind==6){w.facts(f.facts);w.number<quint8>(f.targetPresent?1:0);}
         else if(f.kind==3)w.number<quint8>(f.rejection);
     }
     if(!decode(w.bytes))return {};

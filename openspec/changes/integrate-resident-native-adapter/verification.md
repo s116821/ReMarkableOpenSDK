@@ -395,3 +395,67 @@ Earlier hosted runs for pipeline `a36f46f6b0b4aa7555d3150870fff1e1b6f1b299`
 and dispatcher `bc951c1033bd55c2ff2e7c4b8fce78c2e7ffd734`
 ([40136477280](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40136477280))
 passed. Those runs do not validate this later client/lockfile change.
+
+
+## Separate selection protocol and guarded inner call
+
+Revision 2 introduces `SelectAdjacent`, `ReconcileSelection`, `TargetObserved`
+and `SelectionReconciled`. The expected target must already be current or the
+immediate successor. Session success requires the original document, exact target
+and unchanged complete order. Selection loss is effectful and retains the original
+operation/digest; read-only reconciliation cannot settle that effect. Both codecs
+explicitly reject revisions 1 and 3. Buddy remains pinned to revision 1 SDK
+`095f6c73777195b2bee56321a81857346a76ebde` until a reviewed journal upgrade
+preserves old canonical bytes/digests without rewriting or discarding attempts.
+
+Owned coverage includes 17 Rust protocol tests, 9 real Linux socket tests and
+both Rust/Qt interoperability tests. Socket refusal, EOF, wrong/partial replies,
+explicit unknown and slow-progress fixed-deadline checks exercise both insertion
+and selection. The selection peer independently verifies journal publication
+before receiving request bytes. The Qt fixture constructs owned selection replies;
+it does not run a native Reader. The expanded corpus contains 18 vectors, with
+19869 Qt checks including revision 1 rejection. Host and ARM-emulated endpoint
+suites each pass 1760 checks. Windows Rust 1.98.1 all-feature tests and strict
+all-target/all-feature Clippy pass. Linux Rust 1.98.1 all-feature/transport and
+explicit Qt interoperability pass. Explicit Rust 1.88.0 verification is recorded
+below after completion; the first container named selection-msrv-r1 used its
+1.98.1 default and must not be credited as MSRV evidence.
+
+`reader_adjacent_selection.h` integrates the measured method contract without
+fabricating an InsertAfter request for an existing page. Its synchronous inner
+step accepts only exact supplied fresh order under the 17-page observation bound,
+returns already-selected with zero calls, or consumes one claim before a single
+qualified public `moveForward()` invocation. It copies borrowed inputs before
+permission callbacks and never inspects the old Sample guard or objects after
+invocation starts. It does not perform the required fresh post-transition join.
+
+Host Qt 6.4.2 and ARM Qt 6.10.3/QEMU owned fixtures each pass 67 checks, including
+current/adjacent/refusal, consumed claims, reentry, foreign engine, deletion during
+permission/invocation, invocation exception, QVariant return, 17/18-page boundary
+and destruction of the owner of all borrowed inputs during permission. The runner
+refuses an existing output path so evidence cannot be overwritten by rerunning a
+selection. Source review accepted the helper subject to that runner fix; the
+completed regression additions and final runner fix were independently accepted.
+
+No production selection callsite, shared native effect gate, native selection executor or
+consumer selection journal is enabled by this increment. Fresh post-transition
+joins, native settlement/qualification, Supervisor recovery and product acceptance
+remain open. The bootstrap still disables effects. No tablet contact occurred.
+
+Source basis: current source diffs, owned local test outputs and independent source
+review. These are source/build/fixture results, not native qualification.
+
+The explicit `cargo +1.88.0` Linux all-feature suite, both Qt interoperability
+tests and `armv7-unknown-linux-gnueabihf` native-adapter library check subsequently
+passed (`selection-msrv-r2`). This is the MSRV evidence; ARM execution remains the
+separate owned Qt/QEMU fixtures above.
+
+
+The read-only backend now routes ReconcileSelection through its existing guarded
+actual Reader/order observation and a separately tested reply mapper. It retains
+the original request shape and document, computes presence from the actual current
+order, and keeps insertion/selection reply kinds distinct. It never settles an
+effect or dispatches navigation. Host and ARM full-order/mapper fixtures each pass
+316 checks; independent source review accepted this read-only integration.
+Separate default tests, the exact 17-member package check and ordinary consumer
+boundaries on Rust 1.88.0 and 1.98.1 also pass.

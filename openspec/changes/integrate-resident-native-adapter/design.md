@@ -83,7 +83,7 @@ tests it separately, including a Rust Session talking to the real Qt socket.
 ### Canonical binary schema
 
 The length prefix excludes itself. Each payload starts with ASCII `RSDK` then
-u16 protocol revision 1. It continues with three 32-byte digests (profile,
+u16 protocol revision 2. It continues with three 32-byte digests (profile,
 executable, adapter), boot UUID (16 bytes), PID (u32), start ticks (u64), activation
 UUID (16 bytes), client connection UUID (16 bytes), server nonce (16 bytes), request sequence (u64), operation UUID
 (16 bytes), then one message tag. UUIDs use their 16 canonical bytes and cannot be
@@ -92,8 +92,12 @@ each frame. No platform word sizes or native endianness appear on the wire.
 
 Message tags: 0 Hello, 1 Ready, 2 Request, 3 Response. Hello/Ready contain no body
 and require sequence zero. Request/Response require a nonzero sequence.
-Requests contain a command byte: 0 Observe; 1 InsertAfter; 2 Reconcile.
+Requests contain a command byte: 0 Observe; 1 InsertAfter; 2 Reconcile;
+3 SelectAdjacent; 4 ReconcileSelection.
 InsertAfter/Reconcile then contain source facts and intended target UUID.
+SelectAdjacent/ReconcileSelection contain original expected facts and an existing
+target UUID equal to the expected current page or immediate successor. They never
+remove that target to construct insertion-shaped reconciliation facts.
 Facts are document UUID, selected page UUID, u16 count and that many page UUIDs.
 Order is nonempty, unique, includes the selected page and contains at most 2048
 IDs. InsertAfter must leave room for its one additional result ID. This wire
@@ -103,7 +107,11 @@ currently imposes its smaller independent diagnostic limits.
 Responses contain the 32-byte SHA-256 of the complete length-prefixed original
 request, then a result byte: 0 Observed (facts); 1 InsertionObserved (document UUID,
 target UUID, order count/IDs); 2 Reconciled (current facts and a strict 0/1
-target-present byte); 3 Rejected (reason byte); 4 Indeterminate (no body).
+target-present byte); 3 Rejected (reason byte); 4 Indeterminate (no body);
+5 TargetObserved (facts); 6 SelectionReconciled (current facts and strict 0/1
+target-present byte). TargetObserved must name the original target/document and
+unchanged expected order. SelectionReconciled retains original-document identity
+and a presence bit matching its observed order; it never settles effect ambiguity.
 Rejection reasons are 0 Unsupported, 1 BeforeDispatch, 2 ExecutorBeforeMutation,
 3 UnknownIdentity and 4 Capacity. Future variants require a protocol revision.
 No trailing or optional bytes are accepted. Insertion result validation requires
@@ -352,3 +360,7 @@ owned local sockets. Then qualify the exact profile adapter and resident lifetim
 on disposable native fixtures. Pin the resulting SDK in Buddy PR 60 and update
 Docs PR 56. The broader REM-25 acceptance matrix remains open. Default features,
 source-package containment and unchanged synthetic behavior must keep passing.
+
+### Wire revision compatibility
+
+Revision 2 adds explicit adjacent selection and read-only selection reconciliation. Revision 1 frames are rejected, including historical attempt frames stored by a revision 1 consumer. A consumer upgrade must preserve that journal and refuse effect dispatch until a separately reviewed compatibility path can read its original bytes and digest without reinterpretation. Do not rewrite, reset or silently discard old attempts. The Buddy integration remains pinned to the revision 1 SDK while that consumer change is pending. This source addition does not enable native selection dispatch.

@@ -3,6 +3,7 @@
 #include "reader_insertion_post_order_fixture.cpp"
 #undef main
 #include "order_observation.h"
+#include "read_only_backend.h"
 using remarkable::rm2_3_28_0_172::observeOrder;
 int main(int argc,char **argv) {
     QGuiApplication app(argc,argv);qRegisterMetaType<entry::Id>("entry::Id");
@@ -68,6 +69,27 @@ int main(int argc,char **argv) {
     {
         Fixture f;QQmlEngine foreign;QQmlEngine::setContextForObject(f.doc.get(),foreign.rootContext());
         check(!run(f).observed&&f.doc->reads==0,"foreign engine refuses");
+    }
+    {
+        using namespace remarkable::resident;
+        using remarkable::rm2_3_28_0_172::observationReply;
+        Fixture f;const auto order=run(f);Frame request;request.message=2;request.kind=4;request.facts=order.facts;
+        const auto at=std::find(request.facts.order.begin(),request.facts.order.end(),request.facts.page);
+        check(at+1!=request.facts.order.end(),"fixture successor");request.target=*(at+1);
+        const auto present=observationReply(request,order.facts);
+        check(present.kind==6&&present.targetPresent&&present.facts.page==order.facts.page,"selection reconciliation retains actual current page");
+        auto absent=order.facts;absent.order.erase(std::find(absent.order.begin(),absent.order.end(),request.target));
+        check(observationReply(request,absent).kind==6&&!observationReply(request,absent).targetPresent,"original selection target may now be absent without settling effect");
+        auto foreign=order.facts;foreign.document=QUuid(pageId(88)).toRfc4122();
+        check(observationReply(request,foreign).kind==3,"foreign current document refuses");
+        request.target=request.facts.order.front();
+        check(observationReply(request,order.facts).kind==3,"original nonadjacent selection refuses");
+        request.kind=2;request.target=*(at+1);
+        check(observationReply(request,order.facts).kind==3,"selection cannot masquerade as insertion reconciliation");
+        request.target=QUuid(pageId(88)).toRfc4122();
+        check(observationReply(request,order.facts).kind==2,"valid insertion reconciliation stays distinct");
+        request.kind=3;
+        check(observationReply(request,order.facts).kind==3,"observation facade never effects selection");
     }
     QTextStream(stdout)<<"PASS SDK owned full-order observation checks="<<checks<<"; no native authority\n";
 }

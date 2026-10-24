@@ -5,6 +5,20 @@
 #include <algorithm>
 
 namespace remarkable::rm2_3_28_0_172 {
+// Historical facts only. In particular a presence result never clears an
+// insertion/selection reservation or a resident effect quarantine.
+inline resident::Frame observationReply(const resident::Frame &request,resident::Facts facts) {
+    resident::Frame response;response.kind=3;response.rejection=3;
+    if(request.message!=2||!resident::validFacts(facts))return response;
+    if(request.kind==0){response.kind=0;response.facts=std::move(facts);return response;}
+    if(request.kind!=2&&request.kind!=4){response.rejection=0;return response;}
+    if(!resident::validFacts(request.facts)||!resident::validId(request.target)||facts.document!=request.facts.document)return response;
+    if(request.kind==4&&!resident::validSelection(request.facts,request.target))return response;
+    if(request.kind==2&&std::find(request.facts.order.begin(),request.facts.order.end(),request.target)!=request.facts.order.end())return response;
+    response.kind=request.kind==2?2:6;response.facts=std::move(facts);
+    response.targetPresent=std::find(response.facts.order.begin(),response.facts.order.end(),request.target)!=response.facts.order.end();
+    return response;
+}
 // Constructed only by the explicit native bootstrap after installBeforeMain.
 // Facilities has a private constructor/destructor and remains process-resident.
 // This facade retains no DocumentWorker owners and advertises no capability.
@@ -29,7 +43,7 @@ public:
         const auto command=lease->request().kind;
         // Mutation is handled by the separately gated resident dispatcher.
         // This observation facade has no diagnostic one-shot fallback.
-        if(command!=0&&command!=2){reject(0);return;}
+        if(command!=0&&command!=2&&command!=4){reject(0);return;}
         const QPointer<QQuickWindow> window(qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow()));
         const QPointer<QQmlEngine> engine(window?qmlEngine(window):nullptr);
         const auto permit=[&]{
@@ -46,15 +60,7 @@ public:
             });
         if(!permit())return; // Canceled/deadline requests cannot publish.
         if(!selected.observed||!selected.creationJoinObserved||!order.observed){reject(3);return;}
-        resident::Frame response;response.facts=std::move(order.facts);
-        if(command==0)response.kind=0;
-        else {
-            const auto &original=lease->request();
-            if(response.facts.document!=original.facts.document){reject(3);return;}
-            response.kind=2;
-            response.targetPresent=std::find(response.facts.order.begin(),response.facts.order.end(),original.target)!=response.facts.order.end();
-        }
-        endpoint->finish(lease,std::move(response));
+        endpoint->finish(lease,observationReply(lease->request(),std::move(order.facts)));
     }
 };
 }

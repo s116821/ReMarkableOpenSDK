@@ -9,7 +9,7 @@ use std::collections::HashSet;
 #[cfg(target_os = "linux")]
 pub mod transport;
 
-pub const PROTOCOL_REVISION: u16 = 1;
+pub const PROTOCOL_REVISION: u16 = 2;
 pub const MAX_FRAME: usize = 65_536;
 pub const MAX_PAGES: usize = 2_048;
 const MAGIC: &[u8; 4] = b"RSDK";
@@ -166,11 +166,44 @@ impl InsertAfter {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SelectAdjacent {
+    /// Historical expected current page/order; the executor must rejoin freshly.
+    pub expected: ReaderFacts,
+    /// Existing current page or its immediate successor. Never a new page ID.
+    pub target: Uuid,
+}
+impl SelectAdjacent {
+    fn validate(&self) -> Result<()> {
+        let position = self
+            .expected
+            .order
+            .iter()
+            .position(|id| *id == self.expected.page.page)
+            .ok_or(ProtocolError::InvalidOrder)?;
+        if self.target != self.expected.page.page
+            && self.expected.order.get(position + 1) != Some(&self.target)
+        {
+            return Err(ProtocolError::InvalidOrder);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     Observe,
     InsertAfter(InsertAfter),
     /// Read-only; target presence cannot by itself establish attribution.
     Reconcile(InsertAfter),
+    SelectAdjacent(SelectAdjacent),
+    /// Read-only correspondence for the exact original present-target request.
+    /// Presence/current selection cannot settle an uncertain effect.
+    ReconcileSelection(SelectAdjacent),
+}
+impl Command {
+    pub fn is_effectful(&self) -> bool {
+        matches!(self, Self::InsertAfter(_) | Self::SelectAdjacent(_))
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -196,6 +229,12 @@ pub enum Reply {
     },
     Rejected(Rejection),
     Indeterminate,
+    /// Fresh joined selected-page evidence, never a capture/write lease.
+    TargetObserved(ReaderFacts),
+    SelectionReconciled {
+        current: ReaderFacts,
+        target_present: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -274,6 +313,16 @@ impl Frame {
                         w.facts(&value.source);
                         w.uuid(value.target);
                     }
+                    Command::SelectAdjacent(value) | Command::ReconcileSelection(value) => {
+                        value.validate()?;
+                        w.u8(if matches!(command, Command::SelectAdjacent(_)) {
+                            3
+                        } else {
+                            4
+                        });
+                        w.facts(&value.expected);
+                        w.uuid(value.target);
+                    }
                 }
             }
             Message::Response {
@@ -318,6 +367,18 @@ impl Frame {
                         });
                     }
                     Reply::Indeterminate => w.u8(4),
+                    Reply::TargetObserved(facts) => {
+                        w.u8(5);
+                        w.facts(facts);
+                    }
+                    Reply::SelectionReconciled {
+                        current,
+                        target_present,
+                    } => {
+                        w.u8(6);
+                        w.facts(current);
+                        w.u8(u8::from(*target_present));
+                    }
                 }
             }
         }
@@ -381,6 +442,18 @@ impl Frame {
                         Command::Reconcile(value)
                     }
                 }
+                tag @ (3 | 4) => {
+                    let value = SelectAdjacent {
+                        expected: r.facts()?,
+                        target: r.uuid()?,
+                    };
+                    value.validate()?;
+                    if tag == 3 {
+                        Command::SelectAdjacent(value)
+                    } else {
+                        Command::ReconcileSelection(value)
+                    }
+                }
                 _ => return Err(ProtocolError::Malformed),
             }),
             3 => {
@@ -415,6 +488,15 @@ impl Frame {
                         _ => return Err(ProtocolError::Malformed),
                     }),
                     4 => Reply::Indeterminate,
+                    5 => Reply::TargetObserved(r.facts()?),
+                    6 => Reply::SelectionReconciled {
+                        current: r.facts()?,
+                        target_present: match r.u8()? {
+                            0 => false,
+                            1 => true,
+                            _ => return Err(ProtocolError::Malformed),
+                        },
+                    },
                     _ => return Err(ProtocolError::Malformed),
                 };
                 Message::Response {
@@ -740,13 +822,28 @@ impl Session {
                 current.page.document == value.source.page.document
                     && *target_present == current.order.contains(&value.target)
             }
+            (Command::SelectAdjacent(value), Reply::TargetObserved(current)) => {
+                current.page.document == value.expected.page.document
+                    && current.page.page == value.target
+                    && current.order == value.expected.order
+            }
+            (
+                Command::ReconcileSelection(value),
+                Reply::SelectionReconciled {
+                    current,
+                    target_present,
+                },
+            ) => {
+                current.page.document == value.expected.page.document
+                    && *target_present == current.order.contains(&value.target)
+            }
             (_, Reply::Rejected(_) | Reply::Indeterminate) => true,
             _ => false,
         };
         if !valid {
             return Err(ProtocolError::WrongResponse);
         }
-        if matches!(command, Command::InsertAfter(_)) && *reply == Reply::Indeterminate {
+        if command.is_effectful() && *reply == Reply::Indeterminate {
             let reply = reply.clone();
             self.close();
             return Ok(reply);
@@ -765,11 +862,11 @@ impl Session {
             Some((
                 Frame {
                     operation,
-                    message: Message::Request(Command::InsertAfter(_)),
+                    message: Message::Request(command),
                     ..
                 },
                 request_sha256,
-            )) => LostRequest::Indeterminate {
+            )) if command.is_effectful() => LostRequest::Indeterminate {
                 operation,
                 request_sha256,
             },

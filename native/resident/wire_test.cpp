@@ -8,12 +8,17 @@ static void need(bool value) {++checks;if(!value){std::fprintf(stderr,"wire chec
 static QByteArray read(const QString &path) {QFile file(path);need(file.open(QIODevice::ReadOnly));return file.readAll();}
 int main(int argc,char **argv) {
     need(argc==2);const QString root=QString::fromLocal8Bit(argv[1]);
-    for(int index=0;index<14;++index) {
+    for(int index=0;index<18;++index) {
         const auto stem=root+'/'+QStringLiteral("%1").arg(index,2,10,QChar('0'));
         const auto bytes=read(stem+".bin");const auto expectedHash=read(stem+".sha256");
         need(bytes.size()>4);auto frame=decode(bytes.mid(4));need(bool(frame));
         need(encode(*frame)==bytes);need(fingerprint(*frame)==expectedHash);
-        need(frame->message==unsigned(index==0?0:index==1?1:index<5?2:3));
+        need(frame->message==unsigned(index==0?0:index==1?1:index<7?2:3));
+        if(frame->message==2&&frame->kind>=3) {
+            auto changed=*frame;changed.target=changed.facts.page;need(!encode(changed).isEmpty());
+            changed.target=changed.facts.order.front();need(encode(changed).isEmpty());
+            changed.target=QByteArray(16,'x');need(encode(changed).isEmpty());
+        }
         for(qsizetype split=0;split<bytes.size();++split) {
             Decoder decoder;auto first=decoder.feed(bytes.left(split));need(!first.error&&!first.frame&&first.consumed==split);
             auto second=decoder.feed(bytes.mid(split));need(!second.error&&bool(second.frame)&&second.consumed==bytes.size()-split);
@@ -25,12 +30,12 @@ int main(int argc,char **argv) {
         auto second=decoder.feed(joined.mid(first.consumed));need(!second.error&&bool(second.frame));
         need(!decode(bytes.mid(4)+'x'));
         auto nil=bytes.mid(4);nil.replace(102,16,QByteArray(16,0));need(!decode(nil));
-        auto future=bytes.mid(4);future[5]=2;need(!decode(future));
+        for(char revision : {char(1),char(3)}) {auto incompatible=bytes.mid(4);incompatible[5]=revision;need(!decode(incompatible));}
         decoder.close();need(decoder.feed(bytes).error);
     }
     for(quint32 size:{quint32(0),quint32(MaxFrame+1),quint32(0xffffffff)}) {
         detail::Writer writer;writer.number<quint32>(size);writer.bytes+=QByteArray(100000,'x');
         Decoder decoder;need(decoder.feed(writer.bytes).error);need(decoder.feed({}).error);
     }
-    std::printf("PASS: 14 Rust/Qt vectors, %u checks\n",checks);
+    std::printf("PASS: 18 Rust/Qt vectors, %u checks\n",checks);
 }
