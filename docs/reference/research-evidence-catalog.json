@@ -244,26 +244,30 @@
     {
       "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
       "title": "Fresh fixed-writer image and native owned-file process qualification",
-      "lf_utf8_sha256": "dd16982edf5f74d85f373ffe562f041c44cd28fe997894974ed82d823a212e57",
+      "lf_utf8_sha256": "21e7b146b281d7e6f2793238f22169b8c5ac98a1aaf798b8a8ddecf9579ad317",
       "headings": [
         {
           "line": 1,
           "heading": "Fresh fixed-writer image and native owned-file process qualification"
         },
         {
-          "line": 14,
+          "line": 15,
           "heading": "Mechanism and preserved boundaries"
         },
         {
-          "line": 43,
+          "line": 44,
           "heading": "Recorded results"
         },
         {
-          "line": 85,
+          "line": 86,
           "heading": "Reproduction and evidence"
         },
         {
-          "line": 126,
+          "line": 127,
+          "heading": "Later composed holder admission, with no GO"
+        },
+        {
+          "line": 169,
           "heading": "Simulator calibration and remaining native work"
         }
       ]
@@ -1439,7 +1443,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "3610f6c62740451d4abf36be40737e9a3f5ba931843f449fde520ecdd7adb3a4",
+      "lf_utf8_sha256": "a0ec352991536d4cbb51815e8927e6622c99bc0cadd604f46250f44c696e01cd",
       "headings": [
         {
           "line": 1,
@@ -1454,11 +1458,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 62,
+          "line": 66,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 82,
+          "line": 86,
           "heading": "Turning another finding into a simulator case"
         }
       ]

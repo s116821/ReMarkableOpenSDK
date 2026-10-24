@@ -5,10 +5,11 @@ backend now requires a separately pinned, Qt-free writer image through
 posix_spawn. There is no native fallback fork. The historical single-threaded
 fork path remains available only to the existing caller-supplied owned fixtures.
 
-This is process-topology qualification and owned FIFO evidence. No input device
-was opened in the native checks below; no stroke, UI activation, service change,
-page navigation or persistence result is claimed. The originating refusal and
-secondary startup abort remain recorded in the
+The process-only checks in Recorded results qualify process topology and owned
+FIFO behavior. They opened no input device and made no UI or stock/Buddy service
+changes. The later composed admission trial is reported separately below; it
+opened verified device descriptors but sent no input. The originating refusal
+and secondary startup abort remain recorded in the
 [pre-GO native result](write-reopen-pre-go-native-result.md).
 
 ## Mechanism and preserved boundaries
@@ -123,6 +124,48 @@ Only those exact inactive owned RAM roots were removed; all local originals and
 the retained failed-unit diagnostics were preserved. A fresh full26-file/12-page
 baseline still matches the original document archive byte-for-byte.
 
+## Later composed holder admission, with no GO
+
+Fresh native trial e219cebe48d247e698a965b663dbd3ca used committed source
+d34d17bd850eb0f4fcd7c9695afc15d75889184e, payload
+720bb5a91f94c9dbff5a99be017dd198363b5cff31f4e302e617a3ada64a1143
+and parent721f9b5dc31d72fa432afec538b6985efcda2baf903a815eadc15c59ba65547e.
+Holder12924/start135420088 published readiness for candidate12782/start135419843.
+Thus the production image pinning and NativeIO preparation gates passed. The
+holder was waiting for GO; no fresh writer child was launched.
+
+The application did not publish selected-ready within the original host window.
+No selected request or GO was published. After the single stop request, the
+original pen result reports go_claimed=false, child_pid=0, child_started=false,
+zero dispatch calls, closed device/trace descriptors and an empty original
+event trace. Its unstarted dispatch snapshot fields are defaults, not a new
+measurement of the device's coordinates. Startup's observed=false result is
+startup-admission-or-cap; it did not perform the write/close/reopen sequence.
+
+The exact failed readiness predicate was not captured. The source requires both
+the matching holder and inspectLegacyFixture composition. The My files screen
+needing a manually opened Reader is a plausible explanation, not an observed
+branch. Live cgroup bytes for holder12924 were not collected. A separate fresh
+process-only transient service, nonce31d913dc09e24d618f49aaec44ae3b27,
+subsequently measured exactly the expected v1-systemd/v2-unified dedicated paths;
+that validates this placement pattern, not the exited holder's exact state.
+The completed profile unit and exact archived flat RAM root were retired.
+
+The generic recovery fence conservatively withheld Buddy after the canceled
+pre-GO holder exited1. Stock16285/start135431414 was restored. A separate
+one-time restorative request verified absent requests/GO, original result and
+zero-trace bytes, all original test processes gone, both cgroup hierarchies
+empty, unchanged service definition and the saved initially active Buddy state.
+It restored Buddy without overwriting recovery.failed or retrying input.
+
+Original trial archive SHA-256:
+818b56a58b8d9131ce575488f2065594247bec7eca864b3d88e9744eb5c96a81.
+The full post-restoration backup remains byte-identical for all26 files and all
+12 page IDs/order, including target ink/thumbnail and bookkeeping/unknown fields:
+748,544 bytes, SHA-256
+b52f4a1b1dd55579069f63389e18d29a525e7b259f4500b8a70fe34216b163f6.
+The trial is spent. Native input, target ink and close/reopen remain unqualified.
+
 ## Simulator calibration and remaining native work
 
 Model a multi-threaded Qt parent separately from a single-threaded fresh writer.
@@ -132,6 +175,11 @@ release completion as distinct facts. Use the untouched183-record stream for
 consumer replay. Do not collapse process creation, accepted input, rendered
 target ink or durable reopen into one success flag.
 
+Also retain the pre-GO-cancellation path: a fully prepared holder can exit with
+an explicit refusal and zero input, causing a conservative generic recovery
+failure even though a separate no-GO reconciliation can restore initial service
+state. Keep that reconciliation distinct from successful pen release.
+
 The real input test still needs a freshly selected complete packet, exact
 production parent/worker/provider binding, intended existing blank-page identity,
 one fixed stroke, observed release, blank/ink/reopened captures, ordinary close
@@ -139,7 +187,8 @@ and stable storage reconciliation. Product integration and broad
 model/firmware qualification remain separate.
 
 Source basis: current source, frozen host/SDK/sanitizer outputs, original native
-profile and owned-file streams, byte-checked archives and the fresh full backup.
+profile/owned-file/composed-admission streams, the separate transient cgroup
+profile, byte-checked archives and the fresh full backup.
 Device/context/completion facts in the FIFO suite are explicit models; native
 ink and durable authority are not inferred.
 

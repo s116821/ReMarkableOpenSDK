@@ -52,6 +52,10 @@ actual ARM spawn/descriptor/status behavior using owned files. Preserve that
 boundary separately from input-device delivery, rendered ink and durable reopen.
 The unchanged original-byte consumer and historical fork regressions still pass;
 these focused fixtures do not implement the integrated Buddy simulator.
+Its later composed admission also preserves a ready holder followed by no GO,
+zero input, pre-GO cancellation/refusal, conservative Buddy withholding and
+separate no-GO restoration. Preserve that failure path independently of pen-up
+or a successful write, and retain the unresolved application readiness predicate.
 
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
