@@ -179,11 +179,18 @@ control storage, exact vptr, raw/control relationship and positive weak count.
 Document raw==control+16 is a strict supported-shape gate, not a claim that every
 normally returned Document pair has this layout. Refusal retains the reference.
 
-The method is private to a future typed resident slot; no production callsite is
-enabled. That slot must own each normally returned reference before any possible
-failure, consume only its own local words on success, preserve partial/unknown
-states and never invoke ordinary release as a destructor fallback. It must also
-prove physical retirement independently. Last-owner or uncertain controls keep
+The method is private to the typed resident slot. The slot's private retirement
+method has no production caller yet. Acquisition writes into retained storage
+before native dispatch; only normal complete returns become owned references.
+Exceptional or partial pairs quarantine the slot without interpreting or releasing
+them. Successful release consumes only that owner's local words; refusal preserves
+them and a later retry skips owners already consumed. No destructor invokes
+ordinary native release. Opaque weak-state tokens reject a replaced allocation;
+logical cancellation is separate from physical retirement. A single process-wide
+slot factory prevents allocating a new retained pair for each conversation.
+
+The executor must prove physical retirement independently before it can call the
+private retirement method. Last-owner or uncertain controls keep
 the bounded mutation slot occupied. Neither arithmetic fixtures nor offline ABI
 analysis establish normal native availability or repeated-operation capacity.
 

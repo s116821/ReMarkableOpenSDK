@@ -61,10 +61,19 @@ for any of these physical lifetime facts.
 The new non-last primitive refuses a last reference and bounds compare/exchange
 contention to eight attempts. Its private profile gate validates exact control
 identity and does not call native disposal. No production owner invokes it yet.
-A future typed slot must consume each local reference exactly once, preserve
-refused/partial/unknown ownership and prove physical retirement separately.
+The typed slot consumes each local reference exactly once and preserves
+refused/partial/unknown ownership. Its physical-retirement method is private and
+has no production executor caller yet; native quiescence remains separate.
 Retaining a last owner can still exhaust the single mutation slot; normal native
 capacity is not established by this primitive.
+
+`resident_worker_slot.h` replaces the ordinary-release fallback for its own
+acquisition path. It captures native outputs directly into process-retained
+storage, admits only fully returned pairs and binds every operation to opaque
+state identity. It is compiled with the bootstrap but is not instantiated by it.
+The imported research Coordinator still uses its original one-shot Bridge path;
+that path is not a production mutation endpoint. Connecting the slot to reusable
+Core/Coordinator registration and exact Task retirement remains open.
 
 ## Owned verification
 

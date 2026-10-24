@@ -1,11 +1,12 @@
 // Explicit one-use supervisor admission only. No autonomous boot installation.
-#if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING) || defined(READER_RESIDENT_TESTING)
+#if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING) || defined(READER_RESIDENT_TESTING) || defined(RESIDENT_WORKER_SLOT_TESTING)
 #error Fixture hooks must not enter the native artifact.
 #endif
 #ifndef RSDK_PROFILE_SHA256
 #error Build must bind the exact profile manifest digest.
 #endif
 #include "read_only_backend.h"
+#include "resident_worker_slot.h"
 #include "reader_insertion_child_environment.h"
 #include "../resident/activation.h"
 #include "../resident/loaded_artifact.h"

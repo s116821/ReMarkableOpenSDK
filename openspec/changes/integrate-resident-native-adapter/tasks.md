@@ -19,6 +19,8 @@
   - [ ] 2.3a Resolve safe native last-owner release separately from adapter-stack quiescence; bind all reusable registration APIs to their original generation and exact submitted Task lifecycle.
   - [x] 2.3b Implement and independently review a bounded non-last-only decrement primitive and private exact-control identity gate; verify owned host/ARM controls. This does not release native owners or qualify reusable capacity.
   - [ ] 2.3c Connect a typed retained-owner slot with per-owner consumption, no ordinary-release fallback, generation-bound physical retirement and native repeated-operation qualification.
+    - [x] 2.3c1 Implement the single retained acquisition slot and opaque stale-safe tokens; verify partial/unknown acquisition, per-owner consumption and refusal retention on owned host/ARM fixtures. Private retirement has no production caller yet.
+    - [ ] 2.3c2 Connect exact Task/callback retirement and reusable Core/Coordinator registration to the slot, then qualify native capacity and repeated operations.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery

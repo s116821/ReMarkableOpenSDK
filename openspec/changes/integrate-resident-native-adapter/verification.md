@@ -172,3 +172,25 @@ review identified that a public raw-pointer release API could consume a referenc
 twice; it is now private to the not-yet-implemented typed resident slot. No native
 owner is released and mutation remains disabled. Paired ownership, partial release,
 physical retirement and actual native availability remain untested/open.
+
+## Retained-owner slot checkpoint
+
+The preceding non-last primitive commit
+`5ecdb26a497aa3e1070f3b09ff99ba119a4e46ee` passed the complete hosted pipeline:
+[run 40130707032](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40130707032).
+That run precedes this slot increment.
+
+The typed slot passes 10,195 owned checks on both host ASan/UBSan and ARM/QEMU,
+including 1,000 sequential acquisition/reclamation cycles with stale handles,
+partial-output exceptions, empty/mismatched owners, permit reentry, cancellation
+during submission, unknown job results and per-owner retained-release retries.
+The mock ordinary-release function aborts if called. Production-path headers
+compile separately without the test seam. These cycles use a private fixture
+retirement gate; they do not prove real Task quiescence or native capacity.
+
+Independent source review found no blocking ownership/reentrancy defect and
+required the partial-release, partial-exception and stale-token cases covered
+above. Initial host/ARM fixture compilations failed under misleading-indentation
+warnings in three mock functions; fresh runs passed after separating statements.
+The output directories and failed attempts remain retained. Mutation is still
+disabled; the production retirement gate and native validation remain open.

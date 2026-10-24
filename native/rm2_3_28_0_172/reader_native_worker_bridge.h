@@ -157,6 +157,7 @@ struct Preparation {
 };
 struct Loading;
 class Bridge;
+class ResidentSlot;
 Loading loadPinned(const Permit &permit);
 #ifdef READER_WORKER_NATIVE_TESTING
 namespace testing { Loading load(detail::Functions); }
@@ -166,6 +167,7 @@ class Bridge final {
     bool preparedOnce = false;
     explicit Bridge(detail::Functions value) : fn(value) {}
     friend Loading loadPinned(const Permit &);
+    friend class ResidentSlot;
 #ifdef READER_WORKER_NATIVE_TESTING
     friend Loading testing::load(detail::Functions);
 #endif

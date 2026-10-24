@@ -126,6 +126,7 @@ jobs:
           ACTIVATION_TEST_OUTPUT="$RUNNER_TEMP/resident-activation" ACTIVATION_TEST_SANITIZERS=1 sh native/resident/activation_test.sh
           LOADED_ARTIFACT_TEST_OUTPUT="$RUNNER_TEMP/resident-artifact" sh native/resident/loaded_artifact_test.sh
           NONLAST_RELEASE_OUTPUT="$RUNNER_TEMP/native-nonlast" NONLAST_RELEASE_SANITIZERS=1 sh native/rm2_3_28_0_172/nonlast_release_test.sh
+          RESIDENT_SLOT_OUTPUT="$RUNNER_TEMP/native-slot" RESIDENT_SLOT_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_worker_slot_test.sh
           RESIDENT_ENDPOINT_BINARY="$RUNNER_TEMP/resident-endpoint/endpoint-test" timeout 30s cargo +1.98.1 test --locked --offline --features native-adapter --test resident_socket -- --ignored
           INSERTION_CONDITION_OUTPUT="$RUNNER_TEMP/native-condition" INSERTION_CONDITION_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_insertion_condition_test.sh
           INSERTION_PREDICATE_OUTPUT="$RUNNER_TEMP/native-predicate" sh native/rm2_3_28_0_172/reader_insertion_guard_predicate_test.sh
