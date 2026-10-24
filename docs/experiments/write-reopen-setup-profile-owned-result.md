@@ -42,8 +42,12 @@ sequence refuses90001ms remaining without navigation or pen GO.
 | ARM Qt6.10.3 under QEMU | 445 | 111 | 39/1230 |
 | Host ASAN/UBSAN | 445 | 111 | 39/1230 |
 
-The process tests use2883..2884 checks depending on actual child polling. All
-three backend/readback/sequence stderr files are empty in each environment.
+The process tests use2883..2884 checks depending on actual child polling. Host
+and sanitizer backend/readback/sequence stderr files are empty. ARM backend,
+readback and holder stderr are empty; sequence compilation retains5903 bytes of
+GCC parameter-passing ABI notes about its historical GCC7.1 transition, with no
+warning/error or fixture failure. An initial publication check incorrectly
+required that compiler output to be empty and refused; the notes remain intact.
 The ARM production holder also compiles with warnings as errors; its ELF record
 is retained. QEMU/owned files do not establish native input-device delivery or
 actual target UI behavior.
