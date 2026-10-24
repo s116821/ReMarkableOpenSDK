@@ -1,11 +1,11 @@
 // Explicit one-use supervisor admission only. No autonomous boot installation.
-#if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING) || defined(READER_RESIDENT_TESTING) || defined(RESIDENT_WORKER_SLOT_TESTING) || defined(READER_INSERTION_LIFECYCLE_TESTING) || defined(READER_INSERTION_GUARD_ENTRY_TESTING) || defined(RESIDENT_MUTATION_TESTING)
+#if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING) || defined(READER_RESIDENT_TESTING) || defined(RESIDENT_WORKER_SLOT_TESTING) || defined(READER_INSERTION_LIFECYCLE_TESTING) || defined(READER_INSERTION_GUARD_ENTRY_TESTING) || defined(RESIDENT_MUTATION_TESTING) || defined(RESIDENT_MUTATION_BACKEND_TESTING)
 #error Fixture hooks must not enter the native artifact.
 #endif
 #ifndef RSDK_PROFILE_SHA256
 #error Build must bind the exact profile manifest digest.
 #endif
-#include "read_only_backend.h"
+#include "mutation_backend.h"
 #include "resident_worker_slot.h"
 #include "reader_insertion_child_environment.h"
 #include "../resident/activation.h"
@@ -47,8 +47,10 @@ void startup() {
         try {
             auto *gui=qobject_cast<QGuiApplication*>(app);
             if(!gui||QThread::currentThread()!=gui->thread()||!activation->directoryCurrent())refuse();
-            auto *backend=new remarkable::rm2_3_28_0_172::ReadOnlyBackend(facilities,gui);
-            const QPointer<remarkable::rm2_3_28_0_172::ReadOnlyBackend> guarded(backend);
+            // installBeforeMain(false) keeps mutation unavailable. The source
+            // dispatcher cannot manufacture conditional-profile admission.
+            auto *backend=new remarkable::rm2_3_28_0_172::MutationBackend(facilities,gui);
+            const QPointer<remarkable::rm2_3_28_0_172::MutationBackend> guarded(backend);
             auto *endpoint=new remarkable::resident::Endpoint(activation->config(),[guarded](auto lease){
                 if(guarded)guarded->submit(std::move(lease));
             },gui);

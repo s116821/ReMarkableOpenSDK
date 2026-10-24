@@ -272,9 +272,26 @@ availability. Publication and destruction of completion captures finish while
 the executor is still busy. A known refusal before any owner acquisition, Core
 registration, probe submission or creation attempt can release executor capacity
 after framed cleanup and notification, provided the owner slot remains empty.
-All other nonnormal operations retain their slot conservatively. Source integration
-does not yet connect this executor to endpoint mutation dispatch or bootstrap
-activation, and does not qualify native reuse.
+All other nonnormal operations retain their slot conservatively. Native reuse
+and activation remain unqualified.
+
+### Mutation endpoint dispatch
+
+The dispatcher translates an authenticated InsertAfter request into the exact
+original document/source/order/target and operation nonce. It passes the endpoint
+lease's immutable steady-clock deadline into the Coordinator. A by-value guarded
+permit binds the current facade, endpoint lease, focused window and engine;
+connection loss or facade deletion revokes that authority. The process-resident
+executor continues to own cleanup independently of those facade lifetimes.
+
+Only an observed result with the exact permitted after-order becomes historical
+InsertionObserved. Known refusal before a mutation attempt is distinct from
+indeterminate accepted work. A busy executor returns Capacity before dispatch.
+Completion must still pass the endpoint's original lease, incarnation, digest
+and deadline checks. The source dispatcher delegates Observe/Reconcile to the
+existing read-only backend. Bootstrap still installs the nonconditional profile,
+so the executor factory refuses mutation support; connecting this dispatch path
+does not activate mutation or advertise a qualified capability.
 
 ## Verification and rollout
 
@@ -285,7 +302,7 @@ requires the retained repaired Dobby archive/header. Its loader has eager
 bindings, static TLS and NODELETE. It hashes the file backing its own executable
 anchor mapping, checks a one-use supervisor admission, then calls the original
 exact-profile verification/hook installer before main. The queued GUI startup
-creates the read-only backend and endpoint. Native startup ordering, activation
+creates the dispatcher and endpoint with mutation unavailable. Native startup ordering, activation
 and recovery are separately unqualified; loading this payload installs hooks
 and refusal terminates with code119 even though request operations are read-only.
 

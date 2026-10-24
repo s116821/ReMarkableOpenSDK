@@ -14,6 +14,7 @@
   - [x] 2.1b Bind the endpoint to independently verified profile/executable/adapter artifacts in the native bootstrap; add one-use supervisor admission and an ARM build with pinned Dobby inputs.
 - [ ] 2.2 Integrate the measured Reader ownership observation and execution-side insertion predicate with unchanged native Task bookkeeping.
   - [x] 2.2a Import the exact handoff mechanisms with original Git-blob provenance; add guarded full-order observation and Observe/Reconcile backend source with host/ARM owned coverage.
+  - [x] 2.2c Connect authenticated mutation requests to the executor with original identity/deadline, conservative reply mapping and facade-independent cleanup; qualify the mapping and endpoint boundary on owned host/ARM tests before native activation.
   - [ ] 2.2b Connect and qualify actual native observation through the admitted resident bootstrap; integrate conditional insertion with its original Task bookkeeping.
 - [ ] 2.3 Implement separately verified physical callback completion and bounded owner reclamation, including canceled/late/nested delivery and repeated operations in one process.
   - [ ] 2.3a Resolve safe native last-owner release separately from adapter-stack quiescence; bind all reusable registration APIs to their original generation and exact submitted Task lifecycle.
@@ -22,10 +23,10 @@
     - [x] 2.3c1 Implement the single retained acquisition slot and opaque stale-safe tokens; verify partial/unknown acquisition, per-owner consumption and refusal retention on owned host/ARM fixtures. Executor wiring is tracked below.
     - [ ] 2.3c2 Connect exact Task/callback retirement and reusable Core/Coordinator registration to the slot, then qualify native capacity and repeated operations.
       - [x] 2.3c2a Bind Core registration, cancellation, snapshots and private retirement to opaque request tokens; adapt Coordinator token retention and verify owned normal/unwind/active/stale/foreign cases. Executor wiring is tracked below.
-      - [x] 2.3c2b Import the handoff's GUI retirement fence and request-scope binding with source provenance; verify nested cleanup, stale scopes and real Qt/JS callback disarm on host/ARM. Native executor wiring remains open.
+      - [x] 2.3c2b Import the handoff's GUI retirement fence and request-scope binding with source provenance; verify nested cleanup, stale scopes and real Qt/JS callback disarm on host/ARM. Executor wiring is tracked below.
       - [x] 2.3c2c Route Coordinator acquisition and probe submission through the retained slot, preserve its token across facade deletion and remove per-request ordinary-release fallback. Verify the real connection with owned ARM ABI callouts. Physical cleanup remains open.
-      - [x] 2.3c2d Bind one-shot attribution creation to the owner-slot token and add private adapter-context cleanup before owner consumption; quarantine uncertain state across all later admissions. Final executor ordering and native validation remain open.
-      - [x] 2.3c2e Implement the resident executor's staged GUI/Core/attribution/owner retirement and bounded quarantine; independently review its lifecycle and test injected settled states on host/ARM. Full Coordinator-to-executor coverage and endpoint/native activation remain open.
+      - [x] 2.3c2d Bind one-shot attribution creation to the owner-slot token and add private adapter-context cleanup before owner consumption; quarantine uncertain state across all later admissions. Executor ordering is tracked below; native validation remains open.
+      - [x] 2.3c2e Implement the resident executor's staged GUI/Core/attribution/owner retirement and bounded quarantine; independently review its lifecycle and test injected settled states on host/ARM. Full Coordinator-to-executor coverage is tracked below; native activation remains open.
       - [x] 2.3c2f Exercise real Coordinator start, Qt worker/witness delivery, framed deletion, Core/attribution/slot retirement and reuse together with explicit native callout models; preserve uncertain quarantine while recovering capacity after known pre-acquisition refusals. Endpoint/native qualification remains open.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 

@@ -90,6 +90,7 @@ public:
     bool active()const{return active_.load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<deadline_;}
     const Frame &request()const{return request_;}
     const QByteArray &digest()const{return digest_;}
+    std::chrono::steady_clock::time_point deadline()const{return deadline_;}
 };
 class Endpoint final:public QObject {
 public:

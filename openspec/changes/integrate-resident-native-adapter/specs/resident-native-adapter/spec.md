@@ -18,6 +18,10 @@ established; echoed fingerprints alone SHALL NOT authenticate the endpoint.
 - **WHEN** a mutation loses its connection or receives an indeterminate reply
 - **THEN** the original operation/digest remains indeterminate across repeated cleanup, the connection is retired and no automatic mutation replay is permitted
 
+#### Scenario: Request expires during native execution
+- **WHEN** an admitted mutation reaches the native executor or completes after its original endpoint deadline or connection retirement
+- **THEN** the executor retains that immutable deadline, its permit cannot authorize further guarded actions, and late completion cannot publish a response on another request
+
 ### Requirement: Explicit historical native facts
 Native identity/order samples lacking revision or input-epoch producers SHALL
 remain explicit historical facts. They SHALL NOT construct operational guards,

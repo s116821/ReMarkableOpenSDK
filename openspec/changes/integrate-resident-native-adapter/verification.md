@@ -336,3 +336,28 @@ The production ARM artifact links again. Native activation, original Task
 quiescence, repeated native capacity, endpoint mutation and consumer acceptance
 remain unqualified. Earlier executor/model evidence is retained at its own
 checkpoint rather than credited to this later change.
+
+### Authenticated mutation dispatch
+
+The real Unix endpoint plus mutation dispatcher passes 133 owned checks on host
+ASan/UBSan and ARM/QEMU. The executor boundary is explicitly modeled here; the
+separate pipeline suite covers its actual Coordinator/Qt/Slot integration.
+Checks cover exact operation nonce and immutable lease deadline, original facts,
+exact after-order conversion, capacity and before-dispatch refusal, uncertainty,
+deadline expiry, socket disconnect and backend-facade deletion. Late completions
+cannot publish after scope loss. Source mutation dispatch does not establish
+native Task qualification or durable/target-selection authority.
+
+Bootstrap links with the dispatcher but still uses `installBeforeMain(false)`;
+its immutable profile lacks conditional admission, so the executor factory
+refuses mutation support. The profile manifest still has mutation disabled and
+unqualified status. Production ARM artifact SHA256:
+`af55efd6783455c0f489896c09855bceeeb63c6f75b9689ffabaf09d46b6e314`.
+No activation or tablet action ran.
+
+Independent source review found no blocker in dispatch, conservative refusal,
+immutable deadline propagation or bootstrap's disabled-mutation gate.
+
+The earlier executor checkpoint `4768bb3e649685d7f105bb8ba6e26c5242c772af`
+passed [hosted run 40135448615](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40135448615).
+That run does not validate the later pipeline or dispatcher changes.

@@ -27,8 +27,8 @@ public:
         const auto reject=[&](quint8 reason){resident::Frame response;response.kind=3;response.rejection=reason;if(endpoint)endpoint->finish(lease,response);};
         if(!profile_||!profile_->core||!profile_->applicationAbsent||!profile_->baseAdmission.profileAndProviders){reject(0);return;}
         const auto command=lease->request().kind;
-        // Mutation stays unavailable until physical completion and bounded owner
-        // reclamation are implemented. No diagnostic one-shot fallback.
+        // Mutation is handled by the separately gated resident dispatcher.
+        // This observation facade has no diagnostic one-shot fallback.
         if(command!=0&&command!=2){reject(0);return;}
         const QPointer<QQuickWindow> window(qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow()));
         const QPointer<QQmlEngine> engine(window?qmlEngine(window):nullptr);
