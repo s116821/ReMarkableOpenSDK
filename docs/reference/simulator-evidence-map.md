@@ -112,6 +112,17 @@ content hashes. Four changed stroke pixels on reload remain a measured rendering
 limit, rather than a reason to require frame equality. Integrated Buddy simulator
 implementation and native failure coverage remain separately owned work.
 
+The [controlled native writer-death result](../experiments/controlled-writer-failure-native-result.md)
+adds a failure calibration: SIGKILL during contact, missing complete child message,
+unknown/contact-possible dispatch, partial kernel trace and positive independent
+release can coexist with unchanged stored document bytes. Preserve that uncertainty;
+unchanged storage does not authorize retry. Model stock restoration separately
+from Buddy restoration: the ordinary positive witness was absent, the actor
+withheld Buddy, and a fresh input-free reconciliation restored it only after
+release/preservation/gone-process/empty-unit proof. Kernel filtering yields28
+records/8frames versus the owned37records/9frames; do not require identical streams
+across those evidence layers. Neither is a completed normal stroke.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

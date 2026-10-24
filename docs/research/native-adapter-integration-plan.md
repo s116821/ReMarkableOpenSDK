@@ -10,8 +10,11 @@ That later candidate completed inside its original window and preserved stored
 target ink after restoration. The earlier expired sequence and separate
 readback remain distinct historical results. Actual selected page and saved
 remembered position diverged in the successful case, so metadata cannot replace
-live-page observation or qualify default reopening. Native writer-failure,
-lifetime, consumer and model/firmware qualification remain open.
+live-page observation or qualify default reopening. A later
+[controlled writer death during contact](../experiments/controlled-writer-failure-native-result.md)
+qualifies independent release for one native failure, with conservative Buddy
+withholding and separately verified restoration. Broader failure, lifetime,
+consumer and model/firmware qualification remain open.
 
 ## Stock-first product boundary
 
@@ -128,11 +131,15 @@ Integrate SDK before its pinned consumer revision, then complete coordinated
 acceptance, specification sync and archive. Preserve unfinished gates rather
 than relabeling a passing diagnostic as release readiness.
 
-The native fixed-stroke/readback report provides positive input, release,
-identity-bracketed images and unchanged stored ink after a later restart. Its
-original combined sequence still timed out, and four rendered stroke pixels
-changed on readback. Keep that uncertainty and the native child-failure/recovery
-gap visible in acceptance. Do not infer power-loss durability or pixel equality.
+The complete normal sequence provides positive input/release, all three original
+identity-bracketed captures, stock close/reopen and stored target ink after
+restoration. Earlier expired trials remain failures; four rendered stroke pixels
+still differ on reload. Controlled native writer death also demonstrates actual
+independent release, while the actor's missing positive witness withholds Buddy.
+The separately verified reconciliation restores it without input. Implement and
+qualify production recovery policy around these distinct facts rather than
+accepting the negative writer result as normal success. Do not infer power-loss
+durability, default remembered-page reopening or pixel equality.
 The [simulator evidence map](../reference/simulator-evidence-map.md) and generated
 catalog index measured transitions for future consumer simulation; focused Qt
 and owned-file controls are not an implemented full-tablet simulator.

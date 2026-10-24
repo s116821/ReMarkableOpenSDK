@@ -110,7 +110,8 @@ This closes one normal native combined sequence and sampled stored-ink
 preservation, including native fixed-helper admission and ordinary close/reopen.
 It does not establish power-loss durability, physical display freshness, a
 general renderer, default remembered-page reopening, native unload or long-lived
-owner reclamation. Native child-failure/release qualification remains separate.
+owner reclamation. A later [controlled child-failure result](controlled-writer-failure-native-result.md)
+separately measures native independent release and exceptional Buddy restoration.
 The adapter remains resident across conversations; forensic stock restoration
 does not prescribe a per-conversation restart. Public capability flags remain
 unsupported and broader consumer/model/document qualification remains open.

@@ -71,7 +71,7 @@
     {
       "path": "docs/experiments/combined-native-write-close-reopen-result.md",
       "title": "Native writing, stock close and reopened capture",
-      "lf_utf8_sha256": "f3f11b685564f50c1ee1d8a46169a47bd09efeea5c250f137ea1accb74448257",
+      "lf_utf8_sha256": "0c1610ad81632ead0138d2c50a48f1e739637db57d5274b5a57ae358385eba73",
       "headings": [
         {
           "line": 1,
@@ -219,6 +219,33 @@
         {
           "line": 104,
           "heading": "Remaining gates"
+        }
+      ]
+    },
+    {
+      "path": "docs/experiments/controlled-writer-failure-native-result.md",
+      "title": "Native writer failure during contact",
+      "lf_utf8_sha256": "a2c7f20db29379e644cdac4029c4fd36b401d49dc2b96b00c802ad06af2ed73b",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Native writer failure during contact"
+        },
+        {
+          "line": 10,
+          "heading": "Source and owned controls"
+        },
+        {
+          "line": 56,
+          "heading": "Exact real-input candidate"
+        },
+        {
+          "line": 84,
+          "heading": "Original negative result and actual release"
+        },
+        {
+          "line": 112,
+          "heading": "Restoration and preservation"
         }
       ]
     },
@@ -1403,7 +1430,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "3bbe92a310d55f5891f473682c1dc4d009f3f5f337adf5ec621b372bdc545803",
+      "lf_utf8_sha256": "2bd9adec4fed04db44367ebdd0a08edb0d140c599eadf16bfa7734af8823d1bd",
       "headings": [
         {
           "line": 1,
@@ -1536,7 +1563,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "4cf79988d84329fe4b6eb998c5df8eab6ad559fcc846559c1c1e944baa54829c",
+      "lf_utf8_sha256": "d0c9bba4d7afd2a8253fdcae46764e20fb53d4bd9e1e28f89d4cf3c5f48971d3",
       "headings": [
         {
           "line": 1,
@@ -1551,11 +1578,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 121,
+          "line": 132,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 141,
+          "line": 152,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -1799,26 +1826,26 @@
     {
       "path": "docs/research/native-adapter-integration-plan.md",
       "title": "From native diagnostics to the resident adapter",
-      "lf_utf8_sha256": "9bcad8fb91458684e3dc2b709b03cc54f278bcbabe8f705bcca53cc4208634eb",
+      "lf_utf8_sha256": "3719216b22d7ae3cd8abe838b0eafe064c1368f1066fdb707075606bdf87e244",
       "headings": [
         {
           "line": 1,
           "heading": "From native diagnostics to the resident adapter"
         },
         {
-          "line": 16,
+          "line": 19,
           "heading": "Stock-first product boundary"
         },
         {
-          "line": 30,
+          "line": 33,
           "heading": "Candidate boundaries"
         },
         {
-          "line": 53,
+          "line": 56,
           "heading": "Ordered implementation"
         },
         {
-          "line": 111,
+          "line": 114,
           "heading": "Required qualification and delivery"
         }
       ]
@@ -5766,7 +5793,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "52100f85662f3652f417106f6736afca2ad090cec3fa2590d786a359b77ededd",
+      "lf_utf8_sha256": "dd6fa187521c2425439a846b4bc4b671ff54e6f3bf2bf6df2b40e08be8c671de",
       "headings": [
         {
           "line": 1,
