@@ -10,7 +10,7 @@ else
     moc=${QT_HOST_MOC:-/usr/lib/qt6/libexec/moc}
 fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-for header in reader_insertion_guard_entry reader_selected_view_probe reader_worker_callback_witness reader_joined_creation_witness; do
+for header in reader_request_retirement reader_insertion_guard_entry reader_selected_view_probe reader_worker_callback_witness reader_joined_creation_witness; do
     "$moc" "$root/$header.h" -o "$out/moc_$header.cpp"
 done
 "$moc" "$root/qt_qml_creation_bridge.h" -o "$out/qt_qml_creation_bridge.moc"
@@ -20,7 +20,7 @@ sanitize=
 if [ "${INSERTION_TRANSPORT_SANITIZERS:-0}" = 1 ]; then sanitize='-fsanitize=address,undefined -fno-omit-frame-pointer'; fi
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitize -I"$out" -I"$root" \
     "$root/reader_insertion_guard_transport_fixture.cpp" "$out/moc_reader_insertion_guard_entry.cpp" \
-    "$out/moc_reader_selected_view_probe.cpp" "$out/moc_reader_worker_callback_witness.cpp" "$out/moc_reader_joined_creation_witness.cpp" \
+    "$out/moc_reader_request_retirement.cpp" "$out/moc_reader_selected_view_probe.cpp" "$out/moc_reader_worker_callback_witness.cpp" "$out/moc_reader_joined_creation_witness.cpp" \
     "$root/qt_qml_creation_bridge.cpp" $(pkg-config --cflags --libs Qt6Qml Qt6Gui Qt6Quick) -ldl -o "$out/fixture"
 printf '#include "reader_insertion_guard_transport.h"\n' > "$out/production.cpp"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -I"$root" $(pkg-config --cflags Qt6Qml Qt6Gui Qt6Quick) -c "$out/production.cpp" -o "$out/production.o"

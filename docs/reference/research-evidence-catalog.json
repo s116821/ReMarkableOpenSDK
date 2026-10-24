@@ -840,6 +840,33 @@
       ]
     },
     {
+      "path": "docs/experiments/resident-mutation-transport-owned-result.md",
+      "title": "Resident mutation cleanup and fresh readback: owned Entry result",
+      "lf_utf8_sha256": "d48802b8be71aaa9f652c75babdd4a5ddf97f532212a34929a6de300c6ce791e",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Resident mutation cleanup and fresh readback: owned Entry result"
+        },
+        {
+          "line": 15,
+          "heading": "Actual composition and resources"
+        },
+        {
+          "line": 44,
+          "heading": "Failure and wire semantics"
+        },
+        {
+          "line": 72,
+          "heading": "Verification"
+        },
+        {
+          "line": 112,
+          "heading": "Remaining native question"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/resident-readonly-pair-result.md",
       "title": "Two read-only requests in one native Reader process",
       "lf_utf8_sha256": "35c0852646822f5e99dc918ad0c7fde65e71d16a7a0e02ee3c54eb49e048439e",
@@ -1062,7 +1089,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "94637c98a9ab40164fc1e36e2536e5e188dc55c6334aa71932a2abb06ee00c11",
+      "lf_utf8_sha256": "ba947c2ca21ffb168538ba01ab824453e3770579a1e5894931876e03543f8554",
       "headings": [
         {
           "line": 1,
@@ -1195,7 +1222,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "70852639227ab7430d7dac99bc4455853965be376941428e1d375a36fa4f823f",
+      "lf_utf8_sha256": "5180771f718168307bcfae085d8904b24ba11a5cb8e5d5dda5e0937284889576",
       "headings": [
         {
           "line": 1,
@@ -3502,7 +3529,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/mutation-request-retirement.md",
       "title": "Optional mutation request scope composition",
-      "lf_utf8_sha256": "21d523bc58abb8d29d94b72ad9acf29889df1fb30557c27cb185043e6e1ac3e9",
+      "lf_utf8_sha256": "3912516de155f65e7ce982f0e0c43c25bd3ce4d7a1d1bebc43b1aeeb143c8c60",
       "headings": [
         {
           "line": 1,
@@ -3519,6 +3546,10 @@
         {
           "line": 50,
           "heading": "Verification and limits"
+        },
+        {
+          "line": 61,
+          "heading": "Selected fixed transport continuation (16.7a)"
         }
       ]
     },
@@ -5290,7 +5321,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "3bc8c13c48722ddb51b7e704b3b2f9ce4902023e6211cd0ad455f6da625389ae",
+      "lf_utf8_sha256": "2bf3be8109ae6fa21099473f6345d8ca831d8c7a4664a7b7cd70c4b7f72cfa28",
       "headings": [
         {
           "line": 1,

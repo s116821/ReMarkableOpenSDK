@@ -72,8 +72,9 @@ int main(int argc,char **argv) {
     {
         Fence f;MetaCalls calls;f.installEventFilter(&calls);auto a=f.begin(nonce(1),Kind::ReadOnly);require(bool(a),"first nonce");
         require(f.snapshot(a).generation==a.generation() && f.snapshot(a).nonce==a.nonce(),"stable snapshot identity");
+        require(!f.handoffReady(a),"active request cannot hand off");
         int cleanup=0,finished=0;
-        const auto notification=QObject::connect(&f,&Fence::retired,&f,[&](quint64 g,QByteArray n){require(g==a.generation() && n==a.nonce(),"retired signal identity");++finished;require(!f.begin(nonce(2),Kind::ReadOnly),"no begin on retired notification stack");});
+        const auto notification=QObject::connect(&f,&Fence::retired,&f,[&](quint64 g,QByteArray n){require(g==a.generation() && n==a.nonce(),"retired signal identity");++finished;require(!f.begin(nonce(2),Kind::ReadOnly),"no begin on retired notification stack");require(!f.handoffReady(a),"retired notification cannot hand off");nested();require(!f.handoffReady(a),"nested retired notification cannot hand off");});
         require(f.requestRetire(a,[&]{++cleanup;},Effect::NoMutationAttempted),"terminal request");
         require(!f.accepts(a) && f.snapshot(a).phase==Phase::Terminal,"terminal invalidates callback permission");
         {
@@ -81,9 +82,10 @@ int main(int argc,char **argv) {
             const int before=calls.count;nested(5);require(calls.count==before+1,"one depth-blocked check no nested reschedule spin");
             require(cleanup==0 && finished==0 && !f.begin(nonce(2),Kind::ReadOnly),"nested frame blocks cleanup and B");
         }
-        retired(f,a);require(cleanup==1 && finished==1,"cleanup and retired once");QObject::disconnect(notification);
+        retired(f,a);require(cleanup==1 && finished==1,"cleanup and retired once");require(f.handoffReady(a),"later retired request can hand off");QObject::disconnect(notification);
         auto b=f.begin(nonce(2),Kind::ReadOnly);require(bool(b) && b.generation()>a.generation() && !f.accepts(a) && f.accepts(b),"fresh B isolated");
         require(!f.begin(nonce(1),Kind::ReadOnly),"spent nonce refused");
+        require(!f.handoffReady(a),"superseded token cannot hand off");
         f.requestRetire(b,{},Effect::NoMutationAttempted);retired(f,b);
     }
     for(unsigned stage=0;stage<3;++stage) {

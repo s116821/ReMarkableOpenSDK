@@ -130,6 +130,13 @@ public:
         const auto state=resolve(token);
         return state?Snapshot{state->generation,state->nonce,state->phase,state->depth,state==unresolved_,refusal_}:Snapshot{token.generation_,token.nonce_,Phase::Invalid,0,false,{}};
     }
+    // Admission handoff is later than the retired notification's own stack.
+    // A resident heartbeat may observe this; it must not renew any deadline.
+    bool handoffReady(const Token &token) const {
+        if(!gui() || failed_ || notifying_)return false;
+        const auto state=resolve(token);
+        return state && state==current_ && state->phase==Phase::Retired && state->depth==0;
+    }
 signals:
     void retired(quint64 generation,QByteArray nonce);
     void retirementFailed(quint64 generation,QByteArray nonce);

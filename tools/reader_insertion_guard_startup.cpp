@@ -22,6 +22,12 @@
 #if defined(READER_INSERTION_SELECT_TARGET) && (READER_INSERTION_SELECT_TARGET != 1 || !defined(READER_INSERTION_FORWARD))
 #error Target acquisition requires the exact conditional-forward selector.
 #endif
+#if defined(READER_INSERTION_RESIDENT) && (READER_INSERTION_RESIDENT != 1 || !defined(READER_INSERTION_SELECT_TARGET) || !defined(READER_INSERTION_MUTATION_NONCE) || !defined(READER_INSERTION_READBACK_NONCE))
+#error Resident follow-up requires target acquisition and two separately frozen request nonces.
+#endif
+#if !defined(READER_INSERTION_RESIDENT) && (defined(READER_INSERTION_MUTATION_NONCE) || defined(READER_INSERTION_READBACK_NONCE))
+#error Resident request nonces require the explicit resident selector.
+#endif
 namespace {
 #ifdef READER_INSERTION_SELECT_TARGET
 constexpr bool wantTargetAcquisition=true;
@@ -47,6 +53,21 @@ constexpr bool validNonce() {
     return true;
 }
 static_assert(validNonce(),"Frozen nonce must be32 lowercase hexadecimal characters");
+#ifdef READER_INSERTION_RESIDENT
+constexpr char mutationNonce[]=READER_INSERTION_MUTATION_NONCE;
+constexpr char readbackNonce[]=READER_INSERTION_READBACK_NONCE;
+constexpr bool requestNonce(const char *value,std::size_t size) {
+    if(size!=33)return false;
+    for(unsigned i=0;i<32;++i)if(!((value[i]>='0'&&value[i]<='9')||(value[i]>='a'&&value[i]<='f')))return false;
+    return value[32]=='\0';
+}
+constexpr bool sameNonce(const char *a,const char *b) {
+    for(unsigned i=0;i<32;++i)if(a[i]!=b[i])return false;
+    return true;
+}
+static_assert(requestNonce(mutationNonce,sizeof mutationNonce)&&requestNonce(readbackNonce,sizeof readbackNonce),"Fresh request nonces must be32 lowercase hexadecimal characters");
+static_assert(!sameNonce(nonce,mutationNonce)&&!sameNonce(nonce,readbackNonce)&&!sameNonce(mutationNonce,readbackNonce),"Activation/mutation/readback identities must differ");
+#endif
 std::atomic<reader_insertion_native_profile::Facilities*> facilities{nullptr};
 std::atomic_flag scheduled=ATOMIC_FLAG_INIT;
 [[noreturn]] void stop() noexcept {std::_Exit(119);}
@@ -105,6 +126,9 @@ void startup() {
             auto *gui=qobject_cast<QGuiApplication*>(app);auto *f=facilities.load(std::memory_order_acquire);
             if(!gui||!f||QThread::currentThread()!=gui->thread()||!admitted())stop();
             reader_insertion_transport::Config config;config.nonce=nonce;
+#ifdef READER_INSERTION_RESIDENT
+            config.residentFollowup=true;config.mutationNonce=mutationNonce;config.readbackNonce=readbackNonce;
+#endif
             config.coordinator.wantPostRejectProbe=wantPostRejectProbe;
             config.coordinator.wantConditionalForward=wantConditionalForward;
             config.coordinator.wantTargetAcquisition=wantTargetAcquisition;

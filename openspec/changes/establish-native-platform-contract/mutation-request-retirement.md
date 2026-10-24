@@ -57,3 +57,38 @@ Resource inventory and sticky registration failure must precede a native A/B
 profile. There is no production publisher/FD protocol in this increment, and no
 claim that logical retirement establishes native-owner reclamation or the fix
 for the historical shutdown fault. Overall native-platform delivery remains open.
+
+## Selected fixed transport continuation (16.7a)
+
+Extend the existing diagnostic Entry behind an explicit default-off resident
+follow-up option, requiring conditional forwarding and target acquisition plus
+distinct activation/mutation/readback nonces. Construct/start/delete the selected
+Coordinator under registration frames. Its own request directory duplicate and
+entire QObject subtree are inventoried and retired; the whole-trial root/final
+publisher stays a separate registration resource. Checked close uncertainty is
+sticky and is never retried. Native Resident/Prepared/Core/code remain retained.
+
+Freeze A's owned result before retiring it. After its retired notification and
+all deletion frames unwind, B performs a fresh join and full selected-target
+order observation with callback-local document/actualId/guard; no old pointer or
+Sample permission crosses the boundary. Retire B and test fresh C refusal only
+in a later turn after B Retired/depth0, while A's unresolved latch remains set.
+No acknowledgement of reconciliation is manufactured by these observations.
+
+Keep the original setup/operation deadline through A cleanup, B, C refusal and
+publication. Failure/cancellation/unexpected destruction suppress B and positive
+publication. A's true attempted/committed facts survive a failed follow-up; an
+incomplete combined result cannot mean no mutation or authorize replay.
+
+Schema4 adds a closed resident result to the unchanged schema3 mutation facts.
+Only this selected mode has an explicit8192-byte scalar cap; existing modes keep
+4096. Measure the worst initial16/post17-page serializer and test caps. The strict
+consumer separately validates the mutation facts and combined resident verdict.
+Final publication rechecks sticky application-close suppression and weak owner
+lifetime around link hooks; a late quit/deletion cannot grant a positive result.
+
+Owned tests must exercise the actual Entry, valid Coordinator/witness/Qt path,
+fresh readback helper, real request-FD and QObject cleanup, original deadlines,
+late callbacks, cleanup failures, and pre/post-link revocation. Only native
+acquisition/Core and bootstrap/readback identity joins may be explicitly modeled.
+Native build/provider/packet/restoration qualification remains16.7b.
