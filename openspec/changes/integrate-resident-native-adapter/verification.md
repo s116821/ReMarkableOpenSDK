@@ -237,3 +237,24 @@ Hosted CI also completed successfully for the preceding Core-token commit
 `7be87e60c74d395ccf162e9cd24bd518ff44761e`
 ([run 40131829352](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40131829352)).
 That run predates this import and is not validation of its later source.
+
+### Coordinator owner-slot connection
+
+The original orchestration fixtures are imported with Git-blob provenance and
+run against the changed Coordinator. Host ASan/UBSan and ARM/QEMU cover legacy
+negative controls, conditional insertion orchestration, adjacent-target checks,
+framed cleanup and permit revocation. These use owned models, real Qt witnesses
+and a real owned worker thread; they do not dispatch the native implementation.
+
+Six additional ARM cases exercise the actual Coordinator-to-ResidentSlot path
+with owned ABI callouts: normal conditional completion, zero submission ID,
+cancellation/deletion during submission, and facade deletion during both native
+owner acquisitions. They pass 95 checks. The fixture's QString-backed ID has the
+pinned 12-byte / 4-aligned shape on ARM only, so host runs retain the original
+boundary models. Separate production-header compilation excludes fixture seams.
+The full native read-only artifact also links successfully. Physical retirement,
+profile attribution reuse and native mutation activation remain unimplemented.
+
+The preceding GUI-fence commit `f9614c105b6c8b2cfa241c8f75d108e11b1972fb`
+passed its own [hosted run 40132632510](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40132632510).
+That is not CI evidence for the later Coordinator connection.

@@ -135,6 +135,18 @@
     {
       "path": "reader_request_scope_test.sh",
       "sha256": "43411937ec65acab2075a65bba368971835f7bb5e72d3d3287b6494d563bb418"
+    },
+    {
+      "path": "reader_insertion_guard_entry_fixture.cpp",
+      "sha256": "a2c0eee5cd0aeb6afd52ecd9408d08b5130ed0fe2e61ce07b3bb62692f74caf5"
+    },
+    {
+      "path": "reader_insertion_guard_entry_test.sh",
+      "sha256": "d2afdc0809635743a758b265ed0b3381a8d9af11b358d7a2180ea39f6042b0fe"
+    },
+    {
+      "path": "reader_joined_creation_witness_fixture.cpp",
+      "sha256": "12016349eb94a5048fd4ae9e187a1b99ce8a79b1fa2c149b0e62c7e2891e4dec"
     }
   ]
 }

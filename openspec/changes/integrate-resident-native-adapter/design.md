@@ -183,6 +183,14 @@ inside the single resident mutation slot, rather than treating that history as
 a process-wide operation allowance. Durable deduplication remains the journal's
 responsibility. This executor connection is not implemented by the import.
 
+Coordinator acquisition and probe submission now require the process-resident
+slot. The returned token is retained even if a native callout deletes the GUI
+facade; the slot already owns any returned native words. The second source join
+checks the same token's Worker incarnation, and Core's owner marker identifies
+the slot. There is no per-request Bridge/Prepared fallback in this path. The
+Coordinator's plain resident record and profile attribution remain retained
+until the normal physical-cleanup executor is implemented.
+
 ### Non-last-only owner policy
 
 Exact-artifact analysis supports a narrower alternative to calling the ordinary

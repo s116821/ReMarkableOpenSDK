@@ -2,6 +2,7 @@
 // Fixed research coordinator. Optional single adjacent continuation; no unload.
 #include "reader_insertion_guard_hooks.h"
 #include "reader_native_worker_bridge.h"
+#include "resident_worker_slot.h"
 #include "reader_joined_creation_witness.h"
 #include "reader_worker_callback_witness.h"
 #include "reader_insertion_post_order.h"
@@ -35,6 +36,7 @@ struct Attribution {
 };
 struct Runtime {
     reader_insertion_hooks::Core *core = nullptr; // Already installed and independently qualified.
+    reader_worker_native::ResidentSlot *owners = nullptr; // Process-resident single acquisition slot.
     reader_insertion_predicate::Calls calls;
     reader_insertion_predicate::CallerAdmission admission;
     std::uintptr_t outerReturnPC = 0, innerReturnPC = 0;
@@ -151,8 +153,7 @@ private:
     struct Resident {
         reader_insertion_hooks::Core::Token registration;
         Runtime runtime;
-        std::unique_ptr<reader_worker_native::Bridge> bridge;
-        std::unique_ptr<reader_worker_native::Prepared> prepared;
+        reader_worker_native::ResidentSlot::Token owners;
         std::shared_ptr<ThreadState> thread = std::make_shared<ThreadState>();
         QPointer<QObject> worker;
         Attribution attribution;
@@ -213,11 +214,12 @@ private:
     }
     bool runtimeValid() const {
         const auto &r = resident_->runtime; const auto &a = r.admission;
-        bool core = r.core != nullptr;
+        bool core = r.core != nullptr, owners = r.owners != nullptr;
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
         core = core || (test_.registerOnce && test_.snapshot && test_.cancel);
+        owners = owners || (test_.acquire && test_.submitProbe);
 #endif
-        if (!core || !r.makeAttribution || !r.outerReturnPC || !r.innerReturnPC) return false;
+        if (!core || !owners || !r.makeAttribution || !r.outerReturnPC || !r.innerReturnPC) return false;
         if (config_.wantConditionalForward) {
             const auto &c = r.conditionAdmission;
             return c.profileAndProviders && c.originalCallsite && c.operationScope && c.workerThread && c.nativeOwners && c.finalLock;
@@ -413,14 +415,13 @@ private:
         else
 #endif
         {
-            auto loading = reader_worker_native::loadPinned(guard);
+            auto preparation = resident->runtime.owners->prepare(controllerPin, id, worker, guard);
+            // The slot already holds native output storage even if a native
+            // callout destroyed this facade. Retain its exact token regardless.
+            resident->owners = preparation.token;
             if (!weak) return;
-            if (loading.bridge) {
-                resident_->bridge = std::move(loading.bridge);
-                auto preparation = resident_->bridge->prepare(controllerPin, id, worker, guard);
-                if (!weak) { if (preparation.prepared) resident->prepared = std::move(preparation.prepared); return; }
-                resident_->prepared = std::move(preparation.prepared); acquired = bool(resident_->prepared);
-            }
+            acquired = preparation.ready;
+            if (preparation.unknown) result_.unknown = true;
         }
         if (!weak) return;
         result_.ownersRetained = acquired; // A later permit refusal never releases successful leases.
@@ -442,7 +443,7 @@ private:
             if (weak->test_.submitProbe) { const auto fn = weak->test_.submitProbe; submitted = fn(callback, guard); }
             else
 #endif
-                submitted = weak->resident_->prepared->submit(callback, guard);
+                submitted = weak->resident_->runtime.owners->submit(weak->resident_->owners, callback, guard);
             if (weak && submitted.unknown) weak->result_.unknown = true;
             return submitted.accepted ? submitted.jobId : 0;
         }, qMin(remaining(), 20000));
@@ -461,7 +462,7 @@ private:
         QPointer<QObject> worker = readWorker(reader, guard);
         if (!weak) return;
         if (!worker || worker != resident_->worker ||
-            (resident_->prepared && resident_->prepared->worker() != worker) || !guard() || !weak) {
+            (resident_->runtime.owners && resident_->runtime.owners->worker(resident_->owners) != worker) || !guard() || !weak) {
             if (weak) refuse(QStringLiteral("worker-incarnation"));
             return;
         }
@@ -504,7 +505,11 @@ private:
             resident_->runtime.outerReturnPC, resident_->runtime.innerReturnPC, r.sourceIndex + 1, 0, nullptr, 1, 0,
             r.paperSize, reader_insertion_hooks::CallerPolicy::BorrowedExplicitSize};
         registration.calls = resident_->runtime.calls; registration.admission = resident_->runtime.admission;
-        registration.deadline = deadline_; registration.residentNativeOwners = resident_;
+        registration.deadline = deadline_;
+        registration.residentNativeOwners = resident_->runtime.owners;
+#ifdef READER_INSERTION_GUARD_ENTRY_TESTING
+        if (!registration.residentNativeOwners && test_.acquire) registration.residentNativeOwners = resident_;
+#endif
         registration.attributionContext = attribution.context; registration.attribute = attribution.read;
         registration.postRejectProbe = config_.wantPostRejectProbe ? attribution.postRejectProbe : nullptr;
         if (!guard() || !weak) { if (weak) refuse(QStringLiteral("registration-permission")); return; }

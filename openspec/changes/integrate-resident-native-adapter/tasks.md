@@ -23,6 +23,7 @@
     - [ ] 2.3c2 Connect exact Task/callback retirement and reusable Core/Coordinator registration to the slot, then qualify native capacity and repeated operations.
       - [x] 2.3c2a Bind Core registration, cancellation, snapshots and private retirement to opaque request tokens; adapt Coordinator token retention and verify owned normal/unwind/active/stale/foreign cases. No production retirement caller yet.
       - [x] 2.3c2b Import the handoff's GUI retirement fence and request-scope binding with source provenance; verify nested cleanup, stale scopes and real Qt/JS callback disarm on host/ARM. Native executor wiring remains open.
+      - [x] 2.3c2c Route Coordinator acquisition and probe submission through the retained slot, preserve its token across facade deletion and remove per-request ordinary-release fallback. Verify the real connection with owned ARM ABI callouts. Physical cleanup remains open.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery

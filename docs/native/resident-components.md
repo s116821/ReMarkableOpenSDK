@@ -74,9 +74,12 @@ capacity is not established by this primitive.
 acquisition path. It captures native outputs directly into process-retained
 storage, admits only fully returned pairs and binds every operation to opaque
 state identity. It is compiled with the bootstrap but is not instantiated by it.
-The imported research Coordinator still uses its original one-shot Bridge path;
-that path is not a production mutation endpoint. Connecting the slot to reusable
-Core/Coordinator registration and exact Task retirement remains open.
+The Coordinator now requires this slot for acquisition and probe submission,
+retains its opaque token even when a native callout deletes the facade, and
+binds Core registration to the stable slot. It no longer creates a per-request
+Bridge/Prepared fallback. The plain Coordinator record and profile attribution
+still require explicit physical cleanup. No production mutation endpoint or
+retirement caller is enabled by this connection.
 
 Core now pins a shared registration record at outer entry and binds cancel,
 snapshot and private retirement to its opaque original token. A short registry
