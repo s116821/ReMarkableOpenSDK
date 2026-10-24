@@ -56,6 +56,12 @@ Its later composed admission also preserves a ready holder followed by no GO,
 zero input, pre-GO cancellation/refusal, conservative Buddy withholding and
 separate no-GO restoration. Preserve that failure path independently of pen-up
 or a successful write, and retain the unresolved application readiness predicate.
+The later no-input diagnostic proves holder acceptance and live matching
+cgroups before UI composition, while shutdown cancellation overwrites the
+preceding refusal. Its bounded distinct-reason history regression preserves
+pending/repeated/cancellation ordering; the specific native composition reason
+remains unknown. Echoed planned document/page fields in a negative result do
+not establish a displayed page identity.
 
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |

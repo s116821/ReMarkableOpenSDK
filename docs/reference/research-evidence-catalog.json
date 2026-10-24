@@ -244,7 +244,7 @@
     {
       "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
       "title": "Fresh fixed-writer image and native owned-file process qualification",
-      "lf_utf8_sha256": "c88dc2fc85a06e20b5f962cc237d4336eac9e21a7aec5ef6c79a983008cebaf5",
+      "lf_utf8_sha256": "cabcd58907d6f1ec3d83676799bd262bc2b3b711a3bf89238086078809cd6a5c",
       "headings": [
         {
           "line": 1,
@@ -267,7 +267,7 @@
           "heading": "Later composed holder admission, with no GO"
         },
         {
-          "line": 190,
+          "line": 237,
           "heading": "Simulator calibration and remaining native work"
         }
       ]
@@ -1443,7 +1443,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "a0ec352991536d4cbb51815e8927e6622c99bc0cadd604f46250f44c696e01cd",
+      "lf_utf8_sha256": "2c76968a63acdff5aa903f4a84ea4b3aabd8d546766f183edd628662f2d95655",
       "headings": [
         {
           "line": 1,
@@ -1458,11 +1458,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 66,
+          "line": 72,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 86,
+          "line": 92,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -4939,7 +4939,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/specs/native-platform-contract/spec.md",
       "title": "ADDED Requirements",
-      "lf_utf8_sha256": "20dbaca6be88449e6301eeacb106e5b721cde0d728bfea64e315f33e03ad5e0a",
+      "lf_utf8_sha256": "71a5b15557ba43f9e43718c1e7f67158830468296b909f6a621b819f143ed525",
       "headings": [
         {
           "line": 1,
@@ -5665,7 +5665,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "50c0063d597466f209ccc82d314691fd66154ef1efd4078ddda27c1938cc0e52",
+      "lf_utf8_sha256": "f2237b15dc2c8d50b93dd33bd7df5b4b5cd8c447e02e7e4de8d2b8ff8d51a2ce",
       "headings": [
         {
           "line": 1,

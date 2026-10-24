@@ -187,6 +187,53 @@ Its link-only artifact2c824096b6911914b120331bac29b71fc99dd48128a2263c3224ee3451
 has not been executed on the tablet. A new native candidate must bind this
 source and retain the precise wait result before choosing a repair.
 
+The selected no-input diagnostic da27df1121414884af34fb6eb9dfac88 subsequently
+used source901e333 and payload
+76f8bf5d4864620970105910bcc52ef339fb7af4638760c2ce6dee835a18d09e.
+Holder19442/start135719534 reached readiness for candidate19302/start135719286;
+live incarnation-bracketed cgroup bytes match both exact dedicated paths.
+The terminal tag is composition/canceled. Reaching this phase establishes that
+the application accepted holder readiness before attempting UI composition.
+It does not identify the earlier composition refusal: stopping during inspection
+replaced that tag with cancellation. No selected request or GO was published,
+no writer child ran and the original event trace is empty.
+
+Original diagnostic archive:
+365ce8a0985b2872282bd12d92e9ac2fc1ba980dcc6474c4267ed358600fcaca.
+Stock22840/start135730627 and initially active Buddy were restored through
+separately verified no-GO reconciliation. All26 original files and full12-page
+order again match the original748,544-byte archive. The canceled diagnostic is
+spent and does not qualify writing, page identity or a navigation repair.
+
+A separate StartupWait state helper now retains the last and previous distinct
+bounded reasons. Beginning a repeated composition inspection cannot overwrite
+its prior refusal with pending; repeated cancellation cannot replace the prior
+distinct reason. The actual cancellation/pending/repeated/bound counterexample
+passes4 owned cases/6 checks each on host, ARM-QEMU and sanitizer, receipt
+e6d61b100252173a0682e3db7c61c1eca0ae743d32094610fb2ba10197a53a66.
+Review38 checks recover all pre-diagnostic action/admission/clock source tokens
+after removing only diagnostic operations, bind all25 full-link inputs and
+confirm the unchanged admission fragment, receipt
+8aaa0c360be300c474cbd674d85547c49406c8936915b05245e17a590d89c8b2.
+Full ARM link and8 fixture/11 conflicting-selector refusals pass, receipt
+715c646dd7e95a48a3143d2e8749370931dcbfd9488224a05ce8cf135202264b.
+The link-only artifact is
+ef33aed9f1676d86943450be5631ca9a7d193c450fd7b2e027c0cfa722e4635c;
+this successor has not yet been selected or executed natively.
+
+An offline REA6.7/Ghidra12.1.4 follow-up against the unchanged saved binary found
+no matching procedure names in the stripped target, then used exact metadata
+dispatch and wrapper records. Together with hash-verified retained MainView
+source, it corroborates the existing stock route and configuration-map call
+already used by the diagnostic navigation helper. It adds no runtime discovery,
+readiness or invocation qualification. Bundle
+dd3599460e3ecba955e7d4d7737e261199298a5ae1802d1194e40aa825b78444
+and snapshot
+634158dab134cbf2cfa447f5460a8f0c46b8b7f0d9745f3d1c74fd4c7c1e70f0
+were exported before closing and verifying absence of the task-owned container.
+The two unrelated OpenCode containers and original binary remain unchanged;
+no global tool registration or installation was changed.
+
 ## Simulator calibration and remaining native work
 
 Model a multi-threaded Qt parent separately from a single-threaded fresh writer.
@@ -209,7 +256,8 @@ model/firmware qualification remain separate.
 
 Source basis: current source, frozen host/SDK/sanitizer outputs, original native
 profile/owned-file/composed-admission streams, the separate transient cgroup
-profile, byte-checked archives and the fresh full backup.
+profile, byte-checked archives and the fresh full backup, plus exact retained
+QML and the separately exported offline REA/Ghidra records.
 Device/context/completion facts in the FIFO suite are explicit models; native
 ink and durable authority are not inferred.
 

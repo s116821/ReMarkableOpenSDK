@@ -763,4 +763,4 @@ The default-off write/reopen startup and [independent pen holder](../../fixed-pe
 
 #### Scenario: Startup readiness never arrives
 - **WHEN** a default-off composed trial waits for the matching holder or the legacy UI composition and then refuses, expires or is canceled
-- **THEN** its terminal refusal retains the last observed wait phase and a bounded composition refusal tag, without promoting a sampled diagnostic to current readiness, changing the readiness conditions, publishing a request or renewing an original deadline.
+- **THEN** its terminal refusal retains the last observed wait phase and the previous distinct bounded reason, so an ordinary shutdown cancellation or a repeated pending sample cannot erase the preceding composition failure, without promoting sampled diagnostics to current readiness, changing readiness conditions, publishing a request or renewing an original deadline.
