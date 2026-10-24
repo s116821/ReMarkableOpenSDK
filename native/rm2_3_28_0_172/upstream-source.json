@@ -1,0 +1,108 @@
+{
+  "source": "https://github.com/s116821/ReMarkableOpenSDK",
+  "revision": "05af65656e07c939349c9a10419ba94cd8b7457e",
+  "source_directory": "tools",
+  "scope": "Baseline original Git blob hashes before SDK adaptations; no runtime activation or qualification implied. See docs/native/resident-components.md.",
+  "files": [
+    {
+      "path": "qt_qml_creation_bridge.cpp",
+      "sha256": "38a437c7865db590c215b2b632011cccfe7ab90cc5c5d1174afb1f88ad9ac81f"
+    },
+    {
+      "path": "qt_qml_creation_bridge.h",
+      "sha256": "d6ea5352ffd65d73c7e6c2cd5e8e683b91851bdf8c8a53497fca4e217b063301"
+    },
+    {
+      "path": "reader_insertion_child_environment.h",
+      "sha256": "eee2104f1789ef2f7c4902b2c33fb63be49414e931ccc265426dc2cb0abe3f55"
+    },
+    {
+      "path": "reader_insertion_condition.h",
+      "sha256": "1d91502a72cc9ff92d2b70bee48cebcca0cf0f88f1a9ef95e7b3c0f4cba38eab"
+    },
+    {
+      "path": "reader_insertion_condition_fixture.cpp",
+      "sha256": "a51aac61392fc00b547e026d93972b4b1d9b7829f14c179ce2e95f858ca51ec7"
+    },
+    {
+      "path": "reader_insertion_condition_test.sh",
+      "sha256": "4f559e7f56fc5a6ee07c827ba6d695e093af741782ec431e5ba110333f2b0fb4"
+    },
+    {
+      "path": "reader_insertion_forward_decision.h",
+      "sha256": "fcc5de1a03aed9cbc657136f6ec5db03e8869256b063064b28c9a43013090cc0"
+    },
+    {
+      "path": "reader_insertion_guard_entry.h",
+      "sha256": "0e47bfe50e02f068e8201f3610c321ba7639c7be344c44c101087f3e335705d3"
+    },
+    {
+      "path": "reader_insertion_guard_hooks.h",
+      "sha256": "3031e5f793ba0331c55992e85f0a56394edb5cecfdca155efaa0ba1e21c62a4f"
+    },
+    {
+      "path": "reader_insertion_guard_native_profile.cpp",
+      "sha256": "8718be8a8d2587dc06cd3cef37bd556e49e9b33ca248b3d33ecbc395c698fcce"
+    },
+    {
+      "path": "reader_insertion_guard_native_profile.h",
+      "sha256": "55f726894b4a645e20683afbf4d57c0c1b5174bdedfbb4055fede2496fdd77c1"
+    },
+    {
+      "path": "reader_insertion_guard_predicate.h",
+      "sha256": "27fa7882a445c650f38d3b1be670661c5600c4e8ea1742654d029f61c274416a"
+    },
+    {
+      "path": "reader_insertion_guard_predicate_fixture.cpp",
+      "sha256": "31109acdb7f01320464c8242299bd0dff530c9d6106428afe1857df0266b0a0d"
+    },
+    {
+      "path": "reader_insertion_guard_predicate_test.sh",
+      "sha256": "84bcdb2febb2a4c2ad3a34657c2698d80ae668a0ecc40efb01e3d9a4d2f48d19"
+    },
+    {
+      "path": "reader_insertion_job_snapshot.h",
+      "sha256": "6e3ca83d048c7f87e0464a99bb9d1e28da149e9b43b01953178c22ca921f82ca"
+    },
+    {
+      "path": "reader_insertion_mutex_probe.h",
+      "sha256": "ced87749608327cf01e70f8196bbef994ee7386bd78a1ff2241729acbaa818b3"
+    },
+    {
+      "path": "reader_insertion_post_order.h",
+      "sha256": "a7ee264c3794ce0123c206d505b1d134ebe983d48b8673586307efd50ccf2eb3"
+    },
+    {
+      "path": "reader_insertion_post_order_fixture.cpp",
+      "sha256": "a0151e8fde50734b90d954c82d09f97898efa33e464e6270ad7385854dec63ab"
+    },
+    {
+      "path": "reader_insertion_post_order_test.sh",
+      "sha256": "8e352fcd7b9aa0a17a3aa539290dbb142520e7f84d8c30ba336e222be00c0f73"
+    },
+    {
+      "path": "reader_insertion_target_acquisition.h",
+      "sha256": "3a6ad803091e5e32102bc79a1fc9281c4e6a0fd4dbc45ad5af7d2d0e56972aaf"
+    },
+    {
+      "path": "reader_joined_creation_witness.h",
+      "sha256": "2bb184593417e5e88576b8e5838826582bd638b75cbe5b2a83be36208041e8be"
+    },
+    {
+      "path": "reader_native_worker_bridge.h",
+      "sha256": "81905c0a94082d626c3bd7d6a1cafceb188d4dec67a933193204d2937e387738"
+    },
+    {
+      "path": "reader_request_scope.h",
+      "sha256": "86c2e98a0fba62bfb98e6def0e00aa78205902fd1ad5a0a5456bf109d082eaca"
+    },
+    {
+      "path": "reader_selected_view_probe.h",
+      "sha256": "34b5260bd99361f1d1095a460f85ba17a83717ce87a7668378949563beb643a2"
+    },
+    {
+      "path": "reader_worker_callback_witness.h",
+      "sha256": "9b39f583e7c32f8f9bd5b26aec7655dc3166a4c72e78c8bbd973b038302cfe73"
+    }
+  ]
+}

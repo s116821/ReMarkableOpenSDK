@@ -85,3 +85,33 @@ error; using the existing verified registry cache offline allowed the socket
 test to pass. Local Windows Clippy passes; the Linux test image lacks Clippy,
 so Linux lint remains the configured hosted CI gate. These are retained setup
 results, not passing checks or changes to audit policy.
+
+The complete hosted pipeline subsequently passed for transport commit
+`9dbdd7ad6f8754ad2a3032e72b5a4be7c43f4251`, including Linux checks, Windows
+staging, build, integration, uploader qualification and loopback fixtures:
+[run 40126510550](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40126510550).
+That run does not validate the later native-source increment below.
+
+## Native observation source checkpoint
+
+The exact handoff's conditional predicate and native/QML witnesses are imported
+with original blob hashes. The full-order adaptation passes 308 owned assertions
+on host Qt with ASan/UBSan and ARM Qt 6.10.3 under QEMU. Coverage includes 1–17
+pages, malformed identity, duplicate/reordered IDs, inverse-map faults, guard
+loss at every getter, nested reentry, wrapper deletion and foreign engines.
+The production read-only backend compiles on both toolchains; the actual private
+native profile compiles for ARM against the retained reviewed Dobby headers.
+Neither compile check loads the adapter or calls the native profile.
+
+The imported insertion condition passes 105 owned scenarios / 547 assertions on
+host sanitizers and ARM/QEMU. The predicate fixture passes 203 assertions on the
+host, with zero native calls. The initial new order-fixture compile failure was
+fixed and retained separately; only the subsequent successful runs support this
+checkpoint. The insertion predicate's production mechanism is unchanged.
+
+Independent source review found no blocking issue in the new order observer or
+read-only backend. The separate lifetime design review found that general GUI
+last-owner release remains unqualified, and requires generation-bound Core APIs
+and exact submitted-Task retirement before reuse. No reusable mutation is enabled.
+The host/ARM fixtures are source/build evidence; actual native dispatch,
+reclamation, consumer integration and the product acceptance matrix remain open.

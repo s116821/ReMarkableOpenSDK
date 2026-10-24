@@ -130,6 +130,41 @@ requirements. The production adapter must not retain one new leaked native owner
 per conversation or unload itself to end a conversation. Until callback ownership
 and bounded reclamation are connected and tested, mutation remains unavailable.
 
+### Exact-profile source integration
+
+Import the measured Reader/QML/native mechanisms from research revision
+`05af65656e07c939349c9a10419ba94cd8b7457e`, retaining the original Git-blob
+hashes separately from SDK adaptations. The new order observer executes only
+inside the original selected-Reader join's guarded callback. It verifies actual
+typed document identity, both page mappings, uniqueness and two matching complete
+orders. Its current 17-page envelope preserves the measured diagnostic bound;
+broader support remains a qualification task. Results contain only historical
+wire facts. Reconciliation rejects a different document and reports presence of
+the original target without authorizing another mutation.
+
+The read-only backend requires exact-loader facilities, an active endpoint lease
+and the live focused Reader window/engine. No borrowed native pointer, QVariant
+or guard crosses the synchronous callback. Source compilation and owned models
+do not qualify actual native dispatch. Bootstrap admission remains separate.
+
+Independent lifetime review rejects using matching job completion plus zero
+active outer-hook entries as a general native-release barrier. Completion
+precedes remaining native command cleanup. Last Worker-owner release on GUI can
+enter a thread wait; Document destruction has additional command-six waits with
+unresolved GUI dependencies. A single successful historical release does not
+settle that graph. A production release policy needs stronger evidence before
+mutation activation.
+
+Reusable Core registration must bind cancellation, snapshots and retirement to
+an opaque original generation. A stale Coordinator must never cancel the next
+request. Registry locks must not cover native release or reentrant destruction.
+Physical retirement must cover the exact once-submitted Task's future invocation
+possibility as well as currently active stacks; clearing a record must not turn
+a late formerly guarded call into ordinary unguarded forwarding. Any unknown
+physical mutation retains the bounded mutation slot while independent read-only
+observations remain possible. This is a design requirement, not implemented or
+native-qualified reclamation.
+
 ## Verification and rollout
 
 Exercise real encoders/decoders with fragmented frames, invalid lengths and

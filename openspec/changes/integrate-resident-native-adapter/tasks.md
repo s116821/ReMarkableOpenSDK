@@ -13,7 +13,10 @@
   - [x] 2.1a Implement bounded Linux/Qt framing, owner/peer process checks, fresh server nonce and socket-incarnation/deadline guards.
   - [ ] 2.1b Bind the endpoint to independently verified profile/executable/adapter artifacts in the native bootstrap.
 - [ ] 2.2 Integrate the measured Reader ownership observation and execution-side insertion predicate with unchanged native Task bookkeeping.
+  - [x] 2.2a Import the exact handoff mechanisms with original Git-blob provenance; add guarded full-order observation and Observe/Reconcile backend source with host/ARM owned coverage.
+  - [ ] 2.2b Connect and qualify actual native observation through the admitted resident bootstrap; integrate conditional insertion with its original Task bookkeeping.
 - [ ] 2.3 Implement separately verified physical callback completion and bounded owner reclamation, including canceled/late/nested delivery and repeated operations in one process.
+  - [ ] 2.3a Resolve safe native last-owner release separately from adapter-stack quiescence; bind all reusable registration APIs to their original generation and exact submitted Task lifecycle.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery
