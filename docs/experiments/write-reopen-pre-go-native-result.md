@@ -6,6 +6,11 @@ initially active Buddy service. All 26 original files and the full 12-page order
 remained unchanged. No target ink, close/reopen result or input qualification
 follows from this attempt.
 
+Later result: the [fresh-image writer](fixed-pen-spawn-owned-result.md) has
+passed host/owned regressions and a separate native one-thread profile plus
+owned-file process suite. Those checks do not change this failed trial or
+establish native writing and persistence.
+
 ## Exact trial and observed order
 
 The spent nonce is 20e93dbdabd64527a25d0e491b68535b. Source was committed

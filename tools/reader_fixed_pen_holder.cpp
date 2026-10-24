@@ -1,7 +1,8 @@
-// ARM-only, fixed research writer. No QCoreApplication or threads before fork.
+// ARM-only fixed research holder. Qt parent may have library-owned threads;
+// the mandatory writer backend executes a separately pinned Qt-free image.
 #include "reader_fixed_pen_holder_wire.h"
+#include "reader_fixed_pen_spawn.h"
 #include <QCryptographicHash>
-#include <dirent.h>
 #include <linux/input.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -51,11 +52,6 @@ QByteArray proc(const QByteArray&path,int cap=4096) {
     QByteArray bytes(cap+1,0);const auto n=::read(fd.value,bytes.data(),std::size_t(bytes.size()));
     if(n<1||n>cap||!fd.close())return {};
     bytes.resize(int(n));return bytes;
-}
-bool singleThreaded()noexcept {
-    DIR*d=::opendir("/proc/self/task");if(!d)return false;unsigned count=0;errno=0;
-    while(const auto*e=::readdir(d))if(e->d_name[0]!='.')++count;
-    const int error=errno;return ::closedir(d)==0&&!error&&count==1;
 }
 struct Control {
     Fd fd;QByteArray bytes;struct stat stat{};const char*name=nullptr;
@@ -170,7 +166,7 @@ bool query(int fd,Snapshot&out)noexcept {
 }
 class NativeIO {
 public:
-    explicit NativeIO(Context&context):context_(context){}
+    NativeIO(Context&context,reader_fixed_pen_spawn::Image&writer):context_(context),image_(writer){}
     ~NativeIO(){for(int*fd:{&observer_,&writer_,&recovery_,&trace_})if(*fd>=0)::close(*fd);}
     bool prepare() {
         observer_=::open(Device,O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
@@ -182,7 +178,6 @@ public:
     }
     std::uint64_t nowMs()const noexcept{return milliseconds();}
     bool context()const{return context_.context();}
-    bool childAllowed()const noexcept{return true;} // Parent cancellation pipe + original clock gate every child frame.
     bool snapshot(Snapshot&s)noexcept {if(!identityValid()||!query(observer_,s))return false;last_=s;if(!haveInitial_){initial_=s;haveInitial_=true;}return true;}
     bool releasedState()noexcept {Snapshot s{};return snapshot(s)&&reader_fixed_pen_stream::same(s,initial_)&&reader_fixed_pen_stream::released(s);}
     bool identityValid()noexcept {
@@ -197,11 +192,11 @@ public:
         Snapshot ignored{};identity_=query(observer_,ignored)&&(!snapshotMatch_||reader_fixed_pen_stream::same(ignored,last_));return identity_;
     }
     bool observerEmpty()const noexcept {pollfd p{observer_,POLLIN,0};return ::poll(&p,1,0)==0;}
-    bool afterForkChild()noexcept {
-        bool ok=closeFd(observer_);ok=closeFd(recovery_)&&ok;ok=closeFd(trace_)&&ok;return context_.closeAll()&&ok;
+    pid_t spawnChild(int start,int cancel,int report,pid_t parent,const reader_fixed_pen::Budget&budget)noexcept {
+        if(!identityValid()||!context())return -1;
+        return image_.spawn(writer_,start,cancel,report,parent,budget,device_);
     }
-    bool afterForkParent()noexcept{parentWriterClosed_=closeFd(writer_);return parentWriterClosed_&&singleThreaded();}
-    reader_fixed_pen::Write emitWriter(const Event*e,std::size_t n)noexcept{return emitRecords(writer_,e,n);}
+    bool afterForkParent()noexcept{parentWriterClosed_=closeFd(writer_);return parentWriterClosed_&&image_.postSpawnOkay();}
     reader_fixed_pen::Write emitRecovery(const Event*e,std::size_t n)noexcept{return emitRecords(recovery_,e,n);}
     bool observe(Stream&stream)noexcept {
         std::array<input_event,256> events{};const ssize_t n=::read(observer_,events.data(),sizeof events);
@@ -263,7 +258,7 @@ private:
         errno=0;const auto n=::write(fd,records.data(),count*sizeof(input_event));return {n,n<0?errno:0};
     }
     bool poison()noexcept{rawGood_=false;return false;}
-    Context&context_;int observer_=-1,writer_=-1,recovery_=-1,trace_=-1;struct stat device_{};
+    Context&context_;reader_fixed_pen_spawn::Image&image_;int observer_=-1,writer_=-1,recovery_=-1,trace_=-1;struct stat device_{};
     Snapshot initial_{},last_{};bool haveInitial_=false,identity_=false,rawGood_=true,quiet_=false,snapshotMatch_=false,deviceClosed_=false,traceClosed_=false,parentWriterClosed_=false;
     std::uint64_t traceBytes_=0,lastRead_=0;Evidence evidence_{};
 };
@@ -276,21 +271,23 @@ int main(int argc,char**argv) {
     if(!nonce(binding.nonce)||!boot(binding.boot)||!number(argv[3],binding.candidatePid)||binding.candidatePid>std::uint64_t(std::numeric_limits<pid_t>::max())||
        !number(argv[4],binding.candidateStart)||!number(argv[6],binding.setupEnd))return failure();
     const auto at=milliseconds();const auto group=proc("/proc/self/cgroup");
-    if(!at||binding.setupEnd<=at||binding.setupEnd-at>90000||group.isEmpty()||group.contains("xochitl")||!singleThreaded())return failure();
+    if(!at||binding.setupEnd<=at||binding.setupEnd-at>90000||group.isEmpty()||group.contains("xochitl"))return failure();
     struct sigaction ignore{};ignore.sa_handler=SIG_IGN;if(::sigemptyset(&ignore.sa_mask)||::sigaction(SIGPIPE,&ignore,nullptr))return failure();
     struct sigaction childDisposition{};childDisposition.sa_handler=SIG_DFL;
     if(::sigemptyset(&childDisposition.sa_mask)||::sigaction(SIGCHLD,&childDisposition,nullptr))return failure();
     binding.holderPid=std::uint64_t(::getpid());binding.holderStart=detail::processStart(::getpid());if(!binding.holderStart)return failure();
     Context context(binding);if(!context.start())return failure();
+    auto writer=reader_fixed_pen_spawn::Image::open(context.root(),binding.holderStart);if(!writer||!context.context())return failure();
     const auto ready=binding.nonce+' '+QByteArray::number(binding.candidatePid)+' '+QByteArray::number(binding.candidateStart)+' '+binding.boot+' '+
         QByteArray::number(binding.holderPid)+' '+QByteArray::number(binding.holderStart)+' '+QByteArray::number(binding.setupEnd)+'\n';
     if(!context.claim(ready))return failure();
-    NativeIO io(context);Result result;
+    NativeIO io(context,*writer);Result result;
+    static_assert(detail::HasSpawn<NativeIO>::value,"Native holder must never use the owned fork fallback");
     if(!io.prepare()){io.finish();result.refusal="device-profile";result.finishedMs=milliseconds();result.deviceFdsClosed=io.deviceFdsClosed();result.traceClosed=io.traceClosed();}
     else if(!context.publish("pen-holder.ready",".pending-pen-ready",ready,false))return failure();
     else {
         int go=0;while((go=context.takeGo())==0){pollfd none{};if(::poll(&none,0,2)<0)break;}
-        if(go==1&&singleThreaded())result=run(io,reader_fixed_pen::reserve(binding.beganMs));
+        if(go==1)result=run(io,reader_fixed_pen::reserve(binding.beganMs));
         else {io.finish();result.refusal="go-admission";result.finishedMs=milliseconds();result.deviceFdsClosed=io.deviceFdsClosed();result.traceClosed=io.traceClosed();}
     }
     QByteArray bytes;

@@ -46,6 +46,13 @@ has three threads even while its file/process controls pass; do not model every
 Qt-linked helper as single-threaded or promote the proposed spawn replacement
 to native qualification. Neither result updates the Buddy simulator itself.
 
+The [fresh writer and native owned-file checks](../experiments/fixed-pen-spawn-owned-result.md)
+subsequently qualify the process arrangement: a one-thread production image and
+actual ARM spawn/descriptor/status behavior using owned files. Preserve that
+boundary separately from input-device delivery, rendered ink and durable reopen.
+The unchanged original-byte consumer and historical fork regressions still pass;
+these focused fixtures do not implement the integrated Buddy simulator.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

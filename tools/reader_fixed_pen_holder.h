@@ -1,7 +1,8 @@
 #pragma once
 // Research composition: real child/pipe lifecycle, caller-supplied device IO.
-// Single-threaded/fork-safe caller with SIGPIPE ignored required. IO methods do
-// not throw/reenter. No Qt, heap or logging in child. SIGCHLD must be SIG_DFL,
+// Default fork path requires a single-threaded/fork-safe caller. Native IO must
+// provide spawnChild for a fresh plain writer image. SIGPIPE ignored; IO methods
+// do not throw/reenter. No Qt, heap or logging in child. SIGCHLD must be SIG_DFL,
 // and no signal handler/thread/other caller may reap this holder-owned child.
 #pragma push_macro("emit")
 #undef emit
@@ -11,6 +12,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
+#include <utility>
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
@@ -32,6 +35,9 @@ struct Result {
     reader_fixed_pen_stream::Report stream{};Snapshot initialSnapshot{},snapshot{};
 };
 namespace detail {
+template<class IO,class=void>struct HasSpawn:std::false_type{};
+template<class IO>struct HasSpawn<IO,std::void_t<decltype(std::declval<IO&>().spawnChild(
+    0,0,0,pid_t{},std::declval<const reader_fixed_pen::Budget&>()))>>:std::true_type{};
 struct Fd {
     int value=-1;bool closed=true;
     Fd()=default;explicit Fd(int fd):value(fd),closed(fd<0){}
@@ -132,11 +138,19 @@ template<class IO>Result run(IO&io,const reader_fixed_pen::Budget&budget)noexcep
     detail::Fd cancelRead(cp[0]),cancelWrite(cp[1]);
     if(::pipe2(rp,O_CLOEXEC|O_NONBLOCK))return finish("result-pipe");
     detail::Fd resultRead(rp[0]),resultWrite(rp[1]);
-    const pid_t parent=::getpid();r.childPid=::fork();
-    if(r.childPid<0){r.childPid=0;return finish("fork");}
-    if(!r.childPid) {
-        if(!startWrite.close()||!cancelWrite.close()||!resultRead.close())::_exit(109);
-        detail::child(io,startRead.value,cancelRead.value,resultWrite.value,parent,budget);
+    const pid_t parent=::getpid();
+    if constexpr(detail::HasSpawn<IO>::value) {
+        // No fallback to application code in a fork of a Qt parent.
+        r.childPid=io.spawnChild(startRead.value,cancelRead.value,resultWrite.value,parent,budget);
+        if(r.childPid<=0){r.childPid=0;return finish("spawn");}
+    }else{
+        // Historical owned single-threaded fixture boundary, unchanged.
+        r.childPid=::fork();
+        if(r.childPid<0){r.childPid=0;return finish("fork");}
+        if(!r.childPid) {
+            if(!startWrite.close()||!cancelWrite.close()||!resultRead.close())::_exit(109);
+            detail::child(io,startRead.value,cancelRead.value,resultWrite.value,parent,budget);
+        }
     }
     bool ipcGood=startRead.close();ipcGood=cancelRead.close()&&ipcGood;ipcGood=resultWrite.close()&&ipcGood;
     const bool parentReady=io.afterForkParent();r.childStart=detail::processStart(r.childPid);

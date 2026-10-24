@@ -13,7 +13,7 @@ case "$mode" in
 esac
 $compiler --version > "$out/compiler.txt"
 pkg-config --modversion Qt6Core >> "$out/compiler.txt"
-sha256sum "$src"/reader_fixed_stroke_policy.h "$src"/reader_fixed_pen_stream.h "$src"/reader_fixed_pen_holder.h "$src"/reader_fixed_pen_holder_wire.h "$src"/reader_fixed_pen_holder.cpp "$src"/reader_fixed_pen_holder_fixture.cpp "$src"/reader_fixed_pen_holder_test.sh > "$out/input-hashes.txt"
+sha256sum "$src"/reader_fixed_stroke_policy.h "$src"/reader_fixed_pen_stream.h "$src"/reader_fixed_pen_holder.h "$src"/reader_fixed_pen_holder_wire.h "$src"/reader_fixed_pen_spawn.h "$src"/reader_fixed_pen_holder.cpp "$src"/reader_fixed_pen_holder_fixture.cpp "$src"/reader_fixed_pen_holder_test.sh > "$out/input-hashes.txt"
 cat > "$out/reverse-include.cpp" <<'CPP'
 #include <QJsonDocument>
 #include "reader_fixed_pen_holder.h"

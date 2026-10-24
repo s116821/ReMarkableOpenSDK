@@ -7,6 +7,11 @@ valid CLI request, native event IO or tablet stroke is qualified by this report.
 The separate [native read-only profile](pen-device-readonly-native-result.md)
 does not fill those gaps.
 
+Later result: the [fresh-image successor](fixed-pen-spawn-owned-result.md)
+replaces the native parent's fork route and records actual native owned-file
+process checks. The original fork results and hashes below remain historical;
+neither report alone qualifies input-device delivery or target ink.
+
 ## Ownership and original deadlines
 
 [The holder core](../../tools/reader_fixed_pen_holder.h) forks one owned child,

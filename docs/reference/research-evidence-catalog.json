@@ -221,23 +221,50 @@
     {
       "path": "docs/experiments/fixed-pen-holder-owned-result.md",
       "title": "Fixed pen holder, handoff and original-byte consumer",
-      "lf_utf8_sha256": "6ec00db2b6223a118c99cd7e41359d074e963dcf30770b83aa44d81eb80ec818",
+      "lf_utf8_sha256": "801992e2eb48470173a2a0115c1dcbd113a148eb53f58a50edd89f32cecd5a1a",
       "headings": [
         {
           "line": 1,
           "heading": "Fixed pen holder, handoff and original-byte consumer"
         },
         {
-          "line": 10,
+          "line": 15,
           "heading": "Ownership and original deadlines"
         },
         {
-          "line": 39,
+          "line": 44,
           "heading": "Positive result means a conjunction"
         },
         {
-          "line": 67,
+          "line": 72,
           "heading": "Reproduction and exact evidence"
+        }
+      ]
+    },
+    {
+      "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
+      "title": "Fresh fixed-writer image and native owned-file process qualification",
+      "lf_utf8_sha256": "dd16982edf5f74d85f373ffe562f041c44cd28fe997894974ed82d823a212e57",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Fresh fixed-writer image and native owned-file process qualification"
+        },
+        {
+          "line": 14,
+          "heading": "Mechanism and preserved boundaries"
+        },
+        {
+          "line": 43,
+          "heading": "Recorded results"
+        },
+        {
+          "line": 85,
+          "heading": "Reproduction and evidence"
+        },
+        {
+          "line": 126,
+          "heading": "Simulator calibration and remaining native work"
         }
       ]
     },
@@ -933,7 +960,7 @@
     {
       "path": "docs/experiments/README.md",
       "title": "Experiment tools and findings",
-      "lf_utf8_sha256": "e4d9316ef1bc56857f05d5fbc186a712d3ddbed4e51e4ba20499d257d22b76a9",
+      "lf_utf8_sha256": "5996fc92b5fd35cbabb311917b1889a042514bdbce1aec92054c1bd44012c968",
       "headings": [
         {
           "line": 1,
@@ -1233,26 +1260,26 @@
     {
       "path": "docs/experiments/write-reopen-pre-go-native-result.md",
       "title": "Pre-GO native write/reopen refusal and startup repair",
-      "lf_utf8_sha256": "d6e6a1b787858e963860bb35eff4dc5db6c1917e15b3a97e1a9ae35b92e7081c",
+      "lf_utf8_sha256": "d6b074df51cf77c62eda305e9b4e6d9e2098f4bb1bc74debbc9925a0a781a6eb",
       "headings": [
         {
           "line": 1,
           "heading": "Pre-GO native write/reopen refusal and startup repair"
         },
         {
-          "line": 9,
+          "line": 14,
           "heading": "Exact trial and observed order"
         },
         {
-          "line": 45,
+          "line": 50,
           "heading": "Reproduced source defect and repair"
         },
         {
-          "line": 80,
+          "line": 85,
           "heading": "Separate native thread counterexample"
         },
         {
-          "line": 104,
+          "line": 109,
           "heading": "Evidence and limits"
         }
       ]
@@ -1412,7 +1439,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "7a7be993f4237cc7fabf9347ea6e8c8d2612de8bee04ab81adb82776a3b44623",
+      "lf_utf8_sha256": "3610f6c62740451d4abf36be40737e9a3f5ba931843f449fde520ecdd7adb3a4",
       "headings": [
         {
           "line": 1,
@@ -1427,11 +1454,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 55,
+          "line": 62,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 75,
+          "line": 82,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -5630,7 +5657,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "3a6bd47cc80473f501b8514843514ca97ea497f1fce3f423f3edb2b490df212b",
+      "lf_utf8_sha256": "c529dae0d7854bf670389efd9081f7d1c375f67d35e3677be94bec39ae219b0d",
       "headings": [
         {
           "line": 1,
