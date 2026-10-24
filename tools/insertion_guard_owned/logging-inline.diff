@@ -1,0 +1,5 @@
+--- pristine/external/logging/logging/logging.h
++++ owned-build-overlay/external/logging/logging/logging.h
+@@ -140 +140 @@
+-Logger *Logger::Shared() {
++inline Logger *Logger::Shared() {

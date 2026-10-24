@@ -1,0 +1,180 @@
+# Tablet simulator: evidence and fidelity map
+
+October 23, 2026. This is a searchable handoff over existing findings, not a new
+copy of their results or a claim of a complete tablet emulator. Findings remain
+in their linked reports; implementation progress belongs to the owning task/PR.
+The current native profile is RM2 firmware 3.28.0.172 and the exact recorded
+xochitl/Qt build. Another model/firmware needs its own calibration.
+
+## Start here
+
+1. [SDK knowledge index](../README.md) groups the accepted research and experiment
+   reports. [Research](../research/) includes mechanisms and remaining unknowns;
+   [experiments](../experiments/) preserves successful and failed observations.
+2. The [complete derived catalog](research-evidence-catalog.json) lists **every**
+   Markdown file under SDK `docs/` and `openspec/`, including archived changes,
+   with path, heading/line navigation and LF-normalized source digest. It adds no
+   success/coverage classification. It covers the versioned SDK knowledge corpus,
+   not private tablet documents, raw binaries or every ecosystem repository.
+3. Run `python tools/research_evidence_catalog.py --query "pageAdded"` for literal
+   full-text discovery without an external search service. Other useful queries:
+   `remembered`, `lexical`, `reconciliation`, `deadline`, `callback`, `retirement`,
+   `tile`, `restore`, `pen`, and `unknown`. Use `rg -n -i "term" docs openspec`
+   for exact source lines. Regenerate with `--write`; verify with `--check`.
+4. Follow dated later-result pointers. Do not read an old "open" paragraph as
+   the latest disposition, or turn a later pass into a pass for an earlier failure.
+   Exact private evidence locations/hashes remain with their owning investigation;
+   do not export user page images, credentials, vendor binaries or core dumps.
+
+## Three existing layers, with different purposes
+
+Latest owned composition pointers: [holder/original-byte replay](../experiments/fixed-pen-holder-owned-result.md),
+[queued sequence and capture retirement](../experiments/write-reopen-sequence-owned-result.md),
+and [private-file backend/startup](../experiments/write-reopen-file-backend-owned-result.md).
+These add focused Qt, FIFO and real-file regressions. They do not implement the
+Buddy simulator's native navigation/close/device/actor behavior. Preserve the
+wrong-holder cancellation and final-context-loss transitions in future integrated
+scenarios; an accepted unbound result must neither advance nor suppress recovery.
+
+The [pre-GO native refusal](../experiments/write-reopen-pre-go-native-result.md)
+adds actual holder-first failure, later revoked-admission Qt abort, conservative
+Buddy withholding and separate no-GO reconciliation with all26 files unchanged.
+The exact-source startup regression covers16 owned cases per host/ARM/sanitizer;
+old source reproduces11 aborts and fixed source none. Preserve these distinct
+transitions in future integrated scenarios. A subsequent read-only native helper
+has three threads even while its file/process controls pass; do not model every
+Qt-linked helper as single-threaded or promote the proposed spawn replacement
+to native qualification. Neither result updates the Buddy simulator itself.
+
+The [fresh writer and native owned-file checks](../experiments/fixed-pen-spawn-owned-result.md)
+subsequently qualify the process arrangement: a one-thread production image and
+actual ARM spawn/descriptor/status behavior using owned files. Preserve that
+boundary separately from input-device delivery, rendered ink and durable reopen.
+The unchanged original-byte consumer and historical fork regressions still pass;
+these focused fixtures do not implement the integrated Buddy simulator.
+Its later composed admission also preserves a ready holder followed by no GO,
+zero input, pre-GO cancellation/refusal, conservative Buddy withholding and
+separate no-GO restoration. Preserve that failure path independently of pen-up
+or a successful write, and retain the unresolved application readiness predicate.
+The later no-input diagnostic proves holder acceptance and live matching
+cgroups before UI composition, while shutdown cancellation overwrites the
+preceding refusal. Its bounded distinct-reason history regression preserves
+pending/repeated/cancellation ordering. A fresh no-input run then preserves
+composition/deadline before composition/canceled: the preceding inspection
+exhausted its one-second budget. Model this as a distinct failure from missing
+objects or a failed ownership/route check. Source suggests repeated control IO
+and traversal costs; their separate native costs and a successful alternative
+remain unmeasured. Echoed planned document/page fields in a negative result do
+not establish a displayed page identity.
+
+The same report's later full-window native sample now completes the guarded
+composition lookup. Calibrate cold-start delay and expensive guarded traversal
+separately from loaded UI availability; a short host poll must not consume the
+candidate window before startup. Retain the distinction between composition
+readiness and current-page/capture/write/save authority. Exact native costs and
+original-window host counterexamples are indexed in the report; they are not
+portable timing guarantees or integrated Buddy simulator coverage.
+
+The [intended-target native write/readback report](../experiments/intended-target-native-write-readback.md)
+now supplies actual write/observed-stream, release, image and partial-sequence
+calibration. Preserve filtered event counts, one contact interval, independent
+release, successful close and an expired final capture as separate outcomes.
+Its separate fresh capture-only readback now observes the stored stroke after
+restoration with exact identity brackets and no repeated input. Model this as
+reconciliation, without changing the expired original sequence into success.
+All26 stored files stayed identical during readback; rendered support differed
+by four stroke pixels. Preserve storage, image correspondence and whole-frame
+equality as distinct facts. Also retain the conservative canceled-holder Buddy
+withholding followed by separately justified no-GO reconciliation. A negative
+IPC-closed flag before IPC creation is not a created-resource leak or pen release.
+These findings are searchable calibration pointers; integrated Buddy simulator
+coverage remains future work.
+
+The [setup-profile attempt and actual unit-helper regression](../experiments/write-reopen-setup-profile-owned-result.md#first-native-setup120-attempt-and-the-omitted-unit-context)
+add a distinct component-admission mismatch before holder readiness: the shell,
+holder, backend and collector accepted the new fixed setup span while another
+native C++ Context still refused it. No selected request/GO or input occurred;
+stock restoration, conservative Buddy withholding, separate no-input
+reconciliation and unchanged full fixture are distinct transitions. Future
+integrated models should represent component protocol/admission compatibility,
+instead of treating a loaded bridge or passed import audit as holder readiness.
+The actual Context/exec regression covers the repaired helper locally; it does
+not qualify another native run or implement the integrated simulator.
+
+The [later complete b339 native sequence](../experiments/combined-native-write-close-reopen-result.md)
+now supplies normal write/release/stock-close/reopen/storage calibration. Its
+remembered file selection stays6 while actual fresh native observations and
+stored new ink identify7. Model both this and the opposite insertion divergence;
+never derive active-page identity from remembered metadata. The original overly
+strict post receipt remains failed, with separate actual-preservation review.
+Identical images on different page IDs also require identity independent of
+content hashes. Four changed stroke pixels on reload remain a measured rendering
+limit, rather than a reason to require frame equality. Integrated Buddy simulator
+implementation and native failure coverage remain separately owned work.
+
+The [controlled native writer-death result](../experiments/controlled-writer-failure-native-result.md)
+adds a failure calibration: SIGKILL during contact, missing complete child message,
+unknown/contact-possible dispatch, partial kernel trace and positive independent
+release can coexist with unchanged stored document bytes. Preserve that uncertainty;
+unchanged storage does not authorize retry. Model stock restoration separately
+from Buddy restoration: the ordinary positive witness was absent, the actor
+withheld Buddy, and a fresh input-free reconciliation restored it only after
+release/preservation/gone-process/empty-unit proof. Kernel filtering yields28
+records/8frames versus the owned37records/9frames; do not require identical streams
+across those evidence layers. Neither is a completed normal stroke.
+
+| Layer | Existing entry points | What it establishes |
+| --- | --- | --- |
+| Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |
+| SDK synthetic contract model | [mock.rs](../../src/mock.rs), [model coverage inventory](model-task-coverage.md), `tests/capture.rs` | Already models identity scopes, lost replies/reconciliation, dispatch/execution races, navigation faults, and creation that either retains the source or selects the target. Synthetic receipts stay synthetic. Do not reimplement these as assumed gaps. |
+| Owned Qt/ARM fixtures | `tools/*_fixture.cpp`, corresponding test scripts and [experiment reports](../experiments/) | Exercise original owned QML/metaobjects, callback/thread/lifetime behavior, files and compiled ARM ABI. Native acquisition/hook effects may be explicitly modeled. These focused tests do not automatically update the Buddy simulator or reproduce vendor internals. |
+
+## Finding to model and coverage map
+
+The requested model behaviors below are engineering implications, not observed
+implementation. "Existing" refers only to the cited bounded coverage; integrated
+Buddy simulation is not inferred from a nearby SDK fixture.
+
+| Topic/search terms | Primary evidence | Existing model/control and remaining calibration |
+| --- | --- | --- |
+| Active versus remembered page, creation, `pageAdded`, Next | [Task/selection trace](../research/insertion-worker-turn-and-stock-selection.md), [conditional creation](../experiments/conditional-insertion-native-result.md), [actual target acquisition](../experiments/conditional-target-acquisition-native-result.md) | The SDK synthetic model already has retain-source/select-target choices. Preserve separate remembered and displayed selection plus explicit adjacent navigation in integration scenarios; do not make creation always select the new page. |
+| Current reference, lexical root, visible ownership, stale identity | [Current-reference discovery](../research/reader-current-reference-discovery.md), [scene wiring](../research/reader-scene-selection-wiring.md), [selected-page observation](../experiments/selected-reader-observation-result.md) | Owned discovery fixtures cover portions of selection/lifetime. Integrated simulator needs distinct infrastructure-ready, document-open, selected-current and rendered-ready states, including a missing/changed root and prefetched views. |
+| Worker enqueue, matching job, callback return, cancellation | [Worker contract](../research/native-worker-callback-contract.md), [worker delivery](../experiments/native-worker-callback-result.md), [resident retirement design](../../openspec/changes/establish-native-platform-contract/resident-request-retirement.md) | SDK models ambiguity; Qt witnesses exercise copied callbacks and queued completion. Model independent submit-return/callback/completion/observer-retirement transitions. Canceling an observer cannot undo a committed mutation or authorize duplicate creation. |
+| Request completion versus resource retirement, late callbacks, nested loops | [Resident read-only result](../experiments/resident-readonly-pair-result.md), [actual mutation Entry owned result](../experiments/resident-mutation-transport-owned-result.md), [one native mutation/readback](../experiments/resident-mutation-readback-native-result.md), [optional mutation scopes](../../openspec/changes/establish-native-platform-contract/mutation-request-retirement.md) | Fence/scope/coordinator/Entry fixtures exercise owned GUI stacks, QObjects, request descriptors, A cleanup then fresh read-only B under the original clock, and unresolved mutation refusal. One native idle-fixture A/B now matches that sequence; general repeated mutation and native-owner reclamation remain open. Integrated simulation must retain resident adapter lifetime while retiring per-request resources and rejecting stale generations. |
+| Insertion source/order race, target collision, unknown effect, duplicate avoidance | [Conditional controls](../experiments/conditional-insertion-owned-result.md), [actual creation](../experiments/conditional-insertion-native-result.md), [SDK ambiguity contract](../../openspec/changes/establish-native-platform-contract/specs/native-platform-contract/spec.md) | SDK already covers execution races, canceled/no-effect operations and lost-reply reconciliation. Add calibrated event sequences rather than weakening uncertainty into success or unconditional retry. Other-writer exclusion is still a native qualification gap. |
+| Loading/blank/useful pixels, image identity and physical freshness | [Useful native capture and distinct failed attempts](../experiments/identity-capture-native-result.md), [capture readback](../experiments/identity-capture-readback-owned-result.md), [frame applicability](../research/vendor-frame-signal-applicability.md) | Synthetic capture tests already reject stale owner/buffer/input. Add loading, toolbar-only/blank and useful-content fixtures with separate logical identity and pixel readiness. A valid PNG or frame signal is not proof of current content or physical panel freshness. |
+| Original deadline, slow transport, partial output and unknown collection | [Native capture collection protocol](../experiments/identity-capture-native-result.md), [original-byte readback](../experiments/identity-capture-readback-owned-result.md) | Dedicated collectors have owned refusal controls. Simulate work/transport cost against one monotonic absolute budget; complete-looking bytes plus timeout/post-check failure remain failed live collection. Recorded durations are samples, not universal timeout bounds. |
+| Native file persistence, PDF mapping, original ink and unknown fields | [Caller-selected writing/reopen](../experiments/caller-selected-insertion-result.md), [target acquisition/preservation](../experiments/conditional-target-acquisition-native-result.md), [ordinary close source boundary](../research/ordinary-reader-close-source-boundary.md) | Historical stroke/persistence and current creation/capture results are separate observations. Model deferred save/close/reopen and stable page IDs/order/PDF mapping. Stock QML close removes current/prefetched scene references before documentClosed; that signal is not a storage fence. Full intended-target write/reopen is still open. Use original synthetic documents, preserving unknown fields in contract tests. |
+| Pen coordinates, contact release, partial frames | [Gesture component](../experiments/rm2-portrait-gesture-component.md), [pen release and vendor ABI](../research/pen-event-release-boundary.md), [fixed-stroke owned controls](../experiments/fixed-stroke-release-owned-result.md), [read-only native profile](../experiments/pen-device-readonly-native-result.md), [owned stream validator](../experiments/fixed-pen-stream-owned-result.md) | Native ioctl profile now measures exact capabilities, ranges and two matching released snapshots; actual event framing/queue/recovery remain unmeasured. Plain policy covers one-use dispatch, partial writes, original clocks and serialized parent recovery. Stream controls permit unchanged-value filtering while refusing drops/repeated contact/partial final frames, and retain raw contact after failure/quota. Actual pipe/child controls do not qualify evdev release. Model dispatch/partial-write/release independently of drawing success; device-FD close or helper death must not synthesize proven pen-up. Full kernel/input-device behavior is outside the product harness. |
+| Document-close dispatch, UI closure and storage completion | [Stock source boundary](../research/ordinary-reader-close-source-boundary.md), [terminal owned helper](../experiments/ordinary-reader-close-owned-result.md), [fresh closed-composition controls](../experiments/closed-reader-view-owned-result.md) | Actual owned controls cover claim reuse, final metadata drift, deletion, overrun, lexical IDs and final-callout invalidation. Native joins/Loader providers are modeled. Missing/invisible/loading Reader is not automatically closed; require known synchronous Ready Loader, item, typed null document and unloaded/inactive conjunction. Simulate dispatch separately from closure, persisted file changes and fresh reopen; documentClosed must not automatically flush every model store. |
+| Activation, stock restore, process generation, shutdown fault | [Mechanism comparison](../research/runtime-mechanism-comparison.md), [shutdown comparison](../research/shutdown-entrypoint-comparison.md), [native capture recovery](../experiments/identity-capture-native-result.md) | Simulate explicit activation, expired generation, supervisor/adapter failure and independent recovery outcomes. A logical cleanup pass cannot model away the historical rendering invalid read, prove safe unload or imply a stock cold-boot qualification. |
+
+## Turning another finding into a simulator case
+
+For each new behavior, attach an exact public evidence/source revision and its
+model/firmware/profile; label native-observed, owned-only, inferred or unknown.
+Represent the observed event order and independently inject alternate schedules,
+late/doubled/lost messages and interruption boundaries. Preserve mismatches as
+regressions instead of adjusting expected output until a happy path passes.
+
+Prefer one scenario format shared by the same device-facing application boundary,
+with explicit capabilities and deterministic scheduling, rather than a second
+implementation of Buddy policy. Compare the trace's identities, dispatch counts,
+outcomes and preservation invariants to the original evidence. Use separate
+coverage columns for SDK contract tests, Qt fixtures, Buddy simulation and native
+calibration. A fixture pass must not fill the other columns automatically.
+
+Preserve abstraction boundaries: the Buddy simulator's intentional
+end-of-document `NoSuccessor` behavior does not become stock `moveForward()`'s
+possible page-creation branch. Test raw stock behavior at the adapter boundary;
+the higher-level logical navigation contract may deliberately refuse it.
+
+Prioritize creation/selection/persistence, unknown-effect reconciliation and
+resident request transitions first. Broader keyboard/Writer/conversation/UI and
+installation scenarios belong to the product owners and central product specs.
+Retain targeted real-device checks for rendering, input delivery, vendor
+ownership/ABI, recovery and new firmware even after broad isolated tests exist.
+
+Source basis: inspected current SDK source/reports and the pinned Buddy simulator
+checkpoint above. Proposed calibration work is explicitly prospective. This map
+and generated catalog preserve pointers; the linked findings remain authoritative.

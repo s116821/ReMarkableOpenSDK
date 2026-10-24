@@ -262,6 +262,13 @@ See [capture-order correspondence amendment](capture-order-correspondence.md) fo
 
 See [capture-order producer provenance](capture-order-provenance.md) for explicit version-4 semantics and compatibility with historical v3 evidence.
 
+## Resident request lifetime increment
+
+The [optional mutation request scope composition](mutation-request-retirement.md)
+extends the resident GUI lifetime fence through owned callback producers while
+keeping native owners resident and preserving the one-shot default path. It is
+an owned implementation/verification increment, not native A/B qualification.
+
 ## Passive visual association candidate
 
 Follow [the fixed SFTP method](passive-visual-sftp-method.md): exact image/GOT/type

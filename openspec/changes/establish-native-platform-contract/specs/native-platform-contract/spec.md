@@ -338,6 +338,14 @@ Production adapters SHALL preserve ordinary tablet startup/use with fail-closed 
 - **WHEN** an AArch64 artifact builds but no Paper Pro native acceptance evidence exists
 - **THEN** its native capabilities remain explicitly unqualified and it is not advertised as hardware-tested
 
+#### Scenario: Mutation completes while a producer stack remains active
+- **WHEN** a request reports completion from a coordinator, witness or JS producer that still holds reentrant locals or capture destruction
+- **THEN** terminal permission is revoked immediately, request cleanup and the next request wait for all tracked GUI scopes and cleanup to unwind, and native owners/code remain resident unless separately qualified for release
+
+#### Scenario: Mutation retires before a fresh observation
+- **WHEN** one mutation's request resources have retired and its effect still requires reconciliation
+- **THEN** a fresh read-only request may observe the unchanged admitted process/window/engine with a new source join, while another mutation remains blocked and no retry or native drain is implied
+
 #### Scenario: Native mechanism requires fragile boot changes
 - **WHEN** a candidate requires automatic cold-boot injection, persistent injection-enabling xochitl/preload/startup changes, configuration that recreates injection or crash loops across cold boots, or recovery dependent on the modified UI
 - **THEN** it is excluded from production regardless of successful research demonstrations
@@ -673,3 +681,86 @@ rules. It SHALL report sampled association only, with no native effect authority
 #### Scenario: Host observer times out
 - WHEN the independent host deadline expires during an SFTP operation
 - THEN only the owned host observer/session is terminated, and server-side cleanup or target continuity not independently established remains explicitly unknown.
+
+### Requirement: Conditional research target acquisition isolation
+
+The SDK research coordinator SHALL keep optional adjacent target acquisition
+default-off and separate from negative and conditional-only diagnostics, following
+[the acquisition design](../../conditional-target-acquisition.md). This experiment
+SHALL NOT advertise supported native, render or durable capability.
+
+#### Scenario: Admitted source needs one Next
+- **WHEN** pre-creation stock method metadata remains identical, the retained Reader/document/window/engine match, conditional creation has the complete matched forward/job evidence and full expected N+1 order, and source remains selected before the original deadline
+- **THEN** the coordinator consumes one navigation claim before one stock Next, ends the old source Sample at dispatch, and reports acquisition only after a separate fresh complete-order observation selects the ready target at source+1.
+
+#### Scenario: Target already selected
+- **WHEN** the complete correlated post-creation observation already selects the ready target
+- **THEN** acquisition records that state without issuing Next, while preserving the final Core, lifetime and deadline checks.
+
+#### Scenario: Unsupported metadata or uncertain continuation
+- **WHEN** metadata admission fails before creation, or dispatch/selection subsequently becomes uncertain, canceled, expired or inconsistent
+- **THEN** pre-creation refusal has no creation dispatch, and post-commit refusal preserves forward and reconciliation facts without retrying creation or navigation or reviving an invalid old epoch.
+
+### Requirement: Research identity-bracketed capture isolation
+
+The separate research capture helper SHALL follow [the capture design](../../identity-bracketed-capture.md), consume at most one shared grab claim, keep the existing sampled epoch intact and return only owned scalar facts. It SHALL NOT grant native, render or durable authority or change existing diagnostic modes.
+
+#### Scenario: Matching selected page around one image
+- **WHEN** the expected ready document/page is joined in the admitted window, the live borrowed guard survives one bounded grab of that exact window/root, and a distinct fresh join after unwind confirms the same owners and expected ready identity before the original deadline
+- **THEN** the helper may report sampled identity-bracketed image acquisition, without asserting useful/blank pixels, page coordinates or physical freshness.
+
+#### Scenario: Refused or ambiguous image
+- **WHEN** identity, ownership, thread, guard, epoch, deadline, reentry, claim or post-image validation fails
+- **THEN** no accepted image is reported, no old Sample guard escapes or is revived, no grab is retried, and any already-written image remains forensic only.
+
+### Requirement: Fixed research capture entry purpose
+
+The proposed capture Entry SHALL remain default-off and follow [the separate entry design](../../identity-capture-entry.md), with its original setup/operation clocks and a purpose-specific image/scalar publication admission. Existing modes and their wire contracts SHALL remain unchanged.
+
+#### Scenario: Helper returns before image-pair publication
+- **WHEN** the helper's borrowed Sample contexts have unwound and both image and scalar are ready for their separate commits
+- **THEN** the Entry freshly checks request/root/incarnation/cancellation/window context and both original deadlines at each commit, without invoking an expired Sample guard or reviving retired observation permission.
+
+#### Scenario: Partial, changed or expired pair
+- **WHEN** either commit, identity, quota, link, deadline or consumer full-decode validation fails
+- **THEN** no accepted pair is returned, original partial files remain forensic, and neither capture nor publication is retried.
+
+#### Scenario: Application begins quitting during publication
+- **WHEN** application shutdown is signaled after the capture request has become terminal but before image/scalar publication finishes
+- **THEN** shutdown suppression remains sticky, later publication checks refuse completion, and any pending or partially linked files remain forensic without retry.
+
+#### Scenario: Archived bytes pass local checks
+- **WHEN** a consumer validates an original closed scalar and matching fully decoded image within its fixed supported PNG profile
+- **THEN** it reports byte-pair validation only, leaves external private-file/request/process/restoration admission unverified, and grants no native, render, durable or atomic authority.
+
+### Requirement: Original research capture readback isolation
+
+The research file/process/frame consumer SHALL follow the [file readback](../../identity-capture-readback.md) and [separate process composition](../../identity-capture-process-readback.md), retaining original bytes and explicitly separating sampled file/process observations from full target/provider/operator admission and supported capability.
+
+#### Scenario: Copied permission leaves scope
+- **WHEN** the last owned permission copy can invoke user code during destruction after reads
+- **THEN** it is destroyed while descriptors and the reentry gate remain live, and final no-callout checks precede exposing bytes; no borrowed original callback is reused afterward.
+
+#### Scenario: Original absolute clock bounds
+- **WHEN** collection uses relative Entry scalar times and an original pre-publication boot-clock lower bound
+- **THEN** it invents no Entry epoch, uses conservative original request-plus30/candidate-window/collection limits without renewal, and requires separate external admission after helper unwind and whole-reader return.
+
+#### Scenario: Incomplete original frame or external evidence
+- **WHEN** framing, binding, byte validation, a deadline or any required external target/provider/process/recovery bracket fails
+- **THEN** no accepted composed native result follows, originals remain forensic and neither the request nor uncertain collection is automatically repeated.
+
+### Requirement: Research write-entry admission and writer process isolation
+
+The default-off write/reopen startup and [independent pen holder](../../fixed-pen-holder.md) SHALL validate input representation before slicing it, preserve original cancellation/deadline semantics, and keep native writer process startup distinct from owned fork evidence. This research requirement SHALL NOT advertise a supported native input capability.
+
+#### Scenario: Startup admission is revoked or identity is missing
+- **WHEN** an owner/claim/cancellation check fails, the deadline cannot be read, or self identity is empty or lacks its required newline
+- **THEN** startup refuses before slicing those bytes, without invoking a Qt assertion, publishing readiness or reviving a canceled request.
+
+#### Scenario: Qt parent has runtime-created threads
+- **WHEN** the native holder cannot satisfy a single-threaded prerequisite
+- **THEN** it does not merely remove that guard or fall back to the old fork route; a separately qualified mandatory spawn backend starts an exact pinned Qt-free writer image with only the designated descriptors, verifies writer/parent/original-budget identity, and retains the original one-GO, child-fencing and independent recovery semantics.
+
+#### Scenario: Startup readiness never arrives
+- **WHEN** a default-off composed trial waits for the matching holder or the legacy UI composition and then refuses, expires or is canceled
+- **THEN** its terminal refusal retains the last observed wait phase and the previous distinct bounded reason, so an ordinary shutdown cancellation or a repeated pending sample cannot erase the preceding composition failure, without promoting sampled diagnostics to current readiness, changing readiness conditions, publishing a request or renewing an original deadline.
