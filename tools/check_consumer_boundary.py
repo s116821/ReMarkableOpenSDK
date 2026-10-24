@@ -49,7 +49,7 @@ def main():
     if node["features"]:
         raise RuntimeError(f"SDK features leaked into consumer: {node['features']}")
     print(require_success(run(cargo, "run", *common, "--bin", "consumer")).strip())
-    for binary, module in [("forbidden-mock", "mock"), ("forbidden-development-capture", "development_capture")]:
+    for binary, module in [("forbidden-mock", "mock"), ("forbidden-development-capture", "development_capture"), ("forbidden-native-adapter", "native_adapter")]:
         result = run(cargo, "check", *common, "--bin", binary, "--message-format=json")
         errors = []
         for line in result.stdout.splitlines():

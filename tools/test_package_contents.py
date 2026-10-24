@@ -11,7 +11,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = {"src/lib.rs", "src/capture.rs", "src/evidence.rs", "src/mock.rs", "src/capabilities.rs", "src/development_capture.rs", "src/navigation.rs", "src/navigation/gesture.rs"}
+SOURCES = {"src/lib.rs", "src/capture.rs", "src/evidence.rs", "src/mock.rs", "src/capabilities.rs", "src/development_capture.rs", "src/navigation.rs", "src/navigation/gesture.rs", "src/native_adapter.rs"}
 REQUIRED = SOURCES | {"Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"}
 GENERATED = {"Cargo.toml.orig", ".cargo_vcs_info.json"}
 

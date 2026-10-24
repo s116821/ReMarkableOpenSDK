@@ -7,6 +7,8 @@ pub mod capture;
 #[cfg(feature = "development-capture")]
 pub mod development_capture;
 pub mod evidence;
+#[cfg(feature = "native-adapter")]
+pub mod native_adapter;
 pub mod navigation;
 
 #[cfg(any(test, feature = "mock"))]

@@ -4,6 +4,26 @@ Dependency-free persistent identity primitives: canonical nonnil `Uuid`, documen
 
 This unpublished Rust crate requires Rust 1.88. Source manifests omit a maintained project version; Git tags are the release authority. Cargo development metadata is not release identity.
 
+## Resident adapter integration
+
+The opt-in `native-adapter` feature supplies bounded binary framing, runtime and
+request correspondence, and historical Reader identity/order facts. It depends
+only on the already pinned SHA-256 library; default builds remain dependency-free.
+This is the control boundary under implementation, not a connected native executor.
+Enabling it does not activate xochitl or change `UnqualifiedPlatform` capabilities.
+
+Native facts have no fabricated content revision or input epoch and cannot become
+operational `PageObservation` guards. Insertion observations do not prove durable
+commit, current target selection or writing authority. Persist the original
+operation/source/target before dispatch. An uncertain mutation closes its session
+and retains that uncertainty across cleanup; reconnect only to reconcile it.
+The consumer journal and server enforce durable deduplication across connections;
+client sequence correlation alone does not implement that policy.
+
+Run `cargo test --locked --features native-adapter --test resident_protocol`.
+The [active integration design](openspec/changes/integrate-resident-native-adapter/design.md)
+tracks the endpoint, native lifetime, consumer and device acceptance still needed.
+
 Run `cargo test --locked` and `cargo clippy --locked --all-targets -- -D warnings`. Existing RM1 baseline/input tools retain their separate qualifications.
 
 ```rust

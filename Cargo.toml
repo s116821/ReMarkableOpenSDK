@@ -5,10 +5,11 @@ rust-version = "1.88"
 publish = false
 license = "GPL-3.0-only"
 description = "Persistent identity primitives for an experimental reMarkable SDK"
-include = ["/Cargo.toml", "/Cargo.lock", "/src/lib.rs", "/src/capture.rs", "/src/evidence.rs", "/src/mock.rs", "/src/capabilities.rs", "/src/development_capture.rs", "/src/navigation.rs", "/src/navigation/gesture.rs", "/THIRD_PARTY_NOTICES.md", "/LICENSE", "/README.md"]
+include = ["/Cargo.toml", "/Cargo.lock", "/src/lib.rs", "/src/capture.rs", "/src/evidence.rs", "/src/mock.rs", "/src/capabilities.rs", "/src/development_capture.rs", "/src/navigation.rs", "/src/navigation/gesture.rs", "/src/native_adapter.rs", "/THIRD_PARTY_NOTICES.md", "/LICENSE", "/README.md"]
 
 [features]
 default = []
+native-adapter = ["dep:sha2"]
 mock = ["dep:image", "dep:sha2"]
 development-capture = ["dep:image", "dep:sha2", "dep:serde", "dep:serde_json"]
 
