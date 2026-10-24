@@ -70,6 +70,22 @@ public:
     // Borrow only while the caller retains shared Files. Seal closes this FD;
     // neither a Sink nor the caller owns it, and it must not escape that scope.
     int imageFd() const { return imageFd_; }
+    // Cleanup only: revoke future operations and close our descriptors once.
+    // No arbitrary permission callout and no unlink of forensic artifacts.
+    Result retire() {
+        const auto self = shared_from_this(); Operation operation(*self);
+        Result result;
+        if (!operation.entered) return refused(result, "retire-reentered");
+        if (retireAttempt_) return refused(result, "retire-spent");
+        retireAttempt_ = true; revoked_.store(true); result.attempted = true;
+        bool closed = true;
+        for (int *owned : {&imageFd_, &imagePin_, &root_}) {
+            const int fd = std::exchange(*owned, -1);
+            if (fd >= 0 && ::close(fd)) closed = false;
+        }
+        if (!closed) return refused(result, "retire-close-unknown");
+        result.ok = true; return result;
+    }
     Result openImage(const Permit &inputPermit) {
         const auto self = shared_from_this(); Operation operation(*self);
         Result result;
@@ -230,6 +246,6 @@ private:
     struct stat rootStat_{}, openedStat_{}, sealedStat_{}, imageFinal_{}, finalStat_{};
     std::atomic<bool> busy_{false}, revoked_{false};
     bool opened_ = false, sealedAttempt_ = false, sealed_ = false, committedAttempt_ = false,
-        imageCommitted_ = false, scalarAttempt_ = false;
+        imageCommitted_ = false, scalarAttempt_ = false, retireAttempt_ = false;
 };
 } // namespace reader_capture_files

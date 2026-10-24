@@ -18,8 +18,13 @@ struct FixtureNavigation {
 };
 struct NavigationObservation {
     bool attempted = false, dispatched = false;
+    bool compositionObserved = false;
     QString refusal;
 };
+// Read-only, synchronous borrowed composition. No pointer/context/guard escapes.
+// The callback owns its final guard and getter/notification checks; no provider
+// getter or permit callback follows its successful terminal snapshot.
+using LegacyReadAction = std::function<bool(QQuickItem *, QQmlContext *, const std::function<bool()> &)>;
 
 namespace navigation_detail {
 inline constexpr char NativeWrapper[] = "xofm::bindings::qt::WindowNavigatorWrapper";
@@ -288,7 +293,7 @@ public:
         if (!engine || !root) { no("navigation-context"); return; }
         app->installEventFilter(&epoch);
     }
-    NavigationObservation run() {
+    NavigationObservation run(const LegacyReadAction &readAction = {}) {
         const auto refused = [&] {
             NavigationObservation result;
             result.refusal = failure.isEmpty() ? QStringLiteral("navigation-refused") : failure;
@@ -332,6 +337,21 @@ public:
             if (!owner || !allowed() || !owner->isVisible() || !owner->isEnabled() ||
                 owner->window() != window || read(owner) != receiver || !allowed()) return refused();
         }
+        if (readAction) {
+            if (!configuration.legacyComposition || !legacyRecheck()) return refused();
+            const std::function<bool()> guard = [&] { return legacyRecheck(); };
+            bool observed = false;
+            try { observed = readAction(legacyMain, legacyContext, guard); }
+            catch (...) { no("navigation-read-exception"); return refused(); }
+            // The callback's own guards cease on return. A provider/permission
+            // callout here could invalidate its final snapshot unobserved.
+            if (!observed || !context()) {
+                no("navigation-read-refused"); return refused();
+            }
+            NavigationObservation result;
+            result.compositionObserved = true;
+            return result;
+        }
         const QMetaMethod selected = method(receiver);
         if (!selected.isValid() || !allowed()) return refused();
         const QString route = QStringLiteral("legacydevice/window/main");
@@ -362,5 +382,19 @@ inline NavigationObservation openFixture(QQuickWindow *window, const FixtureNavi
     if (!configuration.valid()) { refused.refusal = QStringLiteral("navigation-config"); return refused; }
     if (budgetMs < 1 || budgetMs > MaxObservationMs) { refused.refusal = QStringLiteral("budget-invalid"); return refused; }
     return navigation_detail::Dispatch(window, configuration, permit, budgetMs, elapsed).run();
+}
+inline NavigationObservation inspectLegacyFixture(QQuickWindow *window,
+        const LegacyReadAction &action, const std::function<bool()> &permit, int budgetMs) {
+    QElapsedTimer elapsed; elapsed.start();
+    NavigationObservation refused;
+    if (detail::entry.busy) {
+        detail::entry.reentered = true; refused.refusal = QStringLiteral("sample-reentered"); return refused;
+    }
+    detail::EntryScope scope;
+    if (!action) { refused.refusal = QStringLiteral("navigation-read-missing"); return refused; }
+    if (budgetMs < 1 || budgetMs > MaxObservationMs) { refused.refusal = QStringLiteral("budget-invalid"); return refused; }
+    FixtureNavigation configuration; configuration.legacyComposition = true;
+    try { return navigation_detail::Dispatch(window, configuration, permit, budgetMs, elapsed).run(action); }
+    catch (...) { refused.refusal = QStringLiteral("navigation-read-exception"); return refused; }
 }
 } // namespace reader_selected

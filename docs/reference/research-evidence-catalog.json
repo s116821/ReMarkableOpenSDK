@@ -58,6 +58,17 @@
       ]
     },
     {
+      "path": "docs/experiments/closed-reader-view-owned-result.md",
+      "title": "Observing a closed Reader through its known UI composition",
+      "lf_utf8_sha256": "950d8da1f0ec2c6270aa4c1712f387e3d96931aeb7f2ddb6ea118aeeaf4a1063",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Observing a closed Reader through its known UI composition"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/conditional-insertion-composition-owned-result.md",
       "title": "Owned conditional coordinator and post-order composition",
       "lf_utf8_sha256": "d460c1bcd7bc3b64912e030eb51c6e1c85bb781873a0d11975af1b1c0cdedcb9",
@@ -204,6 +215,29 @@
         {
           "line": 66,
           "heading": "Remaining question and source basis"
+        }
+      ]
+    },
+    {
+      "path": "docs/experiments/fixed-pen-holder-owned-result.md",
+      "title": "Fixed pen holder, handoff and original-byte consumer",
+      "lf_utf8_sha256": "6ec00db2b6223a118c99cd7e41359d074e963dcf30770b83aa44d81eb80ec818",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Fixed pen holder, handoff and original-byte consumer"
+        },
+        {
+          "line": 10,
+          "heading": "Ownership and original deadlines"
+        },
+        {
+          "line": 39,
+          "heading": "Positive result means a conjunction"
+        },
+        {
+          "line": 67,
+          "heading": "Reproduction and exact evidence"
         }
       ]
     },
@@ -899,7 +933,7 @@
     {
       "path": "docs/experiments/README.md",
       "title": "Experiment tools and findings",
-      "lf_utf8_sha256": "e6b9f3cb37e11686a051d835700f97ae1adebda97a18ed63cd331a0ee9a29855",
+      "lf_utf8_sha256": "2e67fc60059c9880e4e60ee8d1f758027a2a6bef42bd4b77c871caad8224433d",
       "headings": [
         {
           "line": 1,
@@ -1182,9 +1216,39 @@
       ]
     },
     {
+      "path": "docs/experiments/write-reopen-file-backend-owned-result.md",
+      "title": "Private file backend and fixed-profile startup: source and owned checks",
+      "lf_utf8_sha256": "120eb1ae906baf3bc39464043bfa9fd1dd72585b09a8cdcca9b92913d58d536b",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Private file backend and fixed-profile startup: source and owned checks"
+        }
+      ]
+    },
+    {
+      "path": "docs/experiments/write-reopen-sequence-owned-result.md",
+      "title": "Queued target write, ordinary close and reopen: owned composition",
+      "lf_utf8_sha256": "1ce44f70f8c13fb0281991401d7a825a4377e3917b1c694a664efa9cccb893f4",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Queued target write, ordinary close and reopen: owned composition"
+        },
+        {
+          "line": 26,
+          "heading": "Counterexamples and fixes"
+        },
+        {
+          "line": 44,
+          "heading": "What actually runs, and what is modeled"
+        }
+      ]
+    },
+    {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "0a1ecaa74c91ef86e2d39e78f9298923c255036c0c55e7b29a660bcaf0cc04a8",
+      "lf_utf8_sha256": "3bbe92a310d55f5891f473682c1dc4d009f3f5f337adf5ec621b372bdc545803",
       "headings": [
         {
           "line": 1,
@@ -1317,7 +1381,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "fa1eb3ad20a6092a5dc206df18da5378853406331283a59964c418d02004ef89",
+      "lf_utf8_sha256": "86aebf1f56cb5e826d57ce427d58e97ecf2b473133e45e6afa28f042cc639fdc",
       "headings": [
         {
           "line": 1,
@@ -1332,11 +1396,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 37,
+          "line": 45,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 57,
+          "line": 65,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -3161,7 +3225,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/fixed-pen-holder.md",
       "title": "Standalone fixed-pen holder",
-      "lf_utf8_sha256": "15a136a2416ec3aee20483698f7335e655f113dcad237619a99f453ea7c61df0",
+      "lf_utf8_sha256": "8826c9fe35c0aa5276fd8361799e745154e949f3e177b3e9c8e528887654cd7d",
       "headings": [
         {
           "line": 1,
@@ -5519,7 +5583,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "fa47b32e1e15364337c399b86317c55f80b563921627da300fafe788f981dcfd",
+      "lf_utf8_sha256": "9c54c9ef113c198a3df833f6a39a2c904bd03fbf98b788f0f3039a29d29ef4a2",
       "headings": [
         {
           "line": 1,
@@ -5807,7 +5871,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/write-reopen-sequence.md",
       "title": "One intended-target writing and reopen sequence",
-      "lf_utf8_sha256": "d4423b62f8723b924b0f414f9e3a2ec4d5c2ffd69553115b72299792a6bbd3cb",
+      "lf_utf8_sha256": "9b34eba24c4aa95911d9a5ab089dc01584fbce5d7ccad52dcb3b9af9ff982555",
       "headings": [
         {
           "line": 1,

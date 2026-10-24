@@ -70,6 +70,16 @@ contract must be reviewed in the complete packet. No native run is selected by
 this design or an owned build. Test real owned child/pipe/descriptor boundaries
 with modeled device IO before any native writer selection.
 
+The selected native packet must launch the holder in a dedicated transient unit
+outside both xochitl and the outer actor/supervisor cgroups, with no BindsTo or
+PartOf coupling that kills it on their failure. Its absolute original candidate
+window and one GO remain unchanged. Record the independently observed holder PID,
+start, cgroup/unit identity and exit status. UI restoration may cancel the writer
+but must leave the holder alive to fence the child and attempt original-budget
+release. A holder/kernel failure or uninterruptible unfenced child is explicit
+unknown; no normal positive result, late release, renewed deadline or universal
+OS recovery claim follows. Bound and review transient-unit cleanup separately.
+
 The UI consumer must require original result bytes equal the completed holder's
 stdout and the canonical compact serializer output (including its one newline),
 a closed schema, canonical decimal identity/clock strings, bound trace bytes/hash
@@ -79,6 +89,10 @@ actor completion observation must bind the expected holder identity, report its
 known exit0 after it is gone, and confirm no pending result file. The result file
 alone cannot advance UI phases. Consume one admission claim even on failure;
 never renew original deadlines or interpret diagnostic/refusal bytes as success.
+Include the exact matching pre-arm initial snapshot as well as the final snapshot
+in the closed result. Independently replay the original trace from that initial
+state and compare every copied stream fact; unchanged-value filtering prevents
+inferring an initial coordinate merely from the first observed event.
 Owned callers supply modeled file/process observations; native ownership,
 no-follow inode checks and independently observed process exit still need the
 separately reviewed outer actor. A JSON assertion is not authentication.

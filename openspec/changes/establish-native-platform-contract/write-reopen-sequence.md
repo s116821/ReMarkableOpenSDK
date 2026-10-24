@@ -36,6 +36,15 @@ phase's request-owned objects/descriptors before a later queued phase while
 keeping native/application owners resident. No runtime pointer address becomes
 an external identity or lifetime lease.
 
+Before composing later queued capture phases, add an explicit one-use retirement
+operation to the existing capture-file owner: no permission/provider callout,
+consume before checked close of its image, image pin and duplicated root FDs,
+revoke subsequent publication and never unlink forensic files. A nested call
+during an active operation must refuse/revoke without closing in-use descriptors;
+cleanup may proceed after unwind. This is owned descriptor reclamation, not native
+object drain or code unload. Confirm the caller's original borrowed directory FD
+survives and no later phase starts from an unconfirmed retirement.
+
 Use real owned QObject/QML/files/queued lifetime controls with explicit modeled
 native joins and pen IO. Inject stale/duplicate/lost phase delivery, final-callout
 deletion/permission/metadata changes, child loss and overruns. A whole composed
@@ -54,3 +63,13 @@ with a nonnull item whose typed document pointer is null and documentLoaded is
 false. MainView documentViewActive must be false. Subscribe before getters and
 refuse lifetime, notified ABA, metadata, context, permission or deadline changes.
 An unloaded, missing, busy, unrelated or merely invisible Reader is insufficient.
+
+The separate ARM32 startup must retain the existing executable/Qt fingerprint,
+pre-main actor claims, cleared inherited injection environment and absolute actor
+window. It polls a read-only legacy composition and independently bound holder
+readiness before publishing one selected-ready. It consumes exactly one matching
+selected-request, pins its inode/bytes for later phase admission, and queues the
+sequence. No file appearance renews the original deadline. A combined scalar is
+forensic until a separate completion marker binds its exact original hash,
+candidate identity and original deadline. The independent collector still owns
+unit-exit, original frame/trace, document-preservation and restoration checks.

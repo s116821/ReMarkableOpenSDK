@@ -76,6 +76,9 @@ remain workflow records, not a shipping capability declaration.
 | Native pen profile | [Read-only RM2 result](experiments/pen-device-readonly-native-result.md) | Checked kernel identity/capabilities and released snapshots; queue, writing and recovery unmeasured |
 | Pen stream model | [Sticky owned observer controls](experiments/fixed-pen-stream-owned-result.md) | Host/ARM/sanitizer257/51413 each with filtered/redundant events and sticky failure; native framing and input behavior remain open |
 | Ordinary document close | [Source boundary](research/ordinary-reader-close-source-boundary.md) and [owned terminal helper](experiments/ordinary-reader-close-owned-result.md) | Stock QML source order and actual owned QML dispatch controls; UI close is separate from saved-file/reopen evidence |
+| Closed document state | [Fresh known composition](experiments/closed-reader-view-owned-result.md) | Owned Qt/QML lexical/lifetime/notification controls and reproduced final-callout repair; native closure/save/reopen remain open |
+| Independent pen composition | [Holder, handoff and strict consumer](experiments/fixed-pen-holder-owned-result.md) | Real owned fork/pipe/FIFO and unchanged original-byte replay; native input/unit qualification open |
+| Write, close and reopen | [Queued owned sequence](experiments/write-reopen-sequence-owned-result.md), [file backend/startup](experiments/write-reopen-file-backend-owned-result.md) | Owned Qt/PNG/retirement, request-bound private files and separate ARM link; positive native composition remains open |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 For simulator work, start with the [evidence and fidelity map](reference/simulator-evidence-map.md)
