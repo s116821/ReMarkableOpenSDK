@@ -459,3 +459,32 @@ effect or dispatches navigation. Host and ARM full-order/mapper fixtures each pa
 316 checks; independent source review accepted this read-only integration.
 Separate default tests, the exact 17-member package check and ordinary consumer
 boundaries on Rust 1.88.0 and 1.98.1 also pass.
+
+
+## Shared resident effect reservation
+
+`ResidentEffectGate` serializes effect admission across process-resident executor
+instances. Mutation reserves its private token before Coordinator start; only
+its existing known pre-acquisition no-effect or physically reclaimed path releases
+after publication, completion-capture destruction and active-request cleanup.
+Unknown/last-owner/failed retirement keeps the reservation. Dropping all caller
+tokens or an executor facade does not reopen capacity. Read-only work stays outside
+this gate. Future selection integration remains required.
+
+Independent review accepted the final code after removal of an unused fixture
+friendship seam. Final owned host/ARM lifecycle tests pass **5537 checks**, including
+300 reuse cycles and two executors sharing one gate, stale/foreign/wrong-thread
+release, dropped tokens, uncertainty after facade destruction, and shared exclusion
+during completion-capture destruction and nested pumping. The full Coordinator
+pipeline passes **195 checks** on both hosts. ARM dispatcher passes **133 checks**.
+These are explicit owned models, not native Task/owner qualification.
+
+The final ARM library links with SHA256
+`c16c622de8fde432108b284e09bb20af5977600880e82cff2493bab1bb3314d1`, unchanged profile
+`4800f33c19510a2e2db58ea3cef3d647a381daf1e52a0c785c21874171960dc9` and pinned Dobby
+inputs. No loading, device contact or native activation occurred. Initial gate
+runs (5533 lifecycle checks before the extra capture-deleter assertion) remain
+separate retained evidence. Hosted CI for the preceding selection increment
+`afb3b9c3c16fd12f09529e33bed2fe2da6d34022` passed
+[40141519244](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40141519244);
+it does not validate this later gate change.

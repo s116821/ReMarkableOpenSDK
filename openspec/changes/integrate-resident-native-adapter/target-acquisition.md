@@ -81,5 +81,23 @@ qualification remains separate.
 Source basis: current SDK helper and Coordinator post-navigation implementation,
 the REM-57 integration handoff and current REM-25 target/reuse requirements.
 The separate wire request and guarded existing-target inner call are implemented
-and covered by owned tests. The native executor, shared effect gate, fresh
+and covered by owned tests. The native selection executor, its integration with the shared effect gate, fresh
 post-transition join and consumer composition remain unfinished and unqualified.
+
+
+### Shared effect reservation implementation
+
+The mutation factory now uses a process-resident GUI-only `ResidentEffectGate`.
+A private opaque token reserves it before Coordinator start. A disconnected
+endpoint, deleted facade or dropped token cannot release it. Mutation releases
+only after the existing known pre-acquisition refusal or verified physical
+reclamation path has published its completion, destroyed completion captures and
+cleared its active request. Unknown, last-owner and failed-retirement states keep
+the shared reservation. The future selection executor must use this same gate;
+its class friendship is not an enabled executor or a settlement implementation.
+Read-only observation/reconciliation does not acquire or release the gate.
+
+Owned tests inject isolated gates so a quarantined synthetic case cannot pollute
+later cases, and explicitly share one gate between two executors to verify cross-
+executor exclusion. Fixture teardown can destroy only those isolated test gates;
+production exposes neither construction/destruction nor reset/release APIs.

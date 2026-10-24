@@ -23,7 +23,7 @@ ResidentMutation *ResidentMutation::create(const reader_insertion_native_profile
         const auto parts=owners->attribution(token,true);
         return reader_insertion_entry::Attribution{parts.map,parts.context,parts.read64,parts.postRejectProbe,parts.conditionCalls};
     };
-    return new ResidentMutation(std::move(runtime));
+    return new ResidentMutation(std::move(runtime),remarkable::rm2_3_28_0_172::ResidentEffectGate::process());
 #endif
 }
 
@@ -35,6 +35,8 @@ ResidentMutation::Token ResidentMutation::start(QQuickWindow *window,reader_inse
     state->fenceToken=state->fence->begin(nonce,reader_retirement::Kind::Mutation);
     if(!state->fenceToken)return {};
     state->binding=reader_retirement::binding(state->fence.get(),state->fenceToken);
+    state->effect=effects_.acquire();
+    if(!state->effect)return {};
     active_=state;
     const reader_request_scope::Scope frame(state->binding); // Covers construction and every copied capture.
     state->completion=std::move(completion);completion={};
@@ -105,7 +107,7 @@ void ResidentMutation::maintain() {
     if(!state->cleaned||!state->fence->handoffReady(state->fenceToken)){maintenance_.start(10);return;}
     if(!state->normal){
         const bool reusable=state->noEffect&&!owners_->occupied();
-        publish(state);if(reusable)active_.reset();return;
+        publish(state);if(reusable){active_.reset();effects_.release(state->effect);}return;
     }
     bool coreRetired=state->coreRetired;
     if(!coreRetired) {
@@ -131,7 +133,7 @@ void ResidentMutation::maintain() {
         reclaimed=result.reclaimed;
     }
     if(reclaimed) {
-        publish(state);active_.reset();return;
+        publish(state);active_.reset();effects_.release(state->effect);return;
     }
     if(++state->retirementAttempts<8){maintenance_.start(100);return;}
     publish(state); // Capacity remains occupied; no ordinary-release fallback.

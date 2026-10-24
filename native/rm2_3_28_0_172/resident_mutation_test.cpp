@@ -37,12 +37,20 @@ struct SlotAccess {
     static void uncertain(ResidentSlot &s){s.current_->unknown=true;}
 };
 struct MutationAccess {
+    using Gate=remarkable::rm2_3_28_0_172::ResidentEffectGate;
     using State=ResidentMutation::Active;
-    static ResidentMutation *make(ResidentSlot *s){reader_insertion_entry::Runtime r;r.owners=s;return new ResidentMutation(std::move(r));}
-    static void destroy(ResidentMutation *m){delete m;}
+    static ResidentMutation *make(ResidentSlot *s){reader_insertion_entry::Runtime r;r.owners=s;return new ResidentMutation(std::move(r),*new remarkable::rm2_3_28_0_172::ResidentEffectGate);}
+    static void destroy(ResidentMutation *m){auto *gate=&m->effects_;delete m;delete gate;}
+    static Gate &gate(ResidentMutation &m){return m.effects_;}
+    static ResidentMutation *sharing(ResidentSlot *s,Gate &gate){reader_insertion_entry::Runtime r;r.owners=s;return new ResidentMutation(std::move(r),gate);}
+    static void destroyOnly(ResidentMutation *m){delete m;}
+    static Gate *newGate(){return new Gate;}
+    static void deleteGate(Gate *gate){delete gate;}
+    static auto acquire(Gate &gate){return gate.acquire();}
+    static bool release(Gate &gate,const Gate::Token &token){return gate.release(token);}
     static auto begin(ResidentMutation &m,ResidentSlot &s,QObject &worker,Result r,ResidentMutation::Completion completion){
         check(!m.busy());releases=coreRetires=0;releaseResult=Release::Released;
-        auto a=std::make_shared<State>();a->fence=std::make_unique<reader_retirement::Fence>(static_cast<QObject*>(&m));
+        auto a=std::make_shared<State>();a->effect=m.effects_.acquire();check(bool(a->effect));a->fence=std::make_unique<reader_retirement::Fence>(static_cast<QObject*>(&m));
         a->fenceToken=a->fence->begin(QByteArray(32,'a'),reader_retirement::Kind::Mutation);check(bool(a->fenceToken));
         a->binding=reader_retirement::binding(a->fence.get(),a->fenceToken);a->result=std::move(r);
         a->ownerToken=SlotAccess::occupy(s,worker);a->worker=&worker;a->completion=std::move(completion);m.active_=a;
@@ -136,5 +144,34 @@ int main(int argc,char **argv){
     A::settle(*executor,a);S::uncertain(*slot);pump();A::step(*executor);
     check(delivered==1&&coreRetires==1&&releases==0&&executor->busy());
     A::releaseCapture(*executor);a.reset();A::destroy(executor);S::destroy(slot);
+    {
+        auto *gate=A::newGate(),*foreign=A::newGate();auto original=A::acquire(*gate);
+        check(bool(original)&&gate->busy()&&!A::acquire(*gate));
+        check(!A::release(*foreign,original)&&gate->busy());
+        bool wrongRelease=true;std::thread other([&]{check(gate->busy());wrongRelease=A::release(*gate,original);});other.join();
+        check(!wrongRelease&&gate->busy());check(A::release(*gate,original)&&!gate->busy());
+        auto next=A::acquire(*gate);check(!A::release(*gate,original)&&gate->busy());
+        next={};check(gate->busy()); // Dropping every caller token does not clear uncertainty.
+        A::deleteGate(gate);A::deleteGate(foreign); // Owned fixture teardown only.
+    }
+    for(bool uncertain : {false,true}) {
+        auto *firstSlot=S::make(),*secondSlot=S::make();auto *first=A::make(firstSlot);
+        auto *gate=&A::gate(*first);auto *second=A::sharing(secondSlot,*gate);
+        auto result=success();if(uncertain)result.core.interference=true;
+        bool captureDestroyed=false;
+        auto capture=std::shared_ptr<int>(new int(0),[&](int *value){
+            captureDestroyed=true;check(gate->busy()&&second->busy());pump(1);check(gate->busy()&&second->busy());delete value;
+        });
+        auto state=A::begin(*first,*firstSlot,worker,result,[&,capture](const Result&){
+            check(gate->busy()&&second->busy());pump(1);check(gate->busy()&&second->busy());
+        });
+        capture.reset();
+        check(second->busy()&&!second->start(nullptr,{},QByteArray(32,'c'),[]{return true;},[](const Result&){}));
+        A::settle(*first,state);pump();A::step(*first);
+        check(captureDestroyed&&gate->busy()==uncertain&&second->busy()==uncertain);
+        A::releaseCapture(*first);state.reset();A::destroyOnly(first);
+        check(gate->busy()==uncertain&&second->busy()==uncertain); // Facade/owner destruction cannot clear another gate.
+        A::destroyOnly(second);A::deleteGate(gate);S::destroy(firstSlot);S::destroy(secondSlot);
+    }
     std::printf("resident mutation owned lifecycle: %u checks PASS\n",checks);
 }

@@ -92,13 +92,13 @@ struct SlotAccess {
     static void destroy(Slot*s){delete s;}
 };
 struct MutationAccess {
-    static Mutation *make(reader_insertion_entry::Runtime r){return new Mutation(std::move(r));}
+    static Mutation *make(reader_insertion_entry::Runtime r){return new Mutation(std::move(r),*new remarkable::rm2_3_28_0_172::ResidentEffectGate);}
     static void configure(Mutation&m,std::function<void(Entry&)> entry,std::shared_ptr<Model> model,bool late){
         m.testEntry_=std::move(entry);
         m.testCoreSnapshot_=[model,late]{auto o=model->snapshot();if(late)o.interference=true;return o;};
         m.testCoreRetire_=[model]{check(!model->entry&&model->canceled==0,"normal Coordinator disarmed before Core retirement");++model->coreRetires;model->registration.reset();return true;};
     }
-    static void destroy(Mutation*m){delete m;}
+    static void destroy(Mutation*m){auto *gate=&m->effects_;delete m;delete gate;}
 };
 }
 int main(int argc,char**argv){

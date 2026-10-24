@@ -1,6 +1,7 @@
 #pragma once
 #include "reader_insertion_guard_entry.h"
 #include "reader_retirement_scope.h"
+#include "resident_effect_gate.h"
 
 namespace reader_worker_native {
 #ifdef RESIDENT_MUTATION_TESTING
@@ -27,7 +28,7 @@ public:
         explicit operator bool()const{return !state_.expired();}
     };
     static ResidentMutation *create(const reader_insertion_native_profile::Facilities &);
-    bool busy()const{return !gui()||dispatching_||bool(active_);}
+    bool busy()const{return !gui()||dispatching_||bool(active_)||effects_.busy();}
     Token start(QQuickWindow *window,reader_insertion_entry::Config config,QByteArray nonce,
                 reader_insertion_entry::Permit permit,Completion completion);
     bool cancel(const Token &token) {
@@ -38,6 +39,7 @@ public:
     }
 private:
     struct Active {
+        remarkable::rm2_3_28_0_172::ResidentEffectGate::Token effect;
         std::unique_ptr<reader_retirement::Fence> fence;
         reader_retirement::Token fenceToken;
         reader_request_scope::Binding binding;
@@ -54,11 +56,13 @@ private:
     const reader_insertion_entry::Runtime runtime_;
     ResidentSlot *const owners_;
     reader_insertion_hooks::Core *const core_;
+    remarkable::rm2_3_28_0_172::ResidentEffectGate &effects_;
     std::shared_ptr<Active> active_;
     QTimer maintenance_;
     bool dispatching_=false;
-    explicit ResidentMutation(reader_insertion_entry::Runtime runtime)
-        :runtime_(std::move(runtime)),owners_(runtime_.owners),core_(runtime_.core) {
+    explicit ResidentMutation(reader_insertion_entry::Runtime runtime,
+            remarkable::rm2_3_28_0_172::ResidentEffectGate &effects)
+        :runtime_(std::move(runtime)),owners_(runtime_.owners),core_(runtime_.core),effects_(effects) {
         maintenance_.setSingleShot(true);
         connect(&maintenance_,&QTimer::timeout,this,[this]{maintain();});
     }
