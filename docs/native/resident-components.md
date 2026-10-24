@@ -38,8 +38,10 @@ reports target presence only within the original document. No borrowed pointer,
 native QVariant or guard escapes the synchronous callback. Mutation returns
 Unsupported until physical completion and owner reclamation are integrated.
 
-The bootstrap still needs to bind independently checked profile/artifact hashes,
-supervisor admission and endpoint lifetime. The native profile's current one-shot
+The bootstrap source binds independently checked profile/artifact hashes,
+one-use supervisor admission and endpoint lifetime; its actual native activation
+and recovery remain unqualified. See [build/admission contract](../../native/rm2_3_28_0_172/BUILD.md).
+The native profile's current one-shot
 hook registration, attribution allocation and retained Coordinator owners must
 be made safely reusable. Neither copying these mechanisms nor compiling them
 qualifies a resident lifecycle. Do not install this source as an automatic boot

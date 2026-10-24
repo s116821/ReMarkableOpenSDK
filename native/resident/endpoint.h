@@ -70,6 +70,11 @@ struct EndpointConfig {
     pid_t peerPid=0;
     quint64 peerStart=0;
     int operationBudgetMs=30000;
+    // Bootstrap can pin the directory it consumed admission from. Ordinary
+    // owned transport fixtures may omit this additional correspondence check.
+    bool pinDirectory=false;
+    dev_t directoryDevice=0;
+    ino_t directoryInode=0;
 };
 // Plain lifetime gate; no native owner is reclaimed by this object. A worker may
 // inspect active/deadline but must report through its existing guarded Qt bridge.
@@ -118,7 +123,8 @@ public:
         const auto directory=QFile::encodeName(config_.directory);
         if(directory.isEmpty()||!directory.startsWith('/')||directory.contains('\0'))return false;
         root_=::open(directory.constData(),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);
-        if(root_<0||::fstat(root_,&rootStat_)||!directoryCurrent())return false;
+        if(root_<0||::fstat(root_,&rootStat_)||!directoryCurrent()||
+           (config_.pinDirectory&&(rootStat_.st_dev!=config_.directoryDevice||rootStat_.st_ino!=config_.directoryInode)))return false;
         struct stat existing{};
         if(!::fstatat(root_,"sdk.sock",&existing,AT_SYMLINK_NOFOLLOW)||errno!=ENOENT)return false;
         const auto visible=directory+"/sdk.sock";

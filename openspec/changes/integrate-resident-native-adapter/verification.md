@@ -115,3 +115,39 @@ last-owner release remains unqualified, and requires generation-bound Core APIs
 and exact submitted-Task retirement before reuse. No reusable mutation is enabled.
 The host/ARM fixtures are source/build evidence; actual native dispatch,
 reclamation, consumer integration and the product acceptance matrix remain open.
+
+The complete hosted pipeline passed for native observation source commit
+`3ead77bb1fe5824cd2317bc5af4d05b62771723f`:
+[run 40128080628](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40128080628).
+The resident/Qt test step executed successfully. This precedes the bootstrap
+increment below and does not validate that later source.
+
+## Bootstrap source/build checkpoint
+
+Owned admission checks pass 261 assertions on host ASan/UBSan and ARM/QEMU,
+including expired/oversized launch windows, wrong identity/hash/schema, unsafe
+file/directory shape, symlinks, repeated consumption, existing socket/claim and
+directory replacement between admission and endpoint startup. The endpoint suite
+still passes 1,760 host assertions with the new optional directory pin.
+Loaded-artifact checks pass 16 host sanitizer assertions using an owned no-op
+shared library; they verify mapping/inode correspondence, mode refusal and
+same-byte pathname replacement. This fixture does not load the native adapter.
+
+The Rust admission encoder passes its canonical-layout and boundary test on
+Rust 1.88.0 and 1.98.1. All-feature tests, default tests, all-target/all-feature
+Clippy and five package/notice/decoy checks pass locally. Native source remains
+outside the 16-member Rust package; lockfiles and default dependencies are unchanged.
+
+The complete native adapter links against ARM Qt 6.10.3 and the exact retained
+repaired Dobby archive. ELF inspection reports ARM32 little-endian hard-float,
+NOW, NODELETE and STATIC_TLS. The build records source/header/generated-moc hashes,
+profile/artifact hashes and compiler identity. No actual native pre-main entry,
+Qt startup, profile installation or Supervisor recovery was executed.
+
+Retained failed setup attempts: the first full native link lacked generated moc
+files (fixed in the build script); a loaded-artifact fixture's QFile copy failed
+on the Docker bind mount (replaced with exclusive creation from retained bytes);
+one endpoint invocation used the wrong vector directory and failed before socket
+tests. None is counted as a passing native/runtime check. Independent source
+review found no blocking bootstrap defect and explicitly retained the admission-
+window and hook-installation/refusal claim limits.

@@ -32,6 +32,25 @@ its qualified preconditions again at the actual insertion boundary.
 - **WHEN** an insertion's resulting complete order cannot fit the protocol bound
 - **THEN** the request is rejected before dispatch
 
+### Requirement: One-use native activation admission
+The native bootstrap SHALL independently verify its exact profile and artifact
+correspondence before exposing an endpoint. It SHALL consume a fresh bounded
+supervisor admission bound to the current boot and parent process incarnation,
+retain consumption evidence, and pin the admitted directory through startup.
+Encoding admission SHALL NOT itself launch a process or advertise capability.
+
+#### Scenario: Expired, mismatched or previously consumed admission
+- **WHEN** launch admission has expired, identifies different artifacts or a different supervisor, or was already consumed
+- **THEN** the bootstrap refuses it without accepting a socket request or clearing its consumption evidence for retry
+
+#### Scenario: Directory replaced after admission
+- **WHEN** the admission directory is replaced before endpoint startup
+- **THEN** the replacement cannot become the admitted endpoint directory
+
+#### Scenario: Payload environment inherited by a child
+- **WHEN** the admitted adapter completes pre-main initialization
+- **THEN** it removes preload, eager-binding and activation-directory environment variables while keeping existing hooks and mappings resident
+
 ### Requirement: Resident lifetime and bounded retirement
 Logical request retirement SHALL end that request's publication authority without
 unloading the adapter or routinely restarting xochitl. Native owner reclamation

@@ -167,6 +167,33 @@ native-qualified reclamation.
 
 ## Verification and rollout
 
+### Admitted native bootstrap
+
+The build-only native artifact embeds the exact profile manifest digest and
+requires the retained repaired Dobby archive/header. Its loader has eager
+bindings, static TLS and NODELETE. It hashes the file backing its own executable
+anchor mapping, checks a one-use supervisor admission, then calls the original
+exact-profile verification/hook installer before main. The queued GUI startup
+creates the read-only backend and endpoint. Native startup ordering, activation
+and recovery are separately unqualified; loading this payload installs hooks
+and refusal terminates with code119 even though request operations are read-only.
+
+The [168-byte admission format](../../../native/rm2_3_28_0_172/BUILD.md) binds
+approved artifact/profile/executable hashes, boot, fresh activation UUID, direct
+supervisor parent identity, an admission window up to 60 seconds and operation
+budget. Rust encodes it without file creation or activation. The native consumer
+requires an owned mode0700 directory and regular mode0600 file and consumes it
+through exclusive hard-link creation. Evidence names remain; they are never
+cleared for retry. The endpoint pins the same directory and independently checks
+socket credentials. The process derives its own PID/start identity. The directory
+owner remains trusted. The launch deadline gates admission consumption, not the
+whole native loader/startup duration; Supervisor must bound recovery separately.
+
+Child processes do not inherit the preload, eager-binding or activation-directory
+environment variables. Existing hooks and mappings remain resident. No per-request
+unload/restart is introduced. This source integration is not a product capability
+or permission to activate an unreviewed candidate.
+
 Exercise real encoders/decoders with fragmented frames, invalid lengths and
 schema, identity mismatch, duplicate/stale replies, sequence exhaustion and
 mutation connection loss. Interoperate the Rust client with the Qt endpoint on

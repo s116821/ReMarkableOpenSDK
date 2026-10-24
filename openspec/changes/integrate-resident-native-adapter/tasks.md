@@ -9,9 +9,9 @@
   - [x] 1.4b Independent endpoint review completed after connection-incarnation, pinned-inode and post-encoding deadline fixes. Native executor/consumer review remains open.
 
 ## 2. Resident native executor
-- [ ] 2.1 Implement the owner-checked asynchronous Unix endpoint and exact runtime/profile handshake.
+- [x] 2.1 Implement the owner-checked asynchronous Unix endpoint and exact runtime/profile handshake (source/build scope; native activation remains 2.2b).
   - [x] 2.1a Implement bounded Linux/Qt framing, owner/peer process checks, fresh server nonce and socket-incarnation/deadline guards.
-  - [ ] 2.1b Bind the endpoint to independently verified profile/executable/adapter artifacts in the native bootstrap.
+  - [x] 2.1b Bind the endpoint to independently verified profile/executable/adapter artifacts in the native bootstrap; add one-use supervisor admission and an ARM build with pinned Dobby inputs.
 - [ ] 2.2 Integrate the measured Reader ownership observation and execution-side insertion predicate with unchanged native Task bookkeeping.
   - [x] 2.2a Import the exact handoff mechanisms with original Git-blob provenance; add guarded full-order observation and Observe/Reconcile backend source with host/ARM owned coverage.
   - [ ] 2.2b Connect and qualify actual native observation through the admitted resident bootstrap; integrate conditional insertion with its original Task bookkeeping.

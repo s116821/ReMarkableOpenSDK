@@ -11,6 +11,57 @@ pub const MAX_FRAME: usize = 65_536;
 pub const MAX_PAGES: usize = 2_048;
 const MAGIC: &[u8; 4] = b"RSDK";
 
+/// One-use launch admission for an independently verified native artifact.
+/// Encoding does not create a file, launch a process, or grant native capability.
+/// The supervisor must create an owned mode0700 activation directory and a
+/// new mode0600 admission.bin, and must remain the adapter process's direct
+/// parent and authenticated socket peer. Never erase admission.consumed to retry.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActivationAdmission {
+    pub profile_sha256: [u8; 32],
+    pub executable_sha256: [u8; 32],
+    pub adapter_sha256: [u8; 32],
+    pub boot: Uuid,
+    pub activation: Uuid,
+    pub supervisor_uid: u32,
+    pub supervisor_pid: u32,
+    pub supervisor_start_ticks: u64,
+    /// Absolute Linux CLOCK_BOOTTIME milliseconds, not wall-clock time.
+    pub expires_boot_ms: u64,
+    pub operation_budget_ms: u32,
+}
+impl ActivationAdmission {
+    /// Canonical 168-byte bootstrap record. The endpoint independently checks
+    /// the same bound at consumption; this caller-supplied clock is not proof.
+    pub fn encode(&self, now_boot_ms: u64) -> Result<[u8; 168]> {
+        if self.profile_sha256 == [0; 32]
+            || self.executable_sha256 == [0; 32]
+            || self.adapter_sha256 == [0; 32]
+            || self.supervisor_pid <= 1
+            || self.supervisor_start_ticks == 0
+            || now_boot_ms == 0
+            || self.expires_boot_ms <= now_boot_ms
+            || self.expires_boot_ms - now_boot_ms > 60_000
+            || !(1..=30_000).contains(&self.operation_budget_ms)
+        {
+            return Err(ProtocolError::InvalidIdentity);
+        }
+        let mut bytes = [0; 168];
+        bytes[..8].copy_from_slice(b"RSDKACT1");
+        bytes[8..40].copy_from_slice(&self.profile_sha256);
+        bytes[40..72].copy_from_slice(&self.executable_sha256);
+        bytes[72..104].copy_from_slice(&self.adapter_sha256);
+        bytes[104..120].copy_from_slice(self.boot.as_bytes());
+        bytes[120..136].copy_from_slice(self.activation.as_bytes());
+        bytes[136..140].copy_from_slice(&self.supervisor_uid.to_be_bytes());
+        bytes[140..144].copy_from_slice(&self.supervisor_pid.to_be_bytes());
+        bytes[144..152].copy_from_slice(&self.supervisor_start_ticks.to_be_bytes());
+        bytes[152..160].copy_from_slice(&self.expires_boot_ms.to_be_bytes());
+        bytes[160..164].copy_from_slice(&self.operation_budget_ms.to_be_bytes());
+        Ok(bytes)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProtocolError {
     Malformed,
