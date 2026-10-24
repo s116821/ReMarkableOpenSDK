@@ -48,6 +48,31 @@ its qualified preconditions again at the actual insertion boundary.
 - **WHEN** an insertion's resulting complete order cannot fit the protocol bound
 - **THEN** the request is rejected before dispatch
 
+### Requirement: Fresh conditional adjacent target selection
+Target selection SHALL be a separately correlated effectful request. It SHALL
+revalidate exact document, current page and complete order in a fresh actual Reader
+join. It SHALL invoke no navigation when already on the target, otherwise at most
+one qualified adjacent transition. A fresh post-transition join SHALL establish
+the same actual objects, intended selected page and unchanged order before success.
+Uncertain effects SHALL retain original operation/target identity without replay.
+Historical selection SHALL NOT grant capture, writing or persistence authority.
+
+#### Scenario: Target already selected
+- **WHEN** a fresh joined observation matches the requested target and complete expected order
+- **THEN** selection reports that historical observation without navigation
+
+#### Scenario: Adjacent target needs one transition
+- **WHEN** the actual source and complete order match and the target is its immediate successor
+- **THEN** at most one transition is admitted, and success requires a separate fresh target join afterward under the original deadline
+
+#### Scenario: Selection becomes uncertain
+- **WHEN** the connection, deadline, original object identity or expected order is lost after selection admission
+- **THEN** the original selection remains uncertain and neither navigation nor insertion is retried automatically; attempted uncertain selection retains the shared process effect gate across connections and conversations until separately admitted recovery or qualified settlement, while read-only requests remain available
+
+#### Scenario: Reconcile an uncertain selection
+- **WHEN** the caller requests read-only reconciliation
+- **THEN** its payload preserves the original selection source, present target and order without fabricating insertion facts, and reported presence/current selection does not clear effect quarantine
+
 ### Requirement: One-use native activation admission
 The native bootstrap SHALL independently verify its exact profile and artifact
 correspondence before exposing an endpoint. It SHALL consume a fresh bounded
