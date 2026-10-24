@@ -112,6 +112,18 @@ jobs:
           python tools/test_package_contents.py -v
           cargo +1.98.1 fmt --manifest-path tests/fixtures/consumer-boundary/Cargo.toml --all -- --check
           git diff --exit-code
+      - name: Verify Rust and Qt resident wire and owned endpoint
+        if: steps.admission.outputs.application == 'true'
+        env:
+          RSDK_WIRE_VECTORS: ${{ runner.temp }}/resident-vectors
+          RESIDENT_WIRE_VECTORS: ${{ runner.temp }}/resident-vectors
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev
+          cargo +1.98.1 test --locked --offline --features native-adapter --test resident_wire_vectors -- --ignored
+          RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-wire" sh native/resident/wire_test.sh
+          RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-endpoint" sh native/resident/endpoint_test.sh
+          RESIDENT_ENDPOINT_BINARY="$RUNNER_TEMP/resident-endpoint/endpoint-test" timeout 30s cargo +1.98.1 test --locked --offline --features native-adapter --test resident_socket -- --ignored
       - name: Verify source staging admission and portable identity
         shell: bash
         run: |
@@ -176,7 +188,7 @@ jobs:
         if: steps.admission.outputs.application == 'true'
         run: |
           python release/qualify_uploader.py --source .ci-uploader --output "$RUNNER_TEMP/qualified-sdk-uploader"
-          python release/qualify_uploader.py --output "$RUNNER_TEMP/qualified-sdk-uploader" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc
+          python release/qualify_uploader.py --output "$RUNNER_TEMP/qualified-sdk-uploader" --expected-bundle fc75d84d235209050f8bfb8d062004ed13625993a48be085688aebbe040b034c
       - name: Exercise the emitted uploader against an owned loopback API
         if: steps.admission.outputs.application == 'true'
         run: node --test release/fixtures/uploader.test.mjs
@@ -371,7 +383,7 @@ jobs:
           SDK_UPLOADER_PROVENANCE_SHA: ${{ needs.checks.outputs.uploader_provenance_sha }}
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
-          python release/qualify_uploader.py --output "$SDK_UPLOADER_FIXTURE" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc --expected-provenance "$SDK_UPLOADER_PROVENANCE_SHA"
+          python release/qualify_uploader.py --output "$SDK_UPLOADER_FIXTURE" --expected-bundle fc75d84d235209050f8bfb8d062004ed13625993a48be085688aebbe040b034c --expected-provenance "$SDK_UPLOADER_PROVENANCE_SHA"
           python -m unittest discover -s release -p test_uploader_transfer.py -v
       - name: Verify and execute the retained external SDK consumer
         shell: bash
@@ -430,7 +442,7 @@ jobs:
           test "$RELEASE_SOURCE" = "$GITHUB_SHA"
           test "$RELEASE_SOURCE" = "$BUILT_SOURCE"
           echo "EXPECTED_MANIFEST=$RUNNER_TEMP/sdk-candidate/release/manifest.json" >> "$GITHUB_ENV"
-          python release/qualify_uploader.py --output ../.qualified/uploader --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc --expected-provenance "$UPLOADER_PROVENANCE"
+          python release/qualify_uploader.py --output ../.qualified/uploader --expected-bundle fc75d84d235209050f8bfb8d062004ed13625993a48be085688aebbe040b034c --expected-provenance "$UPLOADER_PROVENANCE"
           python release/candidate_artifacts.py verify --sha "$RELEASE_SOURCE" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
         env:
           RECEIPT: ${{ needs.build.outputs.receipt_sha }}

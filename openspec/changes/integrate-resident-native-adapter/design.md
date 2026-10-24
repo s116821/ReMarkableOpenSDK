@@ -51,6 +51,35 @@ mandatory. No reconnect automatically resends a mutation.
 
 ## Mutation and lifetime
 
+### Owned Linux/Qt endpoint
+
+`native/resident` implements the same schema in Qt and an asynchronous local
+endpoint. Admission checks an existing owner-only mode0700 directory, a mode0600
+socket, `SO_PEERCRED` UID/PID and the expected peer process start ticks. The
+endpoint also checks its own boot/PID/start identity. The runtime's artifact and
+profile hashes still require independent verification by the native bootstrap;
+the transport does not turn supplied hashes into verified provenance.
+
+The listener retains its directory descriptor and socket inode. Permission
+changes use a pinned inode; cleanup removes only the recorded socket. This
+protects against accidental replacement after identification. Same-UID code
+with control of the directory is trusted, not an adversarial isolation boundary.
+Callbacks bind the original socket. Reentrant backend calls cannot install a
+replacement peer until the original read has unwound.
+
+There is one peer and one pending request, bounded input/output, a five-second
+handshake limit, thirty-second idle limit and a configured operation deadline
+of at most thirty seconds. Partial bytes never renew a deadline. A plain lease
+is invalidated on completion/disconnect/deadline. It contains no native owners;
+physical worker completion and native reclamation remain separate obligations.
+Without an executor, requests return Unsupported. The owned test backend may
+retain a plain request to exercise timeout; it never performs native mutation.
+
+The Rust and Qt implementations share generated test vectors, not native ABI
+structures. Native source is deliberately outside the Rust source package until
+the native distribution/build contract is implemented. Linux CI compiles and
+tests it separately, including a Rust Session talking to the real Qt socket.
+
 ### Canonical binary schema
 
 The length prefix excludes itself. Each payload starts with ASCII `RSDK` then

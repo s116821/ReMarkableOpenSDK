@@ -9,7 +9,7 @@ import unittest
 from artifacts import sha256
 from qualify_uploader import verify
 
-BUNDLE = '379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc'
+BUNDLE = 'fc75d84d235209050f8bfb8d062004ed13625993a48be085688aebbe040b034c'
 
 
 class UploaderTransfer(unittest.TestCase):

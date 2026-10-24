@@ -1,6 +1,7 @@
 # Protocol foundation verification
 
-October 24, 2026. Host-only checkpoint; no endpoint or native executor is connected.
+October 24, 2026. Initial protocol checkpoint; the later owned endpoint checkpoint
+below adds socket interoperability. No native executor is connected.
 The implementation remains feature-gated and `UnqualifiedPlatform` is unchanged.
 
 ## Executed checks
@@ -43,3 +44,44 @@ Insertion observation is not a committed receipt or permission to write.
 
 Source basis: executed local command results, current source/test files and an
 independent source review of this increment. No native runtime result is claimed.
+
+## Owned endpoint checkpoint
+
+The Rust exporter creates 14 canonical frames and SHA-256 fingerprints in a
+fresh output directory. The Qt codec checks exact bytes/digests, every split and
+truncation, coalesced input and malformed frames: 14,781 assertions pass on host
+Qt 6.4.2 and ARM Qt 6.10.3 under QEMU. The owned endpoint suite passes 1,760
+assertions on both toolchains, including a separate process with pinned peer
+credentials, 200 requests, reconnect nonces, stale sequences/requests, expiry,
+late completion, backend exceptions, nested-loop replacement and inode cleanup.
+
+The actual Rust `Session` also communicates with the Qt endpoint over Unix
+sockets: 200 fragmented observations, one intentionally expired plain insertion
+request, sticky mutation ambiguity, fresh server nonce and rejection of the old
+request. Explicit EOF and the backend's dispatch count distinguish rejection
+from an accidentally admitted request that merely times out. This test passes
+with Rust 1.98.1 and host Qt. The fixture performs no native insertion.
+
+Independent source review identified and accepted fixes for original-socket
+identity across backend reentry, pinned-inode permission/cleanup identity and
+deadline recheck after reply encoding. Reviewed endpoint SHA-256:
+`1fbfa9ce38650c5282b4d28a6dfcf20f967568a64235c29067f3fde6c2785370`.
+Final review found no blocking endpoint issue. Native physical completion,
+reclamation, profile verification and consumer acceptance remain unimplemented.
+
+The new checks are wired into Linux CI. Initial hosted runs found newly reported
+vulnerabilities in existing release dependencies. The hash-locked Python recipe
+updates certifi to 2026.10.19, filelock to 4.2.1 and GitPython to 3.2.1; a clean
+install and audit report zero vulnerabilities. The uploader lock updates undici
+6.29.0 to 6.29.1 with a zero-vulnerability audit. Its unmodified pinned upstream
+source rebuilds to the same bundle SHA-256 on Windows Node 24.11.0 and Linux Node
+24.21.0: `fc75d84d235209050f8bfb8d062004ed13625993a48be085688aebbe040b034c`.
+Hosted uploader qualification and release-loopback fixtures must validate the
+updated exact branch head; these rebuilds alone do not establish full CI success.
+
+A local uploader-fixture invocation without its required provenance file was
+refused before execution. A first Linux Cargo run encountered a registry CA
+error; using the existing verified registry cache offline allowed the socket
+test to pass. Local Windows Clippy passes; the Linux test image lacks Clippy,
+so Linux lint remains the configured hosted CI gate. These are retained setup
+results, not passing checks or changes to audit policy.
