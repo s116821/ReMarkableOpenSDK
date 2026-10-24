@@ -1341,7 +1341,7 @@
     {
       "path": "docs/experiments/write-reopen-setup-profile-owned-result.md",
       "title": "Declared setup windows for a fresh combined diagnostic",
-      "lf_utf8_sha256": "bf7eae6354df3b85e1cd65f4303daac2304d5bbb64350bb21ca1ffc625ec3ff7",
+      "lf_utf8_sha256": "24d3d1c3317871751b33eb70a2d41de0ab4ad9a0a729423c859045f22bb3341f",
       "headings": [
         {
           "line": 1,
@@ -1356,7 +1356,7 @@
           "heading": "Actual owned controls"
         },
         {
-          "line": 61,
+          "line": 63,
           "heading": "Fresh fixture and remaining gates"
         }
       ]

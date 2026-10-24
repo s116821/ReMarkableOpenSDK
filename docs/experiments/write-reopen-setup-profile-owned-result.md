@@ -44,10 +44,12 @@ sequence refuses90001ms remaining without navigation or pen GO.
 
 The process tests use2883..2884 checks depending on actual child polling. Host
 and sanitizer backend/readback/sequence stderr files are empty. ARM backend,
-readback and holder stderr are empty; sequence compilation retains5903 bytes of
-GCC parameter-passing ABI notes about its historical GCC7.1 transition, with no
-warning/error or fixture failure. An initial publication check incorrectly
-required that compiler output to be empty and refused; the notes remain intact.
+readback and holder stderr are empty. ARM sequence stderr retains5903 bytes:
+three GCC parameter-passing ABI notes about its historical GCC7.1 transition
+and two Fontconfig reports of unavailable writable cache directories. The
+fixture still passes all39 cases; these environment diagnostics remain intact.
+An initial publication check incorrectly required empty stderr and refused;
+an intermediate report omitted the two cache reports and is corrected here.
 The ARM production holder also compiles with warnings as errors; its ELF record
 is retained. QEMU/owned files do not establish native input-device delivery or
 actual target UI behavior.
