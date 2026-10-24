@@ -274,6 +274,31 @@ Full25-input ARM startup link and8 fixture/11 selector refusals pass, receipt
 This is source/owned evidence only; the longer-budget native run is not yet
 selected by these checks.
 
+Native b46986410c1e447ebbe2413a0f3144b7 then used exact source e61ba18497ba9c3eab1b7267d3d1f6ec1bd921f7
+and payload b91afd13cf326594101e166e74e54a872440dc3584cc4d0817450013945818c0.
+Candidate31909/start136137857 accepted holder32047/start136138093. Its terminal
+retains composition/canceled,270 visited items,4688 permission attempts,6827ms,
+preceded by composition/navigation-not-found,15 items,282 attempts,323ms.
+The host started polling at1361366, before candidate start1361378, and its35s
+ceiling stopped a later larger scan early. Thus the small early tree completed
+without a match; absence in the fully loaded stock UI and a ten-second timeout
+are not established. The larger scan was canceled before its local budget.
+Original123-file archive5c22508a8c9e504798ab61943a47a77f7f7fe7cce6cfd24c3bca02214f0521d3
+and no-GO receipt9cc757aa5652392cb4b7b7b4a697b961f5f4ff7509a19661759509d822d24932
+preserve zero request/GO, zero child/dispatch and empty trace. Stock2912/start136149263
+and initially active Buddy were restored; full26 bytes/full12 IDs remain unchanged.
+
+The next source uses the existing20000ms observation maximum, retaining the
+same original90/360/185-second clocks and all guards. Actual typed/legacy
+host/ARM-QEMU/sanitizer controls, including cancellation at that maximum, pass
+receipt dff314dde30e39fa770d02e86e6deb88aee24d10a0293c5df79ffd9ab76d1888.
+Full25-input ARM link and19 selector refusals pass receipt
+3e6c9386d4feebe0461a525a1cb37e7fcf1ab1ffbd84169f4f40aac2f7d091a1.
+The next host diagnostic must wait within the original candidate's fixed window
+instead of consuming its short wait before startup; that wait grants no new
+device lease or input authority. This successor has not yet been selected by
+these source checks.
+
 An offline REA6.7/Ghidra12.1.4 follow-up against the unchanged saved binary found
 no matching procedure names in the stripped target, then used exact metadata
 dispatch and wrapper records. Together with hash-verified retained MainView

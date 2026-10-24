@@ -153,7 +153,7 @@ private:
             wait_.beginComposition();
             auto *window=qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
             const auto composition=reader_selected::inspectLegacyFixture(window,
-                [](QQuickItem *,QQmlContext *,const std::function<bool()> &guard){return guard&&guard();},allowed,10000);
+                [](QQuickItem *,QQmlContext *,const std::function<bool()> &guard){return guard&&guard();},allowed,reader_selected::MaxObservationMs);
             if(!weak)return;
             const auto cost=QStringLiteral("|items=%1|permits=%2|ms=%3")
                 .arg(composition.visitedItems).arg(composition.permissionCalls).arg(composition.elapsedMs);

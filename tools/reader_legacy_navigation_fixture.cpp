@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     {
         LegacyFixture fixture;
         quint64 calls = 0;
-        const auto result = fixture.run([&] { ++calls; return calls < 20; }, 10000);
+        const auto result = fixture.run([&] { ++calls; return calls < 20; }, reader_selected::MaxObservationMs);
         requireLegacy(!result.attempted && !result.dispatched && result.refusal == QStringLiteral("canceled") &&
             fixture.navigator->calls == 0 && result.permissionCalls == calls && calls == 20 && result.elapsedMs >= 0,
             "longer observation budget keeps cancellation and counts actual permission calls");
