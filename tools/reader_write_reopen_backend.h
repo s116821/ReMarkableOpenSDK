@@ -61,7 +61,7 @@ public:
         quint64 armed=0,end=0,wa=0,we=0,begin=0,ends=0;
         const auto number=[](const QByteArray &b,quint64 &n){return reader_fixed_pen_result::detail::decimal(QString::fromLatin1(b),&n);};
         if(d.size()!=2||w.size()!=5||w[0]!=config.nonce||!number(d[0],armed)||!number(d[1],end)||end<armed||end-armed!=360||
-           !number(w[1],wa)||!number(w[2],we)||!number(w[3],begin)||!number(w[4],ends)||wa!=armed||we!=end||begin<armed||ends<begin||ends-begin!=90||
+           !number(w[1],wa)||!number(w[2],we)||!number(w[3],begin)||!number(w[4],ends)||wa!=armed||we!=end||begin<armed||ends<begin||(ends-begin!=90&&ends-begin!=120)||
            end<185||ends>end-185||ends>std::numeric_limits<quint64>::max()/1000||ends*1000!=config.setupEnd)return {};
         self->began_=begin*1000;
         return self->admitted()?self:std::shared_ptr<NativeFiles>{};

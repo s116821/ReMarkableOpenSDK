@@ -63,6 +63,22 @@ void refused(Admission &admission) { check(!admission.permit() && !admission.ref
 
 int main() {
     try {
+        for (quint64 span : {90u, 120u}) scenario("declared-setup-profile-with-original-bytes", [=] {
+            Root root; root.ends = root.began + span; root.controls(); auto a = root.make();
+            check(a->start() && a->permit(), "declared setup accepted with actual process");
+            const auto result = core::readPair(a->rootFd(), root.expected, [&] { return a->permit(); });
+            check(result.observed && result.scalar == root.scalar && result.image == root.image, "profile retains original bytes");
+            check(::rename(root.file("candidate.window").constData(), root.file("window-old").constData()) == 0, "replace pinned window");
+            root.put("candidate.window", original(root.path + QStringLiteral("/window-old"))); refused(*a);
+        });
+        for (quint64 span : {89u, 91u, 119u, 121u}) scenario("undeclared-setup-profile", [=] {
+            Root root; root.ends = root.began + span; root.controls(); auto a = root.make();
+            check(!a->start() && a->refusal() == "control-clocks", "only exact declared spans");
+        });
+        scenario("extended-setup-recovery-reserve", [] {
+            Root root; root.began = root.armed + 56; root.ends = root.began + 120;
+            root.controls(); auto a = root.make(); check(!a->start() && a->refusal() == "control-clocks", "late setup refused before request clock");
+        });
         scenario("actual-self-admission-and-original-pair", [] { Root root; const int old = fdCount(); { auto admission = root.make(); check(admission->start() && admission->permit() && admission->rootFd() >= 0, "real own proc/boot/time accepted"); const auto result = core::readPair(admission->rootFd(), root.expected, [&] { return admission->permit(); }); check(result.observed && result.scalar == root.scalar && result.image == root.image && admission->permit(), "core original bytes bracketed with actual process"); } check(fdCount() == old, "wrapper and core FDs close"); });
         scenario("admission-scope-unwind-closes-pins", [] { Root root; const int old = fdCount(); bool caught = false; try { auto admission = root.make(); check(admission->start() && fdCount() == old + 3, "root plus two control pins retained"); throw std::runtime_error("owned caller unwind"); } catch (const std::runtime_error &e) { if (QByteArray(e.what()) != "owned caller unwind") throw; caught = true; } check(caught && fdCount() == old, "actual exception unwind closes pins"); });
         scenario("start-once-sticky", [] { Root root; auto admission = root.make(); check(admission->start(), "first admission"); check(!admission->start(), "second start refused"); refused(*admission); });

@@ -182,8 +182,9 @@ public:
 };
 struct Run {
     std::shared_ptr<ModelIO> io;QPointer<seq::Sequence> sequence;
-    Run(QGuiApplication &app,const QString &assets,Fault fault){io=std::make_shared<ModelIO>(assets,fault);const auto &b=io->assets.expected;
-        if(fault==Fault::TimerExpire)io->setupOverride=io->clock+500;
+    Run(QGuiApplication &app,const QString &assets,Fault fault,quint64 remaining=0){io=std::make_shared<ModelIO>(assets,fault);const auto &b=io->assets.expected;
+        if(remaining)io->setupOverride=io->clock+remaining;
+        else if(fault==Fault::TimerExpire)io->setupOverride=io->clock+500;
         seq::Config c{io->owned->expected,b.nonce.toLatin1(),b.candidatePid.toLatin1(),b.candidateStart.toLatin1(),io->setupOverride?io->setupOverride:b.setupEnd};
         sequence=new seq::Sequence(&app,c,io,nullptr,io->boundary());io->sequence=sequence;
     }
@@ -222,6 +223,7 @@ int main(int argc,char **argv){QGuiApplication app(argc,argv);try{
     qmlRegisterModule("QtQml.WorkerScript",QT_VERSION_MAJOR,QT_VERSION_MINOR);qmlRegisterModule("QtQml.Models",QT_VERSION_MAJOR,QT_VERSION_MINOR);
     qmlRegisterType<QObject>("OwnedProbe",1,0,"QtObject");qmlRegisterType<QQuickItem>("OwnedProbe",1,0,"Item");qmlRegisterType<FocusFixture>("OwnedProbe",1,0,"FocusScope");qmlRegisterType<SceneView>("OwnedProbe",1,0,"SceneFixture");registerCreationFixture();
     const auto assets=QString::fromLocal8Bit(argv[1]);
+    {Run r(app,assets,Fault::None,90001);++cases;need(!r.sequence->start()&&r.io->navigation==0&&r.io->goWrites==0,"extended setup cannot expand original ninety-second operation limit");}
     for(Fault fault:{Fault::None,Fault::NavRefuse,Fault::ReopenRefuse,Fault::NoRetire,Fault::NoPair,Fault::WrongClaim,Fault::UnknownCapture,Fault::WrongSource,Fault::PublishRefuse,Fault::PenRefuse,Fault::PenPending,Fault::WrongHolder,Fault::WrongRequest,Fault::WrongBoot,Fault::FutureCompletion,Fault::ClosurePending,Fault::CancelQueued,Fault::CancelCapture,Fault::DeleteCapture,Fault::DeleteReader,Fault::FocusChange,Fault::ClockExpire,Fault::ClockRegress,Fault::DeletePen,Fault::ThrowCapture,Fault::ThrowPen,Fault::DuplicateHandoff,Fault::DuplicateClose,Fault::FinalContext,Fault::FinalAdmission,Fault::FinalCancel,Fault::FinalQuit,Fault::TimerExpire,Fault::DeleteReady,Fault::DeleteInitialClock,Fault::DeleteAdmission,Fault::DeleteReport,Fault::DeleteCancel})scenario(app,assets,fault);
     std::printf("PASS write reopen sequence cases=%u checks=%u actual_queued_qt_files_png_join=true native_route_closure_actor_modeled=true native_execution=false\n",cases,checks);return 0;
 }catch(const std::exception &e){std::fprintf(stderr,"FAIL write reopen sequence %s cases=%u checks=%u\n",e.what(),cases,checks);return 1;}}

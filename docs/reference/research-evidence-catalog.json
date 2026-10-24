@@ -1339,6 +1339,29 @@
       ]
     },
     {
+      "path": "docs/experiments/write-reopen-setup-profile-owned-result.md",
+      "title": "Declared setup windows for a fresh combined diagnostic",
+      "lf_utf8_sha256": "dfce68a0c37b3a94af2eab9cbbb908280fae9f054d8fa4e7bc023455bebc1afb",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Declared setup windows for a fresh combined diagnostic"
+        },
+        {
+          "line": 9,
+          "heading": "Scope and unchanged limits"
+        },
+        {
+          "line": 30,
+          "heading": "Actual owned controls"
+        },
+        {
+          "line": 57,
+          "heading": "Fresh fixture and remaining gates"
+        }
+      ]
+    },
+    {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
       "lf_utf8_sha256": "3bbe92a310d55f5891f473682c1dc4d009f3f5f337adf5ec621b372bdc545803",
@@ -5700,7 +5723,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "f6e5c7be059f7aaa68ba391d8b60d5420d41f7db9d703db580acadfd580cdc3b",
+      "lf_utf8_sha256": "f0f2d94140abbe63da08fcacc94ec722d34869daa5d09f21e9140de8c1663aa8",
       "headings": [
         {
           "line": 1,
@@ -5988,11 +6011,15 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/write-reopen-sequence.md",
       "title": "One intended-target writing and reopen sequence",
-      "lf_utf8_sha256": "9b34eba24c4aa95911d9a5ab089dc01584fbce5d7ccad52dcb3b9af9ff982555",
+      "lf_utf8_sha256": "4d62d2091139d7bc7da585168f8218eb6faf3e6d26114f1dcd1900c9e7a879bf",
       "headings": [
         {
           "line": 1,
           "heading": "One intended-target writing and reopen sequence"
+        },
+        {
+          "line": 77,
+          "heading": "Separately declared setup profile after the expired combined trial"
         }
       ]
     },

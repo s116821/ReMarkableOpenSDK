@@ -80,7 +80,7 @@ public:
         auto d=deadline_.bytes.split(' '),w=window_.bytes.split(' ');std::uint64_t armed=0,end=0,wa=0,we=0,begin=0,ends=0;
         if(d.size()!=2||!d[1].endsWith('\n')||!number(d[0],armed)||!number(d[1].chopped(1),end)||end<armed||end-armed!=360||
            w.size()!=5||w[0]!=b_.nonce||!w[4].endsWith('\n')||!number(w[1],wa)||!number(w[2],we)||!number(w[3],begin)||!number(w[4].chopped(1),ends)||
-           wa!=armed||we!=end||begin<armed||ends<begin||ends-begin!=90||end<185||ends>end-185||ends>std::numeric_limits<std::uint64_t>::max()/1000||
+           wa!=armed||we!=end||begin<armed||ends<begin||(ends-begin!=90&&ends-begin!=120)||end<185||ends>end-185||ends>std::numeric_limits<std::uint64_t>::max()/1000||
            b_.setupEnd!=ends*1000)return false;
         began_=begin*1000;return context();
     }
@@ -271,7 +271,7 @@ int main(int argc,char**argv) {
     if(!nonce(binding.nonce)||!boot(binding.boot)||!number(argv[3],binding.candidatePid)||binding.candidatePid>std::uint64_t(std::numeric_limits<pid_t>::max())||
        !number(argv[4],binding.candidateStart)||!number(argv[6],binding.setupEnd))return failure();
     const auto at=milliseconds();const auto group=proc("/proc/self/cgroup");
-    if(!at||binding.setupEnd<=at||binding.setupEnd-at>90000||group.isEmpty()||group.contains("xochitl"))return failure();
+    if(!at||binding.setupEnd<=at||binding.setupEnd-at>120000||group.isEmpty()||group.contains("xochitl"))return failure();
     struct sigaction ignore{};ignore.sa_handler=SIG_IGN;if(::sigemptyset(&ignore.sa_mask)||::sigaction(SIGPIPE,&ignore,nullptr))return failure();
     struct sigaction childDisposition{};childDisposition.sa_handler=SIG_DFL;
     if(::sigemptyset(&childDisposition.sa_mask)||::sigaction(SIGCHLD,&childDisposition,nullptr))return failure();

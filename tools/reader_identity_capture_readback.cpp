@@ -103,7 +103,7 @@ public:
             if (parts.size() != 5 || parts[0] != expected_.nonce || !decimal(parts[1], armed) || !decimal(parts[2], recovery) ||
                 !decimal(parts[3], begin) || !decimal(parts[4], end) ||
                 armed > std::numeric_limits<quint64>::max() - 360 || recovery != armed + 360 ||
-                begin < armed || begin > std::numeric_limits<quint64>::max() - 90 || end != begin + 90 ||
+                begin < armed || end < begin || (end - begin != 90 && end - begin != 120) ||
                 recovery < 185 || end > recovery - 185 ||
                 end > std::numeric_limits<quint64>::max() / 1000 ||
                 deadline_.bytes != parts[1] + ' ' + parts[2] + '\n') return refuse("control-clocks");

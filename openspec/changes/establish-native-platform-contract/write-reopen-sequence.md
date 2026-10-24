@@ -73,3 +73,33 @@ sequence. No file appearance renews the original deadline. A combined scalar is
 forensic until a separate completion marker binds its exact original hash,
 candidate identity and original deadline. The independent collector still owns
 unit-exit, original frame/trace, document-preservation and restoration checks.
+
+## Separately declared setup profile after the expired combined trial
+
+The4925 trial began its sequence about36 seconds into its90-second setup and
+expired after close/reopen dispatch but before the last capture. Its later
+capture-only readback is separate reconciliation, not completion of that sequence.
+For a new candidate only, permit an explicitly frozen120-second setup alongside
+the original90-second profile. Accept exactly90 or120 seconds, not an arbitrary
+duration. The holder, private-file backend and standalone collector must agree
+on that original span and retain pinned control bytes/inodes. Any subsequent
+window replacement or deadline renewal must revoke admission.
+
+Keep the actor at360 seconds and the recovery reserve at185 seconds. A120-second
+setup must therefore begin no later than55 seconds after actor arming, or refuse
+before effects. Keep the sequence's existing maximum90 seconds remaining at
+start, the fixed stroke/release budgets and collector's10-second budget/12-second
+alarm unchanged. The120-second operator must wait until at least30 seconds of
+the original setup have elapsed and require more than70 seconds remaining before
+publishing its sole request. Fresh observations still determine UI readiness;
+elapsed time or transport-ready files cannot replace them.
+
+Use a different existing blank target, verified against the full fresh fixture,
+with the already written page immutable. Do not replay the spent4925 stroke,
+create another page or alter its recorded failure. A complete new result must
+still contain all three original capture pairs, one accepted input/release and
+the unchanged strict18-file consumer result inside the original deadlines.
+Exercise both accepted spans, nearby invalid spans, late-start reserve rejection,
+post-admission control replacement and the original90-second operation limit
+with actual owned file/process fixtures before native selection. Building this
+variant does not select, transfer or activate it.

@@ -11,15 +11,15 @@ void require(bool b,const char *s){++checks;if(!b){std::fprintf(stderr,"FAIL %s\
 QByteArray read(const QByteArray &p){QFile f(QString::fromLatin1(p));require(f.open(QIODevice::ReadOnly),"fixture-read");return f.readAll();}
 struct Area {
  reader_write_reopen::Config config;QByteArray root,boot;
- Area(){
+ Area(quint64 span=90,quint64 actorAge=1){
   config.nonce=QByteArray::number(++serial,16).rightJustified(32,'0');config.pid=QByteArray::number(::getpid());
   const auto stat=read("/proc/self/stat");config.start=stat.mid(stat.lastIndexOf(')')+2).split(' ')[19];
   boot=read("/proc/sys/kernel/random/boot_id").trimmed();const auto second=reader_fixed_pen_handoff::bootMs()/1000;
-  config.setupEnd=(second+90)*1000;config.target={"11111111-1111-4111-8111-111111111111","22222222-2222-4222-8222-222222222222",6,12};
+  config.setupEnd=(second+span)*1000;config.target={"11111111-1111-4111-8111-111111111111","22222222-2222-4222-8222-222222222222",6,12};
   root="/run/rmb-qt-probe-"+config.nonce;require(!::mkdir(root,0700),"mkdir-root");
   put("owner",config.nonce);put("attempt.identity",config.pid+' '+config.start+'\n');
-  put("deadline",QByteArray::number(second-1)+' '+QByteArray::number(second+359)+'\n');
-  put("candidate.window",config.nonce+' '+QByteArray::number(second-1)+' '+QByteArray::number(second+359)+' '+QByteArray::number(second)+' '+QByteArray::number(second+90)+'\n');
+  put("deadline",QByteArray::number(second-actorAge)+' '+QByteArray::number(second-actorAge+360)+'\n');
+  put("candidate.window",config.nonce+' '+QByteArray::number(second-actorAge)+' '+QByteArray::number(second-actorAge+360)+' '+QByteArray::number(second)+' '+QByteArray::number(second+span)+'\n');
  }
  QByteArray path(const char *n)const{return root+'/'+n;}
  void put(const char *n,const QByteArray &b){int fd=::open(path(n),O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC,0600);require(fd>=0,"put-open");require(::write(fd,b.constData(),size_t(b.size()))==b.size(),"put-write");require(!::close(fd),"put-close");}
@@ -28,6 +28,15 @@ struct Area {
 }
 int main(int argc,char **argv){
  QCoreApplication app(argc,argv);::umask(0077);require(::geteuid()==0,"container-root");
+ for(quint64 span:{90u,120u}){
+  Area a(span);auto io=a.open();require(bool(io)&&io->admitted(),"declared-profile-admitted");
+  require(!io->readyForRequest()&&!io->publishGo("unbound"),"profile-does-not-supply-holder-or-go");
+  require(!::rename(a.path("candidate.window"),a.path("window-old")),"profile-window-rename");
+  a.put("candidate.window",read(a.path("window-old")));require(!io->admitted(),"identical-window-replacement-revokes");
+ }
+ for(quint64 span:{89u,91u,119u,121u}){Area a(span);require(!a.open(),"undeclared-profile-refused");}
+ {Area a(120,55);require(bool(a.open()),"setup-end-at-recovery-reserve");}
+ {Area a(120,56);require(!a.open(),"late-setup-crosses-recovery-reserve");}
  {
   const QByteArray nonce(32,'a'),path="/system.slice/rmb-qt-pen-"+nonce+".service";
   const auto v1="1:name=systemd:"+path+'\n',v2="0::"+path+'\n';
