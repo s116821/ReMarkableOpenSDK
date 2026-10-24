@@ -221,3 +221,19 @@ foreign-token carriers also destruct outside the registry lock. Only the inner
 hook implementation is mutex-free; cancel/snapshot use the registry mutex.
 These fixtures do not establish that a real native Task has no future invocation,
 and production retirement, owner-slot connection and mutation remain disabled.
+
+### GUI retirement and scope import
+
+The two fence/scope headers and their fixtures are unchanged original Git blobs
+from the pinned handoff; all six original hashes, including runners before SDK
+adaptation, are recorded in `upstream-source.json`. Runners use caller-selected
+fresh output directories and preserve artifacts. The owned retirement fixture
+passes 748 checks on host ASan/UBSan and ARM Qt under QEMU. The request-scope
+fixture passes 20 scenarios / 143 checks in both environments, including actual
+Qt/JS bridge disarm. These establish adapter GUI lifetime behavior only; no
+native Task, native owner release or production mutation executor is exercised.
+
+Hosted CI also completed successfully for the preceding Core-token commit
+`7be87e60c74d395ccf162e9cd24bd518ff44761e`
+([run 40131829352](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40131829352)).
+That run predates this import and is not validation of its later source.

@@ -111,6 +111,30 @@
     {
       "path": "reader_insertion_guard_hooks_test.sh",
       "sha256": "3790a4865172e03bfafaf3a862c8408a6bf7852b8a2965e98800bbe5ca67d302"
+    },
+    {
+      "path": "reader_request_retirement.h",
+      "sha256": "c0616c8a6ca97a4ec20d85aca8a90d5ddaddc619afbefb6d2ebedb54217c9395"
+    },
+    {
+      "path": "reader_retirement_scope.h",
+      "sha256": "8ecc2f0949906db762728acd0e3af7a3597d4c16bb52a6bb42165883f1098449"
+    },
+    {
+      "path": "reader_request_retirement_fixture.cpp",
+      "sha256": "5fb4c52d8ec5602d3d8e446795b8ba72ae3d146053a94dc0c57a310d04952b48"
+    },
+    {
+      "path": "reader_request_retirement_test.sh",
+      "sha256": "5fddbbf7f9072492012388a43eae82e6c2af68a29a4a482a5f2b74cb08246495"
+    },
+    {
+      "path": "reader_request_scope_fixture.cpp",
+      "sha256": "e3d72023bb56ee52e25e1c9b81c0b49312caa9fef52ddbb8c2af251e92a1179f"
+    },
+    {
+      "path": "reader_request_scope_test.sh",
+      "sha256": "43411937ec65acab2075a65bba368971835f7bb5e72d3d3287b6494d563bb418"
     }
   ]
 }

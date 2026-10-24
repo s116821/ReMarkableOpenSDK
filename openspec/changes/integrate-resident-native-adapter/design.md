@@ -174,6 +174,15 @@ requires the future executor's independent no-future-invocation proof. The
 Coordinator now passes its original token on every Core operation. No public
 no-argument cancel/snapshot or production retirement caller remains.
 
+The imported GUI fence separates immediate logical invalidation, framed cleanup,
+and a distinct later retirement notification. Admission is later still, after
+the notification stack unwinds. Its scope binding carries no native owner and
+does not establish Task completion. The unchanged research implementation has
+a 256-nonce history bound; production integration will use one fence per request
+inside the single resident mutation slot, rather than treating that history as
+a process-wide operation allowance. Durable deduplication remains the journal's
+responsibility. This executor connection is not implemented by the import.
+
 ### Non-last-only owner policy
 
 Exact-artifact analysis supports a narrower alternative to calling the ordinary
