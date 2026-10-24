@@ -194,3 +194,30 @@ above. Initial host/ARM fixture compilations failed under misleading-indentation
 warnings in three mock functions; fresh runs passed after separating statements.
 The output directories and failed attempts remain retained. Mutation is still
 disabled; the production retirement gate and native validation remain open.
+
+## Core request identity checkpoint
+
+The preceding retained-slot commit `9e513bd60702cde8d89c946d9be852af56095327`
+passed the complete hosted pipeline:
+[run 40131281539](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40131281539).
+That run precedes the Core changes below.
+
+The adapted original ARM hook suite passes 101 ordinary scenarios / 9,393
+assertions, including a new 1,000-cycle registration/reclamation case with 8,006
+assertions, plus the original expected-exit fail-stop scenarios. Stale and foreign
+tokens cannot cancel, observe or retire a replacement; attempted retirement from
+an active outer frame is rejected. Original conditional-forward, private-rejection,
+unwind, duplicate, interference and inflight behavior remains covered. The final
+run also compiles the production Coordinator header without test seams.
+
+A portable host ASan/UBSan fixture passes 1,800 assertions across 200 concurrent
+normal/unwind cycles. It pauses an owned outer frame while cancel, snapshot and
+retirement race from the other thread, then joins the owned caller before using
+the private test retirement gate. This test installs no native hook.
+
+The full native ARM adapter links after the Core change. Independent source
+review found no blocking issue after a declaration-order fix ensured rejected
+foreign-token carriers also destruct outside the registry lock. Only the inner
+hook implementation is mutex-free; cancel/snapshot use the registry mutex.
+These fixtures do not establish that a real native Task has no future invocation,
+and production retirement, owner-slot connection and mutation remain disabled.

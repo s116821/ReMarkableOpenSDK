@@ -103,6 +103,14 @@
     {
       "path": "reader_worker_callback_witness.h",
       "sha256": "9b39f583e7c32f8f9bd5b26aec7655dc3166a4c72e78c8bbd973b038302cfe73"
+    },
+    {
+      "path": "reader_insertion_guard_hooks_fixture.cpp",
+      "sha256": "70d20d96d02a4aec7fd9a743c1b296faf25317006ef75d59d4e5c362528ff8aa"
+    },
+    {
+      "path": "reader_insertion_guard_hooks_test.sh",
+      "sha256": "3790a4865172e03bfafaf3a862c8408a6bf7852b8a2965e98800bbe5ca67d302"
     }
   ]
 }

@@ -13,8 +13,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <thread>
+#include <mutex>
+#include <memory>
 
+namespace reader_worker_native {class ResidentMutation;}
 namespace reader_insertion_hooks {
+#ifdef READER_INSERTION_LIFECYCLE_TESTING
+namespace testing {struct Lifecycle;}
+#endif
 using Word = std::uint32_t;
 using Outer = void (*)(void *, int, const void *, Word, QSizeF, int, Word, const QUuid &);
 using Inner = void (*)(void *, int, const QString &, const QString &, std::int32_t, std::int32_t);
@@ -77,23 +83,58 @@ class Core final {
     struct Record {
         Registration input;
         std::atomic<bool> claimed{false}, canceled{false}, terminal{false}, interference{false};
+        std::atomic<unsigned> activeOuter{0};
         Outcome outcome;
         reader_insertion_forward_decision::Decision decision;
         explicit Record(Registration &&r):input(std::move(r)) {}
     };
+public:
+    class Token final {
+        std::weak_ptr<Record> record_;
+        explicit Token(const std::shared_ptr<Record> &record):record_(record){}
+        friend class Core;
+    public:
+        Token()=default;
+        explicit operator bool()const noexcept {return !record_.expired();}
+    };
+private:
     struct Scope { Core *core; Record *record; Scope *previous; bool inner=false; };
     struct Rejected { Record *record; };
     enum class Phase { Empty, Installing, Verified, Failed };
     InstallIO io_;
     std::atomic<Phase> phase_{Phase::Empty};
-    std::atomic<Record *> record_{nullptr};
-    std::atomic<bool> registered_{false};
+    mutable std::mutex registry_;
+    std::shared_ptr<Record> record_;
     Outer originalOuter_=nullptr;
     Inner originalInner_=nullptr;
     static inline std::atomic<Core *> active_{nullptr};
     static inline thread_local Scope *scope_=nullptr;
     explicit Core(InstallIO io):io_(io) {}
     ~Core()=default; // Deliberately inaccessible: process-resident allocation only.
+    friend class reader_worker_native::ResidentMutation;
+#ifdef READER_INSERTION_LIFECYCLE_TESTING
+    friend struct testing::Lifecycle;
+#endif
+    std::shared_ptr<Record> match(const Token &token)const {
+        auto value=token.record_.lock();
+        std::lock_guard<std::mutex> lock(registry_);
+        return value&&value==record_?value:nullptr;
+    }
+    // Only the executor's exact submitted-Task retirement proof may authorize
+    // removal. Zero active stacks alone does not prove no future invocation.
+    bool retirePhysically(const Token &token) {
+        std::shared_ptr<Record> retired;
+        auto value=token.record_.lock();
+        {
+            std::lock_guard<std::mutex> lock(registry_);
+            if(!value||value!=record_||value->activeOuter.load(std::memory_order_acquire))return false;
+            value->canceled.store(true,std::memory_order_release);
+            if(value->input.policy==Policy::ForwardIfCurrent)value->decision.cancel();
+            retired=std::move(record_);
+        }
+        // Registration/frozen carriers are destroyed outside the registry lock.
+        return true;
+    }
     [[noreturn]] void stop(const char *why) noexcept {
         phase_.store(Phase::Failed,std::memory_order_release);
         try { if(io_.failStop) io_.failStop(io_.context,why); } catch(...) {}
@@ -154,7 +195,14 @@ class Core final {
                int source,Word inherit,const QUuid &target) {
         // Materialize this worker-local TLS before the original can hold its map lock.
         Scope *previous=scope_;
-        Record *r=record_.load(std::memory_order_acquire);
+        std::shared_ptr<Record> retained;
+        {
+            std::lock_guard<std::mutex> lock(registry_);
+            retained=record_;
+            if(retained)retained->activeOuter.fetch_add(1,std::memory_order_acq_rel);
+        }
+        Record *r=retained.get();
+        struct Leave {Record *r;~Leave(){if(r)r->activeOuter.fetch_sub(1,std::memory_order_release);}} leave{r};
         if(!r || target!=r->input.target) {
             if(previous) previous->record->interference.store(true,std::memory_order_release);
             struct Suspend { Scope *old; Suspend():old(scope_){scope_=nullptr;} ~Suspend(){scope_=old;} } suspend;
@@ -290,31 +338,35 @@ public:
         phase_.store(Phase::Verified,std::memory_order_release);
         } catch(...) { stop("installation-exception"); }
     }
-    bool registerOnce(Registration &&input) {
+    Token registerRequest(Registration &&input) {
         if(phase_.load(std::memory_order_acquire)!=Phase::Verified || input.target.isNull() ||
            !input.binding.worker || !input.binding.map || !input.binding.outerReturnPC || !input.binding.innerReturnPC ||
-           input.binding.thread==std::thread::id{} || !input.residentNativeOwners || !validPolicy(input.binding)) return false;
+           input.binding.thread==std::thread::id{} || !input.residentNativeOwners || !validPolicy(input.binding)) return {};
         switch(input.policy) {
         case Policy::NegativeOnly:
-            if(!input.frozen || input.frozenCondition || input.target.toString(QUuid::WithoutBraces)!=input.frozen->requestedTarget()) return false;
+            if(!input.frozen || input.frozenCondition || input.target.toString(QUuid::WithoutBraces)!=input.frozen->requestedTarget()) return {};
             break;
         case Policy::ForwardIfCurrent:
             if(input.frozen || !input.frozenCondition || input.postRejectProbe ||
                input.target.toString(QUuid::WithoutBraces)!=input.frozenCondition->target() ||
                !input.conditionCalls.readWords || !input.conditionCalls.search || !input.conditionCalls.equal ||
-               !input.conditionCalls.readTree || !input.conditionCalls.find) return false;
+               !input.conditionCalls.readTree || !input.conditionCalls.find) return {};
             break;
-        default:return false;
+        default:return {};
         }
-        bool no=false; if(!registered_.compare_exchange_strong(no,true,std::memory_order_acq_rel)) return false;
-        record_.store(new Record(std::move(input)),std::memory_order_release); return true;
+        // Allocate/copy no caller-controlled carrier under the registry mutex.
+        auto candidate=std::make_shared<Record>(std::move(input));
+        std::lock_guard<std::mutex> lock(registry_);
+        if(record_)return {};
+        record_=std::move(candidate);return Token(record_);
     }
-    void cancel() { if(auto *r=record_.load(std::memory_order_acquire)) {
+    bool cancel(const Token &token) { if(auto r=match(token)) {
         if(r->input.policy==Policy::ForwardIfCurrent) r->decision.cancel();
         r->canceled.store(true,std::memory_order_release);
-    } }
-    Outcome snapshot() const {
-        auto *r=record_.load(std::memory_order_acquire);
+        return true;
+    } return false; }
+    Outcome snapshot(const Token &token) const {
+        auto retained=match(token);auto *r=retained.get();
         if(!r) return {};
         if(!r->terminal.load(std::memory_order_acquire)) {
             if(r->input.policy==Policy::ForwardIfCurrent && r->decision.current()==reader_insertion_forward_decision::State::ForwardCommitted) {

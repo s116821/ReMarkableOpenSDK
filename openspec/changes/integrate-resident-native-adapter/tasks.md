@@ -21,6 +21,7 @@
   - [ ] 2.3c Connect a typed retained-owner slot with per-owner consumption, no ordinary-release fallback, generation-bound physical retirement and native repeated-operation qualification.
     - [x] 2.3c1 Implement the single retained acquisition slot and opaque stale-safe tokens; verify partial/unknown acquisition, per-owner consumption and refusal retention on owned host/ARM fixtures. Private retirement has no production caller yet.
     - [ ] 2.3c2 Connect exact Task/callback retirement and reusable Core/Coordinator registration to the slot, then qualify native capacity and repeated operations.
+      - [x] 2.3c2a Bind Core registration, cancellation, snapshots and private retirement to opaque request tokens; adapt Coordinator token retention and verify owned normal/unwind/active/stale/foreign cases. No production retirement caller yet.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery

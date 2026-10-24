@@ -149,6 +149,7 @@ private:
         std::thread::id id;
     };
     struct Resident {
+        reader_insertion_hooks::Core::Token registration;
         Runtime runtime;
         std::unique_ptr<reader_worker_native::Bridge> bridge;
         std::unique_ptr<reader_worker_native::Prepared> prepared;
@@ -228,13 +229,13 @@ private:
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
         if (test_.cancel) { const auto fn = test_.cancel; fn(); return; }
 #endif
-        if (resident_->runtime.core) resident_->runtime.core->cancel();
+        if (resident_->runtime.core) resident_->runtime.core->cancel(resident_->registration);
     }
     reader_insertion_hooks::Outcome coreSnapshot() const {
 #ifdef READER_INSERTION_GUARD_ENTRY_TESTING
         if (test_.snapshot) { const auto fn = test_.snapshot; return fn(); }
 #endif
-        return resident_->runtime.core ? resident_->runtime.core->snapshot() : reader_insertion_hooks::Outcome{};
+        return resident_->runtime.core ? resident_->runtime.core->snapshot(resident_->registration) : reader_insertion_hooks::Outcome{};
     }
     static bool forwardGood(const reader_insertion_hooks::Outcome &o) {
         return o.terminal && o.witness && o.attributed && o.jobId && o.outerCalls == 1 && o.innerCalls == 1 &&
@@ -512,7 +513,10 @@ private:
         if (test_.registerOnce) { const auto fn = test_.registerOnce; registered = fn(std::move(registration)); }
         else
 #endif
-            registered = resident_->runtime.core->registerOnce(std::move(registration));
+        {
+            resident_->registration = resident_->runtime.core->registerRequest(std::move(registration));
+            registered = bool(resident_->registration);
+        }
         if (!weak) return;
         result_.registrationAccepted = registered;
         if (!registered || !guard() || !weak) { if (weak) refuse(QStringLiteral("registration-refused")); return; }

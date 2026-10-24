@@ -165,6 +165,15 @@ physical mutation retains the bounded mutation slot while independent read-only
 observations remain possible. This is a design requirement, not implemented or
 native-qualified reclamation.
 
+The Core source now uses opaque weak-record tokens for registration, cancellation
+and snapshots. Outer entry pins the record and records active frames before
+native dispatch; the inner predicate is unchanged. Registry locks cover only
+lookup/removal, with native calls and record destruction outside. Its private
+retirement method checks the original token and active frame count, but still
+requires the future executor's independent no-future-invocation proof. The
+Coordinator now passes its original token on every Core operation. No public
+no-argument cancel/snapshot or production retirement caller remains.
+
 ### Non-last-only owner policy
 
 Exact-artifact analysis supports a narrower alternative to calling the ordinary

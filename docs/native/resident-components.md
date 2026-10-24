@@ -16,8 +16,11 @@ The imported post-order fixture adds an explicit `return 0` so its owned models
 can be reused under a renamed test entry point. The predicate test runner now
 resolves this directory and requires a caller-selected output directory. The native
 profile now pins exact owner-control table prefixes and provides a private
-non-last-only release gate. Other imported mechanisms remain unchanged at this
-checkpoint. No proprietary firmware binary or extracted asset is included.
+non-last-only release gate. Core registration/cancel/snapshot now use opaque
+request tokens; the Coordinator retains and passes its original token. The owned
+ARM hook fixture is imported with baseline provenance and adapted to these APIs.
+Other imported mechanisms remain unchanged at this checkpoint. No proprietary
+firmware binary or extracted asset is included.
 
 ## Current integration
 
@@ -42,9 +45,9 @@ Unsupported until physical completion and owner reclamation are integrated.
 The bootstrap source binds independently checked profile/artifact hashes,
 one-use supervisor admission and endpoint lifetime; its actual native activation
 and recovery remain unqualified. See [build/admission contract](../../native/rm2_3_28_0_172/BUILD.md).
-The native profile's current one-shot
-hook registration, attribution allocation and retained Coordinator owners must
-be made safely reusable. Neither copying these mechanisms nor compiling them
+The native profile's attribution allocation and retained Coordinator owners must
+still be made safely reusable. Core record retirement is private and has no
+production caller. Neither copying these mechanisms nor compiling them
 qualifies a resident lifecycle. Do not install this source as an automatic boot
 payload or use a diagnostic one-shot fallback as product behavior.
 
@@ -74,6 +77,14 @@ state identity. It is compiled with the bootstrap but is not instantiated by it.
 The imported research Coordinator still uses its original one-shot Bridge path;
 that path is not a production mutation endpoint. Connecting the slot to reusable
 Core/Coordinator registration and exact Task retirement remains open.
+
+Core now pins a shared registration record at outer entry and binds cancel,
+snapshot and private retirement to its opaque original token. A short registry
+mutex protects registration lookup/removal; no native dispatch or record-carrier
+destruction occurs under it. Cancel/snapshot also take that mutex; the inner-hook
+implementation itself is unchanged and does not acquire it. Retirement rejects
+active outer frames, but independently proving no future Task invocation remains
+the executor's responsibility. An empty stack count is not that proof.
 
 ## Owned verification
 
