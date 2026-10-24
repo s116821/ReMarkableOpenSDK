@@ -249,6 +249,31 @@ requires and confirms all26 original files/full12 IDs unchanged, with the same
 This diagnostic is spent. No timeout adjustment or faster discovery path has
 been qualified by this result.
 
+The source successor records visited items, permission attempts and elapsed
+milliseconds on completed or refused navigation observations. These diagnostic
+scalars add no readiness, identity or action authority. Startup composition gets
+a deliberate ten-second local observation budget inside the existing20-second
+maximum; original90-second candidate, actor/restoration deadlines, every
+ownership/lifetime/notification/cancellation check and request/GO behavior stay
+unchanged. The idle-tablet test scope permits this longer UI-thread observation.
+
+Source comparison removes only the diagnostic operations and that one explicit
+budget change to recover the entire predecessor navigation/startup token stream,
+receipt460c591b77fc14c517ab2a0e483eaa79b746f08800b92002bd5c83e22463d0c4.
+Actual typed and legacy fixtures pass on host, ARM-QEMU and sanitizer, including
+the new actual cancellation/counter check under the longer budget, receipt
+dbf50639248bc986cbe9291d241989f925a12155321f649b58258f35a994d418.
+The first harness stopped on an absent host WorkerScript import. Its successor
+explicitly registers unused host WorkerScript/Models modules for the owned QML;
+it does not emulate workers/models. ARM uses actual SDK modules. A second harness
+preserves ABI notes and cache warnings; the passing successor supplies writable
+font cache and suppresses compiler ABI notes. ASAN/UBSAN checks exclude Qt leak
+reporting. Original failed outputs remain preserved.
+Full25-input ARM startup link and8 fixture/11 selector refusals pass, receipt
+6d80bd5a270b83d877a76e5c4bb0ec7cca88671a7575ab14446860effc01aea3.
+This is source/owned evidence only; the longer-budget native run is not yet
+selected by these checks.
+
 An offline REA6.7/Ghidra12.1.4 follow-up against the unchanged saved binary found
 no matching procedure names in the stripped target, then used exact metadata
 dispatch and wrapper records. Together with hash-verified retained MainView

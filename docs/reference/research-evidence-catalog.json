@@ -244,7 +244,7 @@
     {
       "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
       "title": "Fresh fixed-writer image and native owned-file process qualification",
-      "lf_utf8_sha256": "4df380569690ffd383f89e795d1009ad1c817597c068ff44e3f5befd899313ed",
+      "lf_utf8_sha256": "c258aa1f12b90b5b459f63f487ca6c6b7d3cb270da76633cfdb55e24a037283f",
       "headings": [
         {
           "line": 1,
@@ -267,7 +267,7 @@
           "heading": "Later composed holder admission, with no GO"
         },
         {
-          "line": 265,
+          "line": 290,
           "heading": "Simulator calibration and remaining native work"
         }
       ]
@@ -5665,7 +5665,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "e1d02cec0cbef36509e35f5b7a49a601d4006be4e1696248d00b8937b5ef5c74",
+      "lf_utf8_sha256": "0d9406d671cf2de3761629fd86539721b2e244b9e964cf0e59cb4eaf9b22c397",
       "headings": [
         {
           "line": 1,

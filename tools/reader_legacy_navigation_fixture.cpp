@@ -58,12 +58,22 @@ int main(int argc, char **argv) {
         const auto result = fixture.run();
         requireLegacy(result.attempted && result.dispatched && result.refusal.isEmpty() && fixture.navigator->calls == 1 &&
             other.calls == 0 && auxiliary.reads == 0, "linked main selected, root not duplicated, unrelated distinct wrapper ignored");
+        requireLegacy(result.visitedItems >= 4 && result.permissionCalls > quint64(result.visitedItems) && result.elapsedMs >= 0,
+            "diagnostic costs accompany actual completed census");
         requireLegacy(fixture.navigator->route == QStringLiteral("legacydevice/window/main") &&
             fixture.navigator->configuration.value("documentId").metaType() == QMetaType::fromType<QString>() &&
             fixture.navigator->configuration.value("documentId").toString() == fixture.configuration.documentId &&
             fixture.navigator->configuration.value("page").metaType() == QMetaType::fromType<int>() &&
             fixture.navigator->configuration.value("page").toInt() == 4, "fixed route and exact QString/int map");
         pumpLegacy(); requireLegacy(fixture.navigator->calls == 1, "no queued retry");
+    }
+    {
+        LegacyFixture fixture;
+        quint64 calls = 0;
+        const auto result = fixture.run([&] { ++calls; return calls < 20; }, 10000);
+        requireLegacy(!result.attempted && !result.dispatched && result.refusal == QStringLiteral("canceled") &&
+            fixture.navigator->calls == 0 && result.permissionCalls == calls && calls == 20 && result.elapsedMs >= 0,
+            "longer observation budget keeps cancellation and counts actual permission calls");
     }
     for (bool shared : {true, false}) {
         LegacyFixture fixture;

@@ -20,6 +20,10 @@ struct NavigationObservation {
     bool attempted = false, dispatched = false;
     bool compositionObserved = false;
     QString refusal;
+    // Diagnostic cost only; these counters confer no identity or action authority.
+    int visitedItems = 0;
+    quint64 permissionCalls = 0;
+    qint64 elapsedMs = 0;
 };
 // Read-only, synchronous borrowed composition. No pointer/context/guard escapes.
 // The callback owns its final guard and getter/notification checks; no provider
@@ -49,6 +53,15 @@ class Dispatch {
     const std::function<bool()> &permit;
     int budget;
     QString failure;
+    int visitedItems = 0;
+    quint64 permissionCalls = 0;
+
+    NavigationObservation measured(NavigationObservation result) const {
+        result.visitedItems = visitedItems;
+        result.permissionCalls = permissionCalls;
+        result.elapsedMs = elapsed.elapsed();
+        return result;
+    }
 
     bool no(const char *reason) {
         if (failure.isEmpty()) failure = QString::fromLatin1(reason);
@@ -87,6 +100,7 @@ class Dispatch {
     }
     bool allowed() {
         if (!context()) return false;
+        ++permissionCalls;
         if (!permit || !permit()) return no("canceled");
         return context();
     }
@@ -297,7 +311,7 @@ public:
         const auto refused = [&] {
             NavigationObservation result;
             result.refusal = failure.isEmpty() ? QStringLiteral("navigation-refused") : failure;
-            return result;
+            return measured(result);
         };
         if (!failure.isEmpty() || !retain(app) || !retain(window) || !retain(root) || !retain(engine) || !allowed()) return refused();
         if (!signal(app, "focusWindowChanged(QWindow*)") || !signal(window, "activeChanged()") ||
@@ -305,6 +319,7 @@ public:
         struct Node { QPointer<QQuickItem> object; int depth; };
         QList<Node> nodes{{root, 0}};
         for (qsizetype index = 0; index < nodes.size(); ++index) {
+            ++visitedItems;
             const QPointer<QQuickItem> current = nodes[index].object;
             if (!current || !item(current) || !allowed()) return refused();
             // Watch excluded boundaries before pruning. A reveal/enable, even
@@ -350,7 +365,7 @@ public:
             }
             NavigationObservation result;
             result.compositionObserved = true;
-            return result;
+            return measured(result);
         }
         const QMetaMethod selected = method(receiver);
         if (!selected.isValid() || !allowed()) return refused();
@@ -366,7 +381,7 @@ public:
         // receiver. Do not consult that epoch or dereference the receiver here.
         if (!result.dispatched) result.refusal = QStringLiteral("navigation-invoke-refused");
         else if (elapsed.elapsed() >= budget) result.refusal = QStringLiteral("deadline-after-dispatch");
-        return result;
+        return measured(result);
     }
 };
 } // namespace navigation_detail

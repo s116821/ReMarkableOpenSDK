@@ -153,13 +153,15 @@ private:
             wait_.beginComposition();
             auto *window=qobject_cast<QQuickWindow *>(QGuiApplication::focusWindow());
             const auto composition=reader_selected::inspectLegacyFixture(window,
-                [](QQuickItem *,QQmlContext *,const std::function<bool()> &guard){return guard&&guard();},allowed,1000);
+                [](QQuickItem *,QQmlContext *,const std::function<bool()> &guard){return guard&&guard();},allowed,10000);
             if(!weak)return;
+            const auto cost=QStringLiteral("|items=%1|permits=%2|ms=%3")
+                .arg(composition.visitedItems).arg(composition.permissionCalls).arg(composition.elapsedMs);
             if(!composition.compositionObserved||!composition.refusal.isEmpty()){
-                wait_.note(QStringLiteral("composition/")+(composition.refusal.isEmpty()?QStringLiteral("not-observed"):composition.refusal.left(128)));
+                wait_.note(QStringLiteral("composition/")+(composition.refusal.isEmpty()?QStringLiteral("not-observed"):composition.refusal.left(80))+cost);
                 queue();return;
             }
-            wait_.note(QStringLiteral("composition-ready"));
+            wait_.note(QStringLiteral("composition-ready")+cost);
             const auto early=io->request();
             if(!early.missing||!io->publishReady()){refuse("startup-ready-refused");return;}
             ready_=true;wait_.note(QStringLiteral("request-not-published"));queue();return;
