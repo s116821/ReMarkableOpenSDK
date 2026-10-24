@@ -117,3 +117,79 @@ fn rust_session_against_qt_endpoint() {
     assert_eq!(count, "submissions=201\n"); // Old request never reached the backend.
     assert!(server.0.wait().unwrap().success());
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires the separately built owned Qt endpoint binary and Rust wire corpus"]
+fn authenticated_client_against_qt_endpoint() {
+    use remarkable_open_sdk::native_adapter::transport::Client;
+    use std::fs::File;
+    use std::os::unix::fs::MetadataExt;
+    use std::time::Instant;
+    let mut server = OwnedServer(
+        Process::new(std::env::var_os("RESIDENT_ENDPOINT_BINARY").unwrap())
+            .arg("--rust-server")
+            .arg(std::process::id().to_string())
+            .arg(std::env::var_os("RESIDENT_WIRE_VECTORS").unwrap())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    let mut output = BufReader::new(server.0.stdout.take().unwrap());
+    let mut path = String::new();
+    output.read_line(&mut path).unwrap();
+    // Owned fixture bootstrap asserts its hashes. Production requires separate
+    // supervisor verification; Client independently checks kernel PID/start/boot.
+    let identity = read_frame(&mut output).unwrap();
+    assert_eq!(identity.scope.runtime.pid, server.0.id());
+    let directory = File::open(path.trim()).unwrap();
+    let uid = directory.metadata().unwrap().uid();
+    let mut client = Client::connect(
+        directory,
+        uid,
+        identity.scope,
+        OperationId(id(50)),
+        Instant::now() + Duration::from_secs(2),
+    )
+    .unwrap();
+    let Reply::Observed(source) = client
+        .execute(
+            OperationId(id(51)),
+            Command::Observe,
+            Instant::now() + Duration::from_secs(2),
+            |_, _| Ok(()),
+        )
+        .unwrap()
+    else {
+        panic!()
+    };
+    let mut digest = [0; 32];
+    let error = client
+        .execute(
+            OperationId(id(52)),
+            Command::InsertAfter(InsertAfter {
+                source,
+                target: id(99),
+            }),
+            Instant::now() + Duration::from_secs(2),
+            |_, hash| {
+                digest = hash;
+                Ok(())
+            },
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.lost,
+        LostRequest::Indeterminate {
+            operation: OperationId(id(52)),
+            request_sha256: digest
+        }
+    );
+    assert_eq!(client.close(), error.lost);
+    server.0.stdin.take().unwrap().write_all(b"Q").unwrap();
+    let mut count = String::new();
+    output.read_line(&mut count).unwrap();
+    assert_eq!(count, "submissions=2\n");
+    assert!(server.0.wait().unwrap().success());
+}

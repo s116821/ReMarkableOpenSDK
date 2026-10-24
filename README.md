@@ -8,8 +8,14 @@ This unpublished Rust crate requires Rust 1.88. Source manifests omit a maintain
 
 The opt-in `native-adapter` feature supplies bounded binary framing, runtime and
 request correspondence, and historical Reader identity/order facts. It depends
-only on the already pinned SHA-256 library; default builds remain dependency-free.
-This is the control boundary under implementation, not a connected native executor.
+on pinned SHA-256 and, on Linux, optional Nix socket/poll wrappers; default builds
+remain dependency-free. Linux `native_adapter::transport::Client` connects through
+the supervisor's retained activation-directory descriptor and authenticates the
+kernel peer PID/UID, boot and process start time. Artifact verification and fresh
+nonces remain supervisor responsibilities. Its bounded blocking IO belongs on a
+consumer IO thread. Requests require an absolute deadline and a journal callback;
+mutations must be durably recorded before that callback returns success.
+This is an integration boundary under implementation; native qualification is open.
 Enabling it does not activate xochitl or change `UnqualifiedPlatform` capabilities.
 
 Native facts have no fabricated content revision or input epoch and cannot become
@@ -17,8 +23,8 @@ operational `PageObservation` guards. Insertion observations do not prove durabl
 commit, current target selection or writing authority. Persist the original
 operation/source/target before dispatch. An uncertain mutation closes its session
 and retains that uncertainty across cleanup; reconnect only to reconcile it.
-The consumer journal and server enforce durable deduplication across connections;
-client sequence correlation alone does not implement that policy.
+Consumer/server integration must enforce durable deduplication across connections;
+client sequence correlation alone does not implement that pending obligation.
 
 Run `cargo test --locked --features native-adapter --test resident_protocol`.
 The [active integration design](openspec/changes/integrate-resident-native-adapter/design.md)

@@ -4,6 +4,7 @@
 - [x] 1.3 Verify frame/schema faults, fragmentation, reconnect/stale replies, sequence exhaustion and actual Rust/Qt endpoint interoperability; preserve dependency-free defaults and package containment.
   - [x] 1.3a Host protocol suite: 13 integration tests plus sequence-exhaustion unit regression; default/all-feature builds, both ordinary consumer toolchains and package checks pass.
   - [x] 1.3b Actual Rust/Qt local endpoint interoperability, peer authentication and Qt-side stale-request rejection; owned endpoint evidence, not native Reader qualification.
+  - [x] 1.3c Add the production Linux client transport with kernel peer/process authentication, pinned directory/socket identity, absolute IO deadlines and journal-before-write; verify owned socket faults, Qt interoperability, MSRV and package boundaries. Consumer journal/lifecycle integration remains 3.1.
 - [ ] 1.4 Independently review the final exact implementation and record source/build evidence separately from native qualification.
   - [x] 1.4a Independent source review accepts the protocol foundation after capacity and sticky-ambiguity fixes; [checkpoint](verification.md). Final endpoint/native/consumer review remains open.
   - [x] 1.4b Independent endpoint review completed after connection-incarnation, pinned-inode and post-encoding deadline fixes. Native executor/consumer review remains open.

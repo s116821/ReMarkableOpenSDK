@@ -6,6 +6,9 @@ use crate::{OperationId, PageKey, Uuid};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 
+#[cfg(target_os = "linux")]
+pub mod transport;
+
 pub const PROTOCOL_REVISION: u16 = 1;
 pub const MAX_FRAME: usize = 65_536;
 pub const MAX_PAGES: usize = 2_048;
@@ -651,6 +654,21 @@ impl Session {
     /// Once returned, even zero/partial write failure is conservatively unknown
     /// for mutation. The caller must not invoke this again to retry that request.
     pub fn begin(&mut self, operation: OperationId, command: Command) -> Result<Frame> {
+        let frame = match self.prepare(operation, command) {
+            Err(ProtocolError::SequenceExhausted) => {
+                self.closed = true;
+                return Err(ProtocolError::SequenceExhausted);
+            }
+            result => result?,
+        };
+        let digest = frame.fingerprint()?;
+        self.sequence = frame.sequence;
+        self.pending = Some((frame.clone(), digest));
+        Ok(frame)
+    }
+    /// Preview the exact next request for durable journaling. No sequence is
+    /// consumed and no operation becomes pending until `begin` is called.
+    pub fn prepare(&self, operation: OperationId, command: Command) -> Result<Frame> {
         if self.closed || !self.ready {
             return Err(ProtocolError::Closed);
         }
@@ -658,7 +676,6 @@ impl Session {
             return Err(ProtocolError::Busy);
         }
         let Some(sequence) = self.sequence.checked_add(1) else {
-            self.closed = true;
             return Err(ProtocolError::SequenceExhausted);
         };
         let frame = Frame {
@@ -667,9 +684,7 @@ impl Session {
             operation,
             message: Message::Request(command),
         };
-        let digest = frame.fingerprint()?;
-        self.sequence = sequence;
-        self.pending = Some((frame.clone(), digest));
+        frame.encode()?;
         Ok(frame)
     }
     /// A mismatch retains pending ambiguity; it cannot consume the operation.

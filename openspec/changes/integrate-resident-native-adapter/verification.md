@@ -361,3 +361,37 @@ immutable deadline propagation or bootstrap's disabled-mutation gate.
 The earlier executor checkpoint `4768bb3e649685d7f105bb8ba6e26c5242c772af`
 passed [hosted run 40135448615](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40135448615).
 That run does not validate the later pipeline or dispatcher changes.
+
+### Authenticated Rust client
+
+The Linux client adds eight owned-socket integration tests and two focused unit
+checks. They cover real kernel peer PID/UID and boot/start authentication, unsafe
+permissions/symlinks, retained-directory rename, socket replacement during
+journaling, known journal/expiry refusal before mutation bytes, 200 successive
+observations plus insertion correspondence, EOF/wrong reply/oversized/partial
+response ambiguity, slow fragments and an actual partial write blocked at its
+absolute deadline. No native Reader is involved.
+
+All-feature suites pass on Linux Rust 1.88.0 and 1.98.1 and Windows Rust 1.88.0;
+Linux/Windows Rust 1.98.1 Clippy passes with warnings denied. Rust 1.88.0 also
+checks the `native-adapter` library for `armv7-unknown-linux-gnueabihf`; this is a
+cross-compile check, not ARM execution. Separate default tests, ordinary consumer
+checks on both toolchains, five package/license checks and 22 OpenSpec items pass.
+The Linux-only optional Nix 0.31.3 graph adds three registry packages; full original
+license notices and the exact lock inventory are retained. Default consumers
+still have no SDK feature/dependency leakage.
+
+The rebuilt Qt endpoint passes 1760 owned checks. Both its original Session test
+and the new authenticated Client test pass against that binary, including native
+endpoint deadline retirement retaining the original client mutation identity.
+Fixture bootstrap assertions are not artifact attestation. The Supervisor must
+independently verify artifacts and implement activation/recovery; the consumer
+journal must implement durable operation deduplication. Independent source review
+found no blocker after clarifying those obligations. Native activation, target
+acquisition, durable consumer integration and product acceptance remain open.
+
+Earlier hosted runs for pipeline `a36f46f6b0b4aa7555d3150870fff1e1b6f1b299`
+([40135912446](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40135912446))
+and dispatcher `bc951c1033bd55c2ff2e7c4b8fce78c2e7ffd734`
+([40136477280](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40136477280))
+passed. Those runs do not validate this later client/lockfile change.

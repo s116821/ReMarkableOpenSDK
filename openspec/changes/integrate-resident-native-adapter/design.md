@@ -295,6 +295,29 @@ does not activate mutation or advertise a qualified capability.
 
 ## Verification and rollout
 
+### Linux client transport
+
+The Rust client consumes the Supervisor's retained activation-directory file
+descriptor. It requires an owned 0700 directory and 0600 socket, pins the socket
+device/inode and connects through `/proc/self/fd`. Kernel peer credentials,
+current boot and process start ticks must match the separately verified runtime.
+The Supervisor still owns artifact verification, fresh nonces and lifecycle
+recovery; echoed hashes do not attest code. The directory owner remains trusted.
+
+An optional Linux-only pinned Nix dependency provides safe socket/poll wrappers;
+the SDK retains `forbid(unsafe_code)` and dependency-free default builds. The
+client performs nonblocking socket IO with one absolute caller deadline and no
+automatic reconnect. Its blocking API belongs on a consumer IO thread.
+
+`Session::prepare` exposes the immutable next frame for journaling without
+consuming sequence or creating pending mutation state. Client dispatch requires
+a synchronous journal callback before `begin` or any request byte. The consumer
+must implement durable operation deduplication and fsync/recovery, not merely
+return success. Callback duration cannot be forcibly bounded here. Authentication
+and deadline are rechecked after it returns. Every error after begin closes the
+session with the original sticky operation/digest; known predispatch failure
+sends no mutation bytes. Late or partial IO never extends the deadline.
+
 ### Admitted native bootstrap
 
 The build-only native artifact embeds the exact profile manifest digest and

@@ -22,6 +22,18 @@ established; echoed fingerprints alone SHALL NOT authenticate the endpoint.
 - **WHEN** an admitted mutation reaches the native executor or completes after its original endpoint deadline or connection retirement
 - **THEN** the executor retains that immutable deadline, its permit cannot authorize further guarded actions, and late completion cannot publish a response on another request
 
+#### Scenario: Client authenticates the resident process
+- **WHEN** a Linux client connects through the supervisor's retained activation-directory descriptor
+- **THEN** it verifies directory/socket ownership and permissions, the socket inode, kernel peer UID/PID, current boot and process start ticks against independently supplied expectations before sending Hello or request bytes
+
+#### Scenario: Journal failure or partial transport loss
+- **WHEN** a client prepares a mutation
+- **THEN** its exact operation, source, target and frame digest are offered to durable journaling before pending admission or transport write; journal failure sends no mutation bytes, and failure after admission retains the original indeterminate identity without replay
+
+#### Scenario: Slow peer drips partial bytes
+- **WHEN** a peer makes partial transport progress
+- **THEN** the caller's absolute deadline is not extended by that progress
+
 ### Requirement: Explicit historical native facts
 Native identity/order samples lacking revision or input-epoch producers SHALL
 remain explicit historical facts. They SHALL NOT construct operational guards,
