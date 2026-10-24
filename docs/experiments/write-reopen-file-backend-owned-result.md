@@ -77,3 +77,45 @@ The pinned SDK image is recorded in the linked holder report.
 Source basis: original current source, real isolated files/process/clock checks,
 saved host/vendor ARM-QEMU/sanitizer streams and independently checked frozen
 startup build. Native service topology and end-to-end operation remain open.
+
+## Later hybrid-profile correction
+
+A fresh read-only RM2 query observed both
+`1:name=systemd:/system.slice/xochitl.service` and
+`0::/system.slice/xochitl.service`, with separate systemd-v1 and unified-v2
+mounts. It confirmed firmware3.28.0.172, systemd255(255.21^), unchanged stock
+PID/start/boot, and the same26-file/twelve-page archive and providers as the last
+restoration. No input, navigation, transfer or service action occurred. Private
+152-check baseline review:
+`820226685796d662fcdc97d1b7e3e41691d33eda90ba148eaaf9db0a430d1921`;
+original cgroup query:
+`8ecd9244041f6595d7bbfe907af498715e5e2ae4257d89745ad761a48deca110`.
+
+The earlier readiness predicate counted exactly one matching service suffix and
+would refuse that normal hybrid pair. The successor instead requires the exact
+two observed hierarchy labels to name the same dedicated pen unit, rejecting
+missing/duplicate/extra lines and UI/actor coupling. Source:
+`d7546d3d5552f9d7e579780575c102625fd30ed4877c3e59930b3ad93f8eed56`.
+The successor backend controls pass303 checks per host/ARM-QEMU/sanitizer run,
+all stderr empty. This is a source repair and owned topology model; a new pen
+unit's actual placement still needs observation. The earlier297-check source and
+link result above remain historical, rather than being credited to this header.
+
+The current24-input ARM startup relinks to
+`646a7b494a393df977e6e572d98b7ece3ef0b818ad0ff07265385ff0cd9e4b50`,
+with eight fixture and eleven conflicting-selector preprocessing refusals,
+private exports and unchanged frozen source. Receipt:
+`4c1f2cf446f50f1f348f146ac269a1af58b74889e910345119ebc7f9ab24196e`.
+The immediately preceding wrapper timed out while repeatedly checking negative
+selectors after its default link completed. Its unknown/incomplete receipt is
+preserved; the successor checks selector guards during preprocessing and still
+performs the full default compilation/link. No device action occurred in either.
+
+The independent-service plan now retains a completed unit with RemainAfterExit
+until collection. The [systemd255 primary reference](https://www.freedesktop.org/software/systemd/man/255/systemd-run.html)
+documents retention of runtime information with --remain-after-exit and immediate
+unloading of successful transient units otherwise. Native help confirms that
+option and --no-block. The completed no-process state is active/exited with
+MainPID zero; it is not proof that the unit has already been stopped. Both
+hierarchies, known exit, original holder identity and guarded eventual cleanup
+remain separate native checks.

@@ -29,6 +29,16 @@ struct Area {
 int main(int argc,char **argv){
  QCoreApplication app(argc,argv);::umask(0077);require(::geteuid()==0,"container-root");
  {
+  const QByteArray nonce(32,'a'),path="/system.slice/rmb-qt-pen-"+nonce+".service";
+  const auto v1="1:name=systemd:"+path+'\n',v2="0::"+path+'\n';
+  require(reader_write_reopen::native_files_detail::holderCgroup(v1+v2,nonce)&&reader_write_reopen::native_files_detail::holderCgroup(v2+v1,nonce),"hybrid-same-service");
+  require(!reader_write_reopen::native_files_detail::holderCgroup(v1,nonce)&&!reader_write_reopen::native_files_detail::holderCgroup(v2,nonce),"missing-hierarchy");
+  require(!reader_write_reopen::native_files_detail::holderCgroup(v1+v1,nonce),"duplicate-hierarchy");
+  require(!reader_write_reopen::native_files_detail::holderCgroup(v1+"0::/system.slice/xochitl.service\n",nonce),"ui-coupling");
+  require(!reader_write_reopen::native_files_detail::holderCgroup(v1+"0::/system.slice/rmb-qt-insertion-a-actor.service\n",nonce),"actor-coupling");
+  require(!reader_write_reopen::native_files_detail::holderCgroup(v1+v2+v2,nonce)&&!reader_write_reopen::native_files_detail::holderCgroup((v1+v2).chopped(1),nonce),"extra-or-incomplete");
+ }
+ {
   Area a;auto io=a.open();require(bool(io)&&io->admitted(),"valid-admission");
   require(!io->holderReady().observed&&!io->readyForRequest()&&!io->publishReady(),"missing-holder-refuses");
   require(io->request().missing,"missing-request");a.put("selected-request",a.config.nonce+' '+a.config.pid+' '+a.config.start+'\n');require(io->request().observed,"request-read");

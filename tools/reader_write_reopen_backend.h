@@ -8,6 +8,17 @@
 #include <array>
 
 namespace reader_write_reopen {
+namespace native_files_detail {
+// Exact currently observed hybrid profile. Both hierarchies must name the same
+// dedicated service; a repeated suffix is not evidence of two different owners.
+inline bool holderCgroup(const QByteArray &raw,const QByteArray &nonce){
+    if(!raw.endsWith('\n')||nonce.size()!=32)return false;
+    for(char c:nonce)if(!((c>='0'&&c<='9')||(c>='a'&&c<='f')))return false;
+    const auto lines=raw.chopped(1).split('\n');
+    const auto path=QByteArray("/system.slice/rmb-qt-pen-")+nonce+".service";
+    return lines.size()==2&&lines.contains("1:name=systemd:"+path)&&lines.contains("0::"+path);
+}
+}
 class NativeFiles final:public IO {
     struct Control {
         int fd=-1;const char *name=nullptr;struct stat stat{};QByteArray bytes;
@@ -81,10 +92,7 @@ public:
             }
             if(!ready_.unchanged(directory_)||processStart(pid_t(holder_.holderPid.toLongLong()))!=holder_.holderStart.toLatin1())return r;
             const auto group=proc("/proc/"+holder_.holderPid.toLatin1()+"/cgroup",4096);
-            const auto suffix=QByteArray(":/system.slice/rmb-qt-pen-")+config_.nonce+".service";
-            unsigned matching=0;
-            for(const auto &line:group.split('\n'))if(line.endsWith(suffix))++matching;
-            if(matching!=1||group.contains("xochitl")||group.contains("-actor.service")||!admitted())return r;
+            if(!native_files_detail::holderCgroup(group,config_.nonce)||!admitted())return r;
             r.observed=true;r.binding=holder_;return r;
         }catch(...){return r;}
     }

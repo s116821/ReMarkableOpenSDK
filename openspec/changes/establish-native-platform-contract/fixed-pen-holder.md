@@ -96,3 +96,14 @@ inferring an initial coordinate merely from the first observed event.
 Owned callers supply modeled file/process observations; native ownership,
 no-follow inode checks and independently observed process exit still need the
 separately reviewed outer actor. A JSON assertion is not authentication.
+
+The current native process uses both the systemd-v1 and unified-v2 cgroup
+hierarchies. Require both to name the same dedicated holder service and inspect
+both for remaining processes before completion/cleanup. Retain successful
+transient-unit exit information with RemainAfterExit=yes, since the manager may
+otherwise unload a completed successful unit before it can be witnessed. The
+positive completion state is active/exited, no MainPID/job, exact ExecMainPID,
+known exit0 and no members; later guarded stop/remove is a separate cleanup step.
+Never confuse active/exited with a still-running holder or inactive/dead with
+retained authenticated exit information. Keep --no-block for oneshot launch so
+readiness/GO cannot deadlock on a client waiting for the holder's final exit.

@@ -1218,11 +1218,15 @@
     {
       "path": "docs/experiments/write-reopen-file-backend-owned-result.md",
       "title": "Private file backend and fixed-profile startup: source and owned checks",
-      "lf_utf8_sha256": "120eb1ae906baf3bc39464043bfa9fd1dd72585b09a8cdcca9b92913d58d536b",
+      "lf_utf8_sha256": "708a7417f2b0ad467d15015a046ccb801a912d80f6db4b133453f1be886d05a7",
       "headings": [
         {
           "line": 1,
           "heading": "Private file backend and fixed-profile startup: source and owned checks"
+        },
+        {
+          "line": 81,
+          "heading": "Later hybrid-profile correction"
         }
       ]
     },
@@ -3225,7 +3229,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/fixed-pen-holder.md",
       "title": "Standalone fixed-pen holder",
-      "lf_utf8_sha256": "8826c9fe35c0aa5276fd8361799e745154e949f3e177b3e9c8e528887654cd7d",
+      "lf_utf8_sha256": "6e4392bbc1cda0f4897cb4d2b0c7de23333f9e5494391a317c8c0276327a632b",
       "headings": [
         {
           "line": 1,
