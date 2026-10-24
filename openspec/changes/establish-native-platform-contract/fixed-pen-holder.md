@@ -107,3 +107,35 @@ known exit0 and no members; later guarded stop/remove is a separate cleanup step
 Never confuse active/exited with a still-running holder or inactive/dead with
 retained authenticated exit information. Keep --no-block for oneshot launch so
 readiness/GO cannot deadlock on a client waiting for the holder's final exit.
+
+## Native parent threads and a separate writer image
+
+The first composed trial refused before holder readiness or any GO. A later
+read-only native profile observed three threads in the Qt-linked helper while
+its original file/process/clock controls passed. This contradicts the proposed
+single-threaded Qt-parent prerequisite; it does not establish the exited trial
+process's exact thread count or qualify fork behavior on the tablet.
+
+The successor design keeps the existing fork path for owned fixtures and makes
+the native backend require a separately pinned, Qt-free POSIX writer image.
+The native parent uses posix_spawn with explicit descriptor actions, never a
+fallback fork. Duplicate source descriptors above the reserved child roles,
+map writer/start/cancel/result to fixed descriptors3/4/5/6 and close all other
+nonstandard descriptors. Resolve the executable through the parent's pinned
+file descriptor while it remains alive across spawn; qualify the exact libc
+spawn/closefrom support rather than guessing its availability.
+
+Pin and hash the writer image against a private packet-bound digest before
+holder readiness. The fresh writer validates its one-thread state, vendor ABI,
+descriptor/device roles, parent identity and original budget before the sole GO.
+It reuses the fixed DispatchClaim/frames and existing child result framing.
+Only after this backend is mandatory may the native Qt-parent single-thread
+gate be replaced. No guard is relaxed while the old native fork route remains.
+The parent retains the existing child-incarnation/wait/fence, observer and
+independent recovery behavior; wire facts and all original deadlines stay fixed.
+
+Add actual owned exec/descriptor/status and failure controls, then separately
+measure the same production writer's read-only profile on the tablet before a
+newly selected stroke. A profile branch must return before any device access.
+None of this design qualifies native writing or changes the failed trial into
+a pass. See the [pre-GO result](../../../docs/experiments/write-reopen-pre-go-native-result.md).

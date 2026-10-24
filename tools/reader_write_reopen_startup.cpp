@@ -65,6 +65,7 @@ bool actorAdmission() {
     for (const char *name : {"restore.claim", "selected-cancel", "stop.request"}) valid = valid && absent(name);
     QByteArray deadline;
     valid = valid && readPrivate(root.value, "deadline", deadline) && deadline.endsWith('\n');
+    if (!valid) return false;
     const auto parts = deadline.chopped(1).split(' ');
     if (valid && parts.size() == 2 && reader_selected::decimal(parts[0]) && reader_selected::decimal(parts[1])) {
         const auto begin = parts[0].toULongLong(), end = parts[1].toULongLong(); struct timespec now{};
@@ -114,7 +115,9 @@ public:
         if(!app_||QThread::currentThread()!=app_->thread()||!actorAdmission())return false;
         reader_capture_files::detail::Fd root(::open(rootPath,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));
         QByteArray window;if(root.value<0||!readPrivate(root.value,"candidate.window",window)||!root.close()||!window.endsWith('\n'))return false;
-        const auto parts=window.chopped(1).split(' '),identity=reader_selected::selfIdentity().chopped(1).split(' ');
+        const auto selfIdentity=reader_selected::selfIdentity();
+        if(selfIdentity.isEmpty()||!selfIdentity.endsWith('\n'))return false;
+        const auto parts=window.chopped(1).split(' '),identity=selfIdentity.chopped(1).split(' ');
         if(parts.size()!=5||parts[0]!=nonce||identity.size()!=2||!reader_selected::decimal(parts[4]))return false;
         bool ok=false;const auto ends=parts[4].toULongLong(&ok);
         if(!ok||ends>std::numeric_limits<quint64>::max()/1000)return false;

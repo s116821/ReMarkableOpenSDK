@@ -933,7 +933,7 @@
     {
       "path": "docs/experiments/README.md",
       "title": "Experiment tools and findings",
-      "lf_utf8_sha256": "2e67fc60059c9880e4e60ee8d1f758027a2a6bef42bd4b77c871caad8224433d",
+      "lf_utf8_sha256": "e4d9316ef1bc56857f05d5fbc186a712d3ddbed4e51e4ba20499d257d22b76a9",
       "headings": [
         {
           "line": 1,
@@ -1231,6 +1231,33 @@
       ]
     },
     {
+      "path": "docs/experiments/write-reopen-pre-go-native-result.md",
+      "title": "Pre-GO native write/reopen refusal and startup repair",
+      "lf_utf8_sha256": "d6e6a1b787858e963860bb35eff4dc5db6c1917e15b3a97e1a9ae35b92e7081c",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Pre-GO native write/reopen refusal and startup repair"
+        },
+        {
+          "line": 9,
+          "heading": "Exact trial and observed order"
+        },
+        {
+          "line": 45,
+          "heading": "Reproduced source defect and repair"
+        },
+        {
+          "line": 80,
+          "heading": "Separate native thread counterexample"
+        },
+        {
+          "line": 104,
+          "heading": "Evidence and limits"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/write-reopen-sequence-owned-result.md",
       "title": "Queued target write, ordinary close and reopen: owned composition",
       "lf_utf8_sha256": "1ce44f70f8c13fb0281991401d7a825a4377e3917b1c694a664efa9cccb893f4",
@@ -1385,7 +1412,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "86aebf1f56cb5e826d57ce427d58e97ecf2b473133e45e6afa28f042cc639fdc",
+      "lf_utf8_sha256": "7a7be993f4237cc7fabf9347ea6e8c8d2612de8bee04ab81adb82776a3b44623",
       "headings": [
         {
           "line": 1,
@@ -1400,11 +1427,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 45,
+          "line": 55,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 65,
+          "line": 75,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -3229,7 +3256,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/fixed-pen-holder.md",
       "title": "Standalone fixed-pen holder",
-      "lf_utf8_sha256": "6e4392bbc1cda0f4897cb4d2b0c7de23333f9e5494391a317c8c0276327a632b",
+      "lf_utf8_sha256": "2a3f8d395529f532acf70a56757ad8c198bd66431bf71c97986b33f395d4d897",
       "headings": [
         {
           "line": 1,
@@ -3246,6 +3273,10 @@
         {
           "line": 55,
           "heading": "Result and failure boundaries"
+        },
+        {
+          "line": 111,
+          "heading": "Native parent threads and a separate writer image"
         }
       ]
     },
@@ -4877,7 +4908,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/specs/native-platform-contract/spec.md",
       "title": "ADDED Requirements",
-      "lf_utf8_sha256": "390ac4c07c9a0dc495684e3ecc1d26ed31724d68b46c1f9de893af17c9a22d44",
+      "lf_utf8_sha256": "c1f6a6266ad1349b8198d2f2cb9844cbff458f22847f1e03a9231a768a30e6f1",
       "headings": [
         {
           "line": 1,
@@ -5562,6 +5593,18 @@
         {
           "line": 748,
           "heading": "Scenario: Incomplete original frame or external evidence"
+        },
+        {
+          "line": 752,
+          "heading": "Requirement: Research write-entry admission and writer process isolation"
+        },
+        {
+          "line": 756,
+          "heading": "Scenario: Startup admission is revoked or identity is missing"
+        },
+        {
+          "line": 760,
+          "heading": "Scenario: Qt parent has runtime-created threads"
         }
       ]
     },
@@ -5587,7 +5630,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "9c54c9ef113c198a3df833f6a39a2c904bd03fbf98b788f0f3039a29d29ef4a2",
+      "lf_utf8_sha256": "3a6bd47cc80473f501b8514843514ca97ea497f1fce3f423f3edb2b490df212b",
       "headings": [
         {
           "line": 1,

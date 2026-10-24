@@ -36,6 +36,16 @@ Buddy simulator's native navigation/close/device/actor behavior. Preserve the
 wrong-holder cancellation and final-context-loss transitions in future integrated
 scenarios; an accepted unbound result must neither advance nor suppress recovery.
 
+The [pre-GO native refusal](../experiments/write-reopen-pre-go-native-result.md)
+adds actual holder-first failure, later revoked-admission Qt abort, conservative
+Buddy withholding and separate no-GO reconciliation with all26 files unchanged.
+The exact-source startup regression covers16 owned cases per host/ARM/sanitizer;
+old source reproduces11 aborts and fixed source none. Preserve these distinct
+transitions in future integrated scenarios. A subsequent read-only native helper
+has three threads even while its file/process controls pass; do not model every
+Qt-linked helper as single-threaded or promote the proposed spawn replacement
+to native qualification. Neither result updates the Buddy simulator itself.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

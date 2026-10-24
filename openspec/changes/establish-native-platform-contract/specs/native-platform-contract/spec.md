@@ -748,3 +748,15 @@ The research file/process/frame consumer SHALL follow the [file readback](../../
 #### Scenario: Incomplete original frame or external evidence
 - **WHEN** framing, binding, byte validation, a deadline or any required external target/provider/process/recovery bracket fails
 - **THEN** no accepted composed native result follows, originals remain forensic and neither the request nor uncertain collection is automatically repeated.
+
+### Requirement: Research write-entry admission and writer process isolation
+
+The default-off write/reopen startup and [independent pen holder](../../fixed-pen-holder.md) SHALL validate input representation before slicing it, preserve original cancellation/deadline semantics, and keep native writer process startup distinct from owned fork evidence. This research requirement SHALL NOT advertise a supported native input capability.
+
+#### Scenario: Startup admission is revoked or identity is missing
+- **WHEN** an owner/claim/cancellation check fails, the deadline cannot be read, or self identity is empty or lacks its required newline
+- **THEN** startup refuses before slicing those bytes, without invoking a Qt assertion, publishing readiness or reviving a canceled request.
+
+#### Scenario: Qt parent has runtime-created threads
+- **WHEN** the native holder cannot satisfy a single-threaded prerequisite
+- **THEN** it does not merely remove that guard or fall back to the old fork route; a separately qualified mandatory spawn backend starts an exact pinned Qt-free writer image with only the designated descriptors, verifies writer/parent/original-budget identity, and retains the original one-GO, child-fencing and independent recovery semantics.
