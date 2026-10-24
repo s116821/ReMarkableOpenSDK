@@ -81,8 +81,10 @@ qualification remains separate.
 Source basis: current SDK helper and Coordinator post-navigation implementation,
 the REM-57 integration handoff and current REM-25 target/reuse requirements.
 The separate wire request and guarded existing-target inner call are implemented
-and covered by owned tests. The native selection executor, its integration with the shared effect gate, fresh
-post-transition join and consumer composition remain unfinished and unqualified.
+and covered by owned tests. The resident selection state machine now integrates
+the shared effect gate and fresh post-transition join in owned models. Actual native
+transition settlement, the production factory and consumer composition remain
+unqualified and disabled.
 
 
 ### Shared effect reservation implementation
@@ -93,11 +95,32 @@ endpoint, deleted facade or dropped token cannot release it. Mutation releases
 only after the existing known pre-acquisition refusal or verified physical
 reclamation path has published its completion, destroyed completion captures and
 cleared its active request. Unknown, last-owner and failed-retirement states keep
-the shared reservation. The future selection executor must use this same gate;
-its class friendship is not an enabled executor or a settlement implementation.
+the shared reservation. The selection executor uses the same gate and retains
+attempted uncertainty; its production factory remains explicitly closed.
 Read-only observation/reconciliation does not acquire or release the gate.
 
 Owned tests inject isolated gates so a quarantined synthetic case cannot pollute
 later cases, and explicitly share one gate between two executors to verify cross-
 executor exclusion. Fixture teardown can destroy only those isolated test gates;
 production exposes neither construction/destruction nor reset/release APIs.
+
+### Selection executor implementation
+
+`ResidentSelection` retains the original request/deadline and exact window/engine.
+Each synchronous join borrows its Reader/document guard only inside that sample.
+The pre-effect order must match the complete original facts. Current-target
+requests invoke nothing; adjacent requests consume one navigation claim and then
+rejoin the same Reader/document under a fresh sample. Only unchanged order and the
+exact target can yield a historical selection result.
+
+Readiness waits are bounded by the original deadline and observation count.
+Failure is monotonic across reentrant callbacks. A refusal in the final owned
+join result revokes any pending success, including refusals during sample/helper
+unwind. The attempted bit is retained before classifying a nested failure.
+Final publication and capture destruction run after sample unwind under the
+shared reservation; uncertain attempted transitions keep it held indefinitely.
+
+`MutationBackend` routes selection through this executor only when its private
+production factory becomes qualified. That factory currently returns null, so
+authenticated selection requests receive Unsupported without insertion dispatch.
+Owned positive executor tests are not an enabled or qualified native route.

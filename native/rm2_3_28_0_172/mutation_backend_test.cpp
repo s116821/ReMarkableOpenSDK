@@ -58,7 +58,7 @@ int main(int argc,char **argv){
         if(mode==4){r.facts.order.clear();for(int i=1;i<=17;++i)r.facts.order.push_back(QByteArray(16,char(i)));r.facts.page=r.facts.order[0];r.target=QByteArray(16,80);}
         check(!mutationConfig(r,deadline),"invalid or unsupported request refuses conversion");
     }
-    for(const QByteArray mode:{"normal","unknown","before-dispatch","executor-refusal","capacity","deadline","disconnect","destroy"}){
+    for(const QByteArray mode:{"normal","unknown","before-dispatch","executor-refusal","capacity","deadline","disconnect","destroy","selection-disabled"}){
         QTemporaryDir directory;check(directory.isValid(),"owned directory");auto c=endpointConfig(directory.path());
         unsigned starts=0;reader_insertion_entry::Config frozen;QByteArray nonce;reader_insertion_entry::Permit permit;
         reader_worker_native::ResidentMutation::Completion complete;
@@ -72,8 +72,12 @@ int main(int argc,char **argv){
         resident::Frame hello;hello.runtime=c.runtime;hello.client=QByteArray(16,5);hello.server=QByteArray(16,0);hello.operation=QByteArray(16,6);
         check(peer.write(resident::encode(hello))>0,"hello sent");const auto ready=receive(peer);
         auto call=original;call.runtime=ready.runtime;call.client=ready.client;call.server=ready.server;call.sequence=1;
+        if(mode=="selection-disabled"){call.kind=3;call.target=call.facts.order[2];}
         check(peer.write(resident::encode(call))>0,"mutation sent");
-        if(mode=="capacity"){
+        if(mode=="selection-disabled"){
+            const auto reply=receive(peer);check(reply.kind==3&&reply.rejection==0&&!starts,"unqualified selection is unsupported without insertion dispatch");
+            check(reply.requestDigest==resident::fingerprint(call)&&reply.operation==call.operation,"disabled selection retains exact request correlation");
+        }else if(mode=="capacity"){
             const auto reply=receive(peer);check(reply.kind==3&&reply.rejection==4&&!starts,"busy refuses before executor");
         }else {
             until([&]{return starts==1;});check(nonce==call.operation.toHex()&&frozen.absoluteDeadline==leaseDeadline,"exact nonce and immutable deadline");

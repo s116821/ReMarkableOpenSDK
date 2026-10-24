@@ -1,6 +1,7 @@
 #pragma once
 #include "read_only_backend.h"
 #include "resident_mutation.h"
+#include "resident_selection.h"
 
 namespace remarkable::rm2_3_28_0_172 {
 // Wire identities are historical assertions. Coordinator repeats fresh source
@@ -35,6 +36,7 @@ inline resident::Frame mutationReply(const resident::Frame &request,const reader
 class MutationBackend final:public QObject {
     ReadOnlyBackend readOnly_;
     reader_worker_native::ResidentMutation *mutation_=nullptr;
+    ResidentSelection *selection_=nullptr;
     QPointer<resident::Endpoint> endpoint_;
 #ifdef RESIDENT_MUTATION_BACKEND_TESTING
 public:
@@ -45,7 +47,7 @@ private:
 #endif
 public:
     explicit MutationBackend(const reader_insertion_native_profile::Facilities *profile,QObject *parent=nullptr)
-        :QObject(parent),readOnly_(profile,this),mutation_(profile?reader_worker_native::ResidentMutation::create(*profile):nullptr){}
+        :QObject(parent),readOnly_(profile,this),mutation_(profile?reader_worker_native::ResidentMutation::create(*profile):nullptr),selection_(ResidentSelection::create(profile)){}
 #ifdef RESIDENT_MUTATION_BACKEND_TESTING
     MutationBackend(TestStart start,std::function<bool()> busy,QObject *parent=nullptr)
         :QObject(parent),readOnly_(nullptr,this),testStart_(std::move(start)),testBusy_(std::move(busy)){}
@@ -59,6 +61,7 @@ public:
         const QPointer<resident::Endpoint> endpoint(endpoint_);
         const QPointer<QGuiApplication> app(qobject_cast<QGuiApplication*>(QCoreApplication::instance()));
         if(!app||!endpoint||!lease||!lease->active()||QThread::currentThread()!=app->thread()||thread()!=app->thread())return;
+        if(lease->request().kind==3){submitSelection(std::move(lease));return;}
         if(lease->request().kind!=1){readOnly_.submit(std::move(lease));return;}
         const auto reject=[&](quint8 reason){resident::Frame r;r.kind=3;r.rejection=reason;if(endpoint)endpoint->finish(lease,r);};
         bool supported=mutation_!=nullptr,busy=mutation_&&mutation_->busy();
@@ -87,6 +90,21 @@ public:
 #endif
             consumed=bool(mutation_->start(window,*config,lease->request().operation.toHex(),permit,completion));
         if(!consumed&&self&&lease->active())reject(1);
+    }
+private:
+    void submitSelection(resident::Endpoint::Lease lease){
+        const QPointer<MutationBackend> self(this);const QPointer<resident::Endpoint> endpoint(endpoint_);
+        const auto reject=[&](quint8 reason){resident::Frame r;r.kind=3;r.rejection=reason;if(endpoint)endpoint->finish(lease,r);};
+        if(!selection_){reject(0);return;} // Native qualification is explicitly disabled.
+        if(selection_->busy()){reject(4);return;}
+        const QPointer<QQuickWindow> window(qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow()));
+        const QPointer<QQmlEngine> engine(window?qmlEngine(window):nullptr);
+        const auto permit=[self,endpoint,window,engine,lease]{
+            return self&&endpoint&&window&&engine&&lease->active()&&!QCoreApplication::closingDown()&&
+                QGuiApplication::focusWindow()==window&&qmlEngine(window)==engine;
+        };
+        const auto completion=[self,endpoint,lease](const resident::Frame &reply){if(self&&endpoint&&lease->active())endpoint->finish(lease,reply);};
+        if(!selection_->start(window,lease->request(),lease->deadline(),permit,completion)&&self&&lease->active())reject(1);
     }
 };
 }

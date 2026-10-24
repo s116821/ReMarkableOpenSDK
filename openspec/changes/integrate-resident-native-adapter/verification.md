@@ -488,3 +488,39 @@ separate retained evidence. Hosted CI for the preceding selection increment
 `afb3b9c3c16fd12f09529e33bed2fe2da6d34022` passed
 [40141519244](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40141519244);
 it does not validate this later gate change.
+
+## Resident selection executor source checkpoint
+
+`ResidentSelection` now owns the bounded zero/one-transition request lifecycle,
+same-Reader/document fresh postjoin, original deadline and shared effect token.
+Final publication and capture destruction occur after sample unwind. Attempted
+uncertainty retains the process reservation. The production factory remains
+hard-disabled; the authenticated dispatcher returns Unsupported for selection.
+
+Independent source review accepted the implementation after two concrete fixes:
+reentrant failure cannot be overwritten by a suspended callback, and the final
+owned join result can revoke a callback's pending success after sample/helper
+unwind. Tests exercise truly nested getter/invocation duplicates and late join
+refusal, preserving attempted-effect classification.
+
+Final owned host Qt 6.4.2 and ARM Qt 6.10.3/QEMU selection suites each pass **2933
+checks**. Both authenticated dispatcher suites pass **144 checks**, including the
+disabled selection route and exact response correlation. Tests cover zero/one
+invocation, fresh postjoin, readiness limits, source/order/object changes,
+deletion, cancellation, deadline, callback/capture lifetime, cross-executor
+exclusion and uncertainty after executor destruction. These are owned models;
+positive authenticated selection dispatch and actual native settlement remain
+unqualified.
+
+The ARM library builds with SHA256
+`73040102155b125d26da9c7ebc5a3da58c71a3f4e956162654faafe5207129f4`,
+unchanged profile and pinned Dobby inputs. Final directories are
+`selection-executor-host-r4`, `selection-executor-arm-r1`,
+`selection-backend-host-r1`, `selection-backend-arm-r1` and
+`selection-executor-library-r1`. Initial compile failure and earlier pre-review
+results remain preserved, not credited as final evidence. OpenSpec strict
+validation passes 22 items. No device contact, loading or activation occurred.
+
+Source basis: current source, local compiler/test outputs and independent source
+review. Consumer journal compatibility/selection composition and native acceptance
+remain required before this change can complete.

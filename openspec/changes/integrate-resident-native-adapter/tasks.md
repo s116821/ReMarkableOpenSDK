@@ -32,6 +32,7 @@
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
   - [x] 2.4a1 Add revision 2 selection/reconciliation framing, sticky effect loss, Linux/Qt transport coverage and the guarded existing-target inner call with owned host/ARM checks. This does not enable the native executor.
   - [x] 2.4a2 Integrate a process-shared effect reservation with mutation retirement, retaining unknown work across executors and releasing only after proven no-effect/reclamation plus completion capture destruction; verify owned host/ARM cases. Selection executor integration remains open.
+  - [x] 2.4a3 Implement the resident selection request state machine and disabled production route: original deadline, zero/one adjacent call, same-object fresh postjoin, sticky reentrant/final-join refusal and shared effect retention. Owned source/model validation only; native settlement and consumer composition remain open.
   - [ ] 2.4a Implement the separate fresh target-selection request, native executor and owned/transport checks under [target-acquisition.md](target-acquisition.md); integrate its consumer reservation before enabling effects.
 
 ## 3. Consumer and delivery
