@@ -7,6 +7,8 @@ packet or past trial is not permission to execute a new one.
 
 | Reusable guide | Evidence scope |
 | --- | --- |
+| [Fixed stroke/release policy](fixed-stroke-release-owned-result.md) | One-use dispatch, original deadlines and serialized independent release; owned IO/pipe/child controls, no native input qualification |
+| [Ordinary document-close helper](ordinary-reader-close-owned-result.md) | Actual owned QML slot, source/claim/lifetime/metadata controls; native Reader join modeled, no storage acknowledgement |
 | [Identity-capture entry and consumer](identity-capture-entry-owned-result.md) | Default-off Entry, inode-pinned separate commits, shutdown controls and original-byte validation; owned/source checkpoint, not native capture or live image-pair admission |
 | [Original capture pair readback](identity-capture-readback-owned-result.md) | Pinned original file collection, own-process/clock controls and strict length frame; whole native operator/target/provider admission remains separate |
 | [Native worker-local page order](worker-local-order-result.md) | Six expected ID/index reads, matching callback completion, settled owner release and unchanged20 files; no atomic insertion exclusion |

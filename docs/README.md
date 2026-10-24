@@ -72,6 +72,8 @@ remain workflow records, not a shipping capability declaration.
 | Native identity capture | [Useful PDF/ink pixels and live collection](experiments/identity-capture-native-result.md) | One fixed idle-RM2 result with original-byte admission, exact preservation and audited cleanup; broader capability remains open |
 | Request lifetime | [Optional mutation scopes and owned controls](experiments/mutation-request-scope-owned-result.md) | Owned callback/unwind/cleanup boundaries; native resident composition and reclamation remain open |
 | Pen release | [Source and vendor event ABI](research/pen-event-release-boundary.md) | Device-free ABI observation and unresolved independent recovery; no fresh drawing or writer qualification |
+| Fixed stroke policy | [One-use dispatch and independent release controls](experiments/fixed-stroke-release-owned-result.md) | Host/ARM/sanitizer92/2267 each, real owned pipe/child and modeled device/clock/release; native input composition remains open |
+| Ordinary document close | [Source boundary](research/ordinary-reader-close-source-boundary.md) and [owned terminal helper](experiments/ordinary-reader-close-owned-result.md) | Stock QML source order and actual owned QML dispatch controls; UI close is separate from saved-file/reopen evidence |
 | Experiments | [Tools and findings](experiments/README.md) | Reusable observer/probe instructions and links to change-specific experiment evidence |
 
 For simulator work, start with the [evidence and fidelity map](reference/simulator-evidence-map.md)

@@ -208,6 +208,29 @@
       ]
     },
     {
+      "path": "docs/experiments/fixed-stroke-release-owned-result.md",
+      "title": "Fixed stroke and independent release: owned policy result",
+      "lf_utf8_sha256": "d60ab3bd20f1004c8340a763d07253b74787f5a0e305b1841846646fafc1b46b",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Fixed stroke and independent release: owned policy result"
+        },
+        {
+          "line": 9,
+          "heading": "What the policy establishes"
+        },
+        {
+          "line": 38,
+          "heading": "Reproduced defects and fixes"
+        },
+        {
+          "line": 54,
+          "heading": "Reproduction and evidence"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/fixture-navigation-source-join-result.md",
       "title": "First fixed-fixture navigation/join attempt",
       "lf_utf8_sha256": "1d2f124661dfd54b2ed2f34ae05df9012ac4dd96da616a3c342ee6ba75699f33",
@@ -705,6 +728,17 @@
       ]
     },
     {
+      "path": "docs/experiments/ordinary-reader-close-owned-result.md",
+      "title": "Ordinary document close: owned helper result",
+      "lf_utf8_sha256": "8d468a35ec224a05c29ceac622c5e4c6eef4d6245c0ed3ac017f3e25e778fd01",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Ordinary document close: owned helper result"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/post-rejection-map-lock-native-result.md",
       "title": "Native map mutex reuse after rejection on RM2",
       "lf_utf8_sha256": "c9a7902168addc836c4dd515eeb3c07233e169aefe0ecd694e34a4a5ba9e6cd6",
@@ -831,7 +865,7 @@
     {
       "path": "docs/experiments/README.md",
       "title": "Experiment tools and findings",
-      "lf_utf8_sha256": "43b267997575d1430cc3bfee62fb677d9fc88cf78fd39245b37e5eb898439cff",
+      "lf_utf8_sha256": "2a3e0c774e51a9de9045b94ddc293bc0200f768c82a81e5fde9a286c2729513f",
       "headings": [
         {
           "line": 1,
@@ -1116,7 +1150,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "8b9db8882bf4c77e0993c8ee30c148784c492a40f674c649b6eecef4dcae1bd6",
+      "lf_utf8_sha256": "07548cf4ff27692edb2a7bcacf44fdcb3422fa2b9851b90ff5ff61ef641a0682",
       "headings": [
         {
           "line": 1,
@@ -1249,7 +1283,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "704c0b7edf5280266899b4d66250ebdb7b75b4892aaa73f145ca3bed72f51079",
+      "lf_utf8_sha256": "f764843c1d959d95f2f53be4700293e31f1e196e9dd0d4d66455cc28408b6b9e",
       "headings": [
         {
           "line": 1,
@@ -1268,7 +1302,7 @@
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 56,
+          "line": 57,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -1695,6 +1729,29 @@
         {
           "line": 147,
           "heading": "Provenance and limits"
+        }
+      ]
+    },
+    {
+      "path": "docs/research/ordinary-reader-close-source-boundary.md",
+      "title": "Ordinary Reader close: source boundary",
+      "lf_utf8_sha256": "4549214312582ec63ea46161d5505f89a10c4e094d80ae0e31921cb593e331c7",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Ordinary Reader close: source boundary"
+        },
+        {
+          "line": 8,
+          "heading": "Two different close operations"
+        },
+        {
+          "line": 33,
+          "heading": "Consequence for the fixed writing test"
+        },
+        {
+          "line": 68,
+          "heading": "Evidence basis"
         }
       ]
     },
@@ -3068,6 +3125,29 @@
       ]
     },
     {
+      "path": "openspec/changes/establish-native-platform-contract/fixed-stroke-release.md",
+      "title": "Fixed stroke and independently retained release",
+      "lf_utf8_sha256": "5634b6dfaa0a545b525b53f3bb787eb7f0575d3df6a0c43eed000919516760a8",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Fixed stroke and independently retained release"
+        },
+        {
+          "line": 3,
+          "heading": "Question and boundaries"
+        },
+        {
+          "line": 19,
+          "heading": "Small owned policy first"
+        },
+        {
+          "line": 41,
+          "heading": "Separate native composition"
+        }
+      ]
+    },
+    {
       "path": "openspec/changes/establish-native-platform-contract/focus-ancestry-discovery.md",
       "title": "Development discovery from a complete focus ancestry",
       "lf_utf8_sha256": "8a98728cc961e5e91eb7775e9649f8bcd05a808e43c4e8858fc34e9ddfc1f8bb",
@@ -4048,6 +4128,29 @@
         {
           "line": 170,
           "heading": "October 10 clock repair"
+        }
+      ]
+    },
+    {
+      "path": "openspec/changes/establish-native-platform-contract/ordinary-reader-close.md",
+      "title": "One ordinary document-close dispatch",
+      "lf_utf8_sha256": "f9312cd002dd69f406fa2411331511fc643425382c6e568b0d0c57f19d6da500",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "One ordinary document-close dispatch"
+        },
+        {
+          "line": 3,
+          "heading": "Source-backed question"
+        },
+        {
+          "line": 11,
+          "heading": "Dispatch contract"
+        },
+        {
+          "line": 37,
+          "heading": "Owned controls and limits"
         }
       ]
     },
@@ -5348,7 +5451,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "c93098823c7bb4aa4b1a07699c9c1fbf8ac9303219f7d4b93b08f0e5ee6d19dd",
+      "lf_utf8_sha256": "05f8aa0853fb1a6d056d99a7e2980e717ffebcd79af614d650403641a513b40a",
       "headings": [
         {
           "line": 1,
