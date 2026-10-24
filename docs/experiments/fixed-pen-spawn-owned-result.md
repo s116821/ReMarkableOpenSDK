@@ -219,7 +219,35 @@ Full ARM link and8 fixture/11 conflicting-selector refusals pass, receipt
 715c646dd7e95a48a3143d2e8749370931dcbfd9488224a05ce8cf135202264b.
 The link-only artifact is
 ef33aed9f1676d86943450be5631ca9a7d193c450fd7b2e027c0cfa722e4635c;
-this successor has not yet been selected or executed natively.
+this link-only artifact was not selected or executed. A separately nonce-bound
+build from the same source was subsequently selected as described below.
+
+The next no-input diagnostic,0bbc0f058113408f8df582d4aeccbce0, used exact
+source b7cc22769d8ff60630625087d8d111a12f0e0d4b and payload
+95797d47775460d517c0ecf08a3ea2d0e9fa517b664707af57809c35f4ce4f2f.
+Candidate25582/start135970130 accepted holder25728/start135970382. The
+incarnation-bracketed original holder cgroup bytes again match both dedicated
+service paths. The terminal now preserves both observations:
+`last_wait=composition/canceled|previous_wait=composition/deadline`.
+Thus at least the preceding completed composition inspection exhausted its
+one-second local budget. This identifies a real inspection deadline; it does
+not establish whether more time would find the required composition, how much
+of the tree was scanned, or which later ownership/route predicate might fail.
+Repeated file/control checks and whole-tree traversal are possible contributors
+from source inspection, not separately measured native causes.
+
+No selected-ready/request or GO was published; no writer child or input
+dispatch occurred and the original event trace is empty. The125-file original
+archive SHA-256 is
+5d11bdb963b637d0166393aac36238bb10ec89951c8627dc9441b78f3cefead3;
+its original-byte no-GO review receipt is
+edc8697f8e3fae1edccf2eca2756d7d800017826f49fc50ce5348941a4862f6d.
+Stock29138/start135981682 was restored independently. Exact no-GO reconciliation
+then restored the initially active Buddy service. The full post collector again
+requires and confirms all26 original files/full12 IDs unchanged, with the same
+748,544-byte archive b52f4a1b1dd55579069f63389e18d29a525e7b259f4500b8a70fe34216b163f6.
+This diagnostic is spent. No timeout adjustment or faster discovery path has
+been qualified by this result.
 
 An offline REA6.7/Ghidra12.1.4 follow-up against the unchanged saved binary found
 no matching procedure names in the stripped target, then used exact metadata
