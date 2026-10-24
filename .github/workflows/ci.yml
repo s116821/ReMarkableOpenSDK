@@ -132,6 +132,7 @@ jobs:
           READER_REQUEST_SCOPE_OUTPUT="$RUNNER_TEMP/native-scope" READER_REQUEST_SCOPE_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_request_scope_test.sh
           INSERTION_ENTRY_OUTPUT="$RUNNER_TEMP/native-entry" INSERTION_ENTRY_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_insertion_guard_entry_test.sh
           RESIDENT_MUTATION_OUTPUT="$RUNNER_TEMP/native-mutation" RESIDENT_MUTATION_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_mutation_test.sh
+          RESIDENT_PIPELINE_OUTPUT="$RUNNER_TEMP/native-pipeline" RESIDENT_PIPELINE_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_mutation_pipeline_test.sh
           RESIDENT_ENDPOINT_BINARY="$RUNNER_TEMP/resident-endpoint/endpoint-test" timeout 30s cargo +1.98.1 test --locked --offline --features native-adapter --test resident_socket -- --ignored
           INSERTION_CONDITION_OUTPUT="$RUNNER_TEMP/native-condition" INSERTION_CONDITION_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_insertion_condition_test.sh
           INSERTION_PREDICATE_OUTPUT="$RUNNER_TEMP/native-predicate" sh native/rm2_3_28_0_172/reader_insertion_guard_predicate_test.sh

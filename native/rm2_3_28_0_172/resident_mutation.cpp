@@ -65,13 +65,18 @@ void ResidentMutation::terminal(const std::shared_ptr<Active> &state,bool except
     if(state->entry)state->result=state->entry->snapshot();
     if(exception){state->result.finished=true;state->result.unknown=true;state->result.refusal=QStringLiteral("executor-exception");}
     classify(state,exception);
+    // Before acquisition there can be no submitted SDK Task or native owner.
+    // A known preflight refusal must not consume process capacity permanently.
+    const auto &r=state->result;
+    state->noEffect=!exception&&!state->failed&&!r.observed&&!r.unknown&&!r.reconciliationRequired&&
+        !r.ownersRetained&&!r.registrationAccepted&&!r.probe.attempted&&!r.creation.attempted&&!owners_->occupied();
     if(state->record) {
         state->coreToken=state->record->registration;state->ownerToken=state->record->owners;state->worker=state->record->worker;
     }
     const std::weak_ptr<Active> weak=state;
     if(!state->fence->requestRetire(state->fenceToken,[this,weak]{
         if(auto value=weak.lock();value&&value==active_)cleanup(value);
-    },reader_retirement::Effect::ReconciliationRequired))state->failed=true;
+    },state->noEffect?reader_retirement::Effect::NoMutationAttempted:reader_retirement::Effect::ReconciliationRequired))state->failed=true;
     maintenance_.start(10);
 }
 
@@ -98,7 +103,10 @@ void ResidentMutation::maintain() {
         publish(state);return; // Single bounded quarantine, never admit another mutation.
     }
     if(!state->cleaned||!state->fence->handoffReady(state->fenceToken)){maintenance_.start(10);return;}
-    if(!state->normal){publish(state);return;}
+    if(!state->normal){
+        const bool reusable=state->noEffect&&!owners_->occupied();
+        publish(state);if(reusable)active_.reset();return;
+    }
     bool coreRetired=state->coreRetired;
     if(!coreRetired) {
 #ifdef RESIDENT_MUTATION_TESTING

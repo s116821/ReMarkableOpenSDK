@@ -269,8 +269,10 @@ reconciliation, even if an earlier Coordinator snapshot reported success.
 Physical refusal retains one bounded slot. At most eight owner-retirement
 attempts occur; known operation evidence remains distinct from capacity
 availability. Publication and destruction of completion captures finish while
-the executor is still busy. Every nonnormal operation currently retains its
-slot conservatively, including known pre-effect refusals. Source integration
+the executor is still busy. A known refusal before any owner acquisition, Core
+registration, probe submission or creation attempt can release executor capacity
+after framed cleanup and notification, provided the owner slot remains empty.
+All other nonnormal operations retain their slot conservatively. Source integration
 does not yet connect this executor to endpoint mutation dispatch or bootstrap
 activation, and does not qualify native reuse.
 

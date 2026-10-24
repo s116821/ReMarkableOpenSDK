@@ -313,3 +313,26 @@ The preceding attribution commit
 `faadbd253a3d6debae74fcbdf9788e3cc5e4ca16` passed
 [hosted run 40133916422](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40133916422).
 That run is not evidence for this later executor implementation.
+
+### Coordinator and executor together
+
+The complete owned pipeline passes 195 checks on host ASan/UBSan and ARM/QEMU.
+It runs actual Coordinator start, Qt worker and JS delivery, post-order reads,
+Fence cleanup, attribution destruction and owner-slot consumption. Core outcomes
+and native owner operations remain explicit models. ARM uses the actual typed
+Coordinator acquisition branch; host substitutes a 12-byte owned ID because its
+QString-backed fixture identity has a different ABI shape.
+
+Normal and nested-delivery scenarios reuse the same executor for three requests,
+including middle/end insertion. Child-producer and child-destruction loops must
+unwind before physical retirement. Old JS callbacks are delivered after cleanup
+and during a replacement request. Cancellation and late Core interference retain
+the occupied slot. A known null-window preflight refusal has no owners,
+registration, probe or mutation attempt; capacity recovers only after framed
+cleanup and notification, and two subsequent requests complete normally.
+Independent review accepted the fixture and the narrow no-effect reuse proof.
+
+The production ARM artifact links again. Native activation, original Task
+quiescence, repeated native capacity, endpoint mutation and consumer acceptance
+remain unqualified. Earlier executor/model evidence is retained at its own
+checkpoint rather than credited to this later change.

@@ -48,7 +48,7 @@ private:
         QPointer<QObject> worker;
         Completion completion;
         Result result;
-        bool terminal=false,normal=false,cleaned=false,failed=false,published=false,coreRetired=false;
+        bool terminal=false,normal=false,noEffect=false,cleaned=false,failed=false,published=false,coreRetired=false;
         unsigned retirementAttempts=0;
     };
     const reader_insertion_entry::Runtime runtime_;

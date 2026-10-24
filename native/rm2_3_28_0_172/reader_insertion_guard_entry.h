@@ -77,6 +77,7 @@ public:
         std::function<void()> cancel;
     };
     void testing(TestBoundary value) { if (!started_) test_ = std::move(value); }
+    void testingOwnerToken(reader_worker_native::ResidentSlot::Token token) { resident_->owners=std::move(token); }
 #endif
     explicit Coordinator(Runtime runtime,QObject *parent=nullptr,reader_request_scope::Binding binding={})
         : QObject(parent),binding_(std::move(binding)),resident_(new Resident(std::move(runtime))),

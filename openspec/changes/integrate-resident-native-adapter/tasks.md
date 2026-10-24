@@ -26,6 +26,7 @@
       - [x] 2.3c2c Route Coordinator acquisition and probe submission through the retained slot, preserve its token across facade deletion and remove per-request ordinary-release fallback. Verify the real connection with owned ARM ABI callouts. Physical cleanup remains open.
       - [x] 2.3c2d Bind one-shot attribution creation to the owner-slot token and add private adapter-context cleanup before owner consumption; quarantine uncertain state across all later admissions. Final executor ordering and native validation remain open.
       - [x] 2.3c2e Implement the resident executor's staged GUI/Core/attribution/owner retirement and bounded quarantine; independently review its lifecycle and test injected settled states on host/ARM. Full Coordinator-to-executor coverage and endpoint/native activation remain open.
+      - [x] 2.3c2f Exercise real Coordinator start, Qt worker/witness delivery, framed deletion, Core/attribution/slot retirement and reuse together with explicit native callout models; preserve uncertain quarantine while recovering capacity after known pre-acquisition refusals. Endpoint/native qualification remains open.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery
