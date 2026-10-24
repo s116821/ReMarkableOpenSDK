@@ -244,7 +244,7 @@
     {
       "path": "docs/experiments/fixed-pen-spawn-owned-result.md",
       "title": "Fresh fixed-writer image and native owned-file process qualification",
-      "lf_utf8_sha256": "b831e4b736d36d9322c2e07a12c87282bc559979ea6fb9bfd8f0054f42ea95a4",
+      "lf_utf8_sha256": "5b7e1c38075f33ddd6a0141ef3a641b5047a2a40def6d1d4672d462074bde444",
       "headings": [
         {
           "line": 1,
@@ -267,7 +267,7 @@
           "heading": "Later composed holder admission, with no GO"
         },
         {
-          "line": 315,
+          "line": 337,
           "heading": "Simulator calibration and remaining native work"
         }
       ]
@@ -1443,7 +1443,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "742db9ee5de98c44430e695a3892e64a58e91bc1e838887522faacb45d129f50",
+      "lf_utf8_sha256": "680142a295a3ce87a037875751047de4b8090b1d3f68719b98e6805d62409410",
       "headings": [
         {
           "line": 1,
@@ -1458,11 +1458,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 76,
+          "line": 84,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 96,
+          "line": 104,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -5665,7 +5665,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "8f8a8e00be3353a1a4fd86106eaa42dcbf53b371bb8c4f4bac5f1e2102e5c713",
+      "lf_utf8_sha256": "87621bcc419953c43aafcf11de8b5c677a56e14eee7591ceb0a49855bf0f0749",
       "headings": [
         {
           "line": 1,

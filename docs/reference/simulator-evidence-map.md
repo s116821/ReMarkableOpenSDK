@@ -67,6 +67,14 @@ and traversal costs; their separate native costs and a successful alternative
 remain unmeasured. Echoed planned document/page fields in a negative result do
 not establish a displayed page identity.
 
+The same report's later full-window native sample now completes the guarded
+composition lookup. Calibrate cold-start delay and expensive guarded traversal
+separately from loaded UI availability; a short host poll must not consume the
+candidate window before startup. Retain the distinction between composition
+readiness and current-page/capture/write/save authority. Exact native costs and
+original-window host counterexamples are indexed in the report; they are not
+portable timing guarantees or integrated Buddy simulator coverage.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

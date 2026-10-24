@@ -299,6 +299,28 @@ instead of consuming its short wait before startup; that wait grants no new
 device lease or input authority. This successor has not yet been selected by
 these source checks.
 
+Fresh no-input16dc850802024ec882247351970a26c3 then used exact source
+998bb95f8a51fa84af63bdffa6057ebb8d6e02d0 and payload
+1348edeb51168f6cae87a754088908585a478fe8517f7bfb09d61a6e12ab8276.
+Candidate5634/start136209584 accepted holder5776/start136209822 and published
+selected-ready after the exact guarded stock composition inspection completed:
+454 visited items,7869 permission attempts,11664ms. The source's existing20s
+maximum and corrected host wait suffice for this one qualified startup sample.
+No private stock-UI replacement or discovery shortcut was needed. This is a
+composition-readiness result, not observed target-page identity or rendered ink.
+The host method's original-window counterexamples pass4 cases/16 checks,
+receipt c6095de23d95d301f8493ba2db3d0afe78f00aff43b42e8e20028fed527119a7.
+
+The no-input operator then stopped once without publishing a request or GO.
+Terminal history preserves request-not-published and the completed composition
+cost; no writer child or input dispatch occurred and the trace is empty.
+Original136-file archive00a4f0112e5cb9f0bdcdfd2b61282a9fa350519f3bea7673a1db59ca9d770485
+and no-GO review27262937721bcf5df97260d1ea313d4ce8635fcc08b27ce7f1cb3b3a4f6bba0d
+retain the successful precondition and negative input outcome separately.
+Stock9478/start136220937 and initially active Buddy were restored; the full
+post collector again confirms all26 original bytes/full12 IDs unchanged.
+Native intended-target writing, release and save/reopen remain unqualified.
+
 An offline REA6.7/Ghidra12.1.4 follow-up against the unchanged saved binary found
 no matching procedure names in the stripped target, then used exact metadata
 dispatch and wrapper records. Together with hash-verified retained MainView
