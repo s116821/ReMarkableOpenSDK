@@ -139,3 +139,46 @@ measure the same production writer's read-only profile on the tablet before a
 newly selected stroke. A profile branch must return before any device access.
 None of this design qualifies native writing or changes the failed trial into
 a pass. See the [pre-GO result](../../../docs/experiments/write-reopen-pre-go-native-result.md).
+
+## Controlled writer termination during contact
+
+After the normal combined sequence, qualify one actual child-failure/release
+case on a different existing blank page. Use a separate packet-pinned Qt-free
+fault image, never rename it as the normal production writer. Retain all normal
+ABI, one-thread, descriptor/device, parent/incarnation, original-budget and sole
+GO checks. Its only dispatch change is self-SIGKILL after exactly eight complete
+successful frame writes. If signal delivery unexpectedly returns, exit without
+any further writing and report the actual status as a failure to qualify SIGKILL.
+Its read-only profile must identify the fault variant before any device access.
+No other process is signaled, and the ordinary writer source/image stays intact.
+
+First exercise actual spawn/exec/FIFO/pipe/wait/recovery on owned files, including
+host/sanitizer parent execution. Prove the prefix includes contact before the
+child dies, SIGKILL9 is reaped, no complete child message exists, and the parent
+attempts exactly one release through its separate descriptor. Distinguish modeled
+device snapshots from actual FIFO bytes. ARM compile/profile under QEMU is not
+native child execution. Bind the final exact native image and imports separately.
+
+The new native candidate must bind the current complete26-file/12-page fixture,
+existing blank index8 and its full identity. Both prior written pages are
+immutable. Use the existing fresh route/join/blank capture and one GO; do not add
+a page, retry the stroke or bypass positive readiness. Keep declared120-second
+setup, original90-second sequence maximum,360-second actor/185-second reserve and
+fixed stroke/release/collection bounds. Input may leave a partial stroke; consume
+the effect before dispatch and preserve the target thereafter.
+
+A killed child cannot produce normal success, the complete stroke or the strict
+positive18-file frame. Preserve the original negative holder/sequence/unit
+records. Collect and separately validate actual contact-prefix/release records,
+final device snapshots, child signal/incarnation/reap, closed descriptors and
+the independent restoration outcome. Do not require full-stroke endpoint facts
+from a partial trace or call negative facts a positive writer acknowledgement.
+
+The existing actor may conservatively withhold Buddy when the normal success
+witness is absent. Retain that outcome. A fresh one-use exceptional reconciliation
+may restore initially active Buddy only after original released-state evidence,
+gone owned processes, empty units/cgroups, exact stock runtime/policy and full
+document preservation are verified. It renews no native permission and writes
+no input. Otherwise preserve uncertainty and continue independent recovery.
+This case qualifies its exact failure mechanism, not arbitrary OS/D-state faults,
+native unload, power-loss durability or every production recovery policy.

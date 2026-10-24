@@ -1,8 +1,9 @@
 # Declared setup windows for a fresh combined diagnostic
 
-Status: first native120-second attempt refused before request/GO. Stock and
-Buddy restored, all original files unchanged. The omitted unit-helper Context
-now passes old/fixed owned controls; successor native qualification remains open.
+Status: first native120-second attempt refused before request/GO and restored
+stock/Buddy with unchanged originals. The omitted unit-helper Context then passed
+old/fixed owned controls and a [fresh complete native test](combined-native-write-close-reopen-result.md).
+Native child-failure qualification remains separate.
 
 October24,2026UTC. Source and owned controls now admit exactly90-second and
 120-second setup profiles for a newly declared diagnostic. This is preparation

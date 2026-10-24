@@ -101,6 +101,17 @@ instead of treating a loaded bridge or passed import audit as holder readiness.
 The actual Context/exec regression covers the repaired helper locally; it does
 not qualify another native run or implement the integrated simulator.
 
+The [later complete b339 native sequence](../experiments/combined-native-write-close-reopen-result.md)
+now supplies normal write/release/stock-close/reopen/storage calibration. Its
+remembered file selection stays6 while actual fresh native observations and
+stored new ink identify7. Model both this and the opposite insertion divergence;
+never derive active-page identity from remembered metadata. The original overly
+strict post receipt remains failed, with separate actual-preservation review.
+Identical images on different page IDs also require identity independent of
+content hashes. Four changed stroke pixels on reload remain a measured rendering
+limit, rather than a reason to require frame equality. Integrated Buddy simulator
+implementation and native failure coverage remain separately owned work.
+
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |
 | Buddy application simulator | [Simulator guide](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/docs/simulator.md), [scenario model](https://github.com/s116821/ReMarkableBuddies/blob/fe7463993b93dedaa57fc80a7fd3f45adc5e084f/src/simulator/scenario.rs), device/raster modules and simulator tests in the same directory/tree | Runs real application orchestration against a simulated device. This inspected checkpoint's scenario mode is Reader-only; the broad roadmap is not already implemented by that harness. It is not xochitl, Qt or kernel emulation. |

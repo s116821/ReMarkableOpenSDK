@@ -69,6 +69,37 @@
       ]
     },
     {
+      "path": "docs/experiments/combined-native-write-close-reopen-result.md",
+      "title": "Native writing, stock close and reopened capture",
+      "lf_utf8_sha256": "f3f11b685564f50c1ee1d8a46169a47bd09efeea5c250f137ea1accb74448257",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Native writing, stock close and reopened capture"
+        },
+        {
+          "line": 9,
+          "heading": "Exact candidate and complete sequence"
+        },
+        {
+          "line": 45,
+          "heading": "Actual input and independent release"
+        },
+        {
+          "line": 62,
+          "heading": "Storage preservation and the remembered-selection limit"
+        },
+        {
+          "line": 90,
+          "heading": "Image correspondence and restoration"
+        },
+        {
+          "line": 107,
+          "heading": "Remaining scope"
+        }
+      ]
+    },
+    {
       "path": "docs/experiments/conditional-insertion-composition-owned-result.md",
       "title": "Owned conditional coordinator and post-order composition",
       "lf_utf8_sha256": "d460c1bcd7bc3b64912e030eb51c6e1c85bb781873a0d11975af1b1c0cdedcb9",
@@ -638,30 +669,30 @@
     {
       "path": "docs/experiments/intended-target-native-write-readback.md",
       "title": "Intended-target native write and separate readback",
-      "lf_utf8_sha256": "6b6819d0a467e35749687e3ee145cd6134bc8e5d73c27836cb850ce0f8e83df1",
+      "lf_utf8_sha256": "1c5aba3c5f7a383681e32eae982da38a9b92a7f53ad5325aa94baeadfc79dcea",
       "headings": [
         {
           "line": 1,
           "heading": "Intended-target native write and separate readback"
         },
         {
-          "line": 8,
+          "line": 12,
           "heading": "Frozen trial"
         },
         {
-          "line": 25,
+          "line": 29,
           "heading": "Actual input and image evidence"
         },
         {
-          "line": 57,
+          "line": 61,
           "heading": "Stock close, incomplete final capture and preservation"
         },
         {
-          "line": 78,
+          "line": 82,
           "heading": "Separate existing-ink readback"
         },
         {
-          "line": 127,
+          "line": 131,
           "heading": "Readback preservation, recovery and image limits"
         }
       ]
@@ -1341,30 +1372,30 @@
     {
       "path": "docs/experiments/write-reopen-setup-profile-owned-result.md",
       "title": "Declared setup windows for a fresh combined diagnostic",
-      "lf_utf8_sha256": "f8a9da5f989264c2aad22388b1d8e0459fad34d3c1d026277d6ee0fd501e19f2",
+      "lf_utf8_sha256": "7637b0918b805422e44408af53ce4a50feb9e5518333a67690b2cc787f2ff598",
       "headings": [
         {
           "line": 1,
           "heading": "Declared setup windows for a fresh combined diagnostic"
         },
         {
-          "line": 13,
+          "line": 14,
           "heading": "Scope and unchanged limits"
         },
         {
-          "line": 34,
+          "line": 35,
           "heading": "Actual owned controls"
         },
         {
-          "line": 67,
+          "line": 68,
           "heading": "Fresh fixture and remaining gates"
         },
         {
-          "line": 85,
+          "line": 86,
           "heading": "First native setup120 attempt and the omitted unit Context"
         },
         {
-          "line": 125,
+          "line": 126,
           "heading": "Actual old/fixed unit-helper regression"
         }
       ]
@@ -1505,7 +1536,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "f9e51466334e930853a1dfb2181468b8ad5185e64b985cc5fd92032893bd86c5",
+      "lf_utf8_sha256": "4cf79988d84329fe4b6eb998c5df8eab6ad559fcc846559c1c1e944baa54829c",
       "headings": [
         {
           "line": 1,
@@ -1520,11 +1551,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 110,
+          "line": 121,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 130,
+          "line": 141,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -1768,26 +1799,26 @@
     {
       "path": "docs/research/native-adapter-integration-plan.md",
       "title": "From native diagnostics to the resident adapter",
-      "lf_utf8_sha256": "c612519c51ab3615f680ca08a57a480b7c3b73f976c997ce4f20d35a68891bd6",
+      "lf_utf8_sha256": "9bcad8fb91458684e3dc2b709b03cc54f278bcbabe8f705bcca53cc4208634eb",
       "headings": [
         {
           "line": 1,
           "heading": "From native diagnostics to the resident adapter"
         },
         {
-          "line": 13,
+          "line": 16,
           "heading": "Stock-first product boundary"
         },
         {
-          "line": 27,
+          "line": 30,
           "heading": "Candidate boundaries"
         },
         {
-          "line": 50,
+          "line": 53,
           "heading": "Ordered implementation"
         },
         {
-          "line": 106,
+          "line": 111,
           "heading": "Required qualification and delivery"
         }
       ]
@@ -3353,7 +3384,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/fixed-pen-holder.md",
       "title": "Standalone fixed-pen holder",
-      "lf_utf8_sha256": "2a3f8d395529f532acf70a56757ad8c198bd66431bf71c97986b33f395d4d897",
+      "lf_utf8_sha256": "9a259cd3002d7456eb9cad9a8353aa97ebdf9e2c240b52e43b43be576eb72758",
       "headings": [
         {
           "line": 1,
@@ -3374,6 +3405,10 @@
         {
           "line": 111,
           "heading": "Native parent threads and a separate writer image"
+        },
+        {
+          "line": 143,
+          "heading": "Controlled writer termination during contact"
         }
       ]
     },
@@ -5731,7 +5766,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "ae76b826dfd49ec7e503b5fd2e24274bdd34952df5ff52f8795afa5d77ae1d18",
+      "lf_utf8_sha256": "52100f85662f3652f417106f6736afca2ad090cec3fa2590d786a359b77ededd",
       "headings": [
         {
           "line": 1,

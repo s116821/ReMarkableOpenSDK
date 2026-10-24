@@ -5,6 +5,10 @@ The combined sequence expired before its last reopened capture. A separate fresh
 capture-only readback then observed the existing ink on the exact target after
 stock restoration. No supported public capability or whole-sequence success follows.
 
+A later [fresh b339 combined test](combined-native-write-close-reopen-result.md)
+completes all three captures and stock close/reopen on a different existing blank
+page. It does not change this report's original expired4925 sequence.
+
 ## Frozen trial
 
 - Device: RM2, firmware3.28.0.172, unchanged qualified providers.

@@ -5,10 +5,13 @@ or supported native capability. Candidate-specific native findings now include
 [conditional insertion and full post-order](../experiments/conditional-insertion-native-result.md),
 [actual adjacent target selection](../experiments/conditional-target-acquisition-native-result.md),
 [mutation retirement followed by a fresh read-only request](../experiments/resident-mutation-readback-native-result.md),
-and [intended-target ink with separate restored-process readback](../experiments/intended-target-native-write-readback.md).
-The combined write/close/reopen sequence expired before its last capture;
-separate reconciliation did not change that outcome. Broader failure, lifetime,
-consumer and model/firmware qualification remain open.
+and [a complete intended-target write, stock close and reopened capture](../experiments/combined-native-write-close-reopen-result.md).
+That later candidate completed inside its original window and preserved stored
+target ink after restoration. The earlier expired sequence and separate
+readback remain distinct historical results. Actual selected page and saved
+remembered position diverged in the successful case, so metadata cannot replace
+live-page observation or qualify default reopening. Native writer-failure,
+lifetime, consumer and model/firmware qualification remain open.
 
 ## Stock-first product boundary
 
@@ -30,7 +33,7 @@ GitHub reported these open draft heads at this update:
 
 | Candidate | Reviewed revision | Integration ownership |
 | --- | --- | --- |
-| [SDK research PR 30](https://github.com/s116821/ReMarkableOpenSDK/pull/30) | capture-only readback source `34fa73d6bff8dbb186f9ff9fa60b483a7321a7fe` | Native mechanisms, observed facts, capability and lifetime contract |
+| [SDK research PR 30](https://github.com/s116821/ReMarkableOpenSDK/pull/30) | complete combined native sequence source `37c4a8516adb245d06d259e879fc3f595439691b` | Native mechanisms, observed facts, capability and lifetime contract |
 | [Buddy PR 60](https://github.com/s116821/ReMarkableBuddies/pull/60) | `fe7463993b93dedaa57fc80a7fd3f45adc5e084f` | Bindings, acquisition decisions, operation journal, supervisor and consumer tests |
 | [Docs PR 56](https://github.com/s116821/ReMarkableBuddiesDocs/pull/56) | `7c4c7e264617372d281a9b47ef508c927e3d9759` | Product acquisition, recovery and acceptance requirements |
 
@@ -93,7 +96,9 @@ borrow its mock constructor, or mark the synthetic origin as native.
    Buddy inventory. Verify actual selected target; do not navigate if already
    there, otherwise use one qualified adjacent transition. Actual insertion can
    update remembered metadata while the active stock Reader stays on the source;
-   a completion callback or remembered index cannot skip the fresh join. Keep
+   the later combined sequence observed and wrote the target while remembered
+   metadata stayed at the prior page. A completion callback or remembered index
+   cannot skip the fresh join. Keep
    direct page opening outside the MVP. Identity-bracket capture/write and verify
    the result. Do not turn the diagnostic's fixed stroke into a general renderer.
 6. **Reconcile ambiguous outcomes.** Persist operation ID, source and requested
