@@ -14,9 +14,10 @@ and worker/QML witnesses were imported from SDK research revision
 baseline source hashes, not hashes of later adaptations or a compiled adapter.
 The imported post-order fixture adds an explicit `return 0` so its owned models
 can be reused under a renamed test entry point. The predicate test runner now
-resolves this directory and requires a caller-selected output directory. Other
-imported mechanisms remain unchanged at this checkpoint. No proprietary firmware binary or extracted asset
-is included.
+resolves this directory and requires a caller-selected output directory. The native
+profile now pins exact owner-control table prefixes and provides a private
+non-last-only release gate. Other imported mechanisms remain unchanged at this
+checkpoint. No proprietary firmware binary or extracted asset is included.
 
 ## Current integration
 
@@ -56,6 +57,14 @@ teardown guarantee. Reusable registration must also bind cancellation, snapshots
 and retirement to the original generation, and establish that the original
 once-submitted Task cannot enter again. Logical request expiry cannot substitute
 for any of these physical lifetime facts.
+
+The new non-last primitive refuses a last reference and bounds compare/exchange
+contention to eight attempts. Its private profile gate validates exact control
+identity and does not call native disposal. No production owner invokes it yet.
+A future typed slot must consume each local reference exactly once, preserve
+refused/partial/unknown ownership and prove physical retirement separately.
+Retaining a last owner can still exhaust the single mutation slot; normal native
+capacity is not established by this primitive.
 
 ## Owned verification
 

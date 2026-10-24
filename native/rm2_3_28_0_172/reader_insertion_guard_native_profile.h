@@ -4,9 +4,13 @@
 #include "reader_insertion_job_snapshot.h"
 #include "reader_insertion_mutex_probe.h"
 #include "reader_insertion_condition.h"
+#include "nonlast_release.h"
 #include <QObject>
 
+namespace reader_worker_native { class ResidentSlot; }
 namespace reader_insertion_native_profile {
+enum class NativeOwnerKind { Document, Worker };
+using OwnerReleaseResult=remarkable::rm2_3_28_0_172::owner_release::Result;
 struct AttributionParts {
     void *map=nullptr;
     reader_insertion_job_snapshot::Snapshot *context=nullptr;
@@ -35,6 +39,13 @@ public:
     // through candidate exit; a QObject pointer does not supply that ownership.
     AttributionParts attributionParts(QObject *stronglyRetainedWorker, bool wantPostRejectProbe=false,
                                      bool wantCondition=false) const;
+private:
+    friend class reader_worker_native::ResidentSlot;
+    // Only for a normally returned, still-owned control after separately proved
+    // physical retirement. Success consumes that reference; caller clears local
+    // words without touching native memory or invoking ordinary release again.
+    // Every refusal retains the reference. This does not prove Task quiescence.
+    OwnerReleaseResult tryRelinquishNonLast(NativeOwnerKind,std::uintptr_t raw,std::uintptr_t control) const noexcept;
 };
 // Exact unsupported/uncertain/partial states terminate119, without an unhook or
 // logger. Caller owns nonce/root admission and actual linked init ordering.

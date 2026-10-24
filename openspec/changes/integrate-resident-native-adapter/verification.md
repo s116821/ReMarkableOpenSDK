@@ -151,3 +151,24 @@ one endpoint invocation used the wrong vector directory and failed before socket
 tests. None is counted as a passing native/runtime check. Independent source
 review found no blocking bootstrap defect and explicitly retained the admission-
 window and hook-installation/refusal claim limits.
+
+The complete hosted pipeline passed for bootstrap source commit
+`e57f4ce2d2d1b7ea86417ff42bd5b55e02a8f85c`:
+[run 40129429678](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40129429678).
+It does not validate later changes.
+
+## Non-last release primitive checkpoint
+
+The owned primitive fixture passes 394 checks on host ASan/UBSan and ARM/QEMU.
+It covers invalid/last/large counts, unchanged weak and vptr sentinels, bounded
+spurious/contention failures and 256 immediate competing-destruction iterations.
+ARM code inspection shows LDREX/STREX and barriers, eight attempts, no undefined
+helper symbols and no call instructions. The first assembly-check invocation
+failed because its grep missed conditional STREXEQ; runtime checks had passed.
+The corrected check passed in a fresh retained output directory.
+
+The exact-profile wrapper builds in the full ARM Qt6.10.3 adapter. Independent
+review identified that a public raw-pointer release API could consume a reference
+twice; it is now private to the not-yet-implemented typed resident slot. No native
+owner is released and mutation remains disabled. Paired ownership, partial release,
+physical retirement and actual native availability remain untested/open.

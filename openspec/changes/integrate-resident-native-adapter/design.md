@@ -165,6 +165,28 @@ physical mutation retains the bounded mutation slot while independent read-only
 observations remain possible. This is a design requirement, not implemented or
 native-qualified reclamation.
 
+### Non-last-only owner policy
+
+Exact-artifact analysis supports a narrower alternative to calling the ordinary
+native release helper: decrement only while the pinned strong count is greater
+than one. The primitive uses at most eight lock-free compare/exchange attempts,
+never touches the weak count and performs no native access after success. A
+competing owner may destroy the object immediately after that success.
+
+The private profile method verifies the same process, GUI thread, mapped release
+code and control-table prefixes, the actual multithreaded libc flag, writable
+control storage, exact vptr, raw/control relationship and positive weak count.
+Document raw==control+16 is a strict supported-shape gate, not a claim that every
+normally returned Document pair has this layout. Refusal retains the reference.
+
+The method is private to a future typed resident slot; no production callsite is
+enabled. That slot must own each normally returned reference before any possible
+failure, consume only its own local words on success, preserve partial/unknown
+states and never invoke ordinary release as a destructor fallback. It must also
+prove physical retirement independently. Last-owner or uncertain controls keep
+the bounded mutation slot occupied. Neither arithmetic fixtures nor offline ABI
+analysis establish normal native availability or repeated-operation capacity.
+
 ## Verification and rollout
 
 ### Admitted native bootstrap

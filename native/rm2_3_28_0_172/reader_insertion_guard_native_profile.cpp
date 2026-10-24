@@ -19,6 +19,7 @@
 #include <elf.h>
 #include <fcntl.h>
 #include <link.h>
+#include <optional>
 #include <string>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
@@ -32,6 +33,8 @@ constexpr std::uintptr_t OuterAddress=0x841728,InnerAddress=0x7b4bb4;
 constexpr std::uintptr_t SearchAddress=0x7b1f60,EqualAddress=0x144d9c;
 constexpr std::uintptr_t FindAddress=0x46d4a4,CompareSlot=0x14fe5a4;
 constexpr std::uintptr_t WorkerMeta=0xe624d8;
+constexpr std::uintptr_t ReleaseAddress=0x9d620,SingleThreadFlag=0x1516fac;
+constexpr std::uintptr_t WorkerControlVptr=0x1218ebc,DocumentControlVptr=0xe829c4;
 constexpr const char MainHash[]="071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df";
 constexpr const char LibcHash[]="8d741a0db9727c97faebfd17e7f8409183c382241ff3d4c9b55a52e98d8dd832";
 constexpr const char QtHash[]="43b0e210d64e59b534490d78c4c82cc1d2958999b0969aa0f77e11a082704e5d";
@@ -48,18 +51,24 @@ struct Map {
     unsigned major=0,minor=0;unsigned long long inode=0;
     bool r=false,w=false,x=false;
 };
-std::vector<Map> maps() {
-    FILE *file=std::fopen("/proc/self/maps","r");need(file!=nullptr);
+std::optional<std::vector<Map>> inspectMaps() {
+    FILE *file=std::fopen("/proc/self/maps","r");if(!file)return {};
+    struct Guard {FILE *file;~Guard(){if(file)std::fclose(file);}} guard{file};
     std::vector<Map> result;char line[4096];std::size_t bytes=0;
     while(std::fgets(line,sizeof line,file)) {
-        bytes+=std::strlen(line);need(bytes<=1024*1024 && result.size()<2048 && std::strchr(line,'\n'));
+        bytes+=std::strlen(line);if(bytes>1024*1024||result.size()>=2048||!std::strchr(line,'\n'))return {};
         unsigned long b=0,e=0,o=0;char p[8];Map m;
-        need(std::sscanf(line,"%lx-%lx %7s %lx %x:%x %llu",&b,&e,p,&o,&m.major,&m.minor,&m.inode)==7);
+        if(std::sscanf(line,"%lx-%lx %7s %lx %x:%x %llu",&b,&e,p,&o,&m.major,&m.minor,&m.inode)!=7)return {};
         m.begin=b;m.end=e;m.offset=o;m.r=p[0]=='r';m.w=p[1]=='w';m.x=p[2]=='x';
-        need(m.begin<m.end);result.push_back(m);
+        if(m.begin>=m.end)return {};
+        result.push_back(m);
     }
-    need(!std::ferror(file));need(std::fclose(file)==0);return result;
+    if(std::ferror(file))return {};
+    const int closed=std::fclose(file);guard.file=nullptr;
+    if(closed)return {};
+    return result;
 }
+std::vector<Map> maps(){auto value=inspectMaps();need(bool(value));return std::move(*value);}
 const Map *cover(const std::vector<Map> &all,std::uintptr_t at,std::size_t n,bool code) {
     std::uintptr_t end=0;if(!at||!n||!add(at,n,end))return nullptr;
     for(const auto &m:all)if(m.begin<=at&&end<=m.end&&m.r&&(!code||(m.x&&!m.w)))return &m;
@@ -196,6 +205,20 @@ bool fileRange(const File &file,const Module &m,const std::vector<Map> &all,std:
            add(p.p_offset,address-start,offset)&&file.backed(*mapping,address,offset))return true;
     }return false;
 }
+template<std::size_t N> std::array<unsigned char,N> pinBytes(const File &file,const Module &m,
+        const std::vector<Map> &all,std::uintptr_t address) {
+    need(fileRange(file,m,all,address,N));
+    std::array<unsigned char,N> bytes{};
+    for(const auto &p:m.ph)if(p.p_type==PT_LOAD) {
+        std::uintptr_t start=0,last=0,offset=0;
+        if(add(m.base,p.p_vaddr,start)&&add(start,p.p_filesz,last)&&start<=address&&address<=last&&N<=last-address&&
+           add(p.p_offset,address-start,offset)) {
+            file.read(offset,bytes.data(),N);
+            need(std::memcmp(bytes.data(),reinterpret_cast<const void*>(address),N)==0);return bytes;
+        }
+    }
+    die();
+}
 struct Provider {Module module;std::string path;};
 Provider provider(void *symbol,const char *hash,const std::vector<Map> &all) {
     Dl_info info{};need(symbol&&::dladdr(symbol,&info)&&info.dli_fname&&info.dli_fbase);
@@ -237,6 +260,10 @@ struct State {
     std::atomic<std::uint32_t> wordAddress{0},searchReceiver{0};
     std::atomic<std::uint32_t> treeReceiver{0};
     unsigned taskCount=0;
+    pid_t ownerProcess=0;
+    std::array<unsigned char,0xcc> releaseCode{};
+    std::array<unsigned char,24> workerControlTable{},documentControlTable{};
+    std::array<Map,4> ownerMappings{};
 };
 namespace {
 std::atomic<State*> resident{nullptr};
@@ -325,6 +352,17 @@ Facilities *installBeforeMain(bool wantCondition) {
         exactExport(libcFile,libc,unlock_,"pthread_mutex_unlock",0x7cd8c,8);
         exactExport(libcFile,libc,exit_,"_Exit",0xb02dc,44);
         need(reinterpret_cast<void*>(&std::_Exit)==exit_);
+        need(version("__libc_single_threaded","GLIBC_2.32")==reinterpret_cast<void*>(SingleThreadFlag));
+        s->releaseCode=pinBytes<0xcc>(main,s->main,all,ReleaseAddress);
+        s->workerControlTable=pinBytes<24>(main,s->main,all,WorkerControlVptr-8);
+        s->documentControlTable=pinBytes<24>(main,s->main,all,DocumentControlVptr-8);
+        const std::array<std::uintptr_t,4> ownerAddresses{{ReleaseAddress,WorkerControlVptr-8,DocumentControlVptr-8,SingleThreadFlag}};
+        const std::array<std::size_t,4> ownerLengths{{0xcc,24,24,1}};
+        for(std::size_t n=0;n<ownerAddresses.size();++n) {
+            const auto *mapping=cover(all,ownerAddresses[n],ownerLengths[n],n==0);
+            need(mapping&&inLoad(s->main,ownerAddresses[n],ownerLengths[n],n==0));s->ownerMappings[n]=*mapping;
+        }
+        s->ownerProcess=::getpid();
         void *qtEqual=version(EqualSymbol,"Qt_6");const auto qt=provider(qtEqual,QtHash,all);File qtFile(qt.path.c_str(),QtHash);
         const auto eqSymbol=qtFile.function(EqualSymbol);exactExport(qtFile,qt,qtEqual,EqualSymbol,eqSymbol.st_value,eqSymbol.st_size);
         const auto slot=main.jumpSlot(EqualSymbol);need(fileRange(main,s->main,all,slot,4));
@@ -397,5 +435,45 @@ AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejec
         if(wantCondition)state_->treeReceiver.store(std::uint32_t(tree),std::memory_order_release);
         return {reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute,postRejectProbe,conditionCalls};
     }catch(...){return {};}
+}
+
+OwnerReleaseResult Facilities::tryRelinquishNonLast(NativeOwnerKind kind,std::uintptr_t raw,std::uintptr_t control)const noexcept {
+    using Result=OwnerReleaseResult;
+    try {
+        auto *app=QCoreApplication::instance();
+        if(!app||QCoreApplication::closingDown()||QThread::currentThread()!=app->thread()||
+           !state_->installed.load(std::memory_order_acquire)||::getpid()!=state_->ownerProcess||
+           !raw||!control||raw%4||control%4||raw>UINT32_MAX||control>UINT32_MAX-20||
+           (kind!=NativeOwnerKind::Document&&kind!=NativeOwnerKind::Worker))return Result::RefusedIdentity;
+        const auto observed=inspectMaps();if(!observed)return Result::RefusedIdentity;
+        const auto &all=*observed;
+        const std::array<std::uintptr_t,4> addresses{{ReleaseAddress,WorkerControlVptr-8,DocumentControlVptr-8,SingleThreadFlag}};
+        const std::array<std::size_t,4> lengths{{0xcc,24,24,1}};
+        for(std::size_t n=0;n<addresses.size();++n) {
+            const auto *current=cover(all,addresses[n],lengths[n],n==0);
+            const auto &prior=state_->ownerMappings[n];std::uintptr_t priorOffset=0,currentOffset=0;
+            if(!current||prior.inode!=current->inode||prior.major!=current->major||prior.minor!=current->minor||
+               prior.r!=current->r||prior.w!=current->w||prior.x!=current->x||
+               !add(prior.offset,addresses[n]-prior.begin,priorOffset)||
+               !add(current->offset,addresses[n]-current->begin,currentOffset)||priorOffset!=currentOffset)return Result::RefusedIdentity;
+        }
+        if(std::memcmp(state_->releaseCode.data(),reinterpret_cast<const void*>(ReleaseAddress),state_->releaseCode.size())||
+           std::memcmp(state_->workerControlTable.data(),reinterpret_cast<const void*>(WorkerControlVptr-8),24)||
+           std::memcmp(state_->documentControlTable.data(),reinterpret_cast<const void*>(DocumentControlVptr-8),24)||
+           __atomic_load_n(reinterpret_cast<const unsigned char*>(SingleThreadFlag),__ATOMIC_ACQUIRE)!=0)return Result::RefusedIdentity;
+        const auto *storage=cover(all,control,16,false);
+        if(!storage||!storage->w||storage->x)return Result::RefusedIdentity;
+        std::uint32_t vptr=0;std::memcpy(&vptr,reinterpret_cast<const void*>(control),4);
+        if(kind==NativeOwnerKind::Document) {
+            if(vptr!=DocumentControlVptr||raw!=control+16||!cover(all,raw,4,false))return Result::RefusedIdentity;
+        }else {
+            std::uint32_t contained=0;std::memcpy(&contained,reinterpret_cast<const void*>(control+12),4);
+            if(vptr!=WorkerControlVptr||contained!=raw||!cover(all,raw,4,false))return Result::RefusedIdentity;
+        }
+        if(__atomic_load_n(reinterpret_cast<const std::int32_t*>(control+8),__ATOMIC_ACQUIRE)<=0)return Result::RefusedIdentity;
+        // This is the final native access on success. The caller must clear its
+        // local owner words, without invoking the old ordinary release helper.
+        return remarkable::rm2_3_28_0_172::owner_release::decrementPinnedStrong(reinterpret_cast<std::int32_t*>(control+4));
+    }catch(...){return Result::RefusedIdentity;}
 }
 }

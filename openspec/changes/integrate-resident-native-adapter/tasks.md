@@ -17,6 +17,8 @@
   - [ ] 2.2b Connect and qualify actual native observation through the admitted resident bootstrap; integrate conditional insertion with its original Task bookkeeping.
 - [ ] 2.3 Implement separately verified physical callback completion and bounded owner reclamation, including canceled/late/nested delivery and repeated operations in one process.
   - [ ] 2.3a Resolve safe native last-owner release separately from adapter-stack quiescence; bind all reusable registration APIs to their original generation and exact submitted Task lifecycle.
+  - [x] 2.3b Implement and independently review a bounded non-last-only decrement primitive and private exact-control identity gate; verify owned host/ARM controls. This does not release native owners or qualify reusable capacity.
+  - [ ] 2.3c Connect a typed retained-owner slot with per-owner consumption, no ordinary-release fallback, generation-bound physical retirement and native repeated-operation qualification.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
 
 ## 3. Consumer and delivery
