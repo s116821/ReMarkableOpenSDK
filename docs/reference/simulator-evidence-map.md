@@ -79,7 +79,16 @@ The [intended-target native write/readback report](../experiments/intended-targe
 now supplies actual write/observed-stream, release, image and partial-sequence
 calibration. Preserve filtered event counts, one contact interval, independent
 release, successful close and an expired final capture as separate outcomes.
-Stored ink after restoration does not fill the missing fresh readback evidence.
+Its separate fresh capture-only readback now observes the stored stroke after
+restoration with exact identity brackets and no repeated input. Model this as
+reconciliation, without changing the expired original sequence into success.
+All26 stored files stayed identical during readback; rendered support differed
+by four stroke pixels. Preserve storage, image correspondence and whole-frame
+equality as distinct facts. Also retain the conservative canceled-holder Buddy
+withholding followed by separately justified no-GO reconciliation. A negative
+IPC-closed flag before IPC creation is not a created-resource leak or pen release.
+These findings are searchable calibration pointers; integrated Buddy simulator
+coverage remains future work.
 
 | Layer | Existing entry points | What it establishes |
 | --- | --- | --- |

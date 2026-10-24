@@ -1,20 +1,36 @@
 # From native diagnostics to the resident adapter
 
-October 23, 2026 UTC. This is an integration plan, not an implemented transport
-or supported native capability. The research has separately observed a selected
-stock page/controller join, ordinary idle-fixture creation and adjacent selection,
-normal worker completion/release, two resident logical observations, and
-[cancellation with retained owners](../experiments/worker-running-cancellation-result.md).
-The [execution-time source/order predicate](execution-time-page-order-boundary.md)
-and broader failure/consumer qualification remain open.
+October 24, 2026 UTC. This is an integration plan, not an implemented transport
+or supported native capability. Candidate-specific native findings now include
+[conditional insertion and full post-order](../experiments/conditional-insertion-native-result.md),
+[actual adjacent target selection](../experiments/conditional-target-acquisition-native-result.md),
+[mutation retirement followed by a fresh read-only request](../experiments/resident-mutation-readback-native-result.md),
+and [intended-target ink with separate restored-process readback](../experiments/intended-target-native-write-readback.md).
+The combined write/close/reopen sequence expired before its last capture;
+separate reconciliation did not change that outcome. Broader failure, lifetime,
+consumer and model/firmware qualification remain open.
+
+## Stock-first product boundary
+
+Buddy integrates with xochitl's existing pages, drawing, navigation and saving.
+This work does not introduce a replacement tablet interface or migrate the
+tablet to another UI framework. Retained conversation pages must remain usable
+as ordinary stock pages after Buddy is stopped or uninstalled. Optional removal
+of those pages is a separate product decision. Vendor module names such as
+legacydevice do not imply an architectural goal to replace the stock UI.
+
+Using stock behavior avoids maintaining a parallel tablet UI. It does not make
+private object names, method signatures, provider ABI or runtime ordering stable
+across firmware updates. Keep versioned profiles and real-device compatibility
+checks; do not promise automatic compatibility from this design alone.
 
 ## Candidate boundaries
 
-GitHub currently reports these open draft consumer heads:
+GitHub reported these open draft heads at this update:
 
 | Candidate | Reviewed revision | Integration ownership |
 | --- | --- | --- |
-| [SDK research PR 30](https://github.com/s116821/ReMarkableOpenSDK/pull/30) | native cancellation source `031959d6c3ebfd3839dfb62a84b6f945702cbc6f` | Native mechanisms, observed facts, capability and lifetime contract |
+| [SDK research PR 30](https://github.com/s116821/ReMarkableOpenSDK/pull/30) | capture-only readback source `34fa73d6bff8dbb186f9ff9fa60b483a7321a7fe` | Native mechanisms, observed facts, capability and lifetime contract |
 | [Buddy PR 60](https://github.com/s116821/ReMarkableBuddies/pull/60) | `fe7463993b93dedaa57fc80a7fd3f45adc5e084f` | Bindings, acquisition decisions, operation journal, supervisor and consumer tests |
 | [Docs PR 56](https://github.com/s116821/ReMarkableBuddiesDocs/pull/56) | `7c4c7e264617372d281a9b47ef508c927e3d9759` | Product acquisition, recovery and acceptance requirements |
 
@@ -25,21 +41,24 @@ consumer/test revisions before delivery. Keep the existing PRs and dirty work.
 
 The Rust [Platform contract](../../src/lib.rs) currently has only Synthetic
 evidence construction and `UnqualifiedPlatform` returns NoNativeAdapter. Its
-`PageObservation` includes full order, revision and input epoch. The fixed native
-three-ID witness supplies neither a full order nor a qualified revision/input
-epoch. Do not construct that type by filling the missing facts with constants,
+`PageObservation` includes full order, revision and input epoch. Later native
+diagnostics supply a full observed order, superseding the earlier three-ID-only
+limit, but not a qualified public revision/input epoch. Do not construct that
+type by filling the missing facts with constants,
 borrow its mock constructor, or mark the synthetic origin as native.
 
 ## Ordered implementation
 
-1. **Finish the native precondition.** Establish an execution-side predicate
-   between dequeue and mutation, with the ordinary Task's bookkeeping and
-   persistence path intact. Determine the actual renderer initialization/error
-   and replacement ordering. GUI-ready snapshots, a worker callback followed by
-   another enqueue, six separately locked getters and an externally held
-   nonrecursive mutex do not provide that predicate. If exhaustive investigation
-   leaves no robust method, return the evidence to the product owner for the
-   explicitly exercised manual-successor fallback decision.
+1. **Integrate the measured native precondition.** The conditional insertion
+   candidate checks source/count/immediate-neighbor/target absence in the
+   qualified original insertion scope and forwards the ordinary helper once
+   with unchanged arguments. Preserve that exact execution boundary and native
+   Task bookkeeping; the old collection of separately locked getters does not
+   become equivalent. Port the measured predicate into the versioned adapter
+   and qualify other-writer interference, stale-source rejection, replacement,
+   notebook/PDF middle/end and renderer-error cases. Retain the
+   [earlier boundary analysis](execution-time-page-order-boundary.md) as historical
+   rationale, with the later native reports as the current positive finding.
 2. **Separate facts from authority.** Move reviewed native ownership/observation
    mechanisms into a versioned adapter component, retaining exact executable,
    Qt/ABI, artifact and operation fingerprint gates. Define native construction
@@ -62,14 +81,21 @@ borrow its mock constructor, or mark the synthetic origin as native.
    that request's observation/publication authority. It does not unload the
    adapter or restart xochitl. Prove physical callback completion and subsequent
    owner reclamation separately. The research's intentionally retained canceled
-   slot is not a production capacity/reclamation solution.
+   slot is not a production capacity/reclamation solution. The native mutation
+   followed by a fresh read-only request now demonstrates this separation in
+   one unchanged process; it does not prove indefinite capacity or safe dlclose.
+   The historical shutdown rendering fault remains unexplained. Process restart
+   in forensic recovery is not normal conversation lifecycle.
 5. **Integrate Buddy decisions.** Resolve a correctly bound current Buddy first,
    then the immediate right Buddy when needed. An unknown/unbound neighbor is
    not positively ordinary. If the right neighbor is ordinary, preserve the
    original source anchor and insert before that neighbor. Avoid a whole-document
    Buddy inventory. Verify actual selected target; do not navigate if already
-   there, otherwise use one qualified adjacent transition. Keep direct page
-   opening outside the MVP. Identity-bracket capture/write and verify the result.
+   there, otherwise use one qualified adjacent transition. Actual insertion can
+   update remembered metadata while the active stock Reader stays on the source;
+   a completion callback or remembered index cannot skip the fresh join. Keep
+   direct page opening outside the MVP. Identity-bracket capture/write and verify
+   the result. Do not turn the diagnostic's fixed stroke into a general renderer.
 6. **Reconcile ambiguous outcomes.** Persist operation ID, source and requested
    target identity before dispatch. A timeout, cancellation, lost connection or
    helper death after dispatch does not prove absence of mutation. Reconnect
@@ -97,7 +123,18 @@ Integrate SDK before its pinned consumer revision, then complete coordinated
 acceptance, specification sync and archive. Preserve unfinished gates rather
 than relabeling a passing diagnostic as release readiness.
 
+The native fixed-stroke/readback report provides positive input, release,
+identity-bracketed images and unchanged stored ink after a later restart. Its
+original combined sequence still timed out, and four rendered stroke pixels
+changed on readback. Keep that uncertainty and the native child-failure/recovery
+gap visible in acceptance. Do not infer power-loss durability or pixel equality.
+The [simulator evidence map](../reference/simulator-evidence-map.md) and generated
+catalog index measured transitions for future consumer simulation; focused Qt
+and owned-file controls are not an implemented full-tablet simulator.
+
 Source basis: current SDK source and active native-contract specification,
-retained native reports, product acceptance requirements and freshly queried
-GitHub consumer heads. Transport framing, handshake and implementation sequence
-are proposed design; they have not run on the tablet.
+retained native reports, explicit stock-first product direction, product
+acceptance requirements and freshly queried GitHub heads. The stock-first
+compatibility benefit is an engineering expectation with the limits above.
+Transport framing, handshake and production implementation sequence are proposed
+design; they have not run as a production adapter on the tablet.

@@ -638,27 +638,31 @@
     {
       "path": "docs/experiments/intended-target-native-write-readback.md",
       "title": "Intended-target native write and separate readback",
-      "lf_utf8_sha256": "5584261cd311f985adf17920e935b744d7e282d92d86b5dd1fbb4d4937ecf803",
+      "lf_utf8_sha256": "6b6819d0a467e35749687e3ee145cd6134bc8e5d73c27836cb850ce0f8e83df1",
       "headings": [
         {
           "line": 1,
           "heading": "Intended-target native write and separate readback"
         },
         {
-          "line": 7,
+          "line": 8,
           "heading": "Frozen trial"
         },
         {
-          "line": 24,
+          "line": 25,
           "heading": "Actual input and image evidence"
         },
         {
-          "line": 56,
+          "line": 57,
           "heading": "Stock close, incomplete final capture and preservation"
         },
         {
-          "line": 77,
-          "heading": "Distinct next question: existing-ink readback"
+          "line": 78,
+          "heading": "Separate existing-ink readback"
+        },
+        {
+          "line": 127,
+          "heading": "Readback preservation, recovery and image limits"
         }
       ]
     },
@@ -1470,7 +1474,7 @@
     {
       "path": "docs/reference/simulator-evidence-map.md",
       "title": "Tablet simulator: evidence and fidelity map",
-      "lf_utf8_sha256": "1ce2c492788225e074c5b7e5fd22189bcf301653f1e565d3fdbbd7dd97827198",
+      "lf_utf8_sha256": "56ac5e079f38f88c5835d71f838541992a68825cebb24b1ce2787e06a7a8e798",
       "headings": [
         {
           "line": 1,
@@ -1485,11 +1489,11 @@
           "heading": "Three existing layers, with different purposes"
         },
         {
-          "line": 90,
+          "line": 99,
           "heading": "Finding to model and coverage map"
         },
         {
-          "line": 110,
+          "line": 119,
           "heading": "Turning another finding into a simulator case"
         }
       ]
@@ -1733,22 +1737,26 @@
     {
       "path": "docs/research/native-adapter-integration-plan.md",
       "title": "From native diagnostics to the resident adapter",
-      "lf_utf8_sha256": "7a4e1471655a3b37a0369ec0671754967b914eaeaa17c388fcabaa485716a524",
+      "lf_utf8_sha256": "c612519c51ab3615f680ca08a57a480b7c3b73f976c997ce4f20d35a68891bd6",
       "headings": [
         {
           "line": 1,
           "heading": "From native diagnostics to the resident adapter"
         },
         {
-          "line": 11,
+          "line": 13,
+          "heading": "Stock-first product boundary"
+        },
+        {
+          "line": 27,
           "heading": "Candidate boundaries"
         },
         {
-          "line": 33,
+          "line": 50,
           "heading": "Ordered implementation"
         },
         {
-          "line": 80,
+          "line": 106,
           "heading": "Required qualification and delivery"
         }
       ]
@@ -5692,7 +5700,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/tasks.md",
       "title": "Current delivery boundary — October 12, 2026",
-      "lf_utf8_sha256": "b6affd904b17c7cd5d0bf61e918085a8d454ed33173af921025c60c105414e2a",
+      "lf_utf8_sha256": "f6e5c7be059f7aaa68ba391d8b60d5420d41f7db9d703db580acadfd580cdc3b",
       "headings": [
         {
           "line": 1,
