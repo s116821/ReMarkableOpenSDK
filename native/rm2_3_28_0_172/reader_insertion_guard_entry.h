@@ -41,7 +41,7 @@ struct Runtime {
     reader_insertion_predicate::CallerAdmission admission;
     std::uintptr_t outerReturnPC = 0, innerReturnPC = 0;
     // GUI callout. Its returned context and all captures must survive candidate exit.
-    std::function<Attribution(QObject *)> makeAttribution;
+    std::function<Attribution(QObject *,const reader_worker_native::ResidentSlot::Token &)> makeAttribution;
     reader_insertion_condition::CallerAdmission conditionAdmission{};
 };
 struct Result {
@@ -467,7 +467,7 @@ private:
             return;
         }
         const auto factory = resident_->runtime.makeAttribution;
-        const Attribution attribution = factory(worker);
+        const Attribution attribution = factory(worker,resident_->owners);
         if (!weak) return;
         if (!worker || !attribution.map || !attribution.context || !attribution.read || !guard() || !weak || !documentPin || !controllerPin) {
             if (weak) refuse(QStringLiteral("attribution-context"));

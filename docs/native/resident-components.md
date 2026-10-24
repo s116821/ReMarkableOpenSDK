@@ -45,8 +45,9 @@ Unsupported until physical completion and owner reclamation are integrated.
 The bootstrap source binds independently checked profile/artifact hashes,
 one-use supervisor admission and endpoint lifetime; its actual native activation
 and recovery remain unqualified. See [build/admission contract](../../native/rm2_3_28_0_172/BUILD.md).
-The native profile's attribution allocation and retained Coordinator owners must
-still be made safely reusable. Core record retirement is private and has no
+The native profile and slot now provide private attribution cleanup, but the
+executor must still connect it to exact Task completion and Core retirement.
+Core record retirement is private and has no
 production caller. Neither copying these mechanisms nor compiling them
 qualifies a resident lifecycle. Do not install this source as an automatic boot
 payload or use a diagnostic one-shot fallback as product behavior.
@@ -78,7 +79,7 @@ The Coordinator now requires this slot for acquisition and probe submission,
 retains its opaque token even when a native callout deletes the facade, and
 binds Core registration to the stable slot. It no longer creates a per-request
 Bridge/Prepared fallback. The plain Coordinator record and profile attribution
-still require explicit physical cleanup. No production mutation endpoint or
+still require the executor's explicit physical-cleanup sequence. No production mutation endpoint or
 retirement caller is enabled by this connection.
 
 Core now pins a shared registration record at outer entry and binds cancel,
@@ -88,6 +89,13 @@ destruction occurs under it. Cancel/snapshot also take that mutex; the inner-hoo
 implementation itself is unchanged and does not acquire it. Retirement rejects
 active outer frames, but independently proving no future Task invocation remains
 the executor's responsibility. An empty stack count is not that proof.
+
+Attribution creation also uses the original slot token. Its private cleanup
+clears the exact profile's dispatch addresses and frees adapter-only readers
+before any owner reference is consumed. Failed attribution or uncertain native
+submission quarantines all later slot admissions. This remains a source-level
+cleanup mechanism until the production executor and native tests establish the
+required ordering and actual reusable capacity.
 
 ## Owned verification
 

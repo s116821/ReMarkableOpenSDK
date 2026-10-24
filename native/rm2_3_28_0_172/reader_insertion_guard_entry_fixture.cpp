@@ -167,7 +167,7 @@ void permitRevocation(bool onCopyDestruction) {
     reader_insertion_entry::Runtime runtime;
     runtime.calls = {words, search, equal}; runtime.admission = {true, true, true, true, true, true};
     runtime.outerReturnPC = 0x1000; runtime.innerReturnPC = 0x2000;
-    runtime.makeAttribution = [counts](QObject *) { ++counts->acquisitions; return reader_insertion_entry::Attribution{}; };
+    runtime.makeAttribution = [counts](QObject *,const reader_worker_native::ResidentSlot::Token &) { ++counts->acquisitions; return reader_insertion_entry::Attribution{}; };
     std::unique_ptr<Entry> holder;
     {
         const reader_request_scope::Scope construction(binding);
@@ -311,7 +311,7 @@ void scenario(const QByteArray &mode,bool useSlot=false) {
     const auto mutexAt = reinterpret_cast<std::uintptr_t>(ownedMutex);
     auto *postProbe = reader_insertion_mutex_probe::Probe::create({ownedMutex,{mutexAt,mutexAt+sizeof(*ownedMutex)},::pthread_mutex_trylock,::pthread_mutex_unlock});
     check(postProbe != nullptr, "owned optional probe created outside guarded sample");
-    runtime.makeAttribution = [&, owner, model](QObject *source) {
+    runtime.makeAttribution = [&, owner, model](QObject *source,const reader_worker_native::ResidentSlot::Token &) {
         check(source == &worker, "snapshot context bound to retained worker");
         if (mode == "factory-cancel") entry->cancel();
         if (mode == "factory-delete") { delete entry; entry = nullptr; }

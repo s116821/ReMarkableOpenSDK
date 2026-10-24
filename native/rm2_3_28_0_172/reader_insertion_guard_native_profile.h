@@ -41,6 +41,9 @@ public:
                                      bool wantCondition=false) const;
 private:
     friend class reader_worker_native::ResidentSlot;
+    // Adapter allocations only. Caller has first retired the exact Core record
+    // with independent Task quiescence; the original owner slot remains held.
+    bool retireAttribution(const AttributionParts &) const noexcept;
     // Only for a normally returned, still-owned control after separately proved
     // physical retirement. Success consumes that reference; caller clears local
     // words without touching native memory or invoking ordinary release again.

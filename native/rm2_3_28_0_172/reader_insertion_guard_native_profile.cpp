@@ -257,6 +257,7 @@ struct State {
     Module main;
     Map metaMapping;
     std::atomic<bool> installed{false},partsUsed{false};
+    AttributionParts attribution; // GUI-only, one allocation set until retirement.
     std::atomic<std::uint32_t> wordAddress{0},searchReceiver{0};
     std::atomic<std::uint32_t> treeReceiver{0};
     unsigned taskCount=0;
@@ -409,6 +410,7 @@ AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejec
         reader_insertion_job_snapshot::Config c;c.mutex=reinterpret_cast<pthread_mutex_t*>(mutex);c.words=reinterpret_cast<const std::uint32_t*>(words);
         c.mutexStorage={mutex,mutex+24};c.wordStorage={words,end};c.tryLock=state_->tryLock;c.unlock=state_->unlock;
         auto *context=reader_insertion_job_snapshot::Snapshot::create(c);if(!context)return {};
+        state_->attribution.context=context; // Retain even on later refusal.
         std::uintptr_t tree=0;
         reader_insertion_condition::Calls conditionCalls;
         if(wantCondition) {
@@ -430,11 +432,30 @@ AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejec
             probe.mutex=reinterpret_cast<pthread_mutex_t*>(finalMutex);probe.storage={finalMutex,finalEnd};
             probe.tryLock=state_->tryLock;probe.unlock=state_->unlock;
             postRejectProbe=reader_insertion_mutex_probe::Probe::create(probe);if(!postRejectProbe)return {};
+            state_->attribution.postRejectProbe=postRejectProbe;
         }
         state_->wordAddress.store(std::uint32_t(first),std::memory_order_release);state_->searchReceiver.store(std::uint32_t(receiver),std::memory_order_release);
         if(wantCondition)state_->treeReceiver.store(std::uint32_t(tree),std::memory_order_release);
-        return {reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute,postRejectProbe,conditionCalls};
+        state_->attribution={reinterpret_cast<void*>(map),context,reader_insertion_job_snapshot::Snapshot::attribute,postRejectProbe,conditionCalls};
+        return state_->attribution;
     }catch(...){return {};}
+}
+
+bool Facilities::retireAttribution(const AttributionParts &parts)const noexcept {
+    auto *app=QCoreApplication::instance();
+    if(!app||QCoreApplication::closingDown()||QThread::currentThread()!=app->thread()||
+       !state_->installed.load(std::memory_order_acquire)||!state_->partsUsed.load(std::memory_order_acquire)||
+       !parts||parts.context!=state_->attribution.context||parts.map!=state_->attribution.map||
+       parts.read64!=state_->attribution.read64||parts.postRejectProbe!=state_->attribution.postRejectProbe)return false;
+    // No native pointer is dereferenced and no native mutex/owner is destroyed.
+    // Clear dispatch addresses before destroying adapter-only one-shot readers.
+    state_->wordAddress.store(0,std::memory_order_release);
+    state_->searchReceiver.store(0,std::memory_order_release);
+    state_->treeReceiver.store(0,std::memory_order_release);
+    const auto retired=state_->attribution;state_->attribution={};
+    delete retired.context;delete retired.postRejectProbe;
+    state_->partsUsed.store(false,std::memory_order_release);
+    return true;
 }
 
 OwnerReleaseResult Facilities::tryRelinquishNonLast(NativeOwnerKind kind,std::uintptr_t raw,std::uintptr_t control)const noexcept {

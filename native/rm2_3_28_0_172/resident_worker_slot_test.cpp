@@ -17,6 +17,10 @@ struct SlotAccess {
     }
     static void destroy(ResidentSlot *slot){delete slot;}
     static auto retire(ResidentSlot &slot,const ResidentSlot::Token &token){return slot.retirePhysically(token);}
+    static void attribution(ResidentSlot &slot,reader_insertion_native_profile::AttributionParts(*create)(QObject*,bool),
+            bool(*retire)(const reader_insertion_native_profile::AttributionParts&)) {
+        slot.testAttribution_=create;slot.testRetireAttribution_=retire;
+    }
 };
 }
 namespace {
@@ -31,6 +35,9 @@ struct Scenario {
     qulonglong job=0x1234567800000001ULL;
     Result docResult=Result::Released,workerResult=Result::Released;
     std::function<void()> resolveHook,acquireHook,requestHook;
+    unsigned attributions=0,attributionRetirements=0;
+    bool attributionEmpty=false,retirementRefused=false;
+    std::function<void()> attributionHook;
 };
 Scenario *active=nullptr;
 void put(void *out,void *raw,void *control) {
@@ -66,6 +73,19 @@ Result release(Kind kind,std::uintptr_t raw,std::uintptr_t control) {
     check(raw==reinterpret_cast<std::uintptr_t>(s.wrong?&s.wrongWorker:&s.worker));
     ++s.workerReleases;return s.workerResult;
 }
+bool attribute(void *,std::uint64_t &id)noexcept{id=17;return true;}
+reader_insertion_native_profile::AttributionParts attribution(QObject *worker,bool condition) {
+    auto &s=*active;++s.attributions;check(worker==&s.worker&&condition);
+    if(s.attributionHook)s.attributionHook();
+    if(s.attributionEmpty)return {};
+    return {&s.document,reinterpret_cast<reader_insertion_job_snapshot::Snapshot*>(&s.docControl),attribute,nullptr,{}};
+}
+bool retireAttribution(const reader_insertion_native_profile::AttributionParts &parts) {
+    auto &s=*active;++s.attributionRetirements;
+    check(parts.map==&s.document&&parts.context==reinterpret_cast<reader_insertion_job_snapshot::Snapshot*>(&s.docControl));
+    check(s.docReleases==0&&s.workerReleases==0); // Attribution dies before either owner reference.
+    return !s.retirementRefused;
+}
 using Slot=std::unique_ptr<ResidentSlot,void(*)(ResidentSlot*)>;
 Slot make(Scenario &s) {
     active=&s;
@@ -77,6 +97,34 @@ auto prepare(ResidentSlot &slot,Scenario &s,const Permit &permit=[]{return true;
 }
 int main(int argc,char **argv) {
     QCoreApplication app(argc,argv);
+    {
+        Scenario s;auto slot=make(s);testing::SlotAccess::attribution(*slot,attribution,retireAttribution);
+        auto p=prepare(*slot,s);check(bool(slot->attribution(p.token)));
+        check(!slot->attribution(p.token)&&s.attributions==1);
+        s.workerResult=Result::RetainedLast;
+        auto r=testing::SlotAccess::retire(*slot,p.token);
+        check(r.retired&&!r.reclaimed&&s.attributionRetirements==1&&s.docReleases==1&&s.workerReleases==1);
+        s.workerResult=Result::Released;r=testing::SlotAccess::retire(*slot,p.token);
+        check(r.reclaimed&&s.attributionRetirements==1&&s.docReleases==1&&s.workerReleases==2);
+        auto replacement=prepare(*slot,s);
+        check(!slot->attribution(p.token)&&s.attributions==1&&bool(slot->attribution(replacement.token)));
+    }
+    for(int mode=0;mode<4;++mode) {
+        Scenario s;auto slot=make(s);testing::SlotAccess::attribution(*slot,attribution,retireAttribution);
+        auto p=prepare(*slot,s);
+        s.attributionEmpty=mode==0;s.retirementRefused=mode==1;
+        if(mode==2)s.attributionHook=[&]{check(slot->cancel(p.token));};
+        if(mode==3)s.attributionHook=[&]{check(!slot->attribution(p.token));};
+        check(bool(slot->attribution(p.token))==(mode==1));
+        if(mode!=1) {
+            check(!slot->worker(p.token)&&!slot->submit(p.token,[]{},[]{return true;}).attempted&&s.requests==0);
+            check(!slot->attribution(p.token)&&s.attributions==1);
+        }
+        auto r=testing::SlotAccess::retire(*slot,p.token);
+        check(r.unknown&&!r.retired&&!r.reclaimed&&slot->occupied());
+        check(s.workerReleases==0&&s.docReleases==0&&s.attributionRetirements==(mode==1?1U:0U));
+        check(!testing::SlotAccess::retire(*slot,p.token).reclaimed&&s.workerReleases==0&&s.docReleases==0);
+    }
     {
         Scenario s;auto slot=make(s);auto p=prepare(*slot,s);check(p.ready&&!p.unknown&&slot->occupied());
         check(slot->worker(p.token)==&s.worker);check(!prepare(*slot,s).ready&&s.resolves==1);
@@ -139,6 +187,9 @@ int main(int argc,char **argv) {
     {
         Scenario s;auto slot=make(s);auto p=prepare(*slot,s);s.job=0;
         check(slot->submit(p.token,[]{},[]{return true;}).unknown);
+        testing::SlotAccess::attribution(*slot,attribution,retireAttribution);
+        check(!slot->worker(p.token)&&!slot->attribution(p.token)&&s.attributions==0);
+        check(!slot->submit(p.token,[]{},[]{return true;}).attempted&&s.requests==1);
         check(!testing::SlotAccess::retire(*slot,p.token).reclaimed&&s.docReleases==0);
     }
     {

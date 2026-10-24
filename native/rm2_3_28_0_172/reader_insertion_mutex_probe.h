@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <limits>
 
+namespace reader_insertion_native_profile {class Facilities;}
 namespace reader_insertion_mutex_probe {
 struct Storage { std::uintptr_t begin = 0, end = 0; };
 struct Config {
@@ -26,6 +27,7 @@ class Probe final {
     std::atomic<bool> consumed_{false};
     explicit Probe(Config config) : config_(config) {}
     ~Probe() = default; // Process-resident; does not own or destroy the mutex.
+    friend class reader_insertion_native_profile::Facilities;
 public:
     static Probe *create(Config config) {
         const auto address = reinterpret_cast<std::uintptr_t>(config.mutex);

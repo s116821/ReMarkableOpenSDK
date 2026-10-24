@@ -258,3 +258,24 @@ profile attribution reuse and native mutation activation remain unimplemented.
 The preceding GUI-fence commit `f9614c105b6c8b2cfa241c8f75d108e11b1972fb`
 passed its own [hosted run 40132632510](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40132632510).
 That is not CI evidence for the later Coordinator connection.
+
+### Attribution lifetime and quarantine
+
+Updated owned slot tests pass 10,259 checks on host ASan/UBSan and ARM/QEMU.
+They cover attribution-before-owner cleanup, one-time cleanup across partial
+owner-release retries, stale tokens, and quarantine after failed, canceled or
+reentrant attribution. Independent review found and then verified the fix for
+an unknown-state admission gap: failed attribution now blocks submission, and
+an uncertain submission blocks attribution without calling its factory.
+These use controlled allocation/release callouts, not native quiescence.
+The Coordinator suite also passes again on host ASan/UBSan and ARM/QEMU after
+the quarantine fix, including all 95 actual slot-connection checks on ARM.
+
+The full exact-profile ARM adapter links with the new private context cleanup
+(artifact SHA256 `26643a3aef8f5bb4478833a30e6bd02e0a23a3326ac04b90868ec7f7da37a3e5`).
+The profile's actual attribution allocation/destruction has compile/source
+coverage only. The production physical-retirement caller remains open.
+The previous Coordinator connection at
+`3c8e7b698042dc59ed0b37eb0b41a4366d08a5bd` passed
+[hosted run 40133254430](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40133254430);
+that run predates the attribution changes.

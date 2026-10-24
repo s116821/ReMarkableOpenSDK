@@ -29,11 +29,13 @@ class ResidentSlot final {
     };
     struct State {
         Owner document,worker;
+        reader_insertion_native_profile::AttributionParts attribution;
+        bool attributionAttempted=false;
         QPointer<QObject> controller,publicWorker;
         bool ready=false,consumed=false,canceled=false,unknown=false,physicalRetired=false;
         bool preparing=true,submitting=false;
         bool live()const {
-            return !canceled&&!physicalRetired&&controller&&publicWorker&&detail::gui()&&
+            return !canceled&&!unknown&&!physicalRetired&&controller&&publicWorker&&detail::gui()&&
                 controller->thread()==QThread::currentThread()&&publicWorker->thread()==QThread::currentThread();
         }
     };
@@ -62,6 +64,8 @@ private:
 #ifdef RESIDENT_WORKER_SLOT_TESTING
     friend struct testing::SlotAccess;
     ReleaseResult (*testRelease_)(Kind,std::uintptr_t,std::uintptr_t)=nullptr;
+    reader_insertion_native_profile::AttributionParts (*testAttribution_)(QObject *,bool)=nullptr;
+    bool (*testRetireAttribution_)(const reader_insertion_native_profile::AttributionParts &)=nullptr;
 #endif
     std::shared_ptr<State> match(const Token &token)const {
         auto value=token.state_.lock();return value&&value==current_?value:nullptr;
@@ -91,6 +95,17 @@ private:
         state->canceled=true;
         if(!state->unknown) {
             state->physicalRetired=true;result.retired=true;
+            if(state->attribution) {
+#ifdef RESIDENT_WORKER_SLOT_TESTING
+                const bool cleared=testRetireAttribution_&&testRetireAttribution_(state->attribution);
+#else
+                const bool cleared=facilities_->retireAttribution(state->attribution);
+#endif
+                if(!cleared){state->unknown=true;result.unknown=true;result.retired=false;}
+                else state->attribution={};
+            }
+        }
+        if(!state->unknown) {
             release(state->worker,Kind::Worker);
             release(state->document,Kind::Document);
         }
@@ -123,6 +138,20 @@ public:
         if(!detail::gui())return nullptr;
         auto state=match(token);
         return state&&state->ready&&state->live()?state->publicWorker.data():nullptr;
+    }
+    reader_insertion_native_profile::AttributionParts attribution(const Token &token,bool wantCondition=true) {
+        detail::Gate gate;
+        if(!gate.entered||!detail::gui())return {};
+        auto state=match(token);
+        if(!state||!state->ready||state->preparing||state->submitting||state->attributionAttempted||!state->live())return {};
+        state->attributionAttempted=true;
+#ifdef RESIDENT_WORKER_SLOT_TESTING
+        state->attribution=testAttribution_?testAttribution_(state->publicWorker.data(),wantCondition):reader_insertion_native_profile::AttributionParts{};
+#else
+        state->attribution=facilities_->attributionParts(state->publicWorker.data(),false,wantCondition);
+#endif
+        if(!state->attribution||!state->live()||detail::reentered){state->unknown=true;return {};}
+        return state->attribution;
     }
     Preparation prepare(QObject *controller,const QVariant &actualId,QObject *expectedWorker,const Permit &permit) {
         Preparation result;detail::Gate gate;

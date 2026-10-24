@@ -8,6 +8,7 @@
 #include <cstring>
 #include <limits>
 
+namespace reader_insertion_native_profile {class Facilities;}
 namespace reader_insertion_job_snapshot {
 struct Bounds { std::uintptr_t begin=0,end=0; };
 struct Config {
@@ -26,6 +27,7 @@ class Snapshot final {
     std::atomic<bool> consumed_{false};
     explicit Snapshot(const Config &c):config_(c) {}
     ~Snapshot()=default; // Resident context; no native mutex/owner destruction.
+    friend class reader_insertion_native_profile::Facilities;
     static bool extent(std::uintptr_t p,std::size_t size,std::size_t alignment,
                        Bounds storage,std::uintptr_t &end) {
         if(!p || p%alignment || !size || p>std::numeric_limits<std::uintptr_t>::max()-size ||

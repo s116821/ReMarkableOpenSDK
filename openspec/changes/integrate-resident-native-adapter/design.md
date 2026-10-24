@@ -191,6 +191,31 @@ the slot. There is no per-request Bridge/Prepared fallback in this path. The
 Coordinator's plain resident record and profile attribution remain retained
 until the normal physical-cleanup executor is implemented.
 
+The exact controller path provides a narrower retirement premise than generic
+`Task.finished`: its ordinary insertion method constructs one private AddPage
+Task, submits it once, and its completion/failure handlers disconnect and remove
+that Task without retry. The SDK Witness consumes its own one-call admission
+before invoking that method. For the consumed native command, dispatch occurs
+once before exact job completion; later payload cleanup does not invoke it
+again. Normal retirement therefore still requires the same Worker, exact job,
+normal attributed return, exact subsequent completion, and no active frames.
+The supplied JS callback must remain passive. Callback managers and their code
+can survive completion and remain loaded; this premise grants no unload or
+last-owner destruction authority. These are exact-artifact source premises,
+not qualification of a current native run.
+
+The slot now binds attribution creation to the same original token, with one
+attempt per occupied state. Failed, canceled or reentrant attribution quarantines
+the slot. Every later worker, submission and attribution admission rejects an
+unknown state. The profile retains one allocation set even on partial factory
+failure. Its private cleanup validates the original parts, clears all global
+dispatch addresses, destroys only adapter-owned snapshot/probe objects, then
+allows a fresh attribution. It never destroys a native mutex or native owner.
+Slot retirement performs that cleanup before consuming either native reference,
+and does not repeat it if a last/busy owner requires a later bounded retry.
+The future executor must retire Core first with the independent normal Task
+proof; these private cleanup primitives do not establish that proof themselves.
+
 ### Non-last-only owner policy
 
 Exact-artifact analysis supports a narrower alternative to calling the ordinary
