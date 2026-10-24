@@ -73,6 +73,20 @@ Historical selection SHALL NOT grant capture, writing or persistence authority.
 - **WHEN** the caller requests read-only reconciliation
 - **THEN** its payload preserves the original selection source, present target and order without fabricating insertion facts, and reported presence/current selection does not clear effect quarantine
 
+### Requirement: Preserve historical journal wire identity
+Historical journal inspection SHALL retain exact canonical original bytes and
+their digest across supported wire revisions, independently of strict current
+transport decoding. Unsupported or malformed history SHALL refuse without
+rewriting or discarding evidence. History SHALL NOT authorize effect replay.
+
+#### Scenario: Consumer upgrades from protocol revision 1 to 2
+- **WHEN** a consumer loads a canonical revision 1 insertion request and response
+- **THEN** it validates their original bytes, digest and same-revision correlation without re-encoding as revision 2 or clearing unresolved reservations; the live endpoint still rejects revision 1
+
+#### Scenario: New tags appear under an old revision
+- **WHEN** historical input uses selection tags under revision 1 or an unknown revision
+- **THEN** inspection refuses the input without changing stored evidence
+
 ### Requirement: One-use native activation admission
 The native bootstrap SHALL independently verify its exact profile and artifact
 correspondence before exposing an endpoint. It SHALL consume a fresh bounded

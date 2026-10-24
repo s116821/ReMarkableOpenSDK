@@ -524,3 +524,22 @@ validation passes 22 items. No device contact, loading or activation occurred.
 Source basis: current source, local compiler/test outputs and independent source
 review. Consumer journal compatibility/selection composition and native acceptance
 remain required before this change can complete.
+
+## Historical wire inspection
+
+The separate `HistoricalFrame` API retains canonical full-prefix v1/v2 bytes,
+original SHA256 and immutable decoded fields. It does not add legacy live
+transport admission or a replay API. The private common codec enforces each
+revision's grammar; selection tags under v1 refuse. Original request and response
+vectors are retained from the pre-v2 corpus, independently hash-checked by review.
+
+Four historical regression tests and 17 current protocol tests pass. Windows
+Rust 1.98.1 all-feature/default suites and strict Clippy pass; explicit Linux
+Rust 1.88.0 all-feature tests (including nine owned transport cases) and ARM
+native-adapter library check pass. Ordinary consumer checks pass on 1.88.0 and
+1.98.1; the exact 17-member package and five package regressions pass.
+Strict OpenSpec validation passes 22 items. Independent source review accepts
+the SDK API/codec. Original-byte response correlation and reservation survival
+still require consumer integration before changing its SDK pin.
+Both explicit Rust 1.88.0/Qt socket interoperability tests also pass against the
+fresh owned endpoint (1760 checks) and retained v2 corpus.

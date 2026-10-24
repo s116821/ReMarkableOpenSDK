@@ -256,6 +256,58 @@ pub struct Frame {
     pub message: Message,
 }
 
+/// Read-only inspection of an original canonical journal frame.
+///
+/// Live transport remains revision 2 only. Historical fields are evidence, not
+/// permission to replay a request. In particular, re-encoding `frame()` uses the
+/// current protocol and must never replace `encoded()` or `fingerprint()` when
+/// validating an original journal entry or its response correlation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HistoricalFrame {
+    frame: Frame,
+    revision: u16,
+    bytes: Vec<u8>,
+}
+impl HistoricalFrame {
+    /// Decode a complete length-prefixed frame, retaining its original bytes.
+    pub fn decode(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() > MAX_FRAME + 4 {
+            return Err(ProtocolError::TooLarge);
+        }
+        if bytes.len() < 10
+            || u32::from_be_bytes(bytes[..4].try_into().unwrap()) as usize != bytes.len() - 4
+        {
+            return Err(ProtocolError::Malformed);
+        }
+        let revision = u16::from_be_bytes(bytes[8..10].try_into().unwrap());
+        if !matches!(revision, 1 | PROTOCOL_REVISION) {
+            return Err(ProtocolError::UnsupportedVersion);
+        }
+        let frame = Frame::decode_revision(&bytes[4..], revision)?;
+        if frame.encode_revision(revision)? != bytes {
+            return Err(ProtocolError::Malformed);
+        }
+        Ok(Self {
+            frame,
+            revision,
+            bytes: bytes.to_vec(),
+        })
+    }
+    pub fn frame(&self) -> &Frame {
+        &self.frame
+    }
+    pub fn wire_revision(&self) -> u16 {
+        self.revision
+    }
+    pub fn encoded(&self) -> &[u8] {
+        &self.bytes
+    }
+    /// SHA256 of the original full length-prefixed bytes, without conversion.
+    pub fn fingerprint(&self) -> [u8; 32] {
+        Sha256::digest(&self.bytes).into()
+    }
+}
+
 fn validate_order(order: &[Uuid]) -> Result<()> {
     if order.is_empty()
         || order.len() > MAX_PAGES
@@ -269,6 +321,21 @@ fn validate_order(order: &[Uuid]) -> Result<()> {
 impl Frame {
     /// Canonical encoding, including the four-byte length prefix.
     pub fn encode(&self) -> Result<Vec<u8>> {
+        self.encode_revision(PROTOCOL_REVISION)
+    }
+    fn encode_revision(&self, revision: u16) -> Result<Vec<u8>> {
+        if revision == 1
+            && matches!(
+                &self.message,
+                Message::Request(Command::SelectAdjacent(_) | Command::ReconcileSelection(_))
+                    | Message::Response {
+                        reply: Reply::TargetObserved(_) | Reply::SelectionReconciled { .. },
+                        ..
+                    }
+            )
+        {
+            return Err(ProtocolError::UnsupportedVersion);
+        }
         self.scope.runtime.validate()?;
         if matches!(self.message, Message::Hello) != self.scope.server_nonce.is_none() {
             return Err(ProtocolError::InvalidIdentity);
@@ -278,7 +345,7 @@ impl Frame {
         }
         let mut w = Writer(Vec::new());
         w.0.extend(MAGIC);
-        w.u16(PROTOCOL_REVISION);
+        w.u16(revision);
         let r = &self.scope.runtime;
         w.0.extend(r.profile_sha256);
         w.0.extend(r.executable_sha256);
@@ -392,6 +459,9 @@ impl Frame {
 
     /// Decode one payload, without the length prefix. Reject trailing bytes.
     pub fn decode(payload: &[u8]) -> Result<Self> {
+        Self::decode_revision(payload, PROTOCOL_REVISION)
+    }
+    fn decode_revision(payload: &[u8], revision: u16) -> Result<Self> {
         if payload.len() > MAX_FRAME {
             return Err(ProtocolError::TooLarge);
         }
@@ -399,7 +469,7 @@ impl Frame {
         if &r.take::<4>()? != MAGIC {
             return Err(ProtocolError::Malformed);
         }
-        if r.u16()? != PROTOCOL_REVISION {
+        if r.u16()? != revision {
             return Err(ProtocolError::UnsupportedVersion);
         }
         let runtime = RuntimeIdentity {
@@ -442,7 +512,7 @@ impl Frame {
                         Command::Reconcile(value)
                     }
                 }
-                tag @ (3 | 4) => {
+                tag @ (3 | 4) if revision >= 2 => {
                     let value = SelectAdjacent {
                         expected: r.facts()?,
                         target: r.uuid()?,
@@ -488,8 +558,8 @@ impl Frame {
                         _ => return Err(ProtocolError::Malformed),
                     }),
                     4 => Reply::Indeterminate,
-                    5 => Reply::TargetObserved(r.facts()?),
-                    6 => Reply::SelectionReconciled {
+                    5 if revision >= 2 => Reply::TargetObserved(r.facts()?),
+                    6 if revision >= 2 => Reply::SelectionReconciled {
                         current: r.facts()?,
                         target_present: match r.u8()? {
                             0 => false,
