@@ -543,3 +543,17 @@ the SDK API/codec. Original-byte response correlation and reservation survival
 still require consumer integration before changing its SDK pin.
 Both explicit Rust 1.88.0/Qt socket interoperability tests also pass against the
 fresh owned endpoint (1760 checks) and retained v2 corpus.
+
+On October 25, exact SDK source `9880766f5bb0bdb91445716132703b02587d372e`
+passed all required hosted checks, build and integration in
+[CI 40143522893](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40143522893).
+The selection executor predecessor `edec80a1b3eb508be025a28b57f34dec06262207`
+also passed [CI 40143225169](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/40143225169).
+Buddy `5fcfad9bd3a315dabde996f005038dda95956474` now consumes the historical
+decoder with original-byte digest and same-revision response checks; its
+[CI 40144048485](https://github.com/s116821/ReMarkableBuddies/actions/runs/40144048485)
+passed. Fifteen resident journal/socket tests pass within its 546-pass/3-ignored
+Linux library run, including retained-v1 restoration, append preservation and
+read-only v2 reconciliation without replay. Full consumer evidence and product
+requirements remain in the ecosystem Docs change. Selection composition and
+native qualification remain open.
