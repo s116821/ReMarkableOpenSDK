@@ -557,3 +557,30 @@ Linux library run, including retained-v1 restoration, append preservation and
 read-only v2 reconciliation without replay. Full consumer evidence and product
 requirements remain in the ecosystem Docs change. Selection composition and
 native qualification remain open.
+
+## Native manifest protocol correction — October 25
+
+Runtime integration inventory found `profile.json` still advertised wire revision
+1 although the Rust protocol and Qt encoder/decoder already require revision 2.
+The manifest now declares revision 2. Its observation-v1 profile label is unchanged;
+`mutation_enabled=false` and `unqualified-source-integration` remain unchanged.
+This corrects delivery metadata, not protocol behavior or native qualification.
+Independent source review accepted the correction and required the fresh build
+because the manifest digest is compiled into the bootstrap.
+
+Before the change, all 38 recorded native source inputs of retained
+`selection-executor-library-r1` matched the current source; that earlier artifact
+and its original manifest remain preserved. The corrected source rebuilt with
+GCC 13.4.0, Qt 6.10.3 and the pinned Dobby archive under the existing strict build
+script into a fresh `runtime-profile-v2-library-r1` directory:
+
+- Adapter: 1,333,464 bytes, SHA256 `b012e6c68567d82aeb642a902dfba3ff1a70ddefe2e829f147795d79488117a4`.
+- Profile: SHA256 `0ab8a72e32d978cbb0be14a01c6b0145240f83f13c64cdee6fef5431c411bdff`.
+- Dobby archive: SHA256 `622b17dc65d0dcad717d83264f783ad12044565ed8ea86f9e5088d9abf5328ef`.
+
+All 38 new source-input hashes match the current files, and the new manifest
+digest is present in the compiled adapter. ELF inspection confirms ARM32
+hard-float, BIND_NOW, STATIC_TLS and NODELETE. Manifest parsing and direct codec
+inspection confirm revision 2 correspondence. This is cross-build/file evidence;
+the artifact was not installed, loaded or executed on the tablet. Actual resident
+startup, reusable native capacity and product qualification remain open.
