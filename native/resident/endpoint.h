@@ -21,6 +21,7 @@
 #include <sys/random.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -30,15 +31,26 @@ inline bool sameSocketObject(const struct stat &a,const struct stat &b) {
 }
 // Pin the already identified inode before chmod. A pathname replacement must
 // neither redirect the permission change nor become the cleanup identity.
-inline bool restrictSocket(int root,const struct stat &bound,struct stat &restricted) {
-    const int fd=::openat(root,"sdk.sock",O_PATH|O_NOFOLLOW|O_CLOEXEC);if(fd<0)return false;
+inline bool restrictSocket(int root,const struct stat &bound,struct stat &restricted,const char *leaf="sdk.sock") {
+    const int fd=::openat(root,leaf,O_PATH|O_NOFOLLOW|O_CLOEXEC);if(fd<0)return false;
     struct stat pinned{},named{};
     bool ok=!::fstat(fd,&pinned)&&sameSocketObject(bound,pinned);
     const auto descriptor=QByteArray("/proc/self/fd/")+QByteArray::number(fd);
     if(ok)ok=!::chmod(descriptor.constData(),0600)&&!::fstat(fd,&pinned)&&sameSocketObject(bound,pinned)&&
-        (pinned.st_mode&07777)==0600&&!::fstatat(root,"sdk.sock",&named,AT_SYMLINK_NOFOLLOW)&&
+        (pinned.st_mode&07777)==0600&&!::fstatat(root,leaf,&named,AT_SYMLINK_NOFOLLOW)&&
         sameSocketObject(pinned,named)&&pinned.st_mode==named.st_mode;
     ::close(fd);if(ok)restricted=pinned;return ok;
+}
+// The public name is a listening boundary, not merely a successful bind. Linux
+// atomic no-replace publication preserves any unexpected final entry.
+inline bool publishListeningSocket(int root,int listener,const struct stat &bound) {
+    int accepting=0;socklen_t size=sizeof accepting;struct stat named{};
+    if(::getsockopt(listener,SOL_SOCKET,SO_ACCEPTCONN,&accepting,&size)||size!=sizeof accepting||!accepting||
+       ::fstatat(root,"sdk.pending",&named,AT_SYMLINK_NOFOLLOW)||!sameSocketObject(bound,named)||
+       (named.st_mode&07777)!=0600)return false;
+    if(::syscall(SYS_renameat2,root,"sdk.pending",root,"sdk.sock",1U /* RENAME_NOREPLACE */))return false;
+    return !::fstatat(root,"sdk.sock",&named,AT_SYMLINK_NOFOLLOW)&&sameSocketObject(bound,named)&&
+        (named.st_mode&07777)==0600;
 }
 inline quint64 processStart(pid_t pid) {
     QFile file(QStringLiteral("/proc/%1/stat").arg(pid));
@@ -108,7 +120,8 @@ public:
         if(listener_>=0)::close(listener_);
         if(root_>=0) {
             struct stat named{};
-            if(socketOwned_&&!::fstatat(root_,"sdk.sock",&named,AT_SYMLINK_NOFOLLOW)&&same(named,socketStat_))::unlinkat(root_,"sdk.sock",0);
+            for(const char *leaf:{"sdk.pending","sdk.sock"})
+                if(socketOwned_&&!::fstatat(root_,leaf,&named,AT_SYMLINK_NOFOLLOW)&&same(named,socketStat_))::unlinkat(root_,leaf,0);
             ::close(root_);
         }
     }
@@ -128,21 +141,22 @@ public:
            (config_.pinDirectory&&(rootStat_.st_dev!=config_.directoryDevice||rootStat_.st_ino!=config_.directoryInode)))return false;
         struct stat existing{};
         if(!::fstatat(root_,"sdk.sock",&existing,AT_SYMLINK_NOFOLLOW)||errno!=ENOENT)return false;
-        const auto visible=directory+"/sdk.sock";
+        if(!::fstatat(root_,"sdk.pending",&existing,AT_SYMLINK_NOFOLLOW)||errno!=ENOENT)return false;
+        const auto visible=directory+"/sdk.pending";
         if(visible.size()>=qsizetype(sizeof(sockaddr_un::sun_path)))return false;
         listener_=::socket(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK|SOCK_CLOEXEC,0);if(listener_<0)return false;
         // Bind through the retained directory, never through a replaceable path.
-        const auto name=QByteArray("/proc/self/fd/")+QByteArray::number(root_)+"/sdk.sock";
+        const auto name=QByteArray("/proc/self/fd/")+QByteArray::number(root_)+"/sdk.pending";
         sockaddr_un address{};address.sun_family=AF_UNIX;
         if(name.size()>=qsizetype(sizeof address.sun_path))return false;
         std::memcpy(address.sun_path,name.constData(),std::size_t(name.size()));
         if(::bind(listener_,reinterpret_cast<sockaddr*>(&address),sizeof address))return false;
-        if(::fstatat(root_,"sdk.sock",&socketStat_,AT_SYMLINK_NOFOLLOW)||!S_ISSOCK(socketStat_.st_mode)||socketStat_.st_uid!=::geteuid())return false;
+        if(::fstatat(root_,"sdk.pending",&socketStat_,AT_SYMLINK_NOFOLLOW)||!S_ISSOCK(socketStat_.st_mode)||socketStat_.st_uid!=::geteuid())return false;
         socketOwned_=true;
         struct stat restricted{};
-        if(!restrictSocket(root_,socketStat_,restricted))return false;
+        if(!restrictSocket(root_,socketStat_,restricted,"sdk.pending"))return false;
         socketStat_=restricted;
-        if(!directoryCurrent()||::listen(listener_,1))return false;
+        if(!directoryCurrent()||::listen(listener_,1)||!publishListeningSocket(root_,listener_,socketStat_)||!directoryCurrent())return false;
         notifier_=new QSocketNotifier(listener_,QSocketNotifier::Read,this);
         connect(notifier_,&QSocketNotifier::activated,this,[this]{acceptOne();});
         return true;

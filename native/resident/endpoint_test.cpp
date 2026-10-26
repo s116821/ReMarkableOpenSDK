@@ -151,6 +151,42 @@ int main(int argc,char **argv) {
         const auto operation=request(observe,nextReady,1);need(next.write(encode(operation))>0);
         const auto result=receive(next);need(bool(result)&&result->requestDigest==fingerprint(operation));need(submitted==2);
     }
+    // Staged paths must never expose a bound-but-not-listening public socket.
+    // Publication cannot replace an occupied final name or adopt another inode.
+    for(int scenario=0;scenario<4;++scenario) {
+        QTemporaryDir directory;const auto base=QFile::encodeName(directory.path());
+        const auto staged=base+"/sdk.pending",published=base+"/sdk.sock";
+        const int root=::open(base.constData(),O_RDONLY|O_DIRECTORY|O_CLOEXEC);need(root>=0);
+        const int listener=::socket(AF_UNIX,SOCK_STREAM|SOCK_CLOEXEC,0);need(listener>=0);
+        sockaddr_un address{};address.sun_family=AF_UNIX;need(staged.size()<qsizetype(sizeof address.sun_path));
+        std::memcpy(address.sun_path,staged.constData(),std::size_t(staged.size()));
+        need(!::bind(listener,reinterpret_cast<sockaddr*>(&address),sizeof address));
+        struct stat bound{},restricted{},named{};need(!::lstat(staged.constData(),&bound));
+        need(restrictSocket(root,bound,restricted,"sdk.pending"));
+        need(!publishListeningSocket(root,listener,restricted));
+        need(::lstat(published.constData(),&named)<0&&errno==ENOENT);
+        need(!::listen(listener,1));
+        if(scenario) {
+            const auto target=scenario==3?staged:(scenario==2?published+".target":published);
+            if(scenario==3)need(!::unlink(staged.constData()));
+            QFile replacement(QString::fromLocal8Bit(target));need(replacement.open(QIODevice::WriteOnly));
+            need(replacement.write("retained")==8);replacement.close();need(!::chmod(target.constData(),0640));
+            if(scenario==2)need(!::symlink(target.constData(),published.constData()));
+            need(!publishListeningSocket(root,listener,restricted));
+            need(replacement.open(QIODevice::ReadOnly));need(replacement.readAll()=="retained");
+            need(!::stat(target.constData(),&named)&&(named.st_mode&07777)==0640);
+            if(scenario==3)need(::lstat(published.constData(),&named)<0&&errno==ENOENT);
+        } else {
+            need(publishListeningSocket(root,listener,restricted));
+            need(!::lstat(published.constData(),&named)&&sameSocketObject(named,restricted)&&(named.st_mode&07777)==0600);
+            need(::lstat(staged.constData(),&named)<0&&errno==ENOENT);
+            const int peer=::socket(AF_UNIX,SOCK_STREAM|SOCK_CLOEXEC,0);need(peer>=0);
+            sockaddr_un connectAddress{};connectAddress.sun_family=AF_UNIX;
+            std::memcpy(connectAddress.sun_path,published.constData(),std::size_t(published.size()));
+            need(!::connect(peer,reinterpret_cast<sockaddr*>(&connectAddress),sizeof connectAddress));::close(peer);
+        }
+        ::close(listener);::close(root);
+    }
     // Startup permission restriction must reject both ordinary-file and symlink
     // replacement without chmod of the replacement/target or identity adoption.
     for(bool symlink:{false,true}) {

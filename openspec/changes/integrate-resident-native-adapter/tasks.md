@@ -8,6 +8,7 @@
 - [ ] 1.4 Independently review the final exact implementation and record source/build evidence separately from native qualification.
   - [x] 1.4a Independent source review accepts the protocol foundation after capacity and sticky-ambiguity fixes; [checkpoint](verification.md). Final endpoint/native/consumer review remains open.
   - [x] 1.4b Independent endpoint review completed after connection-incarnation, pinned-inode and post-encoding deadline fixes. Native executor/consumer review remains open.
+  - [x] 1.4c Fix and independently source-review atomic listening-socket publication after consumer CI exposed bind/listen startup failure; final host and ARM/QEMU endpoint suites pass 1825 checks each under endpoint-publication.md. Rebuilt adapter and consumer exact-revision CI/native qualification remain required.
 
 ## 2. Resident native executor
 - [x] 2.1 Implement the owner-checked asynchronous Unix endpoint and exact runtime/profile handshake (source/build scope; native activation remains 2.2b).
