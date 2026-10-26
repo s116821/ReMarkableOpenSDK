@@ -39,5 +39,7 @@
 - [x] 3.0 Preserve canonical v1/v2 historical journal bytes/digests with a separate read-only decoder and strict live v2 transport; verify old reservations survive consumer upgrade under [historical-journal.md](historical-journal.md).
   - [x] 3.0a Add and independently review the bounded SDK historical decoder, verify retained original v1 vectors and strict live v2 behavior, MSRV/default/feature/package boundaries. Consumer upgrade remains open.
 - [ ] 3.1 Pin the SDK in the existing Buddy/Docs candidates and integrate bindings, journal, writer/capture and Supervisor recovery.
+  - [x] 3.1a Add and review caller-thread progress during bounded handshake/request IO under transport-progress.md; verify cancellation before/after durable reservation, stalled/fragmented peers, final response admission and unchanged deadline with real owned sockets. Source review, stable/MSRV tests, Qt interoperability and strict lint pass; consumer wiring remains below.
+  - [ ] 3.1b Pin the progress-aware SDK and connect Buddy handshake/request callbacks, including actual journal and startup cancellation behavior, before first-gesture integration.
 - [ ] 3.2 Complete disposable PDF/notebook middle/end, reuse/no-duplicate, preservation, interruption, write/reopen and blank-start/Writer acceptance with appropriate simulation and exact native evidence.
 - [ ] 3.3 Publish only qualified profile/capability results, pass exact-source CI/review, sync implemented specs and archive the completed coordinated change.

@@ -34,6 +34,26 @@ established; echoed fingerprints alone SHALL NOT authenticate the endpoint.
 - **WHEN** a peer makes partial transport progress
 - **THEN** the caller's absolute deadline is not extended by that progress
 
+### Requirement: Caller progress during resident transport
+The transport SHALL offer caller-thread progress checks during handshake and
+request IO using bounded poll slices and the original absolute deadline. A
+failed check SHALL retire the connection. Progress SHALL be checked after
+durable journaling before pending admission and after reply authentication before
+completion. Synchronous callbacks SHALL NOT renew the deadline. Socket retirement
+SHALL NOT be interpreted as native physical cancellation or safe replay.
+
+#### Scenario: Cancellation after reservation before dispatch
+- **WHEN** caller progress fails after journaling but before pending admission
+- **THEN** no request bytes are sent and a new effect is known not dispatched
+
+#### Scenario: Cancellation during a dispatched effect
+- **WHEN** progress fails while awaiting or finally admitting an insertion or selection reply
+- **THEN** the original operation and digest remain indeterminate without replay, including when complete reply bytes have arrived
+
+#### Scenario: Stalled endpoint or slow progress callback
+- **WHEN** a peer stalls or a synchronous progress callback consumes the remaining time
+- **THEN** bounded wait slices continue caller servicing while time remains and the original deadline prevents subsequent IO or successful completion
+
 ### Requirement: Explicit historical native facts
 Native identity/order samples lacking revision or input-epoch producers SHALL
 remain explicit historical facts. They SHALL NOT construct operational guards,

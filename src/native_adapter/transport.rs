@@ -26,6 +26,7 @@ pub enum Failure {
     Identity,
     Deadline,
     Journal(io::Error),
+    Progress(io::Error),
 }
 impl From<io::Error> for Failure {
     fn from(error: io::Error) -> Self {
@@ -72,7 +73,22 @@ impl Client {
         handshake: OperationId,
         deadline: Instant,
     ) -> TransportResult<Self> {
-        check_deadline(deadline)?;
+        Self::connect_with_progress(directory, uid, scope, handshake, deadline, &mut || Ok(()))
+    }
+
+    /// Like `connect`, with caller-thread cancellation/health servicing during
+    /// IO. The callback must be bounded; its execution never renews the deadline.
+    /// Failure closes this connection and does not prove native cancellation.
+    pub fn connect_with_progress(
+        directory: File,
+        uid: u32,
+        scope: ConnectionIdentity,
+        handshake: OperationId,
+        deadline: Instant,
+        progress: &mut dyn FnMut() -> io::Result<()>,
+    ) -> TransportResult<Self> {
+        let mut progress = || progress().map_err(Failure::Progress);
+        check_progress(deadline, &mut progress)?;
         let session = Session::new(scope.clone(), handshake)?;
         check_directory(&directory, uid)?;
         let path = socket_path(&directory);
@@ -86,6 +102,7 @@ impl Client {
             None,
         )?;
         let address = UnixAddr::new(&path)?;
+        check_progress(deadline, &mut progress)?;
         let pending = match connect(fd.as_raw_fd(), &address) {
             Ok(()) => false,
             Err(Errno::EINPROGRESS) => true,
@@ -94,7 +111,7 @@ impl Client {
         };
         let stream = UnixStream::from(fd);
         if pending {
-            wait(&stream, PollFlags::POLLOUT, deadline)?;
+            wait(&stream, PollFlags::POLLOUT, deadline, &mut progress)?;
             if let Some(error) = stream.take_error()? {
                 return Err(error.into());
             }
@@ -107,13 +124,24 @@ impl Client {
             runtime: scope.runtime,
             session,
         };
-        client.authenticate()?;
-        let hello = client.session.hello()?.encode()?;
-        write_all(&mut client.stream, &hello, deadline)?;
-        let ready = read_frame(&mut client.stream, deadline)?;
-        client.authenticate()?;
-        check_deadline(deadline)?;
-        client.session.accept_ready(&ready)?;
+        let Self {
+            stream,
+            directory,
+            socket_identity,
+            uid,
+            runtime,
+            session,
+        } = &mut client;
+        let mut serviced = || {
+            check_progress(deadline, &mut progress)?;
+            authenticate(stream, directory, *socket_identity, *uid, runtime)
+        };
+        check_progress(deadline, &mut serviced)?;
+        let hello = session.hello()?.encode()?;
+        write_all(stream, &hello, deadline, &mut serviced)?;
+        let ready = read_frame(stream, deadline, &mut serviced)?;
+        check_progress(deadline, &mut serviced)?;
+        session.accept_ready(&ready)?;
         Ok(client)
     }
 
@@ -131,22 +159,50 @@ impl Client {
         deadline: Instant,
         journal: impl FnOnce(&Frame, [u8; 32]) -> io::Result<()>,
     ) -> std::result::Result<Reply, TransportError> {
+        self.execute_with_progress(operation, command, deadline, journal, &mut || Ok(()))
+    }
+
+    /// Like `execute`, with progress checks before dispatch, during bounded IO
+    /// waits and before accepting the reply. The callback runs synchronously on
+    /// this thread and must be bounded and non-reentrant. Callback failure closes
+    /// the connection; an admitted effect remains indeterminate even if complete
+    /// response bytes arrived. Socket closure is not native owner reclamation.
+    pub fn execute_with_progress(
+        &mut self,
+        operation: OperationId,
+        command: Command,
+        deadline: Instant,
+        journal: impl FnOnce(&Frame, [u8; 32]) -> io::Result<()>,
+        progress: &mut dyn FnMut() -> io::Result<()>,
+    ) -> std::result::Result<Reply, TransportError> {
         let result = (|| {
-            check_deadline(deadline)?;
-            self.authenticate()?;
-            let prepared = self.session.prepare(operation, command.clone())?;
+            let Self {
+                stream,
+                directory,
+                socket_identity,
+                uid,
+                runtime,
+                session,
+            } = self;
+            let mut serviced = || {
+                check_deadline(deadline)?;
+                progress().map_err(Failure::Progress)?;
+                check_deadline(deadline)?;
+                authenticate(stream, directory, *socket_identity, *uid, runtime)
+            };
+            check_progress(deadline, &mut serviced)?;
+            let prepared = session.prepare(operation, command.clone())?;
             let bytes = prepared.encode()?;
             let digest = prepared.fingerprint()?;
             journal(&prepared, digest).map_err(Failure::Journal)?;
-            // Journaling may be slow or replace filesystem entries. Recheck.
-            self.authenticate()?;
-            check_deadline(deadline)?;
-            self.session.begin(operation, command)?;
-            write_all(&mut self.stream, &bytes, deadline)?;
-            let response = read_frame(&mut self.stream, deadline)?;
-            self.authenticate()?;
-            check_deadline(deadline)?;
-            let reply = self.session.complete(&response)?;
+            // Both callbacks may be slow or replace filesystem entries. Recheck
+            // identity after progress at every IO boundary and final admission.
+            check_progress(deadline, &mut serviced)?;
+            session.begin(operation, command)?;
+            write_all(stream, &bytes, deadline, &mut serviced)?;
+            let response = read_frame(stream, deadline, &mut serviced)?;
+            check_progress(deadline, &mut serviced)?;
+            let reply = session.complete(&response)?;
             if reply == Reply::Indeterminate {
                 self.close();
             }
@@ -164,27 +220,32 @@ impl Client {
         let _ = self.stream.shutdown(Shutdown::Both);
         lost
     }
-
-    fn authenticate(&self) -> TransportResult<()> {
-        check_directory(&self.directory, self.uid)?;
-        let metadata = fs::symlink_metadata(socket_path(&self.directory))?;
-        check_socket(&metadata, self.uid)?;
-        if (metadata.dev(), metadata.ino()) != self.socket_identity {
-            return Err(Failure::Identity);
-        }
-        let peer = getsockopt(&self.stream, sockopt::PeerCredentials)?;
-        if peer.pid() <= 0 || peer.pid() as u32 != self.runtime.pid || peer.uid() != self.uid {
-            return Err(Failure::Identity);
-        }
-        let boot = bounded_text("/proc/sys/kernel/random/boot_id")?;
-        let stat = bounded_text(&format!("/proc/{}/stat", self.runtime.pid))?;
-        if Uuid::parse(boot.trim()) != Some(self.runtime.boot)
-            || process_start(&stat) != Some(self.runtime.start_ticks)
-        {
-            return Err(Failure::Identity);
-        }
-        Ok(())
+}
+fn authenticate(
+    stream: &UnixStream,
+    directory: &File,
+    socket_identity: (u64, u64),
+    uid: u32,
+    runtime: &RuntimeIdentity,
+) -> TransportResult<()> {
+    check_directory(directory, uid)?;
+    let metadata = fs::symlink_metadata(socket_path(directory))?;
+    check_socket(&metadata, uid)?;
+    if (metadata.dev(), metadata.ino()) != socket_identity {
+        return Err(Failure::Identity);
     }
+    let peer = getsockopt(stream, sockopt::PeerCredentials)?;
+    if peer.pid() <= 0 || peer.pid() as u32 != runtime.pid || peer.uid() != uid {
+        return Err(Failure::Identity);
+    }
+    let boot = bounded_text("/proc/sys/kernel/random/boot_id")?;
+    let stat = bounded_text(&format!("/proc/{}/stat", runtime.pid))?;
+    if Uuid::parse(boot.trim()) != Some(runtime.boot)
+        || process_start(&stat) != Some(runtime.start_ticks)
+    {
+        return Err(Failure::Identity);
+    }
+    Ok(())
 }
 fn socket_path(directory: &File) -> PathBuf {
     PathBuf::from(format!("/proc/self/fd/{}/sdk.sock", directory.as_raw_fd()))
@@ -234,14 +295,28 @@ fn check_deadline(deadline: Instant) -> TransportResult<()> {
         Ok(())
     }
 }
-fn wait(stream: &UnixStream, flags: PollFlags, deadline: Instant) -> TransportResult<()> {
+fn check_progress(
+    deadline: Instant,
+    progress: &mut dyn FnMut() -> TransportResult<()>,
+) -> TransportResult<()> {
+    check_deadline(deadline)?;
+    progress()?;
+    check_deadline(deadline)
+}
+
+fn wait(
+    stream: &UnixStream,
+    flags: PollFlags,
+    deadline: Instant,
+    progress: &mut dyn FnMut() -> TransportResult<()>,
+) -> TransportResult<()> {
     loop {
-        check_deadline(deadline)?;
+        check_progress(deadline, progress)?;
         let ms = deadline
             .saturating_duration_since(Instant::now())
             .as_millis()
             .saturating_add(1)
-            .min(i32::MAX as u128);
+            .min(50);
         let mut fds = [PollFd::new(stream.as_fd(), flags)];
         match poll(
             &mut fds,
@@ -249,16 +324,21 @@ fn wait(stream: &UnixStream, flags: PollFlags, deadline: Instant) -> TransportRe
         ) {
             Ok(0) | Err(Errno::EINTR) => continue,
             Ok(_) => {
-                check_deadline(deadline)?;
+                check_progress(deadline, progress)?;
                 return Ok(());
             }
             Err(error) => return Err(error.into()),
         }
     }
 }
-fn write_all(stream: &mut UnixStream, mut bytes: &[u8], deadline: Instant) -> TransportResult<()> {
+fn write_all(
+    mut stream: &UnixStream,
+    mut bytes: &[u8],
+    deadline: Instant,
+    progress: &mut dyn FnMut() -> TransportResult<()>,
+) -> TransportResult<()> {
     while !bytes.is_empty() {
-        wait(stream, PollFlags::POLLOUT, deadline)?;
+        wait(stream, PollFlags::POLLOUT, deadline, progress)?;
         match stream.write(bytes) {
             Ok(0) => return Err(io::Error::from(io::ErrorKind::WriteZero).into()),
             Ok(n) => bytes = &bytes[n..],
@@ -273,12 +353,13 @@ fn write_all(stream: &mut UnixStream, mut bytes: &[u8], deadline: Instant) -> Tr
     check_deadline(deadline)
 }
 fn read_exact(
-    stream: &mut UnixStream,
+    mut stream: &UnixStream,
     mut bytes: &mut [u8],
     deadline: Instant,
+    progress: &mut dyn FnMut() -> TransportResult<()>,
 ) -> TransportResult<()> {
     while !bytes.is_empty() {
-        wait(stream, PollFlags::POLLIN, deadline)?;
+        wait(stream, PollFlags::POLLIN, deadline, progress)?;
         match stream.read(bytes) {
             Ok(0) => return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into()),
             Ok(n) => bytes = &mut bytes[n..],
@@ -292,15 +373,19 @@ fn read_exact(
     }
     check_deadline(deadline)
 }
-fn read_frame(stream: &mut UnixStream, deadline: Instant) -> TransportResult<Frame> {
+fn read_frame(
+    stream: &UnixStream,
+    deadline: Instant,
+    progress: &mut dyn FnMut() -> TransportResult<()>,
+) -> TransportResult<Frame> {
     let mut prefix = [0; 4];
-    read_exact(stream, &mut prefix, deadline)?;
+    read_exact(stream, &mut prefix, deadline, progress)?;
     let size = u32::from_be_bytes(prefix) as usize;
     if size == 0 || size > MAX_FRAME {
         return Err(ProtocolError::TooLarge.into());
     }
     let mut bytes = vec![0; size];
-    read_exact(stream, &mut bytes, deadline)?;
+    read_exact(stream, &mut bytes, deadline, progress)?;
     Ok(Frame::decode(&bytes)?)
 }
 
@@ -311,16 +396,17 @@ mod tests {
 
     #[test]
     fn partial_write_expires_without_reset_or_full_delivery() {
-        let (mut writer, mut reader) = UnixStream::pair().unwrap();
+        let (writer, mut reader) = UnixStream::pair().unwrap();
         writer.set_nonblocking(true).unwrap();
         reader.set_nonblocking(true).unwrap();
         nix::sys::socket::setsockopt(&writer, sockopt::SndBuf, &1024).unwrap();
         let bytes = vec![7; MAX_FRAME];
         assert!(matches!(
             write_all(
-                &mut writer,
+                &writer,
                 &bytes,
-                Instant::now() + Duration::from_millis(30)
+                Instant::now() + Duration::from_millis(30),
+                &mut || Ok(())
             ),
             Err(Failure::Deadline)
         ));
@@ -340,5 +426,223 @@ mod tests {
             Some(999)
         );
         assert_eq!(process_start("42 (incomplete) S 1"), None);
+    }
+
+    #[test]
+    fn partial_write_services_cancellation_without_finishing_bytes() {
+        let (writer, mut reader) = UnixStream::pair().unwrap();
+        writer.set_nonblocking(true).unwrap();
+        reader.set_nonblocking(true).unwrap();
+        nix::sys::socket::setsockopt(&writer, sockopt::SndBuf, &1024).unwrap();
+        let bytes = vec![7; MAX_FRAME];
+        let mut delivered = Vec::new();
+        let result = write_all(
+            &writer,
+            &bytes,
+            Instant::now() + Duration::from_secs(2),
+            &mut || {
+                assert_eq!(
+                    reader.read_to_end(&mut delivered).unwrap_err().kind(),
+                    io::ErrorKind::WouldBlock
+                );
+                if delivered.is_empty() {
+                    Ok(())
+                } else {
+                    Err(Failure::Progress(io::ErrorKind::Interrupted.into()))
+                }
+            },
+        );
+        assert!(matches!(result, Err(Failure::Progress(_))));
+        assert!(!delivered.is_empty() && delivered.len() < bytes.len());
+        let mut extra = Vec::new();
+        assert_eq!(
+            reader.read_to_end(&mut extra).unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
+        assert!(extra.is_empty());
+    }
+
+    #[test]
+    fn final_decoded_reply_progress_refusal_or_identity_change_preserves_pending() {
+        use nix::sys::socket::{MsgFlags, recv};
+        use std::os::unix::{fs::PermissionsExt, net::UnixListener};
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+        use std::thread;
+        let id = |n| Uuid::parse(&format!("00000000-0000-0000-0000-{n:012x}")).unwrap();
+        for select in [false, true] {
+            for replace in [false, true] {
+                let path = std::env::temp_dir().join(format!(
+                    "rsdk-final-progress-{}-{select}-{replace}",
+                    std::process::id()
+                ));
+                fs::create_dir(&path).unwrap();
+                fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+                let socket = path.join("sdk.sock");
+                let listener = UnixListener::bind(&socket).unwrap();
+                fs::set_permissions(&socket, fs::Permissions::from_mode(0o600)).unwrap();
+                let ready = Arc::new(AtomicBool::new(false));
+                let peer_ready = ready.clone();
+                let (sent, received) = mpsc::channel();
+                let peer = thread::spawn(move || {
+                    let (mut stream, _) = listener.accept().unwrap();
+                    stream.set_nonblocking(true).unwrap();
+                    let until = Instant::now() + Duration::from_secs(3);
+                    let mut hello = read_frame(&stream, until, &mut || Ok(())).unwrap();
+                    hello.message = Message::Ready;
+                    hello.scope.server_nonce = Some(id(4));
+                    write_all(&stream, &hello.encode().unwrap(), until, &mut || Ok(())).unwrap();
+                    let request = read_frame(&stream, until, &mut || Ok(())).unwrap();
+                    let reply = match &request.message {
+                        Message::Request(Command::InsertAfter(value)) => Reply::InsertionObserved {
+                            target: PageKey {
+                                document: value.source.page().document,
+                                page: value.target,
+                            },
+                            after_order: value.expected_after_order(),
+                        },
+                        Message::Request(Command::SelectAdjacent(value)) => Reply::TargetObserved(
+                            ReaderFacts::new(
+                                PageKey {
+                                    document: value.expected.page().document,
+                                    page: value.target,
+                                },
+                                value.expected.order().to_vec(),
+                            )
+                            .unwrap(),
+                        ),
+                        _ => panic!(),
+                    };
+                    let response = Frame {
+                        message: Message::Response {
+                            request_sha256: request.fingerprint().unwrap(),
+                            reply,
+                        },
+                        ..request
+                    };
+                    peer_ready.store(true, Ordering::Release);
+                    write_all(&stream, &response.encode().unwrap(), until, &mut || Ok(())).unwrap();
+                    sent.send(()).unwrap();
+                    stream.set_nonblocking(false).unwrap();
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(3)))
+                        .unwrap();
+                    assert_eq!(stream.read(&mut [0; 1]).unwrap(), 0);
+                });
+                let scope = ConnectionIdentity {
+                    runtime: RuntimeIdentity {
+                        profile_sha256: [1; 32],
+                        executable_sha256: [2; 32],
+                        adapter_sha256: [3; 32],
+                        boot: Uuid::parse(
+                            bounded_text("/proc/sys/kernel/random/boot_id")
+                                .unwrap()
+                                .trim(),
+                        )
+                        .unwrap(),
+                        pid: std::process::id(),
+                        start_ticks: process_start(&bounded_text("/proc/self/stat").unwrap())
+                            .unwrap(),
+                        activation: id(2),
+                    },
+                    connection: id(3),
+                    server_nonce: None,
+                };
+                let mut client = Client::connect(
+                    File::open(&path).unwrap(),
+                    fs::metadata(&path).unwrap().uid(),
+                    scope,
+                    OperationId(id(5)),
+                    Instant::now() + Duration::from_secs(2),
+                )
+                .unwrap();
+                // Private test inspection only: no duplicate socket or raw access
+                // is exposed by Client's public interface.
+                let fd = client.stream.as_raw_fd();
+                let source = ReaderFacts::new(
+                    PageKey {
+                        document: id(10),
+                        page: id(11),
+                    },
+                    vec![id(11), id(12)],
+                )
+                .unwrap();
+                let command = if select {
+                    Command::SelectAdjacent(SelectAdjacent {
+                        expected: source,
+                        target: id(12),
+                    })
+                } else {
+                    Command::InsertAfter(InsertAfter {
+                        source,
+                        target: id(13),
+                    })
+                };
+                let mut available = false;
+                let mut final_checked = false;
+                let mut original = None;
+                let error = client
+                    .execute_with_progress(
+                        OperationId(id(20)),
+                        command,
+                        Instant::now() + Duration::from_secs(2),
+                        |frame, digest| {
+                            original = Some((frame.operation, digest));
+                            Ok(())
+                        },
+                        &mut || {
+                            if ready.load(Ordering::Acquire) {
+                                if !available {
+                                    received.recv_timeout(Duration::from_secs(1)).unwrap();
+                                    available = true;
+                                }
+                                match recv(
+                                    fd,
+                                    &mut [0; 1],
+                                    MsgFlags::MSG_PEEK | MsgFlags::MSG_DONTWAIT,
+                                ) {
+                                    Ok(1) => {} // Complete response is buffered; let reads finish.
+                                    Err(Errno::EAGAIN) => {
+                                        // All prefix/body bytes were consumed. This is
+                                        // final admission after read_frame/decode.
+                                        final_checked = true;
+                                        if replace {
+                                            fs::set_permissions(
+                                                &socket,
+                                                fs::Permissions::from_mode(0o666),
+                                            )
+                                            .unwrap();
+                                        } else {
+                                            return Err(io::ErrorKind::Interrupted.into());
+                                        }
+                                    }
+                                    other => panic!("unexpected pending bytes: {other:?}"),
+                                }
+                            }
+                            Ok(())
+                        },
+                    )
+                    .unwrap_err();
+                assert!(final_checked);
+                assert!(if replace {
+                    matches!(error.cause, Failure::Identity)
+                } else {
+                    matches!(error.cause, Failure::Progress(_))
+                });
+                let (operation, request_sha256) = original.unwrap();
+                let expected = LostRequest::Indeterminate {
+                    operation,
+                    request_sha256,
+                };
+                assert_eq!(error.lost, expected);
+                assert_eq!(client.close(), expected);
+                peer.join().unwrap();
+                fs::remove_file(socket).unwrap();
+                fs::remove_dir(path).unwrap();
+            }
+        }
     }
 }

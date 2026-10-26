@@ -584,3 +584,34 @@ hard-float, BIND_NOW, STATIC_TLS and NODELETE. Manifest parsing and direct codec
 inspection confirm revision 2 correspondence. This is cross-build/file evidence;
 the artifact was not installed, loaded or executed on the tablet. Actual resident
 startup, reusable native capacity and product qualification remain open.
+# Caller progress transport integration
+
+The additive progress-aware connection/request APIs preserve absolute deadlines,
+original journal ordering and sticky effect ambiguity. Callbacks run on the
+caller thread; every IO boundary and final response admission authenticate the
+peer after the callback. Independent review accepted source and the deterministic
+post-decode refusal/socket-replacement regression for insertion and selection.
+
+Final local `transport-progress-r3.log` completed with exit 0: all-feature tests
+(including 24 library and 14 actual Linux transport tests) and strict all-target,
+all-feature Clippy. The new partial-write test cancels after actual first bytes
+and proves no subsequent bytes are written. The private final-response test waits
+until the complete response has been consumed, then rejects admission while the
+original pending operation/digest remains intact. These are owned socket tests,
+not native operation qualification.
+
+Rust 1.88.0 separately passed the 24 library/14 transport cases and default-feature
+check (`transport-progress-msrv-r2.log`). The first nominal MSRV command actually
+used its image's default Rust 1.98.1; its log is retained and is not MSRV evidence.
+Fresh Rust vectors and a rebuilt Qt endpoint passed 1760 endpoint checks and both
+Rust/Qt interoperability tests (`transport-progress-qt-r1.log`). Host package
+checks verified the exact 17 members and all five containment controls. Formatting
+and strict OpenSpec validation pass. Native source/qualification and capabilities
+are unchanged; consumer progress wiring remains open.
+
+Earlier retained r1 output had one fixture assertion failure: Linux reset the
+connection when handshake fragments remained unread. The fixture now accepts
+EOF or ECONNRESET as closure, without weakening client assertions. r2 passed its
+tests but strict lint rejected an obsolete mutable reference in a private test;
+r3 validates the corrected final source. No prior failure is relabeled a pass.
+

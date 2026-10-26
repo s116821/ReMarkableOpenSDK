@@ -8,6 +8,7 @@ use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, atomic::AtomicBool, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -453,7 +454,6 @@ fn handshake_timeout_is_bounded() {
 
 #[test]
 fn selection_is_journaled_before_socket_bytes_and_returns_exact_target() {
-    use std::sync::{Arc, atomic::AtomicBool};
     let f = Fixture::new();
     let published = Arc::new(AtomicBool::new(false));
     let seen = published.clone();
@@ -505,6 +505,270 @@ fn selection_is_journaled_before_socket_bytes_and_returns_exact_target() {
             .unwrap()
         )
     );
+    assert_eq!(client.close(), LostRequest::NoPendingMutation);
+    peer.join().unwrap();
+}
+
+#[test]
+fn caller_refusal_or_expiry_before_connect_sends_nothing() {
+    for expire in [false, true] {
+        let f = Fixture::new();
+        let until = Instant::now() + Duration::from_millis(30);
+        let mut calls = 0;
+        let result = Client::connect_with_progress(
+            File::open(&f.path).unwrap(),
+            f.uid,
+            scope(),
+            OperationId(id(5)),
+            until,
+            &mut || {
+                calls += 1;
+                if expire {
+                    thread::sleep(
+                        until.saturating_duration_since(Instant::now()) + Duration::from_millis(1),
+                    );
+                    Ok(())
+                } else {
+                    Err(io::ErrorKind::Interrupted.into())
+                }
+            },
+        );
+        assert_eq!(calls, 1);
+        assert!(if expire {
+            matches!(result, Err(Failure::Deadline))
+        } else {
+            matches!(result, Err(Failure::Progress(_)))
+        });
+        f.listener.set_nonblocking(true).unwrap();
+        assert_eq!(
+            f.listener.accept().unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
+    }
+}
+
+#[test]
+fn stalled_or_fragmented_handshake_services_cancellation() {
+    for fragment in [false, true] {
+        let f = Fixture::new();
+        let listener = f.listener.try_clone().unwrap();
+        let (sent, received) = mpsc::channel();
+        let peer = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let hello = read_frame(&mut stream);
+            assert_eq!(hello.message, Message::Hello);
+            if fragment {
+                stream.write_all(&[0, 0]).unwrap();
+            }
+            sent.send(()).unwrap();
+            match stream.read(&mut [0; 1]) {
+                Ok(0) => {}
+                Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {}
+                other => panic!("unexpected peer result: {other:?}"),
+            }
+        });
+        let started = Instant::now();
+        let result = Client::connect_with_progress(
+            File::open(&f.path).unwrap(),
+            f.uid,
+            scope(),
+            OperationId(id(5)),
+            deadline(),
+            &mut || {
+                if received.try_recv().is_ok() {
+                    Err(io::ErrorKind::Interrupted.into())
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        assert!(matches!(result, Err(Failure::Progress(_))));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        peer.join().unwrap();
+    }
+}
+
+#[test]
+fn progress_after_journal_refuses_cancellation_expiry_or_replacement_before_bytes() {
+    use std::cell::Cell;
+    for command in effects() {
+        for fault in 0..3 {
+            let f = Fixture::new();
+            let peer = f.peer(|mut stream| assert_eq!(stream.read(&mut [0; 1]).unwrap(), 0));
+            let mut client = f.connect(scope()).unwrap();
+            let journaled = Cell::new(false);
+            let until = Instant::now() + Duration::from_millis(150);
+            let mut original = None;
+            let mut refused = false;
+            let error = client
+                .execute_with_progress(
+                    OperationId(id(1100)),
+                    command.clone(),
+                    until,
+                    |frame, digest| {
+                        original = Some((frame.clone(), digest));
+                        journaled.set(true);
+                        Ok(())
+                    },
+                    &mut || {
+                        if journaled.get() {
+                            assert!(!refused, "failed progress must not retry");
+                            refused = true;
+                            match fault {
+                                0 => return Err(io::ErrorKind::Interrupted.into()),
+                                1 => thread::sleep(
+                                    until.saturating_duration_since(Instant::now())
+                                        + Duration::from_millis(1),
+                                ),
+                                _ => fs::set_permissions(
+                                    f.path.join("sdk.sock"),
+                                    Permissions::from_mode(0o666),
+                                )
+                                .unwrap(),
+                            }
+                        }
+                        Ok(())
+                    },
+                )
+                .unwrap_err();
+            assert!(original.is_some() && refused);
+            assert!(match fault {
+                0 => matches!(error.cause, Failure::Progress(_)),
+                1 => matches!(error.cause, Failure::Deadline),
+                _ => matches!(error.cause, Failure::Identity),
+            });
+            assert_eq!(error.lost, LostRequest::NoPendingMutation);
+            assert_eq!(client.close(), LostRequest::NoPendingMutation);
+            peer.join().unwrap();
+        }
+    }
+}
+
+#[test]
+fn dispatched_progress_failure_keeps_original_loss_with_stalled_partial_or_complete_reply() {
+    for command in effects() {
+        for reply_bytes in 0..3 {
+            let f = Fixture::new();
+            let request_seen = Arc::new(AtomicBool::new(false));
+            let seen = request_seen.clone();
+            let (sent, received) = mpsc::channel();
+            let peer = f.peer(move |mut stream| {
+                let request = read_frame(&mut stream);
+                seen.store(true, Ordering::Release);
+                let reply = match &request.message {
+                    Message::Request(Command::InsertAfter(value)) => Reply::InsertionObserved {
+                        target: PageKey {
+                            document: value.source.page().document,
+                            page: value.target,
+                        },
+                        after_order: value.expected_after_order(),
+                    },
+                    Message::Request(Command::SelectAdjacent(value)) => Reply::TargetObserved(
+                        ReaderFacts::new(
+                            PageKey {
+                                document: value.expected.page().document,
+                                page: value.target,
+                            },
+                            value.expected.order().to_vec(),
+                        )
+                        .unwrap(),
+                    ),
+                    _ => panic!(),
+                };
+                let bytes = response(&request, reply).encode().unwrap();
+                match reply_bytes {
+                    1 => stream.write_all(&bytes[..3]).unwrap(),
+                    2 => stream.write_all(&bytes).unwrap(),
+                    _ => {}
+                }
+                sent.send(()).unwrap();
+                // Closing with unread reply bytes may cause ECONNRESET on Linux.
+                match stream.read(&mut [0; 1]) {
+                    Ok(0) => {}
+                    Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {}
+                    other => panic!("unexpected peer result: {other:?}"),
+                }
+            });
+            let mut client = f.connect(scope()).unwrap();
+            let mut original = None;
+            let mut canceled = false;
+            let error = client
+                .execute_with_progress(
+                    OperationId(id(1200)),
+                    command.clone(),
+                    deadline(),
+                    |frame, digest| {
+                        original = Some((frame.operation, digest));
+                        Ok(())
+                    },
+                    &mut || {
+                        if request_seen.load(Ordering::Acquire) {
+                            received.recv_timeout(Duration::from_secs(1)).unwrap();
+                            canceled = true;
+                            Err(io::ErrorKind::Interrupted.into())
+                        } else {
+                            Ok(())
+                        }
+                    },
+                )
+                .unwrap_err();
+            let (operation, request_sha256) = original.unwrap();
+            let expected = LostRequest::Indeterminate {
+                operation,
+                request_sha256,
+            };
+            assert!(canceled && matches!(error.cause, Failure::Progress(_)));
+            assert_eq!(error.lost, expected);
+            assert_eq!(client.close(), expected);
+            assert_eq!(client.close(), expected);
+            peer.join().unwrap();
+        }
+    }
+}
+
+#[test]
+fn successful_progress_stays_on_caller_thread_and_reuses_session() {
+    let f = Fixture::new();
+    let peer = f.peer(|mut stream| {
+        for _ in 0..3 {
+            let request = read_frame(&mut stream);
+            write_frame(&mut stream, &response(&request, Reply::Observed(facts())));
+        }
+    });
+    let caller = thread::current().id();
+    let mut calls = 0;
+    let mut progress = || {
+        assert_eq!(thread::current().id(), caller);
+        calls += 1;
+        Ok(())
+    };
+    let mut client = Client::connect_with_progress(
+        File::open(&f.path).unwrap(),
+        f.uid,
+        scope(),
+        OperationId(id(5)),
+        deadline(),
+        &mut progress,
+    )
+    .unwrap();
+    for n in 0..3 {
+        assert_eq!(
+            client
+                .execute_with_progress(
+                    OperationId(id(1300 + n)),
+                    Command::Observe,
+                    deadline(),
+                    |_, _| Ok(()),
+                    &mut progress
+                )
+                .unwrap(),
+            Reply::Observed(facts())
+        );
+    }
+    assert!(calls >= 4);
     assert_eq!(client.close(), LostRequest::NoPendingMutation);
     peer.join().unwrap();
 }
