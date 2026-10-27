@@ -37,6 +37,7 @@
   - [ ] 2.4a Implement the separate fresh target-selection request, native executor and owned/transport checks under [target-acquisition.md](target-acquisition.md); integrate its consumer reservation before enabling effects.
 
 ## 3. Consumer and delivery
+- [ ] 3.0b Implement the complete resident native capture path under [native-capture.md](native-capture.md): measured guarded producer with in-callback full-order sampling, private bounded PNG ownership, distinct historical evidence API, revisioned inline reply and consistent message-specific transport bounds. Preserve exact v1/v2 history and earlier unresolved effects; verify owned socket faults and the resulting native image before consumer admission.
 - [x] 3.0 Preserve canonical v1/v2 historical journal bytes/digests with a separate read-only decoder and strict live v2 transport; verify old reservations survive consumer upgrade under [historical-journal.md](historical-journal.md).
   - [x] 3.0a Add and independently review the bounded SDK historical decoder, verify retained original v1 vectors and strict live v2 behavior, MSRV/default/feature/package boundaries. Consumer upgrade remains open.
 - [ ] 3.1 Pin the SDK in the existing Buddy/Docs candidates and integrate bindings, journal, writer/capture and Supervisor recovery.

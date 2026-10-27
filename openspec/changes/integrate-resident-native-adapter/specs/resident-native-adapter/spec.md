@@ -68,6 +68,32 @@ its qualified preconditions again at the actual insertion boundary.
 - **WHEN** an insertion's resulting complete order cannot fit the protocol bound
 - **THEN** the request is rejected before dispatch
 
+### Requirement: Historical native source capture
+The resident SDK SHALL return owned image bytes and explicit historical source
+evidence from the measured guarded native capture procedure. It SHALL verify the
+expected document, selected page and complete order inside both validated source
+callbacks, retaining the same live Reader/document/controller and capture context.
+Intermediate image bytes SHALL remain private until the final join, original
+request admission and deadline checks succeed. This evidence SHALL NOT fabricate
+content revisions, input epochs, atomicity, physical freshness, persistence or
+continuing capture/write authority. Capture SHALL preserve unresolved effects.
+
+#### Scenario: Final join fails after image encoding
+- **WHEN** image encoding succeeds but the second join loses the original objects or expected full order
+- **THEN** the request refuses and no intermediate PNG is published as successful capture evidence
+
+#### Scenario: Capture exceeds ordinary control frame size
+- **WHEN** a valid bounded PNG needs more than the ordinary 64 KiB frame allowance
+- **THEN** only the current capture reply may use its explicit 1 MiB PNG and 1 MiB plus 64 KiB frame payload bounds, excluding the four-byte length prefix, while ordinary control and historical revision 1/2 payload bounds remain unchanged
+
+#### Scenario: Capture delivery loses admission
+- **WHEN** cancellation, connection loss or the original absolute deadline interrupts capture publication, transfer or final admission
+- **THEN** the image cannot complete successfully, earlier unresolved insertion/selection evidence remains unchanged, and no deadline renewal or effect replay follows
+
+#### Scenario: Capture protocol upgrades historical consumers
+- **WHEN** the live protocol advances to support capture
+- **THEN** canonical historical revision 1 and 2 frames retain their original tag grammar, bytes, digests and correlation, without becoming valid live requests
+
 ### Requirement: Fresh conditional adjacent target selection
 Target selection SHALL be a separately correlated effectful request. It SHALL
 revalidate exact document, current page and complete order in a fresh actual Reader
