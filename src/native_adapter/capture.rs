@@ -7,20 +7,17 @@ use std::io::Cursor;
 pub const MAX_CAPTURE_PNG: usize = 1_048_576;
 pub const MAX_CAPTURE_PIXELS: u64 = 2_628_288;
 pub const CAPTURE_PROCEDURE: &str = "rm2-reader-identity-full-order-png-v1";
+pub const VISUAL_PROCEDURE: &str = "rm2-window-visual-png-v1";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HistoricalCapture {
     before: ReaderFacts,
     after: ReaderFacts,
-    dimensions: [u32; 2],
-    dpr_bits: u64,
-    png: Vec<u8>,
-    sha256: [u8; 32],
+    visual: HistoricalVisual,
 }
 impl HistoricalCapture {
-    /// Validate peer-supplied historical evidence, including bounded full PNG
-    /// decoding. Equality of the two samples does not prove an atomic snapshot
-    /// or exclude an intervening content change. Construction grants no authority.
+    /// Validate historical source samples and a bounded fully decoded PNG.
+    /// Equal samples do not prove atomicity or exclude intervening changes.
     pub fn new(
         before: ReaderFacts,
         after: ReaderFacts,
@@ -32,6 +29,53 @@ impl HistoricalCapture {
         if before != after || before.order().len() > 17 {
             return Err(ProtocolError::InvalidOrder);
         }
+        Ok(Self {
+            before,
+            after,
+            visual: HistoricalVisual::new(dimensions, device_pixel_ratio, png, sha256)?,
+        })
+    }
+    pub fn before(&self) -> &ReaderFacts {
+        &self.before
+    }
+    pub fn after(&self) -> &ReaderFacts {
+        &self.after
+    }
+    pub fn dimensions(&self) -> [u32; 2] {
+        self.visual.dimensions()
+    }
+    pub fn device_pixel_ratio(&self) -> f64 {
+        self.visual.device_pixel_ratio()
+    }
+    pub fn png(&self) -> &[u8] {
+        self.visual.png()
+    }
+    pub fn sha256(&self) -> [u8; 32] {
+        self.visual.sha256()
+    }
+    pub fn procedure(&self) -> &'static str {
+        CAPTURE_PROCEDURE
+    }
+}
+
+/// Historical window pixels only. No document/page identity, source capture,
+/// content freshness, persistence or capture/write permission is implied.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HistoricalVisual {
+    dimensions: [u32; 2],
+    dpr_bits: u64,
+    png: Vec<u8>,
+    sha256: [u8; 32],
+}
+impl HistoricalVisual {
+    /// Validate peer-supplied image bytes with a bounded full PNG decode.
+    /// Construction verifies the image, not its asserted native provenance.
+    pub fn new(
+        dimensions: [u32; 2],
+        device_pixel_ratio: f64,
+        png: Vec<u8>,
+        sha256: [u8; 32],
+    ) -> Result<Self> {
         let [width, height] = dimensions;
         if width == 0
             || height == 0
@@ -95,19 +139,11 @@ impl HistoricalCapture {
             return Err(ProtocolError::InvalidImage);
         }
         Ok(Self {
-            before,
-            after,
             dimensions,
             dpr_bits: device_pixel_ratio.to_bits(),
             png,
             sha256,
         })
-    }
-    pub fn before(&self) -> &ReaderFacts {
-        &self.before
-    }
-    pub fn after(&self) -> &ReaderFacts {
-        &self.after
     }
     pub fn dimensions(&self) -> [u32; 2] {
         self.dimensions
@@ -122,6 +158,6 @@ impl HistoricalCapture {
         self.sha256
     }
     pub fn procedure(&self) -> &'static str {
-        CAPTURE_PROCEDURE
+        VISUAL_PROCEDURE
     }
 }

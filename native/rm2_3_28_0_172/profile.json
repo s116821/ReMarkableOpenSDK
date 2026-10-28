@@ -8,7 +8,7 @@
   "libc_sha256": "8d741a0db9727c97faebfd17e7f8409183c382241ff3d4c9b55a52e98d8dd832",
   "qt_core_sha256": "43b0e210d64e59b534490d78c4c82cc1d2958999b0969aa0f77e11a082704e5d",
   "dobby_archive_sha256": "622b17dc65d0dcad717d83264f783ad12044565ed8ea86f9e5088d9abf5328ef",
-  "wire_revision": 3,
+  "wire_revision": 4,
   "native_observation_page_limit": 17,
   "mutation_enabled": false,
   "qualification": "unqualified-source-integration"

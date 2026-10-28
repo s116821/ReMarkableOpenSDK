@@ -32,7 +32,7 @@ fn authenticated_capture_from_actual_qt_producer() {
     use std::fs::File;
     use std::os::unix::fs::MetadataExt;
     use std::time::Instant;
-    for mode in ["success", "reorder"] {
+    for mode in ["success", "reorder", "visual"] {
         let mut server = OwnedServer(
             Process::new(std::env::var_os("READER_SOURCE_CAPTURE_BINARY").unwrap())
                 .args(["--rust-server", &std::process::id().to_string(), mode])
@@ -74,17 +74,31 @@ fn authenticated_capture_from_actual_qt_producer() {
         let reply = client
             .execute(
                 OperationId(id(72)),
-                Command::CaptureSource(source.clone()),
+                if mode == "visual" {
+                    Command::CaptureVisual
+                } else {
+                    Command::CaptureSource(source.clone())
+                },
                 Instant::now() + Duration::from_secs(5),
                 |_, _| Ok(()),
             )
             .unwrap();
-        if mode == "success" {
-            let Reply::Captured(capture) = reply else {
-                panic!("actual Qt capture expected")
+        if mode != "reorder" {
+            let capture = match reply {
+                Reply::Captured(capture) if mode == "success" => {
+                    assert_eq!(capture.before(), &source);
+                    assert_eq!(capture.after(), &source);
+                    HistoricalVisual::new(
+                        capture.dimensions(),
+                        capture.device_pixel_ratio(),
+                        capture.png().to_vec(),
+                        capture.sha256(),
+                    )
+                    .unwrap()
+                }
+                Reply::VisualCaptured(capture) if mode == "visual" => capture,
+                _ => panic!("actual Qt capture expected"),
             };
-            assert_eq!(capture.before(), &source);
-            assert_eq!(capture.after(), &source);
             assert_eq!(capture.dimensions(), [160, 120]);
             assert_eq!(capture.device_pixel_ratio(), 1.0);
             let decoded =
@@ -105,7 +119,11 @@ fn authenticated_capture_from_actual_qt_producer() {
                 let mut artifact = std::fs::OpenOptions::new()
                     .write(true)
                     .create_new(true)
-                    .open(path)
+                    .open(if mode == "visual" {
+                        std::path::PathBuf::from(path).with_extension("visual.png")
+                    } else {
+                        path.into()
+                    })
                     .unwrap();
                 artifact.write_all(capture.png()).unwrap();
             }
@@ -116,7 +134,14 @@ fn authenticated_capture_from_actual_qt_producer() {
         server.0.stdin.take().unwrap().write_all(b"Q").unwrap();
         let mut count = String::new();
         output.read_line(&mut count).unwrap();
-        assert_eq!(count, "submissions=2 samples=2 grabs=1\n");
+        assert_eq!(
+            count,
+            if mode == "visual" {
+                "submissions=2 samples=0 grabs=1\n"
+            } else {
+                "submissions=2 samples=2 grabs=1\n"
+            }
+        );
         assert!(server.0.wait().unwrap().success());
     }
 }

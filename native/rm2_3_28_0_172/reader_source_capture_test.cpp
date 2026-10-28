@@ -6,6 +6,7 @@
 #include "reader_insertion_post_order_fixture.cpp"
 #undef main
 #include "reader_source_capture.h"
+#include "window_visual_capture.h"
 #include <QImageReader>
 #include <QBuffer>
 #include "../resident/endpoint.h"
@@ -91,6 +92,11 @@ static int serveOwnedCapture(QGuiApplication &app,int peerPid,bool reorder) {
             if(reorder)fixture.before=[&](unsigned n){if(n==2)fixture.doc->pages.swapItemsAt(0,2);};
             reply=remarkable::rm2_3_28_0_172::captureReply(captureSource(&fixture.window,lease->request().facts,
                 [lease]{return lease->active();},20000,test));
+        } else if(lease->request().kind==6) {
+            // Deliberately unusable Reader facts: visual evidence needs none.
+            fixture.doc->pages.clear();
+            reply=remarkable::rm2_3_28_0_172::captureVisual(&fixture.window,[lease]{return lease->active();},20000,
+                [&](QQuickWindow *window){++fixture.grabs;return window->grabWindow();});
         } else {reply.kind=3;reply.rejection=0;}
         check(endpoint->finish(lease,std::move(reply)),"owned producer reply delivered");
     });endpoint=&server;check(server.start(),"owned capture endpoint start");
@@ -225,5 +231,64 @@ int main(int argc, char **argv) {
         check(injected && !result.captured() && result.png.isEmpty() && f.grabs == 0,
               "owner deletion at first source admission cannot publish or dereference released owner");
     }
-    QTextStream(stdout) << "PASS SDK owned source capture checks=" << checks << "; modeled joins; no native qualification\n";
+    using remarkable::rm2_3_28_0_172::captureVisual;
+    unsigned visualPermits=0;
+    {
+        CaptureFixture f;
+        auto result=captureVisual(&f.window,[&]{++visualPermits;return true;},20000,f.boundary().grab);
+        check(result.kind==8&&result.capture.procedure==2&&result.facts.order.empty()&&f.samples==0&&f.grabs==1,
+              "visual evidence contains no Reader facts or joins");
+        QBuffer buffer;buffer.setData(result.capture.png);buffer.open(QIODevice::ReadOnly);
+        check(QImageReader(&buffer,"PNG").read().size()==QSize(32,24),"visual PNG fully decodes");
+    }
+    for(unsigned at=1;at<=visualPermits;++at)for(int fault=0;fault<3;++fault) {
+        CaptureFixture f;unsigned permits=0;bool injected=false;
+        auto result=captureVisual(&f.window,[&]{
+            if(++permits==at){
+                injected=true;
+                if(fault==0)return false;
+                if(fault==1)f.window.hide();
+                if(fault==2){
+                    const auto nested=captureSource(&f.window,f.facts(),[]{return true;},20000,f.boundary());
+                    check(!nested.captured(),"nested source during visual refuses");
+                }
+            }
+            return true;
+        },20000,f.boundary().grab);
+        check(injected&&result.kind==3&&result.capture.png.isEmpty(),"every visual admission refuses lost permit/context/reentry");
+    }
+    for(int fault=0;fault<5;++fault) {
+        CaptureFixture f;
+        auto result=captureVisual(&f.window,[]{return true;},fault==0?1:20000,[&](QQuickWindow*){
+            if(fault==0)std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            if(fault==1)throw std::runtime_error("owned grab fault");
+            if(fault==2)f.window.hide();
+            if(fault==3){auto nested=captureVisual(&f.window,[]{return true;},20000);check(nested.kind==3,"nested visual refuses");}
+            if(fault==4)return QImage(1873,1,QImage::Format_ARGB32);
+            QImage image(32,24,QImage::Format_ARGB32);image.fill(Qt::black);return image;
+        });
+        check(result.kind==3&&result.capture.png.isEmpty(),"late/throw/hidden/nested/oversized grab cannot publish");
+    }
+    // Delete the actual pinned window/root/engine, including final admission
+    // points after encoding. QPointer checks must precede any later access.
+    for(unsigned at=1;at<=visualPermits;++at) {
+        auto fixture=std::make_unique<CaptureFixture>();
+        auto *window=&fixture->window;unsigned permits=0;bool injected=false;
+        const auto result=captureVisual(window,[&]{
+            if(++permits==at){injected=true;fixture.reset();}
+            return true;
+        },20000,[](QQuickWindow*){
+            QImage image(32,24,QImage::Format_ARGB32);image.fill(Qt::black);return image;
+        });
+        check(injected&&result.kind==3&&result.capture.png.isEmpty(),"deleted visual owners cannot publish or be dereferenced");
+    }
+    {
+        CaptureFixture f;auto test=f.boundary();
+        test.grab=[&](QQuickWindow*){
+            check(captureVisual(&f.window,[]{return true;},20000).kind==3,"nested visual during source refuses");
+            QImage image(32,24,QImage::Format_ARGB32);image.fill(Qt::black);return image;
+        };
+        check(!captureSource(&f.window,f.facts(),[]{return true;},20000,test).captured(),"visual reentry poisons source");
+    }
+    QTextStream(stdout) << "PASS SDK owned source/visual capture checks=" << checks << "; modeled joins; no native qualification\n";
 }

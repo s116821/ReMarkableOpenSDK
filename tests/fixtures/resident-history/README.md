@@ -23,3 +23,16 @@ Original protocol-v2 vectors retained from the pre-upgrade
 
 The insertion response retains its original request digest. These are copied
 original bytes, not revision-3 output with relabeled version fields.
+
+Original protocol-v3 vectors retained from the pre-upgrade
+`work/rem25-resident-local/wire-capture-r2` corpus (owned synthetic pixels):
+
+- `v3-capture-request.bin`: original `18.bin`, SHA256
+  `c318472f83b0d960d1ab7d03d480475a7def22c5dbe1aa2b82717d0344c22601`.
+- `v3-capture-response.bin`: original `19.bin`, SHA256
+  `e3ad798001d3a4f32e8cc1a9d651c0bf26b12e282351a95713fb96f26c4facae`.
+- `v3-insertion.bin`: original `03.bin`, SHA256
+  `a281b9d592dfd1a301f0a3540b3a9ddf3103b3dd0ab9092ec77b5f8293ddca14`.
+
+The capture response retains the original request digest and exceeds the ordinary
+control-frame bound. These are copied original bytes, not relabeled v4 output.

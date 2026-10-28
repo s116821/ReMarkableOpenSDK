@@ -94,6 +94,27 @@ continuing capture/write authority. Capture SHALL preserve unresolved effects.
 - **WHEN** the live protocol advances to support capture
 - **THEN** canonical historical revision 1 and 2 frames retain their original tag grammar, bytes, digests and correlation, without becoming valid live requests
 
+### Requirement: Visual-only window evidence
+The resident SDK SHALL provide a separately correlated visual-only window capture
+without ReaderFacts or page/write authority. It SHALL retain the original GUI
+objects, request admission and absolute deadline through private encoding and
+publication, with sticky refusal and a shared source/visual reentrancy guard.
+The consumer SHALL fully validate the bounded PNG before exposing immutable
+historical visual evidence. Only source/visual image replies may exceed the
+ordinary control-frame bound. Visual evidence SHALL NOT settle uncertain effects.
+
+#### Scenario: Library screen lacks Reader facts
+- **WHEN** an admitted visual request captures an owned window without an open Reader page
+- **THEN** it may return bounded image evidence without inventing page identity or allowing source capture or writing
+
+#### Scenario: Nested capture or lost context
+- **WHEN** capture reenters, loses an original object, expires, or loses admission before publication
+- **THEN** it refuses even if the condition later recovers, and no partial image is published
+
+#### Scenario: Visual protocol upgrade preserves history
+- **WHEN** live transport advances to revision 4
+- **THEN** historical revisions 1, 2 and 3 retain exact bytes, grammar, digests and correlation; old revisions reject visual tags and remain invalid live requests
+
 ### Requirement: Fresh conditional adjacent target selection
 Target selection SHALL be a separately correlated effectful request. It SHALL
 revalidate exact document, current page and complete order in a fresh actual Reader

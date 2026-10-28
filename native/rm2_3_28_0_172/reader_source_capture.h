@@ -2,16 +2,9 @@
 // Owned historical PNG evidence. No operational PageObservation or write lease.
 #include "reader_identity_capture.h"
 #include "order_observation.h"
+#include "capture_gate.h"
 
 namespace remarkable::rm2_3_28_0_172 {
-namespace source_capture_detail {
-inline thread_local bool running = false, reentered = false;
-struct Gate {
-    bool entered = false;
-    Gate() { if (running) reentered = true; else { running = true; reentered = false; entered = true; } }
-    ~Gate() { if (entered) running = false; }
-};
-}
 struct SourceCapture {
     reader_identity_capture::Result identity;
     resident::Facts before, after;
@@ -44,7 +37,7 @@ inline SourceCapture captureSource(QQuickWindow *inputWindow, const resident::Fa
 ) {
     using namespace reader_identity_capture;
     SourceCapture result;
-    source_capture_detail::Gate gate;
+    capture_detail::Gate gate;
     const auto refuse = [&](const char *why) {
         result.identity.captured = false;
         result.identity.unknown = result.identity.attempted;
@@ -73,7 +66,7 @@ inline SourceCapture captureSource(QQuickWindow *inputWindow, const resident::Fa
         const Guard current = [&] {
             if (lost) return false;
             const auto context = [&] {
-                if (source_capture_detail::reentered || !app || !window || !engine || !root ||
+                if (capture_detail::reentered || !app || !window || !engine || !root ||
                     QCoreApplication::closingDown()) return false;
                 if (ownersPinned) {
                     for (const auto &owner : {readerOwner, documentOwner, controllerOwner}) {

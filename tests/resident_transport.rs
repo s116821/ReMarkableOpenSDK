@@ -16,115 +16,159 @@ mod capture_support;
 
 #[test]
 fn capture_delivery_validates_image_source_and_wire_correspondence() {
-    for fault in 0..7 {
-        let f = Fixture::new();
-        let peer = f.peer(move |mut stream| {
-            let request = read_frame(&mut stream);
-            let mut source = facts();
-            if fault == 5 {
-                source = ReaderFacts::new(
-                    PageKey {
-                        document: id(99),
-                        page: source.page().page,
-                    },
-                    source.order().to_vec(),
-                )
-                .unwrap();
-            }
-            let capture = capture_support::capture(source, 160, 120);
-            assert!(capture.png().len() > MAX_FRAME);
-            let mut frame = response(&request, Reply::Captured(capture));
-            if fault == 4 {
-                frame.operation = OperationId(id(999));
-            }
-            let mut bytes = frame.encode().unwrap();
-            match fault {
-                1 => {
-                    let end = bytes.len() - 30;
-                    bytes[end] ^= 1;
+    for visual in [false, true] {
+        for fault in 0..7 {
+            let f = Fixture::new();
+            let peer = f.peer(move |mut stream| {
+                let request = read_frame(&mut stream);
+                let mut source = facts();
+                if fault == 5 {
+                    source = ReaderFacts::new(
+                        PageKey {
+                            document: id(99),
+                            page: source.page().page,
+                        },
+                        source.order().to_vec(),
+                    )
+                    .unwrap();
                 }
-                2 => {
-                    bytes.truncate(bytes.len() - 1);
+                let capture = capture_support::capture(source, 160, 120);
+                assert!(capture.png().len() > MAX_FRAME);
+                let reply = if visual && fault != 5 {
+                    Reply::VisualCaptured(
+                        HistoricalVisual::new(
+                            capture.dimensions(),
+                            capture.device_pixel_ratio(),
+                            capture.png().to_vec(),
+                            capture.sha256(),
+                        )
+                        .unwrap(),
+                    )
+                } else {
+                    Reply::Captured(capture)
+                };
+                let mut frame = response(&request, reply);
+                if fault == 4 {
+                    frame.operation = OperationId(id(999));
                 }
-                3 => bytes = ((MAX_CAPTURE_FRAME + 1) as u32).to_be_bytes().to_vec(),
-                6 => {
-                    bytes = response(&request, Reply::Observed(facts()))
-                        .encode()
-                        .unwrap();
-                    bytes.resize(MAX_FRAME + 5, 0);
-                    let size = (bytes.len() - 4) as u32;
-                    bytes[..4].copy_from_slice(&size.to_be_bytes());
+                let mut bytes = frame.encode().unwrap();
+                match fault {
+                    1 => {
+                        let end = bytes.len() - 30;
+                        bytes[end] ^= 1;
+                    }
+                    2 => {
+                        bytes.truncate(bytes.len() - 1);
+                    }
+                    3 => bytes = ((MAX_CAPTURE_FRAME + 1) as u32).to_be_bytes().to_vec(),
+                    6 => {
+                        bytes = response(&request, Reply::Observed(facts()))
+                            .encode()
+                            .unwrap();
+                        bytes.resize(MAX_FRAME + 5, 0);
+                        let size = (bytes.len() - 4) as u32;
+                        bytes[..4].copy_from_slice(&size.to_be_bytes());
+                    }
+                    _ => {}
                 }
-                _ => {}
+                for part in bytes.chunks(4093) {
+                    if stream.write_all(part).is_err() {
+                        break;
+                    }
+                }
+            });
+            let mut client = f.connect(scope()).unwrap();
+            let result = client.execute(
+                OperationId(id(60)),
+                if visual {
+                    Command::CaptureVisual
+                } else {
+                    Command::CaptureSource(facts())
+                },
+                deadline(),
+                |_, _| Ok(()),
+            );
+            if fault == 0 {
+                if visual {
+                    let Reply::VisualCaptured(capture) = result.unwrap() else {
+                        panic!()
+                    };
+                    assert_eq!(capture.dimensions(), [160, 120]);
+                    assert_eq!(capture.procedure(), VISUAL_PROCEDURE);
+                } else {
+                    let Reply::Captured(capture) = result.unwrap() else {
+                        panic!()
+                    };
+                    assert_eq!(capture.before(), &facts());
+                    assert_eq!(capture.after(), &facts());
+                    assert_eq!(capture.dimensions(), [160, 120]);
+                }
+            } else {
+                assert_eq!(result.unwrap_err().lost, LostRequest::NoPendingMutation);
             }
-            for part in bytes.chunks(4093) {
-                if stream.write_all(part).is_err() {
-                    break;
-                }
-            }
-        });
-        let mut client = f.connect(scope()).unwrap();
-        let result = client.execute(
-            OperationId(id(60)),
-            Command::CaptureSource(facts()),
-            deadline(),
-            |_, _| Ok(()),
-        );
-        if fault == 0 {
-            let Reply::Captured(capture) = result.unwrap() else {
-                panic!()
-            };
-            assert_eq!(capture.before(), &facts());
-            assert_eq!(capture.after(), &facts());
-            assert_eq!(capture.dimensions(), [160, 120]);
-        } else {
-            assert_eq!(result.unwrap_err().lost, LostRequest::NoPendingMutation);
+            peer.join().unwrap();
         }
-        peer.join().unwrap();
     }
 }
 
 #[test]
 fn partial_capture_cancel_or_deadline_discards_delivery() {
-    for cancel in [true, false] {
-        let f = Fixture::new();
-        let partial = Arc::new(AtomicBool::new(false));
-        let sent = partial.clone();
-        // Encode before starting the request's deliberately short budget.
-        let capture = capture_support::capture(facts(), 160, 120);
-        let peer = f.peer(move |mut stream| {
-            let request = read_frame(&mut stream);
-            let bytes = response(&request, Reply::Captured(capture))
-                .encode()
-                .unwrap();
-            stream.write_all(&bytes[..1024]).unwrap();
-            sent.store(true, Ordering::Release);
-            thread::sleep(Duration::from_millis(200));
-            let _ = stream.write_all(&bytes[1024..]);
-        });
-        let mut client = f.connect(scope()).unwrap();
-        let error = client
-            .execute_with_progress(
-                OperationId(id(61)),
-                Command::CaptureSource(facts()),
-                Instant::now() + Duration::from_millis(if cancel { 1000 } else { 80 }),
-                |_, _| Ok(()),
-                &mut || {
-                    if cancel && partial.load(Ordering::Acquire) {
-                        Err(io::Error::other("capture canceled"))
+    for visual in [false, true] {
+        for cancel in [true, false] {
+            let f = Fixture::new();
+            let partial = Arc::new(AtomicBool::new(false));
+            let sent = partial.clone();
+            // Encode before starting the request's deliberately short budget.
+            let capture = capture_support::capture(facts(), 160, 120);
+            let reply = if visual {
+                Reply::VisualCaptured(
+                    HistoricalVisual::new(
+                        capture.dimensions(),
+                        capture.device_pixel_ratio(),
+                        capture.png().to_vec(),
+                        capture.sha256(),
+                    )
+                    .unwrap(),
+                )
+            } else {
+                Reply::Captured(capture)
+            };
+            let peer = f.peer(move |mut stream| {
+                let request = read_frame(&mut stream);
+                let bytes = response(&request, reply).encode().unwrap();
+                stream.write_all(&bytes[..1024]).unwrap();
+                sent.store(true, Ordering::Release);
+                thread::sleep(Duration::from_millis(200));
+                let _ = stream.write_all(&bytes[1024..]);
+            });
+            let mut client = f.connect(scope()).unwrap();
+            let error = client
+                .execute_with_progress(
+                    OperationId(id(61)),
+                    if visual {
+                        Command::CaptureVisual
                     } else {
-                        Ok(())
-                    }
-                },
-            )
-            .unwrap_err();
-        if cancel {
-            assert!(matches!(error.cause, Failure::Progress(_)));
-        } else {
-            assert!(matches!(error.cause, Failure::Deadline));
+                        Command::CaptureSource(facts())
+                    },
+                    Instant::now() + Duration::from_millis(if cancel { 1000 } else { 80 }),
+                    |_, _| Ok(()),
+                    &mut || {
+                        if cancel && partial.load(Ordering::Acquire) {
+                            Err(io::Error::other("capture canceled"))
+                        } else {
+                            Ok(())
+                        }
+                    },
+                )
+                .unwrap_err();
+            if cancel {
+                assert!(matches!(error.cause, Failure::Progress(_)));
+            } else {
+                assert!(matches!(error.cause, Failure::Deadline));
+            }
+            assert_eq!(error.lost, LostRequest::NoPendingMutation);
+            peer.join().unwrap();
         }
-        assert_eq!(error.lost, LostRequest::NoPendingMutation);
-        peer.join().unwrap();
     }
 }
 

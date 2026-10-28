@@ -10,11 +10,14 @@ use std::collections::HashSet;
 pub mod transport;
 
 mod capture;
-pub use capture::{CAPTURE_PROCEDURE, HistoricalCapture, MAX_CAPTURE_PIXELS, MAX_CAPTURE_PNG};
+pub use capture::{
+    CAPTURE_PROCEDURE, HistoricalCapture, HistoricalVisual, MAX_CAPTURE_PIXELS, MAX_CAPTURE_PNG,
+    VISUAL_PROCEDURE,
+};
 
-pub const PROTOCOL_REVISION: u16 = 3;
+pub const PROTOCOL_REVISION: u16 = 4;
 pub const MAX_FRAME: usize = 65_536;
-/// Largest payload; only a revision 3 capture reply may exceed MAX_FRAME.
+/// Largest payload; only source/visual image replies may exceed MAX_FRAME.
 pub const MAX_CAPTURE_FRAME: usize = MAX_CAPTURE_PNG + MAX_FRAME;
 pub const MAX_PAGES: usize = 2_048;
 const MAGIC: &[u8; 4] = b"RSDK";
@@ -198,6 +201,8 @@ impl SelectAdjacent {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     Observe,
+    /// Read-only window pixels; no Reader facts or page/write authority.
+    CaptureVisual,
     /// Read-only capture bracketed by two full-order source samples.
     CaptureSource(ReaderFacts),
     InsertAfter(InsertAfter),
@@ -227,6 +232,7 @@ pub enum Rejection {
 pub enum Reply {
     Observed(ReaderFacts),
     Captured(HistoricalCapture),
+    VisualCaptured(HistoricalVisual),
     /// Attributed native forward plus exact after-order, NOT durable commit.
     InsertionObserved {
         target: PageKey,
@@ -267,7 +273,7 @@ pub struct Frame {
 
 /// Read-only inspection of an original canonical journal frame.
 ///
-/// Live transport remains revision 3 only. Historical fields are evidence, not
+/// Live transport remains revision 4 only. Historical fields are evidence, not
 /// permission to replay a request. In particular, re-encoding `frame()` uses the
 /// current protocol and must never replace `encoded()` or `fingerprint()` when
 /// validating an original journal entry or its response correlation.
@@ -289,7 +295,7 @@ impl HistoricalFrame {
             return Err(ProtocolError::Malformed);
         }
         let revision = u16::from_be_bytes(bytes[8..10].try_into().unwrap());
-        if !matches!(revision, 1 | 2 | PROTOCOL_REVISION) {
+        if !matches!(revision, 1 | 2 | 3 | PROTOCOL_REVISION) {
             return Err(ProtocolError::UnsupportedVersion);
         }
         let frame = Frame::decode_revision(&bytes[4..], revision)?;
@@ -333,6 +339,18 @@ impl Frame {
         self.encode_revision(PROTOCOL_REVISION)
     }
     fn encode_revision(&self, revision: u16) -> Result<Vec<u8>> {
+        if revision < 4
+            && matches!(
+                &self.message,
+                Message::Request(Command::CaptureVisual)
+                    | Message::Response {
+                        reply: Reply::VisualCaptured(_),
+                        ..
+                    }
+            )
+        {
+            return Err(ProtocolError::UnsupportedVersion);
+        }
         if revision < 3
             && matches!(
                 &self.message,
@@ -386,6 +404,7 @@ impl Frame {
                 w.u8(2);
                 match command {
                     Command::Observe => w.u8(0),
+                    Command::CaptureVisual => w.u8(6),
                     Command::CaptureSource(expected) => {
                         if expected.order.len() > 17 {
                             return Err(ProtocolError::InvalidOrder);
@@ -443,6 +462,16 @@ impl Frame {
                         w.u32(capture.png().len() as u32);
                         w.0.extend(capture.png());
                     }
+                    Reply::VisualCaptured(capture) => {
+                        w.u8(8);
+                        w.u32(capture.dimensions()[0]);
+                        w.u32(capture.dimensions()[1]);
+                        w.u64(capture.device_pixel_ratio().to_bits());
+                        w.u8(2); // rm2-window-visual-png-v1
+                        w.0.extend(capture.sha256());
+                        w.u32(capture.png().len() as u32);
+                        w.0.extend(capture.png());
+                    }
                     Reply::InsertionObserved {
                         target,
                         after_order,
@@ -492,7 +521,7 @@ impl Frame {
         let bound = if matches!(
             &self.message,
             Message::Response {
-                reply: Reply::Captured(_),
+                reply: Reply::Captured(_) | Reply::VisualCaptured(_),
                 ..
             }
         ) {
@@ -548,6 +577,7 @@ impl Frame {
             1 => Message::Ready,
             2 => Message::Request(match r.u8()? {
                 0 => Command::Observe,
+                6 if revision >= 4 => Command::CaptureVisual,
                 5 if revision >= 3 => {
                     let expected = r.facts()?;
                     if expected.order.len() > 17 {
@@ -588,6 +618,24 @@ impl Frame {
                 let request_sha256 = r.take()?;
                 let reply = match r.u8()? {
                     0 => Reply::Observed(r.facts()?),
+                    8 if revision >= 4 => {
+                        let dimensions = [r.u32()?, r.u32()?];
+                        let dpr = f64::from_bits(r.u64()?);
+                        if r.u8()? != 2 {
+                            return Err(ProtocolError::InvalidImage);
+                        }
+                        let sha256 = r.take()?;
+                        let count = r.u32()? as usize;
+                        if count > MAX_CAPTURE_PNG {
+                            return Err(ProtocolError::TooLarge);
+                        }
+                        if count != r.0.len() {
+                            return Err(ProtocolError::Malformed);
+                        }
+                        let png = r.0.to_vec();
+                        r.0 = &[];
+                        Reply::VisualCaptured(HistoricalVisual::new(dimensions, dpr, png, sha256)?)
+                    }
                     7 if revision >= 3 => {
                         let before = r.facts()?;
                         let after = r.facts()?;
@@ -667,7 +715,7 @@ impl Frame {
             && !matches!(
                 &message,
                 Message::Response {
-                    reply: Reply::Captured(_),
+                    reply: Reply::Captured(_) | Reply::VisualCaptured(_),
                     ..
                 }
             )
@@ -959,6 +1007,7 @@ impl Session {
         };
         let valid = match (command, reply) {
             (Command::Observe, Reply::Observed(_)) => true,
+            (Command::CaptureVisual, Reply::VisualCaptured(_)) => true,
             (Command::CaptureSource(expected), Reply::Captured(capture)) => {
                 capture.before() == expected && capture.after() == expected
             }

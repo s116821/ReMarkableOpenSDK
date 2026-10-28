@@ -148,6 +148,31 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
         480,
     ));
     frames.push(large);
+    let visual_request = Frame {
+        message: Message::Request(Command::CaptureVisual),
+        ..frames[18].clone()
+    };
+    let Reply::Captured(source) = (match &frames[19].message {
+        Message::Response { reply, .. } => reply,
+        _ => unreachable!(),
+    }) else {
+        unreachable!()
+    };
+    let visual = HistoricalVisual::new(
+        source.dimensions(),
+        source.device_pixel_ratio(),
+        source.png().to_vec(),
+        source.sha256(),
+    )
+    .unwrap();
+    frames.push(visual_request.clone());
+    frames.push(Frame {
+        message: Message::Response {
+            request_sha256: visual_request.fingerprint().unwrap(),
+            reply: Reply::VisualCaptured(visual),
+        },
+        ..visual_request
+    });
     for (index, frame) in frames.iter().enumerate() {
         let bytes = frame.encode().unwrap();
         assert_eq!(Frame::decode(&bytes[4..]).unwrap(), *frame);

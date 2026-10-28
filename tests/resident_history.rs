@@ -9,6 +9,56 @@ const V2_RESPONSE: &[u8] = include_bytes!("fixtures/resident-history/v2-insertio
 const V2_SELECTION: &[u8] = include_bytes!("fixtures/resident-history/v2-selection.bin");
 
 #[test]
+fn original_v3_source_capture_retains_bytes_digest_and_large_reply() {
+    let request_bytes = include_bytes!("fixtures/resident-history/v3-capture-request.bin");
+    let response_bytes = include_bytes!("fixtures/resident-history/v3-capture-response.bin");
+    let request = HistoricalFrame::decode(request_bytes).unwrap();
+    let response = HistoricalFrame::decode(response_bytes).unwrap();
+    for bytes in [
+        request_bytes.as_slice(),
+        response_bytes.as_slice(),
+        include_bytes!("fixtures/resident-history/v3-insertion.bin"),
+    ] {
+        let history = HistoricalFrame::decode(bytes).unwrap();
+        assert_eq!(history.wire_revision(), 3);
+        assert_eq!(history.encoded(), bytes);
+        assert_ne!(
+            history.fingerprint(),
+            history.frame().fingerprint().unwrap()
+        );
+        assert_eq!(
+            Frame::decode(&bytes[4..]),
+            Err(ProtocolError::UnsupportedVersion)
+        );
+    }
+    assert_eq!(
+        hex(&request.fingerprint()),
+        "c318472f83b0d960d1ab7d03d480475a7def22c5dbe1aa2b82717d0344c22601"
+    );
+    assert_eq!(
+        hex(&response.fingerprint()),
+        "e3ad798001d3a4f32e8cc1a9d651c0bf26b12e282351a95713fb96f26c4facae"
+    );
+    let Message::Response {
+        request_sha256,
+        reply: Reply::Captured(capture),
+    } = &response.frame().message
+    else {
+        panic!()
+    };
+    assert_eq!(*request_sha256, request.fingerprint());
+    assert!(capture.png().len() > MAX_FRAME);
+    assert_eq!(request.frame().scope, response.frame().scope);
+    assert_eq!(request.frame().operation, response.frame().operation);
+    assert_eq!(request.frame().sequence, response.frame().sequence);
+    let Message::Request(Command::CaptureSource(source)) = &request.frame().message else {
+        panic!()
+    };
+    assert_eq!(capture.before(), source);
+    assert_eq!(capture.after(), source);
+}
+
+#[test]
 fn original_v2_insertion_and_selection_bytes_survive_upgrade() {
     for bytes in [V2_REQUEST, V2_RESPONSE, V2_SELECTION] {
         let historical = HistoricalFrame::decode(bytes).unwrap();
@@ -154,7 +204,7 @@ fn malformed_or_unknown_history_refuses_without_truncation() {
         let length = (trailing.len() - 4) as u32;
         trailing[..4].copy_from_slice(&length.to_be_bytes());
         assert!(HistoricalFrame::decode(&trailing).is_err());
-        for revision in [0u16, 4, u16::MAX] {
+        for revision in [0u16, 5, u16::MAX] {
             let mut unsupported = bytes.to_vec();
             unsupported[8..10].copy_from_slice(&revision.to_be_bytes());
             assert_eq!(

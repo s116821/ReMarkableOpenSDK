@@ -50,6 +50,7 @@ int main(int argc,char **argv) {
             ++submitted;const auto &request=lease->request();
             if(request.kind==0)need(endpoint->finish(lease,facts));
             else if(request.kind==5)need(endpoint->finish(lease,vector(vectors,19)));
+            else if(request.kind==6)need(endpoint->finish(lease,vector(vectors,22)));
             else if(request.kind==3||request.kind==4) {
                 // Owned wire fixture only: no Reader, navigation or native authority.
                 Frame answer;answer.facts=request.facts;

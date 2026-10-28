@@ -16,6 +16,8 @@ requires revision and input-epoch facts that the native procedures do not supply
   journal reconciliation, fresh target acquisition and independent recovery.
 - Preserve dependency-free defaults and explicit unsupported native capabilities
   until the relevant executor, lifecycle and consumer acceptance gates pass.
+- Add separately typed visual-only window evidence for developer setup, without
+  inventing Reader facts or granting page/write authority.
 
 ## Capabilities
 

@@ -127,7 +127,7 @@ fn rejects_unknown_schema_trailing_bytes_nil_ids_and_duplicate_order() {
         .begin(OperationId(id(30)), Command::Observe)
         .unwrap();
     let bytes = frame.encode().unwrap();
-    for revision in [1, 2, 4] {
+    for revision in [1, 2, 3, 5] {
         let mut incompatible = bytes[4..].to_vec();
         incompatible[5] = revision;
         assert_eq!(

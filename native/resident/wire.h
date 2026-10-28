@@ -1,5 +1,5 @@
 #pragma once
-// SDK resident protocol v3. Parsed values are peer assertions, not native leases.
+// SDK resident protocol v4. Parsed values are peer assertions, not native leases.
 #include <QByteArray>
 #include <QCryptographicHash>
 #include <QSet>
@@ -56,16 +56,19 @@ inline bool validSelection(const Facts &facts,const Id &target) {
 // Wire envelope validation only; the Rust consumer additionally performs a
 // bounded full PNG decode before exposing HistoricalCapture. Native producers
 // supply their private, successfully encoded image after final joined admission.
-inline bool validCapture(const Facts &before,const Capture &c) {
+inline bool validImage(const Capture &c,quint8 procedure) {
     double dpr=0;static_assert(sizeof dpr==sizeof c.dprBits);std::memcpy(&dpr,&c.dprBits,sizeof dpr);
-    if(!validFacts(before)||before.order.size()>17||before.document!=c.after.document||
-       before.page!=c.after.page||before.order!=c.after.order||!c.width||!c.height||
+    if(!c.width||!c.height||
        c.width>1872||c.height>1872||quint64(c.width)*c.height>2628288||!std::isfinite(dpr)||dpr<=0||
-       c.procedure!=1||c.sha256.size()!=32||c.png.size()<45||c.png.size()>MaxCapturePng)return false;
+       c.procedure!=procedure||c.sha256.size()!=32||c.png.size()<45||c.png.size()>MaxCapturePng)return false;
     const auto *p=reinterpret_cast<const uchar*>(c.png.constData());
     return c.png.left(8)==QByteArray("\x89PNG\r\n\x1a\n",8)&&qFromBigEndian<quint32>(p+8)==13&&
         c.png.mid(12,4)=="IHDR"&&qFromBigEndian<quint32>(p+16)==c.width&&qFromBigEndian<quint32>(p+20)==c.height&&
         QCryptographicHash::hash(c.png,QCryptographicHash::Sha256)==c.sha256;
+}
+inline bool validCapture(const Facts &before,const Capture &c) {
+    return validFacts(before)&&before.order.size()<=17&&before.document==c.after.document&&
+        before.page==c.after.page&&before.order==c.after.order&&validImage(c,1);
 }
 namespace detail {
 class Reader {
@@ -111,7 +114,7 @@ public:
 inline std::optional<Frame> decode(const QByteArray &payload) {
     if(payload.size()>MaxCaptureFrame)return {};
     detail::Reader r(payload);Frame f;
-    if(r.take(4)!="RSDK"||r.number<quint16>()!=3)return {};
+    if(r.take(4)!="RSDK"||r.number<quint16>()!=4)return {};
     f.runtime=r.take(140);
     if(f.runtime.size()!=140)return {};
     for(int offset:{0,32,64})if(f.runtime.mid(offset,32)==QByteArray(32,0))return {};
@@ -122,22 +125,23 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
     if(f.message>3 || ((f.message<2)!=(f.sequence==0)) ||
        (f.message==0?f.server!=QByteArray(16,0):!validId(f.server)))return {};
     if(f.message==2) {
-        f.kind=r.number<quint8>();if(f.kind>5)return {};
+        f.kind=r.number<quint8>();if(f.kind>6)return {};
         if(f.kind==5) {f.facts=r.facts();if(f.facts.order.size()>17)return {};}
-        else if(f.kind) {
+        else if(f.kind&&f.kind!=6) {
             f.facts=r.facts();f.target=r.id();
             if(f.kind<=2){for(const auto &id:f.facts.order)if(id==f.target)return {};}
             else if(!validSelection(f.facts,f.target))return {};
             if(f.kind==1&&f.facts.order.size()==MaxPages)return {};
         }
     } else if(f.message==3) {
-        f.requestDigest=r.take(32);f.kind=r.number<quint8>();if(f.kind>7)return {};
-        if(f.kind==7) {
-            f.facts=r.facts();auto &c=f.capture;c.after=r.facts();
+        f.requestDigest=r.take(32);f.kind=r.number<quint8>();if(f.kind>8)return {};
+        if(f.kind==7||f.kind==8) {
+            auto &c=f.capture;
+            if(f.kind==7){f.facts=r.facts();c.after=r.facts();}
             c.width=r.number<quint32>();c.height=r.number<quint32>();c.dprBits=r.number<quint64>();
             c.procedure=r.number<quint8>();c.sha256=r.take(32);
             const auto count=r.number<quint32>();if(count>quint32(MaxCapturePng)||qsizetype(count)!=r.remaining())return {};
-            c.png=r.take(count);if(!validCapture(f.facts,c))return {};
+            c.png=r.take(count);if(f.kind==7?!validCapture(f.facts,c):!validImage(c,2))return {};
         } else if(f.kind==0||f.kind==5)f.facts=r.facts();
         else if(f.kind==1) {
             f.facts.document=r.id();f.target=r.id();f.facts.page=f.target;f.facts.order=r.order();
@@ -146,28 +150,30 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
             f.facts=r.facts();const auto present=r.number<quint8>();if(present>1)return {};f.targetPresent=present;
         } else if(f.kind==3) {f.rejection=r.number<quint8>();if(f.rejection>4)return {};}
     }
-    if(!r.good||r.remaining()||(payload.size()>MaxFrame&&!(f.message==3&&f.kind==7)))return {};
+    if(!r.good||r.remaining()||(payload.size()>MaxFrame&&!(f.message==3&&(f.kind==7||f.kind==8))))return {};
     return f;
 }
 inline QByteArray encode(const Frame &f) {
     // Reject oversized fields before appending any caller-controlled collection.
     if(f.runtime.size()!=140||f.client.size()!=16||f.server.size()!=16||f.operation.size()!=16||
        f.facts.order.size()>MaxPages||f.capture.png.size()>MaxCapturePng)return {};
-    if((f.message==2&&f.kind)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
+    if((f.message==2&&f.kind&&f.kind!=6)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
         if(!validFacts(f.facts))return {};
     }
-    if(((f.message==2&&f.kind&&f.kind!=5)||(f.message==3&&f.kind==1))&&!validId(f.target))return {};
+    if(((f.message==2&&f.kind&&f.kind<5)||(f.message==3&&f.kind==1))&&!validId(f.target))return {};
     if(f.message==3&&f.kind==7&&!validCapture(f.facts,f.capture))return {};
-    detail::Writer w;w.bytes="RSDK";w.number<quint16>(3);w.bytes+=f.runtime;
+    if(f.message==3&&f.kind==8&&!validImage(f.capture,2))return {};
+    detail::Writer w;w.bytes="RSDK";w.number<quint16>(4);w.bytes+=f.runtime;
     w.bytes+=f.client;w.bytes+=f.server;w.number<quint64>(f.sequence);w.bytes+=f.operation;w.number<quint8>(f.message);
     if(f.message==2) {
         w.number<quint8>(f.kind);
-        if(f.kind){w.facts(f.facts);if(f.kind!=5)w.bytes+=f.target;}
+        if(f.kind&&f.kind!=6){w.facts(f.facts);if(f.kind!=5)w.bytes+=f.target;}
     } else if(f.message==3) {
         if(f.requestDigest.size()!=32)return {};
         w.bytes+=f.requestDigest;w.number<quint8>(f.kind);
-        if(f.kind==7) {
-            const auto &c=f.capture;w.facts(f.facts);w.facts(c.after);
+        if(f.kind==7||f.kind==8) {
+            const auto &c=f.capture;
+            if(f.kind==7){w.facts(f.facts);w.facts(c.after);}
             w.number<quint32>(c.width);w.number<quint32>(c.height);w.number<quint64>(c.dprBits);
             w.number<quint8>(c.procedure);w.bytes+=c.sha256;w.number<quint32>(quint32(c.png.size()));w.bytes+=c.png;
         } else if(f.kind==0||f.kind==5)w.facts(f.facts);

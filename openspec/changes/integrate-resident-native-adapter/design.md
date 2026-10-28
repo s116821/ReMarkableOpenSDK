@@ -1,5 +1,10 @@
 # Resident SDK integration
 
+Current protocol amendment: [visual-only setup observation](visual-observation.md)
+advances live transport to revision 4 and preserves revision 3 as exact history.
+The revision 3 schema below records the source-capture increment; its existing
+tags retain their meaning in revision 4.
+
 October 24, 2026. This amendment selects implementation of the resident control
 boundary returned by [REM-57](https://linear.app/magentumdragon/issue/REM-57).
 The measured native procedures and remaining qualification are described in the
