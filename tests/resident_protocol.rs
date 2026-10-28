@@ -112,7 +112,7 @@ fn every_truncation_fails_decode_and_eof_never_completes() {
 
 #[test]
 fn rejects_lengths_before_allocating_or_consuming_payload() {
-    for length in [0, (MAX_FRAME + 1) as u32, u32::MAX] {
+    for length in [0, (MAX_CAPTURE_FRAME + 1) as u32, u32::MAX] {
         let mut bytes = length.to_be_bytes().to_vec();
         bytes.extend(vec![0; 200_000]);
         let mut decoder = Decoder::default();
@@ -127,7 +127,7 @@ fn rejects_unknown_schema_trailing_bytes_nil_ids_and_duplicate_order() {
         .begin(OperationId(id(30)), Command::Observe)
         .unwrap();
     let bytes = frame.encode().unwrap();
-    for revision in [1, 3] {
+    for revision in [1, 2, 4] {
         let mut incompatible = bytes[4..].to_vec();
         incompatible[5] = revision;
         assert_eq!(

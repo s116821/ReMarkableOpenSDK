@@ -172,9 +172,11 @@ public:
         // Encoding/validation can consume the remaining budget while the Qt
         // timer is unable to run on this stack.
         if(bytes.isEmpty()||!lease->active()){retireConnection();return false;}
+        outputDeadline_=lease->deadline();
         pending_->active_.store(false,std::memory_order_release);pending_.reset();
         if(!send(bytes)){retireConnection();return false;}
-        timer_.start(30000);return true;
+        if(!refreshOutput())return false;
+        return true;
     }
 private:
     EndpointConfig config_;
@@ -189,6 +191,7 @@ private:
     Id client_,server_;
     quint64 sequence_=0;
     std::shared_ptr<RequestLease> pending_;
+    std::optional<std::chrono::steady_clock::time_point> outputDeadline_;
     bool gui()const{return QCoreApplication::instance()&&!QCoreApplication::closingDown()&&QThread::currentThread()==thread()&&thread()==QCoreApplication::instance()->thread();}
     static bool same(const struct stat&a,const struct stat&b){return a.st_dev==b.st_dev&&a.st_ino==b.st_ino&&a.st_uid==b.st_uid&&a.st_mode==b.st_mode;}
     bool directoryCurrent()const {
@@ -208,6 +211,7 @@ private:
     }
     void retireConnection() {
         timer_.stop();if(pending_)pending_->active_.store(false,std::memory_order_release);pending_.reset();
+        outputDeadline_.reset();
         ready_=false;decoder_.close();client_.clear();server_.clear();
         auto *socket=peer_.data();peer_=nullptr;
         if(socket){socket->abort();socket->deleteLater();}
@@ -225,10 +229,22 @@ private:
         connect(socket,&QLocalSocket::readyRead,this,[this,original]{if(original&&peer_==original)readAvailable();},Qt::QueuedConnection);
         connect(socket,&QLocalSocket::disconnected,this,[this,original]{if(original&&peer_==original)retireConnection();},Qt::QueuedConnection);
         connect(socket,&QLocalSocket::errorOccurred,this,[this,original]{if(original&&peer_==original)retireConnection();},Qt::QueuedConnection);
+        connect(socket,&QLocalSocket::bytesWritten,this,[this,original]{if(original&&peer_==original&&outputDeadline_)refreshOutput();},Qt::QueuedConnection);
         timer_.start(5000);readAvailable();
     }
     bool send(const QByteArray &bytes) {
-        return peerCurrent()&&!bytes.isEmpty()&&bytes.size()<=MaxFrame+4&&peer_->bytesToWrite()==0&&peer_->write(bytes)==bytes.size();
+        return peerCurrent()&&!bytes.isEmpty()&&bytes.size()<=MaxCaptureFrame+4&&peer_->bytesToWrite()==0&&peer_->write(bytes)==bytes.size();
+    }
+    bool refreshOutput() {
+        if(!outputDeadline_)return true;
+        const auto now=std::chrono::steady_clock::now();
+        if(!peerCurrent()||now>=*outputDeadline_){retireConnection();return false;}
+        if(peer_->bytesToWrite()==0){outputDeadline_.reset();timer_.start(30000);}
+        else {
+            const auto left=std::chrono::duration_cast<std::chrono::milliseconds>(*outputDeadline_-now).count();
+            timer_.start(int(qMax(qint64(1),qint64(left))));
+        }
+        return true;
     }
     void readAvailable() {
         if(reading_||!peerCurrent())return;
@@ -246,6 +262,7 @@ private:
             QTimer::singleShot(0,this,[this,original]{if(original&&peer_==original)readAvailable();});
     }
     void acceptFrame(const Frame &frame) {
+        if(!refreshOutput())return;
         if(!peerCurrent()||frame.runtime!=config_.runtime){retireConnection();return;}
         if(!ready_) {
             if(frame.message!=0){retireConnection();return;}
@@ -254,7 +271,7 @@ private:
             if(!send(encode(reply))){retireConnection();return;}
             ready_=true;timer_.start(30000);return;
         }
-        if(frame.message!=2||frame.client!=client_||frame.server!=server_||pending_||sequence_==std::numeric_limits<quint64>::max()||
+        if(frame.message!=2||frame.client!=client_||frame.server!=server_||pending_||outputDeadline_||sequence_==std::numeric_limits<quint64>::max()||
            frame.sequence!=sequence_+1){retireConnection();return;}
         sequence_=frame.sequence;pending_=std::shared_ptr<RequestLease>(new RequestLease(frame,config_.operationBudgetMs));
         if(!pending_->active()){retireConnection();return;}

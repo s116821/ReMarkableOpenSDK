@@ -10,3 +10,16 @@ They are not produced by relabeling the current encoder's output.
 Both include the four-byte length prefix. The reply retains the original
 request digest. All identities are synthetic fixture values; no device data,
 credentials or native artifacts are included.
+
+Original protocol-v2 vectors retained from the pre-upgrade
+`work/rem25-resident-local/wire-selection-r1` corpus:
+
+- `v2-insertion.bin`: original `03.bin`, SHA256
+  `57ff674e05d62b08a8504835616b592a75f8ef4a247d5b160246fe6a90138a68`.
+- `v2-insertion-observed.bin`: original `08.bin`, SHA256
+  `b78d2e77ad8c84f681d6487aea19468fd9c8193af8ab0d29c23cb87b7796192f`.
+- `v2-selection.bin`: original `05.bin`, SHA256
+  `134f640a9c84ce6436082fd151a740b0b737c5db99205d2ada3762ddda8913b2`.
+
+The insertion response retains its original request digest. These are copied
+original bytes, not revision-3 output with relabeled version fields.

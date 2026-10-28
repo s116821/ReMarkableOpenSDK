@@ -147,6 +147,26 @@
     {
       "path": "reader_joined_creation_witness_fixture.cpp",
       "sha256": "12016349eb94a5048fd4ae9e187a1b99ce8a79b1fa2c149b0e62c7e2891e4dec"
+    },
+    {
+      "path": "reader_identity_capture.h",
+      "sha256": "e040d59d7033c857e59dd7b8d67371347ab237bb810813aca84fef120270037a"
+    },
+    {
+      "path": "visual_capture_core.h",
+      "sha256": "6eb3a4507c72214ce9fda1cc7d1c546527450b5b6f56c86006a4c19cdd864627"
+    },
+    {
+      "path": "reader_identity_capture_fixture.cpp",
+      "sha256": "99132be1c64a330f1a993d1bccf1a954bea4805eab552fde1a800667f297ddad"
+    },
+    {
+      "path": "reader_selected_view_fixture.cpp",
+      "sha256": "cc362456cab8e9f01502e7ab12e1bdd75d3b2a42d3494b97e6ae705927e2049f"
+    },
+    {
+      "path": "reader_identity_capture_test.sh",
+      "sha256": "62fc84cd84b0299206744532445b7c24944578ecdaae013dbd8278b8b519d14c"
     }
   ]
 }

@@ -381,7 +381,7 @@ fn read_frame(
     let mut prefix = [0; 4];
     read_exact(stream, &mut prefix, deadline, progress)?;
     let size = u32::from_be_bytes(prefix) as usize;
-    if size == 0 || size > MAX_FRAME {
+    if size == 0 || size > MAX_CAPTURE_FRAME {
         return Err(ProtocolError::TooLarge.into());
     }
     let mut bytes = vec![0; size];

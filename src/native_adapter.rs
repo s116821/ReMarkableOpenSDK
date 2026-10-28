@@ -9,8 +9,13 @@ use std::collections::HashSet;
 #[cfg(target_os = "linux")]
 pub mod transport;
 
-pub const PROTOCOL_REVISION: u16 = 2;
+mod capture;
+pub use capture::{CAPTURE_PROCEDURE, HistoricalCapture, MAX_CAPTURE_PIXELS, MAX_CAPTURE_PNG};
+
+pub const PROTOCOL_REVISION: u16 = 3;
 pub const MAX_FRAME: usize = 65_536;
+/// Largest payload; only a revision 3 capture reply may exceed MAX_FRAME.
+pub const MAX_CAPTURE_FRAME: usize = MAX_CAPTURE_PNG + MAX_FRAME;
 pub const MAX_PAGES: usize = 2_048;
 const MAGIC: &[u8; 4] = b"RSDK";
 
@@ -72,6 +77,7 @@ pub enum ProtocolError {
     UnsupportedVersion,
     InvalidIdentity,
     InvalidOrder,
+    InvalidImage,
     WrongScope,
     WrongResponse,
     Busy,
@@ -192,6 +198,8 @@ impl SelectAdjacent {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     Observe,
+    /// Read-only capture bracketed by two full-order source samples.
+    CaptureSource(ReaderFacts),
     InsertAfter(InsertAfter),
     /// Read-only; target presence cannot by itself establish attribution.
     Reconcile(InsertAfter),
@@ -218,6 +226,7 @@ pub enum Rejection {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reply {
     Observed(ReaderFacts),
+    Captured(HistoricalCapture),
     /// Attributed native forward plus exact after-order, NOT durable commit.
     InsertionObserved {
         target: PageKey,
@@ -258,7 +267,7 @@ pub struct Frame {
 
 /// Read-only inspection of an original canonical journal frame.
 ///
-/// Live transport remains revision 2 only. Historical fields are evidence, not
+/// Live transport remains revision 3 only. Historical fields are evidence, not
 /// permission to replay a request. In particular, re-encoding `frame()` uses the
 /// current protocol and must never replace `encoded()` or `fingerprint()` when
 /// validating an original journal entry or its response correlation.
@@ -271,7 +280,7 @@ pub struct HistoricalFrame {
 impl HistoricalFrame {
     /// Decode a complete length-prefixed frame, retaining its original bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() > MAX_FRAME + 4 {
+        if bytes.len() > MAX_CAPTURE_FRAME + 4 {
             return Err(ProtocolError::TooLarge);
         }
         if bytes.len() < 10
@@ -280,7 +289,7 @@ impl HistoricalFrame {
             return Err(ProtocolError::Malformed);
         }
         let revision = u16::from_be_bytes(bytes[8..10].try_into().unwrap());
-        if !matches!(revision, 1 | PROTOCOL_REVISION) {
+        if !matches!(revision, 1 | 2 | PROTOCOL_REVISION) {
             return Err(ProtocolError::UnsupportedVersion);
         }
         let frame = Frame::decode_revision(&bytes[4..], revision)?;
@@ -324,6 +333,18 @@ impl Frame {
         self.encode_revision(PROTOCOL_REVISION)
     }
     fn encode_revision(&self, revision: u16) -> Result<Vec<u8>> {
+        if revision < 3
+            && matches!(
+                &self.message,
+                Message::Request(Command::CaptureSource(_))
+                    | Message::Response {
+                        reply: Reply::Captured(_),
+                        ..
+                    }
+            )
+        {
+            return Err(ProtocolError::UnsupportedVersion);
+        }
         if revision == 1
             && matches!(
                 &self.message,
@@ -365,6 +386,13 @@ impl Frame {
                 w.u8(2);
                 match command {
                     Command::Observe => w.u8(0),
+                    Command::CaptureSource(expected) => {
+                        if expected.order.len() > 17 {
+                            return Err(ProtocolError::InvalidOrder);
+                        }
+                        w.u8(5);
+                        w.facts(expected);
+                    }
                     Command::InsertAfter(value) | Command::Reconcile(value) => {
                         value.validate()?;
                         if matches!(command, Command::InsertAfter(_))
@@ -402,6 +430,18 @@ impl Frame {
                     Reply::Observed(facts) => {
                         w.u8(0);
                         w.facts(facts);
+                    }
+                    Reply::Captured(capture) => {
+                        w.u8(7);
+                        w.facts(capture.before());
+                        w.facts(capture.after());
+                        w.u32(capture.dimensions()[0]);
+                        w.u32(capture.dimensions()[1]);
+                        w.u64(capture.device_pixel_ratio().to_bits());
+                        w.u8(1); // rm2-reader-identity-full-order-png-v1
+                        w.0.extend(capture.sha256());
+                        w.u32(capture.png().len() as u32);
+                        w.0.extend(capture.png());
                     }
                     Reply::InsertionObserved {
                         target,
@@ -449,7 +489,18 @@ impl Frame {
                 }
             }
         }
-        if w.0.len() > MAX_FRAME {
+        let bound = if matches!(
+            &self.message,
+            Message::Response {
+                reply: Reply::Captured(_),
+                ..
+            }
+        ) {
+            MAX_CAPTURE_FRAME
+        } else {
+            MAX_FRAME
+        };
+        if w.0.len() > bound {
             return Err(ProtocolError::TooLarge);
         }
         let mut bytes = (w.0.len() as u32).to_be_bytes().to_vec();
@@ -462,7 +513,7 @@ impl Frame {
         Self::decode_revision(payload, PROTOCOL_REVISION)
     }
     fn decode_revision(payload: &[u8], revision: u16) -> Result<Self> {
-        if payload.len() > MAX_FRAME {
+        if payload.len() > MAX_CAPTURE_FRAME || (revision < 3 && payload.len() > MAX_FRAME) {
             return Err(ProtocolError::TooLarge);
         }
         let mut r = Reader(payload);
@@ -497,6 +548,13 @@ impl Frame {
             1 => Message::Ready,
             2 => Message::Request(match r.u8()? {
                 0 => Command::Observe,
+                5 if revision >= 3 => {
+                    let expected = r.facts()?;
+                    if expected.order.len() > 17 {
+                        return Err(ProtocolError::InvalidOrder);
+                    }
+                    Command::CaptureSource(expected)
+                }
                 tag @ (1 | 2) => {
                     let value = InsertAfter {
                         source: r.facts()?,
@@ -530,6 +588,28 @@ impl Frame {
                 let request_sha256 = r.take()?;
                 let reply = match r.u8()? {
                     0 => Reply::Observed(r.facts()?),
+                    7 if revision >= 3 => {
+                        let before = r.facts()?;
+                        let after = r.facts()?;
+                        let dimensions = [r.u32()?, r.u32()?];
+                        let dpr = f64::from_bits(r.u64()?);
+                        if r.u8()? != 1 {
+                            return Err(ProtocolError::InvalidImage);
+                        }
+                        let sha256 = r.take()?;
+                        let count = r.u32()? as usize;
+                        if count > MAX_CAPTURE_PNG {
+                            return Err(ProtocolError::TooLarge);
+                        }
+                        if count != r.0.len() {
+                            return Err(ProtocolError::Malformed);
+                        }
+                        let png = r.0.to_vec();
+                        r.0 = &[];
+                        Reply::Captured(HistoricalCapture::new(
+                            before, after, dimensions, dpr, png, sha256,
+                        )?)
+                    }
                     1 => {
                         let target = r.page()?;
                         let after_order = r.order()?;
@@ -582,6 +662,17 @@ impl Frame {
         }
         if matches!(message, Message::Hello) != scope.server_nonce.is_none() {
             return Err(ProtocolError::InvalidIdentity);
+        }
+        if payload.len() > MAX_FRAME
+            && !matches!(
+                &message,
+                Message::Response {
+                    reply: Reply::Captured(_),
+                    ..
+                }
+            )
+        {
+            return Err(ProtocolError::TooLarge);
         }
         Ok(Self {
             scope,
@@ -708,7 +799,7 @@ impl Decoder {
             }
         }
         let size = u32::from_be_bytes(self.bytes[..4].try_into().unwrap()) as usize;
-        if size > MAX_FRAME {
+        if size > MAX_CAPTURE_FRAME {
             return Err(ProtocolError::TooLarge);
         }
         if size == 0 {
@@ -868,6 +959,9 @@ impl Session {
         };
         let valid = match (command, reply) {
             (Command::Observe, Reply::Observed(_)) => true,
+            (Command::CaptureSource(expected), Reply::Captured(capture)) => {
+                capture.before() == expected && capture.after() == expected
+            }
             (
                 Command::InsertAfter(value),
                 Reply::InsertionObserved {

@@ -1,6 +1,7 @@
 # Native source capture integration
 
-Status: implementation contract, not an available capability. The frozen native
+Status: source implementation with owned producer/transport verification; native
+qualification and consumer integration remain open. The frozen native
 bootstrap candidate continues to use SDK `83ed037636707ce8036774f04d19f28f42c0019a`;
 this design does not change that candidate or its evidence.
 
@@ -54,10 +55,10 @@ caller progress checks and the original absolute deadline throughout transfer
 and final admission. GUI grab/encoding are synchronous: checks can refuse late
 publication but cannot preempt those native calls.
 
-Historical decoding must explicitly retain revision 1 **and** revision 2 with
+Historical decoding explicitly retains revision 1 **and** revision 2 with
 their original tag grammars and byte/digest identity when the live revision
-advances. The current `1 | PROTOCOL_REVISION` predicate is insufficient for that
-upgrade. Live transport must accept only its current revision.
+advances. The old `1 | PROTOCOL_REVISION` predicate was replaced with explicit
+1/2/current revision admission. Live transport accepts revision 3 only.
 
 ## Profile bounds and completion
 

@@ -49,6 +49,7 @@ int main(int argc,char **argv) {
         Endpoint server(c,[&](Endpoint::Lease lease){
             ++submitted;const auto &request=lease->request();
             if(request.kind==0)need(endpoint->finish(lease,facts));
+            else if(request.kind==5)need(endpoint->finish(lease,vector(vectors,19)));
             else if(request.kind==3||request.kind==4) {
                 // Owned wire fixture only: no Reader, navigation or native authority.
                 Frame answer;answer.facts=request.facts;
@@ -130,6 +131,21 @@ int main(int argc,char **argv) {
         Endpoint server(c,[&](Endpoint::Lease){++submitted;throw 1;});need(server.start());
         QLocalSocket peer;auto ready=handshake(peer,c,hello);need(peer.write(encode(request(insert,ready,1)))>0);
         need(until([&]{return peer.state()==QLocalSocket::UnconnectedState;}));need(submitted==1);
+    }
+    // Large queued output retains the original request deadline. The peer's
+    // one-byte receive buffer prevents Qt from silently draining the response.
+    {
+        QTemporaryDir directory;auto c=config(directory.path());c.operationBudgetMs=100;
+        const auto large=vector(vectors,20);need(large.capture.png.size()>900000);
+        Endpoint *endpoint=nullptr;unsigned submitted=0;
+        Endpoint server(c,[&](Endpoint::Lease lease){++submitted;need(endpoint->finish(lease,large));});endpoint=&server;
+        need(server.start());QLocalSocket peer;const auto ready=handshake(peer,c,hello);
+        peer.setReadBufferSize(1);need(peer.write(encode(request(vector(vectors,18),ready,1)))>0);
+        need(until([&]{return submitted==1&&peer.bytesAvailable()==1;}));
+        QElapsedTimer elapsed;elapsed.start();need(until([&]{return elapsed.elapsed()>250;}));
+        // A new peer can connect only if the old pending output was retired.
+        QLocalSocket next;const auto nextReady=handshake(next,c,hello);need(nextReady.server!=ready.server);
+        need(submitted==1);peer.abort();
     }
     // Retire the submitting connection inside a nested event loop while the
     // outer read still holds a coalesced Hello. Reentry cannot admit a new peer.

@@ -134,10 +134,12 @@ jobs:
           RESIDENT_MUTATION_OUTPUT="$RUNNER_TEMP/native-mutation" RESIDENT_MUTATION_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_mutation_test.sh
           RESIDENT_PIPELINE_OUTPUT="$RUNNER_TEMP/native-pipeline" RESIDENT_PIPELINE_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_mutation_pipeline_test.sh
           MUTATION_BACKEND_OUTPUT="$RUNNER_TEMP/native-mutation-backend" MUTATION_BACKEND_SANITIZERS=1 sh native/rm2_3_28_0_172/mutation_backend_test.sh
-          RESIDENT_ENDPOINT_BINARY="$RUNNER_TEMP/resident-endpoint/endpoint-test" timeout 30s cargo +1.98.1 test --locked --offline --features native-adapter --test resident_socket -- --ignored
           INSERTION_CONDITION_OUTPUT="$RUNNER_TEMP/native-condition" INSERTION_CONDITION_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_insertion_condition_test.sh
           INSERTION_PREDICATE_OUTPUT="$RUNNER_TEMP/native-predicate" sh native/rm2_3_28_0_172/reader_insertion_guard_predicate_test.sh
           ORDER_OBSERVATION_OUTPUT="$RUNNER_TEMP/native-order" ORDER_OBSERVATION_SANITIZERS=1 sh native/rm2_3_28_0_172/order_observation_test.sh
+          READER_IDENTITY_CAPTURE_OUTPUT="$RUNNER_TEMP/native-identity-capture" READER_IDENTITY_CAPTURE_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_identity_capture_test.sh
+          READER_SOURCE_CAPTURE_OUTPUT="$RUNNER_TEMP/native-source-capture" READER_SOURCE_CAPTURE_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_source_capture_test.sh
+          RESIDENT_ENDPOINT_BINARY="$RUNNER_TEMP/resident-endpoint/endpoint-test" READER_SOURCE_CAPTURE_BINARY="$RUNNER_TEMP/native-source-capture/source-capture-test" RSDK_CAPTURE_IMAGE_OUTPUT="$RUNNER_TEMP/native-source-capture/consumer.png" timeout 60s cargo +1.98.1 test --locked --offline --features native-adapter --test resident_socket -- --ignored
       - name: Verify source staging admission and portable identity
         shell: bash
         run: |

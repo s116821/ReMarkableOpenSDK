@@ -1,5 +1,6 @@
 #pragma once
 #include "order_observation.h"
+#include "reader_source_capture.h"
 #include "reader_insertion_guard_native_profile.h"
 #include "../resident/endpoint.h"
 #include <algorithm>
@@ -43,7 +44,7 @@ public:
         const auto command=lease->request().kind;
         // Mutation is handled by the separately gated resident dispatcher.
         // This observation facade has no diagnostic one-shot fallback.
-        if(command!=0&&command!=2&&command!=4){reject(0);return;}
+        if(command!=0&&command!=2&&command!=4&&command!=5){reject(0);return;}
         const QPointer<QQuickWindow> window(qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow()));
         const QPointer<QQmlEngine> engine(window?qmlEngine(window):nullptr);
         const auto permit=[&]{
@@ -52,6 +53,17 @@ public:
                 QGuiApplication::focusWindow()==window&&qmlEngine(window)==engine;
         };
         if(!permit()){reject(3);return;}
+        if(command==5) {
+            const auto remaining=std::chrono::duration_cast<std::chrono::milliseconds>(lease->deadline()-std::chrono::steady_clock::now()).count();
+            if(remaining<1)return;
+            auto captured=captureSource(window,lease->request().facts,permit,int(std::min(qint64(20000),qint64(remaining))));
+            if(!permit())return;
+            if(!captured.captured()){reject(3);return;}
+            auto response=captureReply(std::move(captured));
+            // Read-only; no mutation/selection reservation is retired here.
+            if(permit())endpoint->finish(lease,std::move(response));
+            return;
+        }
         OrderObservation order;
         const auto selected=reader_selected::observeCreationJoin(window,permit,reader_selected::MaxObservationMs,{},
             [&](QObject *,QObject *document,QObject *,const QVariant &actualId,

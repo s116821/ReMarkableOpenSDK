@@ -23,7 +23,9 @@ the exact native profile and consumer before capability qualification.
 ## Wire and connection
 
 Select a local Unix stream with asynchronous Qt-side reads. Use a four-byte
-big-endian payload length and a maximum 65536-byte frame. All integers are
+big-endian payload length and a maximum 65536-byte control payload. Only revision
+3 capture replies may use 1048576 PNG bytes and a 1114112-byte payload. All bounds
+exclude the four-byte prefix. All integers are
 big-endian and all fields have one binary representation. No pointers, arbitrary
 commands, filenames or native addresses are protocol inputs. Unknown versions,
 tags, trailing bytes, invalid UUIDs, duplicate order IDs, invalid counts and
@@ -83,7 +85,7 @@ tests it separately, including a Rust Session talking to the real Qt socket.
 ### Canonical binary schema
 
 The length prefix excludes itself. Each payload starts with ASCII `RSDK` then
-u16 protocol revision 2. It continues with three 32-byte digests (profile,
+u16 protocol revision 3. It continues with three 32-byte digests (profile,
 executable, adapter), boot UUID (16 bytes), PID (u32), start ticks (u64), activation
 UUID (16 bytes), client connection UUID (16 bytes), server nonce (16 bytes), request sequence (u64), operation UUID
 (16 bytes), then one message tag. UUIDs use their 16 canonical bytes and cannot be
@@ -93,7 +95,7 @@ each frame. No platform word sizes or native endianness appear on the wire.
 Message tags: 0 Hello, 1 Ready, 2 Request, 3 Response. Hello/Ready contain no body
 and require sequence zero. Request/Response require a nonzero sequence.
 Requests contain a command byte: 0 Observe; 1 InsertAfter; 2 Reconcile;
-3 SelectAdjacent; 4 ReconcileSelection.
+3 SelectAdjacent; 4 ReconcileSelection; 5 CaptureSource (expected facts only).
 InsertAfter/Reconcile then contain source facts and intended target UUID.
 SelectAdjacent/ReconcileSelection contain original expected facts and an existing
 target UUID equal to the expected current page or immediate successor. They never
@@ -109,13 +111,25 @@ request, then a result byte: 0 Observed (facts); 1 InsertionObserved (document U
 target UUID, order count/IDs); 2 Reconciled (current facts and a strict 0/1
 target-present byte); 3 Rejected (reason byte); 4 Indeterminate (no body);
 5 TargetObserved (facts); 6 SelectionReconciled (current facts and strict 0/1
-target-present byte). TargetObserved must name the original target/document and
+target-present byte); 7 Captured. TargetObserved must name the original target/document and
 unchanged expected order. SelectionReconciled retains original-document identity
 and a presence bit matching its observed order; it never settles effect ambiguity.
 Rejection reasons are 0 Unsupported, 1 BeforeDispatch, 2 ExecutorBeforeMutation,
 3 UnknownIdentity and 4 Capacity. Future variants require a protocol revision.
 No trailing or optional bytes are accepted. Insertion result validation requires
 exactly the intended target and original order with one insertion after source.
+
+Captured contains before facts, after facts, width/height (u32 each), IEEE-754
+binary64 DPR bits (u64), procedure byte 1 (`rm2-reader-identity-full-order-png-v1`),
+32 raw SHA-256 bytes, PNG length (u32) and exactly that many PNG bytes. Both fact
+samples must equal the request, with at most 17 pages. DPR must be finite and
+positive; each dimension is 1..1872, with at most 2628288 pixels. The Qt codec
+validates the bounded envelope, header dimensions and digest. Rust additionally
+validates a complete static PNG container and fully decodes it under a 10513152
+byte allocation limit before constructing immutable `HistoricalCapture` evidence.
+It cannot construct operational `PageObservation` or write authority. Queued
+output retains the original request deadline until drained; large replies do not
+extend that deadline or admit a second request while output remains queued.
 
 ## Mutation handling
 
@@ -363,4 +377,10 @@ source-package containment and unchanged synthetic behavior must keep passing.
 
 ### Wire revision compatibility
 
-Revision 2 adds explicit adjacent selection and read-only selection reconciliation. Revision 1 frames are rejected, including historical attempt frames stored by a revision 1 consumer. A consumer upgrade must preserve that journal and refuse effect dispatch until a separately reviewed compatibility path can read its original bytes and digest without reinterpretation. Do not rewrite, reset or silently discard old attempts. The Buddy integration remains pinned to the revision 1 SDK while that consumer change is pending. This source addition does not enable native selection dispatch.
+Revision 2 added adjacent selection and read-only selection reconciliation;
+revision 3 adds historical capture. Live transport rejects older revisions.
+`HistoricalFrame` separately preserves original revision 1/2/3 journal bytes,
+grammars and digests. Consumer upgrades must validate those original bytes and
+retain unresolved effects; they cannot rewrite, reset, replay or silently drop
+old attempts. The Buddy pin and integrated workflow require their own coordinated
+validation. These source additions do not enable native selection dispatch.

@@ -3,6 +3,8 @@
 use remarkable_open_sdk::native_adapter::*;
 use remarkable_open_sdk::{OperationId, PageKey, Uuid};
 use std::{fs, path::PathBuf};
+#[path = "support/resident_capture.rs"]
+mod capture_support;
 
 fn id(n: u32) -> Uuid {
     Uuid::parse(&format!("00000000-0000-0000-0000-{n:012x}")).unwrap()
@@ -104,7 +106,7 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap(),
         ),
         Reply::SelectionReconciled {
-            current: facts,
+            current: facts.clone(),
             target_present: true,
         },
     ] {
@@ -118,6 +120,34 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
             },
         });
     }
+    let capture_request = Frame {
+        scope: scope.clone(),
+        sequence: 1,
+        operation: OperationId(id(31)),
+        message: Message::Request(Command::CaptureSource(facts.clone())),
+    };
+    let captured = capture_support::capture(facts, 160, 120);
+    frames.push(capture_request.clone());
+    frames.push(Frame {
+        message: Message::Response {
+            request_sha256: capture_request.fingerprint().unwrap(),
+            reply: Reply::Captured(captured),
+        },
+        ..capture_request
+    });
+    let mut large = frames[19].clone();
+    let Message::Response { reply, .. } = &mut large.message else {
+        unreachable!()
+    };
+    let Reply::Captured(previous) = reply else {
+        unreachable!()
+    };
+    *reply = Reply::Captured(capture_support::capture(
+        previous.before().clone(),
+        480,
+        480,
+    ));
+    frames.push(large);
     for (index, frame) in frames.iter().enumerate() {
         let bytes = frame.encode().unwrap();
         assert_eq!(Frame::decode(&bytes[4..]).unwrap(), *frame);

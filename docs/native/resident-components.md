@@ -107,6 +107,28 @@ not provide that verification. Consumer integration is tracked separately.
 
 ## Owned verification
 
+The resident read-only route now accepts revision-3 `CaptureSource` requests.
+`reader_source_capture.h` composes the imported identity capture with complete
+order samples inside both guarded source callbacks. Partial PNG encoding stays
+private; final owner loss, cancellation or reentry prevents publication. The
+producer retains its lifetime guard through byte extraction and digest checking.
+Its explicit 17-page bound includes the post-insertion representation; this
+extension still needs native qualification.
+
+`HistoricalCapture` carries the bounded PNG, two historical source samples,
+dimensions, DPR, digest and named procedure. The Rust constructor fully decodes
+the PNG under memory limits. It does not construct `PageObservation` or a write
+lease. Protocol 1/2 journal decoding retains original bytes; live transport uses
+revision 3 and keeps ordinary controls at 64 KiB. Only capture replies receive
+the 1 MiB PNG plus 64 KiB payload allowance. Queued output preserves the request
+deadline. Profile discovery and mutation enablement remain unchanged.
+
+An owned Qt window now exercises the actual grab/encoder, modeled Reader joins,
+real full-order reader, production reply mapping, authenticated socket and Rust
+consumer together. Pixel-by-pixel comparison checks the received PNG; changing
+the final order returns a refusal after encoding. This is fixture evidence, not
+an actual tablet Reader capture or installed Buddy workflow.
+
 The order-reader fixture reuses the original Qt document models and exercises
 1–17 pages, malformed selections, duplicate/reordered IDs, inverse-map faults,
 permit loss at every getter, reentrancy, wrapper deletion and foreign engines.

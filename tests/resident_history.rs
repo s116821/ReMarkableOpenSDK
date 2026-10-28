@@ -4,6 +4,39 @@ use remarkable_open_sdk::native_adapter::*;
 
 const REQUEST: &[u8] = include_bytes!("fixtures/resident-history/v1-insertion.bin");
 const RESPONSE: &[u8] = include_bytes!("fixtures/resident-history/v1-insertion-observed.bin");
+const V2_REQUEST: &[u8] = include_bytes!("fixtures/resident-history/v2-insertion.bin");
+const V2_RESPONSE: &[u8] = include_bytes!("fixtures/resident-history/v2-insertion-observed.bin");
+const V2_SELECTION: &[u8] = include_bytes!("fixtures/resident-history/v2-selection.bin");
+
+#[test]
+fn original_v2_insertion_and_selection_bytes_survive_upgrade() {
+    for bytes in [V2_REQUEST, V2_RESPONSE, V2_SELECTION] {
+        let historical = HistoricalFrame::decode(bytes).unwrap();
+        assert_eq!(historical.wire_revision(), 2);
+        assert_eq!(historical.encoded(), bytes);
+        assert_ne!(
+            historical.fingerprint(),
+            historical.frame().fingerprint().unwrap()
+        );
+        assert_eq!(
+            Frame::decode(&bytes[4..]),
+            Err(ProtocolError::UnsupportedVersion)
+        );
+    }
+    let request = HistoricalFrame::decode(V2_REQUEST).unwrap();
+    let response = HistoricalFrame::decode(V2_RESPONSE).unwrap();
+    let Message::Response { request_sha256, .. } = response.frame().message else {
+        panic!()
+    };
+    assert_eq!(request_sha256, request.fingerprint());
+    assert!(matches!(
+        HistoricalFrame::decode(V2_SELECTION)
+            .unwrap()
+            .frame()
+            .message,
+        Message::Request(Command::SelectAdjacent(_))
+    ));
+}
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -121,7 +154,7 @@ fn malformed_or_unknown_history_refuses_without_truncation() {
         let length = (trailing.len() - 4) as u32;
         trailing[..4].copy_from_slice(&length.to_be_bytes());
         assert!(HistoricalFrame::decode(&trailing).is_err());
-        for revision in [0u16, 3, u16::MAX] {
+        for revision in [0u16, 4, u16::MAX] {
             let mut unsupported = bytes.to_vec();
             unsupported[8..10].copy_from_slice(&revision.to_be_bytes());
             assert_eq!(
@@ -134,7 +167,7 @@ fn malformed_or_unknown_history_refuses_without_truncation() {
         assert!(HistoricalFrame::decode(&wrong_magic).is_err());
     }
     assert_eq!(
-        HistoricalFrame::decode(&vec![0; MAX_FRAME + 5]),
+        HistoricalFrame::decode(&vec![0; MAX_CAPTURE_FRAME + 5]),
         Err(ProtocolError::TooLarge)
     );
 }
