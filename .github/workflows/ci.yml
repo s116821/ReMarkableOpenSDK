@@ -33,8 +33,6 @@ jobs:
     if: ${{ !cancelled() && (github.event_name == 'push' || needs.title.result == 'success') && needs.title.outputs.body_only != 'true' }}
     outputs:
       application: ${{ steps.admission.outputs.application }}
-      uploader_artifact_id: ${{ steps.uploader_artifacts.outputs.artifact-id }}
-      uploader_provenance_sha: ${{ steps.uploader.outputs.provenance_sha256 }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -80,15 +78,15 @@ jobs:
           path: .ci-paths-filter
           persist-credentials: false
       - name: Exercise actual maintained path classification
-        run: node --test tools/ci_paths.test.mjs
+        run: node --test scripts/ci_paths.test.mjs
         env:
           PATHS_FILTER_ACTION: ${{ github.workspace }}/.ci-paths-filter/dist/index.js
       - name: Validate specifications
         run: npx --yes @fission-ai/openspec@1.2.0 validate --all --strict --no-interactive
       - name: Verify collector refusal and privacy boundaries
-        run: python -m unittest discover -s tools -p test_rm1_baseline.py -v
+        run: python -m unittest discover -s scripts -p test_rm1_baseline.py -v
       - name: Check Python syntax
-        run: python -m py_compile tools/collect_rm1_baseline.py tools/test_rm1_baseline.py
+        run: python -m py_compile scripts/collect_rm1_baseline.py scripts/test_rm1_baseline.py
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         if: steps.admission.outputs.application == 'true'
         with:
@@ -104,22 +102,22 @@ jobs:
           cargo fetch --locked --manifest-path tests/fixtures/consumer-boundary/Cargo.toml
           cargo +1.88.0 test --locked --offline --all-features
           cargo +1.98.1 fmt --all -- --check
-          rustfmt --check release/sdk_consumer_probe.rs
+          rustfmt --check cicd/release/sdk_consumer_probe.rs
           cargo +1.98.1 clippy --locked --offline --all-targets --all-features -- -D warnings
-          python tools/check_consumer_boundary.py --toolchain 1.88.0
-          python tools/check_consumer_boundary.py --toolchain 1.98.1
-          python tools/check_identity_package.py
-          python tools/test_package_contents.py -v
+          python scripts/check_consumer_boundary.py --toolchain 1.88.0
+          python scripts/check_consumer_boundary.py --toolchain 1.98.1
+          python scripts/check_identity_package.py
+          python scripts/test_package_contents.py -v
           cargo +1.98.1 fmt --manifest-path tests/fixtures/consumer-boundary/Cargo.toml --all -- --check
           git diff --exit-code
       - name: Verify source staging admission and portable identity
         shell: bash
         run: |
-          python -m unittest discover -s release -p test_stage_admission.py -v
-          python -m unittest discover -s release -p test_candidate_admission.py -v
-          python -m unittest discover -s release -p test_portable_stage.py -v
-          python -m unittest discover -s release -p test_cargo_consumer.py -v
-          python -m unittest discover -s release -p test_current_git_consumer.py -v
+          python -m unittest discover -s cicd/release -p test_stage_admission.py -v
+          python -m unittest discover -s cicd/release -p test_candidate_admission.py -v
+          python -m unittest discover -s cicd/release -p test_portable_stage.py -v
+          python -m unittest discover -s cicd/release -p test_cargo_consumer.py -v
+          python -m unittest discover -s cicd/release -p test_current_git_consumer.py -v
           git diff --exit-code
         env:
           SDK_FIXTURE_CARGO: cargo
@@ -128,112 +126,59 @@ jobs:
       - name: Verify generated packages and retained artifact identities
         shell: bash
         run: |
-          python -m unittest discover -s release -p test_generated_package_lock.py -v
-          python -m unittest discover -s release -p test_package_inventory.py -v
-          python -m unittest discover -s release -p test_verify_assets.py -v
+          python -m unittest discover -s cicd/release -p test_generated_package_lock.py -v
+          python -m unittest discover -s cicd/release -p test_package_inventory.py -v
+          python -m unittest discover -s cicd/release -p test_verify_assets.py -v
           git diff --exit-code
         env:
           SDK_FIXTURE_CARGO: cargo
           PYTHONDONTWRITEBYTECODE: "1"
         if: steps.admission.outputs.application == 'true'
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          repository: amannn/action-semantic-pull-request
-          ref: 48f256284bd46cdaab1048c3721360e808335d50
-          path: .ci-semantic-pr
-          persist-credentials: false
-        if: steps.admission.outputs.application == 'true'
       - name: Install and audit exact maintained tool graph
         shell: bash
         run: |
           python -m venv "$RUNNER_TEMP/sdk-semantic-tools"
-          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r cicd/release/python-tools.lock
           "$RUNNER_TEMP/sdk-semantic-tools/bin/pip-audit"
         if: steps.admission.outputs.application == 'true'
-      - name: Qualify actual upstream semantic CLI and current-title Action
+      - name: Verify configured semantic release policy
         shell: bash
         run: |
-          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s release -p python_semantic_release_fixtures.py -v
-          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s release -p test_semantic_metadata.py -v
-          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s release -p test_commit_eligibility.py -v
-          node --test release/titles.test.mjs
-          node --test release/release-assets.test.cjs
+          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s cicd/release -p python_semantic_release_fixtures.py -v
+          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s cicd/release -p test_semantic_metadata.py -v
+          "$RUNNER_TEMP/sdk-semantic-tools/bin/python" -m unittest discover -s cicd/release -p test_commit_eligibility.py -v
+          node --test cicd/release/release-assets.test.cjs
           git diff --exit-code
         env:
           PYTHON_SEMANTIC_RELEASE: ${{ runner.temp }}/sdk-semantic-tools/bin/semantic-release
-          SEMANTIC_PR_ACTION: ${{ github.workspace }}/.ci-semantic-pr/dist/index.js
           PYTHONDONTWRITEBYTECODE: "1"
         if: steps.admission.outputs.application == 'true'
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        if: steps.admission.outputs.application == 'true'
-        with:
-          repository: svenstaro/upload-release-action
-          ref: 29e53e917877a24fad85510ded594ab3c9ca12de
-          path: .ci-uploader
-          persist-credentials: false
-      - name: Build and audit the exact maintained uploader recipe
-        id: uploader
-        if: steps.admission.outputs.application == 'true'
-        run: |
-          python release/qualify_uploader.py --source .ci-uploader --output "$RUNNER_TEMP/qualified-sdk-uploader"
-          python release/qualify_uploader.py --output "$RUNNER_TEMP/qualified-sdk-uploader" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc
-      - name: Exercise the emitted uploader against an owned loopback API
-        if: steps.admission.outputs.application == 'true'
-        run: node --test release/fixtures/uploader.test.mjs
-        env:
-          UPLOADER_ACTION: ${{ runner.temp }}/qualified-sdk-uploader
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        id: uploader_artifacts
-        if: steps.admission.outputs.application == 'true'
-        with:
-          name: verified-sdk-uploader-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/qualified-sdk-uploader/
-          if-no-files-found: error
-          retention-days: 7
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        if: steps.admission.outputs.application == 'true'
-        with:
-          repository: octokit/graphql-action
-          ref: ddde8ebb2493e79f390e6449c725c21663a67505
-          path: .ci-release-graphql
-          persist-credentials: false
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        if: steps.admission.outputs.application == 'true'
-        with:
-          repository: octokit/request-action
-          ref: b91aabaa861c777dcdb14e2387e30eddf04619ae
-          path: .ci-release-request
-          persist-credentials: false
       - name: Qualify actual compact workflow graph
         if: steps.admission.outputs.application == 'true'
         run: |
-          npm ci --prefix tools/ci-fixtures --ignore-scripts --no-audit --no-fund
-          npm audit --prefix tools/ci-fixtures --audit-level=low
-          node --test tools/ci-fixtures/pipeline.test.mjs
-          node --test tools/ci-fixtures/release-actions.test.mjs
-        env:
-          GRAPHQL_ACTION: ${{ github.workspace }}/.ci-release-graphql/dist/index.js
-          REQUEST_ACTION: ${{ github.workspace }}/.ci-release-request/dist/index.js
+          npm ci --prefix scripts/ci-fixtures --ignore-scripts --no-audit --no-fund
+          npm audit --prefix scripts/ci-fixtures --audit-level=low
+          node --test scripts/ci-fixtures/pipeline.test.mjs
       - name: Require actual application main message eligibility
         if: github.event_name == 'push' && steps.admission.outputs.application == 'true'
         shell: bash
         env:
           SOURCE: ${{ github.sha }}
           PYTHONDONTWRITEBYTECODE: "1"
-        run: '"$RUNNER_TEMP/sdk-semantic-tools/bin/python" release/check_commit.py --sha "$SOURCE"'
+        run: '"$RUNNER_TEMP/sdk-semantic-tools/bin/python" cicd/release/check_commit.py --sha "$SOURCE"'
       - name: Observe exact merged main PR without release writes
         if: github.event_name == 'push' && steps.admission.outputs.application == 'true'
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553
         with:
-          script: await require('./release/release-assets.cjs')({github,context,core})
+          script: await require('./cicd/release/release-assets.cjs')({github,context,core})
         env:
           ELIGIBILITY_ONLY: "true"
           RELEASE_SOURCE: ${{ github.sha }}
       - name: Host strict build and sanitizer-backed metadata fixtures
         run: |
           set -e
-          cc -std=c11 -Wall -Wextra -Werror -pedantic tools/rm1_input_geometry.c -o "$RUNNER_TEMP/rm1-probe"
-          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined tools/rm1_input_geometry_test.c -o "$RUNNER_TEMP/rm1-fixtures"
+          cc -std=c11 -Wall -Wextra -Werror -pedantic scripts/rm1_input_geometry.c -o "$RUNNER_TEMP/rm1-probe"
+          cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined scripts/rm1_input_geometry_test.c -o "$RUNNER_TEMP/rm1-fixtures"
           "$RUNNER_TEMP/rm1-fixtures"
           set +e
           "$RUNNER_TEMP/rm1-probe" --invalid > "$RUNNER_TEMP/refusal"
@@ -249,7 +194,7 @@ jobs:
         run: |
           mkdir "$RUNNER_TEMP/rm1-arm"
           docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=32m --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
-            -v "$GITHUB_WORKSPACE/tools:/source:ro" -v "$RUNNER_TEMP/rm1-arm:/output" \
+            -v "$GITHUB_WORKSPACE/scripts:/source:ro" -v "$RUNNER_TEMP/rm1-arm:/output" \
             ghcr.io/cross-rs/armv7-unknown-linux-gnueabihf@sha256:4a08bebb60f08d52c1885b643a768f163c7318c05f91cf119f6c02855ea52699 \
             sh -c 'set -e; arm-linux-gnueabihf-gcc -std=c11 -Wall -Wextra -Werror -pedantic -O2 -static /source/rm1_input_geometry.c -o /output/probe; arm-linux-gnueabihf-gcc -std=c11 -Wall -Wextra -Werror -pedantic -O2 -static /source/rm1_input_geometry_test.c -o /output/fixtures; qemu-arm /output/fixtures'
           sha256sum "$RUNNER_TEMP/rm1-arm/probe"
@@ -270,9 +215,9 @@ jobs:
       - name: Verify source staging admission and portable identity
         shell: bash
         run: |
-          python -m unittest discover -s release -p test_stage_admission.py -v
-          python -m unittest discover -s release -p test_candidate_admission.py -v
-          python -m unittest discover -s release -p test_portable_stage.py -v
+          python -m unittest discover -s cicd/release -p test_stage_admission.py -v
+          python -m unittest discover -s cicd/release -p test_candidate_admission.py -v
+          python -m unittest discover -s cicd/release -p test_portable_stage.py -v
           git diff --exit-code
         env:
           PYTHONDONTWRITEBYTECODE: "1"
@@ -304,7 +249,7 @@ jobs:
       - name: Install the already-audited hash-locked calculator
         run: |
           python -m venv "$RUNNER_TEMP/sdk-tools"
-          "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r cicd/release/python-tools.lock
       - name: Calculate unofficial candidate from frozen Git history
         id: version
         shell: bash
@@ -314,7 +259,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE"
           git for-each-ref refs/tags > "$RUNNER_TEMP/tags-before"
           git checkout -B main "$SOURCE"
-          tag=$("$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c release/python-semantic-release.toml --strict version --print-tag --no-commit --no-tag --no-changelog --skip-build --no-push --no-vcs-release)
+          tag=$("$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c cicd/release/python-semantic-release.toml --strict version --print-tag --no-commit --no-tag --no-changelog --skip-build --no-push --no-vcs-release)
           CANDIDATE="$tag" python -c 'import os,re; assert re.fullmatch(r"v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)",os.environ["CANDIDATE"])'
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           test "$(git rev-parse HEAD)" = "$SOURCE"
@@ -329,7 +274,7 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
-          python release/candidate_artifacts.py build --source . --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate"
+          python cicd/release/candidate_artifacts.py build --source . --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sdk-candidate-${{ github.sha }}-${{ github.run_attempt }}
@@ -360,19 +305,6 @@ jobs:
           path: ${{ runner.temp }}/sdk-candidate
           artifact-ids: ${{ needs.build.outputs.artifact_id }}
           merge-multiple: true
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          path: ${{ runner.temp }}/qualified-sdk-uploader
-          artifact-ids: ${{ needs.checks.outputs.uploader_artifact_id }}
-          merge-multiple: true
-      - name: Verify the retained uploader against trusted Checks provenance
-        env:
-          SDK_UPLOADER_FIXTURE: ${{ runner.temp }}/qualified-sdk-uploader
-          SDK_UPLOADER_PROVENANCE_SHA: ${{ needs.checks.outputs.uploader_provenance_sha }}
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: |
-          python release/qualify_uploader.py --output "$SDK_UPLOADER_FIXTURE" --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc --expected-provenance "$SDK_UPLOADER_PROVENANCE_SHA"
-          python -m unittest discover -s release -p test_uploader_transfer.py -v
       - name: Verify and execute the retained external SDK consumer
         shell: bash
         env:
@@ -384,8 +316,8 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
           test "$SOURCE" = "$GITHUB_SHA"
-          python release/candidate_artifacts.py integration --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
-          python -m unittest discover -s release -p test_candidate_artifacts.py -v
+          python cicd/release/candidate_artifacts.py integration --sha "$SOURCE" --tag "$TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
+          python -m unittest discover -s cicd/release -p test_candidate_artifacts.py -v
           test -z "$(git status --porcelain)"
     name: ${{ needs.title.outputs.body_only == 'true' && 'PR metadata (no SDK integration)' || 'Integration' }}
     if: ${{ !cancelled() && needs.checks.result == 'success' && needs.build.result == 'success' && needs.checks.outputs.application == 'true' }}
@@ -414,11 +346,6 @@ jobs:
           artifact-ids: ${{ needs.build.outputs.artifact_id }}
           merge-multiple: true
           path: ${{ runner.temp }}/sdk-candidate
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          artifact-ids: ${{ needs.checks.outputs.uploader_artifact_id }}
-          merge-multiple: true
-          path: .qualified/uploader
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
@@ -430,37 +357,35 @@ jobs:
           test "$RELEASE_SOURCE" = "$GITHUB_SHA"
           test "$RELEASE_SOURCE" = "$BUILT_SOURCE"
           echo "EXPECTED_MANIFEST=$RUNNER_TEMP/sdk-candidate/release/manifest.json" >> "$GITHUB_ENV"
-          python release/qualify_uploader.py --output ../.qualified/uploader --expected-bundle 379dc8bce8a264c2f2badae81199160fbd485ef118d63ade01fd2113a2e1b2bc --expected-provenance "$UPLOADER_PROVENANCE"
-          python release/candidate_artifacts.py verify --sha "$RELEASE_SOURCE" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
+          python cicd/release/candidate_artifacts.py verify --sha "$RELEASE_SOURCE" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/sdk-candidate" --receipt-sha "$RECEIPT"
         env:
           RECEIPT: ${{ needs.build.outputs.receipt_sha }}
           BUILT_SOURCE: ${{ needs.build.outputs.source_sha }}
-          UPLOADER_PROVENANCE: ${{ needs.checks.outputs.uploader_provenance_sha }}
       - name: Require exact merged main PR before any official tag
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
-          script: await require('./sdk/release/release-assets.cjs')({github,context,core})
+          script: await require('./sdk/cicd/release/release-assets.cjs')({github,context,core})
         env:
           ELIGIBILITY_ONLY: 'true'
       - name: Install the already-audited maintained tagger
         run: |
           python -m venv "$RUNNER_TEMP/sdk-tools"
-          "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r release/python-tools.lock
+          "$RUNNER_TEMP/sdk-tools/bin/python" -m pip install --require-hashes --only-binary=:all: -r cicd/release/python-tools.lock
       - name: Bind official tag only after predecessor success
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$RELEASE_SOURCE"
           git checkout -B main "$RELEASE_SOURCE"
-          "$RUNNER_TEMP/sdk-tools/bin/python" release/check_commit.py --sha "$RELEASE_SOURCE"
+          "$RUNNER_TEMP/sdk-tools/bin/python" cicd/release/check_commit.py --sha "$RELEASE_SOURCE"
           observed=$(git ls-remote origin "refs/tags/$RELEASE_TAG" "refs/tags/$RELEASE_TAG^{}")
           if test -z "$observed"; then
-            candidate=$("$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c release/python-semantic-release.toml --strict version --print-tag --no-commit --no-tag --no-changelog --skip-build --no-push --no-vcs-release)
+            candidate=$("$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c cicd/release/python-semantic-release.toml --strict version --print-tag --no-commit --no-tag --no-changelog --skip-build --no-push --no-vcs-release)
             test "$candidate" = "$RELEASE_TAG"
-            "$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c release/python-semantic-release.toml --strict version --no-commit --no-changelog --skip-build --push --no-vcs-release
+            "$RUNNER_TEMP/sdk-tools/bin/semantic-release" -c cicd/release/python-semantic-release.toml --strict version --no-commit --no-changelog --skip-build --push --no-vcs-release
           fi
           python -c 'import os; from remote_identity import verify_remote_tag; verify_remote_tag(".",os.environ["RELEASE_TAG"],os.environ["RELEASE_SOURCE"])'
         env:
-          PYTHONPATH: release
+          PYTHONPATH: cicd/release
       - name: Observe exact release by tag, including an older draft
         id: lookup
         uses: octokit/graphql-action@ddde8ebb2493e79f390e6449c725c21663a67505 # v3.0.2
@@ -482,7 +407,7 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
-            const helper = require('./sdk/release/release-assets.cjs');
+            const helper = require('./sdk/cicd/release/release-assets.cjs');
             const value = helper.observe(JSON.parse(process.env.OBSERVATION),process.env.RELEASE_TAG);
             for (const [key,item] of Object.entries(value)) core.setOutput(key,item);
         env:
@@ -506,7 +431,7 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
-            const helper = require('./sdk/release/release-assets.cjs');
+            const helper = require('./sdk/cicd/release/release-assets.cjs');
             const id = process.env.ABSENT === 'true'
               ? helper.created(JSON.parse(process.env.CREATED),process.env.STATUS,process.env.RELEASE_TAG)
               : process.env.OBSERVED_ID;
@@ -521,7 +446,7 @@ jobs:
         id: retained
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
-          script: await require('./sdk/release/release-assets.cjs')({github,context,core})
+          script: await require('./sdk/cicd/release/release-assets.cjs')({github,context,core})
         env:
           RETAINED_DIRECTORY: ${{ runner.temp }}/retained-before
       - name: Refuse conflicting bytes and select only missing assets
@@ -529,14 +454,14 @@ jobs:
         run: |
           python -c 'import json,os,pathlib,shutil; from verify_assets import verify_downloaded_assets; manifest=json.load(open(os.environ["EXPECTED_MANIFEST"])); retained=pathlib.Path(os.environ["RETAINED"]); verify_downloaded_assets(manifest,retained,require_complete=False); names=[e["name"] for e in manifest["distributions"]]+["manifest.json"]; missing=[name for name in names if not (retained/name).exists()]; destination=pathlib.Path(os.environ["MISSING_DIRECTORY"]); destination.mkdir(mode=0o700); [shutil.copyfile(pathlib.Path(os.environ["BUILT_ASSETS"])/name,destination/name) for name in missing]; output=open(os.environ["GITHUB_OUTPUT"],"a"); output.write("files="+";".join(missing)+"\n")'
         env:
-          PYTHONPATH: release
+          PYTHONPATH: cicd/release
           RETAINED: ${{ runner.temp }}/retained-before
           BUILT_ASSETS: ${{ runner.temp }}/sdk-candidate/release
           MISSING_DIRECTORY: ${{ runner.temp }}/sdk-missing-assets
       - name: Upload only verified missing names to the exact private draft
         id: upload
         if: steps.retained.outputs.published != 'true' && steps.missing.outputs.files != ''
-        uses: ./.qualified/uploader
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
         with:
           release_id: ${{ steps.release_identity.outputs.id }}
           repo_token: ${{ github.token }}
@@ -559,7 +484,7 @@ jobs:
       - name: Download full uploaded set for verification
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
-          script: await require('./sdk/release/release-assets.cjs')({github,context,core})
+          script: await require('./sdk/cicd/release/release-assets.cjs')({github,context,core})
         env:
           REQUIRE_COMPLETE: 'true'
           RETAINED_DIRECTORY: ${{ runner.temp }}/retained-complete
@@ -568,7 +493,7 @@ jobs:
           python -c 'import json,os; from verify_assets import verify_downloaded_assets; verify_downloaded_assets(json.load(open(os.environ["EXPECTED_MANIFEST"])),os.environ["RETAINED"])'
           python -c 'import os; from remote_identity import verify_remote_tag; verify_remote_tag(".",os.environ["RELEASE_TAG"],os.environ["RELEASE_SOURCE"])'
         env:
-          PYTHONPATH: release
+          PYTHONPATH: cicd/release
           RETAINED: ${{ runner.temp }}/retained-complete
       - name: Re-observe exact release immediately before finalization
         id: final_lookup
@@ -591,7 +516,7 @@ jobs:
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
-            const value = require('./sdk/release/release-assets.cjs').observe(JSON.parse(process.env.OBSERVATION),process.env.RELEASE_TAG,process.env.RELEASE_ID);
+            const value = require('./sdk/cicd/release/release-assets.cjs').observe(JSON.parse(process.env.OBSERVATION),process.env.RELEASE_TAG,process.env.RELEASE_ID);
             core.setOutput('published',value.published);
         env:
           OBSERVATION: ${{ steps.final_lookup.outputs.data }}

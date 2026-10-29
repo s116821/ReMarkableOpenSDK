@@ -8,5 +8,5 @@ application:
   - '!CHANGELOG.md'
   - '!SECURITY.md'
   - '!docs/**'
-  - '!release/README.md'
+  - '!cicd/release/README.md'
   - '!openspec/**/*.md'

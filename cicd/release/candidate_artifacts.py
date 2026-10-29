@@ -53,7 +53,7 @@ def build(source, sha, tag, output, cargo='cargo'):
     host = stage_dir / 'target' / TARGETS[0] / 'release'
     probe = probes / 'sdk-consumer-probe'
     command(source, 'rustc', '--edition=2024', '--target', TARGETS[0],
-            str(source / 'release/sdk_consumer_probe.rs'),
+            str(source / 'cicd/release/sdk_consumer_probe.rs'),
             '--extern', 'remarkable_open_sdk=' + str(host / stem),
             '-L', 'dependency=' + str(host / 'deps'),
             '-L', 'dependency=' + str(stage_dir / 'target/release/deps'), '-o', str(probe),

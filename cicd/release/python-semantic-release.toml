@@ -27,7 +27,7 @@ path_filters = [
   "!SECURITY.md",
   "!docs/**",
   "!openspec/**/*.md",
-  "!release/README.md",
+  "!cicd/release/README.md",
 ]
 
 [semantic_release.remote]
