@@ -10,7 +10,7 @@ This qualifies one failure mechanism on the recorded RM2 build.
 ## Source and owned controls
 
 The normal writer remains unchanged. The separate
-[fault source](../../tools/fixed_pen_contact_fault_writer.cpp) is the exact
+[fault source](../../scripts/fixed_pen_contact_fault_writer.cpp) is the exact
 retained native build input, SHA-256
 77b300d489c4267340bfef49104af1b41b8cc266cbba5fb8486575e16b70a1d3.
 Its changes are reversible to the normal writer: a signal include, successful-frame
@@ -19,7 +19,7 @@ label. If signal delivery returns, it exits91 without further input. All existin
 ABI, one-thread, descriptor/device, parent-incarnation, original-budget and sole-GO
 guards remain. The profile returns before device access.
 
-[Owned regression source](../../tools/fixed_pen_contact_fault_fixture.cpp) uses
+[Owned regression source](../../scripts/fixed_pen_contact_fault_fixture.cpp) uses
 actual spawn/exec, FIFOs, pipes, wait status and independent release. Two parent
 background threads remain alive; context/device snapshots are explicit models.
 Host and sanitizer runs each pass one case/27 checks: SIGKILL9, no complete child
@@ -37,7 +37,7 @@ measured one thread, ARM event layout16/8/10/12, and no profile input IO.
 Native-owned archive SHA-256:
 76d20d7725e443916afec067e24f1fe7087501801e8615ae1a8872f503ce7d03.
 
-The [public runner](../../tools/fixed_pen_contact_fault_test.sh) accepts source
+The [public runner](../../scripts/fixed_pen_contact_fault_test.sh) accepts source
 and output directories and host/asan/arm via READER_FIXED_PEN_CONTACT_FAULT_MODE.
 For example, run `sh tools/fixed_pen_contact_fault_test.sh tools /tmp/fault-host`
 in the existing Linux Qt build environment. ARM mode uses the same pinned
@@ -95,7 +95,7 @@ Original trace:
 Independent parent release was armed, attempted, written and observed with
 unknown=false. Same-device, context, initial snapshots/empty queue, final hardware
 snapshot, quiet20ms and device/IPC/trace closure facts pass. Separate
-[pure C++ replay](../../tools/fixed_pen_contact_fault_trace_replay.cpp) consumes
+[pure C++ replay](../../scripts/fixed_pen_contact_fault_trace_replay.cpp) consumes
 the untouched native/host/sanitizer traces and matches all report fields. Its
 owned controls also reject truncated records, SYN_DROPPED and a held final
 snapshot. Byte replay does not independently establish device provenance; the

@@ -16,7 +16,7 @@ Raw private records below are identified by hash; no public download is availabl
 
 ## Borrowed ordinary-call carrier
 
-The [Core](../../tools/reader_insertion_guard_hooks.h) now accepts a separate
+The [Core](../../scripts/reader_insertion_guard_hooks.h) now accepts a separate
 BorrowedExplicitSize policy described in the [caller contract](../../openspec/changes/establish-native-platform-contract/native-insertion-guard-caller-borrowing.md).
 ExactOwned remains the default. Borrowed registration requires no frozen optional
 address, explicit finite positive size, size-present 1 and inherit 0. The actual
@@ -25,8 +25,8 @@ source carrier pass through unchanged. Worker/thread/caller PCs/index/UUID/size,
 scope, deadline, cancellation and the unconditional negative barrier remain.
 This models an independently observed machine contract, not a private C++ type.
 
-The [fixture](../../tools/reader_insertion_guard_hooks_fixture.cpp) and
-[script](../../tools/reader_insertion_guard_hooks_test.sh) pass 48 normal cases /
+The [fixture](../../scripts/reader_insertion_guard_hooks_fixture.cpp) and
+[script](../../scripts/reader_insertion_guard_hooks_test.sh) pass 48 normal cases /
 505 assertions plus 15 fail-stop controls on ARM/QEMU. The original 17/209 cases
 and 15 fail-stop classifications remain equal to the [earlier exact-owned result](insertion-guard-hooks-owned-result.md).
 New cases exercise dynamic stack references, arbitrary full-width source bits,
@@ -43,7 +43,7 @@ of the implementation author; this followup was not independently replayed.
 
 ## One-shot job snapshot
 
-The [snapshot](../../tools/reader_insertion_job_snapshot.h) implements its
+The [snapshot](../../scripts/reader_insertion_job_snapshot.h) implements its
 [separate contract](../../openspec/changes/establish-native-platform-contract/native-insertion-guard-job-snapshot.md):
 checked disjoint storage bounds, exactly one try-lock, one eight-byte copy while
 owned and one unlock. Busy returns without waiting/retrying/unlocking; zero IDs
@@ -51,8 +51,8 @@ refuse. Full unsigned 64-bit IDs stay exact. The consumed context cannot be rene
 Unexpected try-lock/unlock results or throws terminate with 119 directly, including
 uncertain ownership. No logger or supplied failure callback runs in that path.
 
-The [fixture](../../tools/reader_insertion_job_snapshot_fixture.cpp) and
-[script](../../tools/reader_insertion_job_snapshot_test.sh) pass 4 normal cases /
+The [fixture](../../scripts/reader_insertion_job_snapshot_fixture.cpp) and
+[script](../../scripts/reader_insertion_job_snapshot_test.sh) pass 4 normal cases /
 51 checks and 9 exit-119 controls on ARM/QEMU. A real second owned pthread holds
 the busy mutex. Controls cover full-width values, zero/range refusal, throwing
 or failing operations before/after acquisition/unlock and poisoned reporters
@@ -79,7 +79,7 @@ bounds each subprocess. This helper does not link Dobby or create a native owner
 
 ## Owned pre-main loader
 
-The five original [loader sources](../../tools/insertion_guard_owned/loader/build.sh)
+The five original [loader sources](../../scripts/insertion_guard_owned/loader/build.sh)
 implement the [owned startup study](../../openspec/changes/establish-native-platform-contract/native-insertion-guard-loader-study.md).
 A real LD_PRELOAD DSO installs both hooks before the owned executable's main,
 QCoreApplication and owned QThread. One transparent operation on the actual owned
@@ -120,8 +120,8 @@ The script records compiler/provider/ELF outputs and bounds all owned execution.
 
 ## Combined compile/link-only startup
 
-The exact-build [profile](../../tools/reader_insertion_guard_native_profile.cpp)
-and [startup](../../tools/reader_insertion_guard_startup.cpp) implement the
+The exact-build [profile](../../scripts/reader_insertion_guard_native_profile.cpp)
+and [startup](../../scripts/reader_insertion_guard_startup.cpp) implement the
 [profile](../../openspec/changes/establish-native-platform-contract/native-insertion-guard-profile.md)
 and [fixed startup precode](../../openspec/changes/establish-native-platform-contract/native-insertion-guard-transport.md).
 Profile/source review and a strict ARM -Wall/-Wextra/-Werror compile/link pass.

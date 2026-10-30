@@ -35,7 +35,7 @@ this inspector does not receive an actual event record.
 
 Published source revision was
 `d05963c4c33d5f0a413e6ef48a0cc831ca467405`,
-[reader_pen_device_inspect.cpp](../../tools/reader_pen_device_inspect.cpp)
+[reader_pen_device_inspect.cpp](../../scripts/reader_pen_device_inspect.cpp)
 SHA-256`949788e01fa1cc7ba505f0b067cea838a7cfaed33b98fc9306c44ebc697438ad`.
 The vendor-ARM artifact digest was
 `c9ad7ad00f0d5015affef67978091a5a6bc0df120d8ebf8de006deaaf7ebc0c8`.

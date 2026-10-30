@@ -6,7 +6,7 @@ Host, vendor ARM/QEMU and host ASAN+UBSAN each passed32 cases/39 checks with emp
 stderr. Actual Qt/QML methods execute; native Reader discovery and identity joins
 are explicitly modeled. No tablet close or native save/reopen occurred.
 
-The [helper](../../tools/reader_ordinary_close.h) consumes a shared one-use claim
+The [helper](../../scripts/reader_ordinary_close.h) consumes a shared one-use claim
 before callouts. It requires a fresh ready document/page/index/count join, uses
 only the callback-local selected Reader, and checks the public zero-argument
 close slot with QVariant return declared on that exact reader metaobject.
@@ -20,7 +20,7 @@ overrun remains attempted and reports its exceeded original budget. A fresh
 closure/reopen observation and full fixture preservation remain separate work.
 See the [change-specific contract](../../openspec/changes/establish-native-platform-contract/ordinary-reader-close.md).
 
-The [owned fixture](../../tools/reader_ordinary_close_fixture.cpp) invokes an
+The [owned fixture](../../scripts/reader_ordinary_close_fixture.cpp) invokes an
 actual generated QML function on an owned registered QQuickItem. It also covers
 wrong identity/readiness, missing/wrong/inherited methods, cancellation, invalid
 configuration, real wrong-thread entry, duplicate/nested claims and callbacks,
@@ -44,7 +44,7 @@ reader's exact metaobject after its final source guard and before effects; the
 same control now records zero attempts/calls on all three platforms. The earlier
 pass and reproduced failure remain separate from the repaired32/39 result.
 
-Run [reader_ordinary_close_test.sh](../../tools/reader_ordinary_close_test.sh)
+Run [reader_ordinary_close_test.sh](../../scripts/reader_ordinary_close_test.sh)
 against immutable input files and a fresh output directory, selecting
 `READER_ORDINARY_CLOSE_MODE=host`, `arm` or `asan`. The pinned SDK image is
 `sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618`.

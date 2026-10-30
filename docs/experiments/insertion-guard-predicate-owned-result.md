@@ -1,7 +1,7 @@
 # Owned passive insertion-predicate controls
 
-The original [read core](../../tools/reader_insertion_guard_predicate.h) and
-[owned fixture](../../tools/reader_insertion_guard_predicate_fixture.cpp) pass
+The original [read core](../../scripts/reader_insertion_guard_predicate.h) and
+[owned fixture](../../scripts/reader_insertion_guard_predicate_fixture.cpp) pass
 **203 checks on host and 203 on ARM/QEMU**. Independent source/result review
 accepted those controls. No native addresses, hooks, Entry, device objects or
 mutators execute in this fixture.
@@ -29,7 +29,7 @@ lock; injected passive calls retain their own provider/lifetime obligations.
 Exception transport, original native cleanup and native pointer validity are
 not established by these controls.
 
-Run [the focused script](../../tools/reader_insertion_guard_predicate_test.sh)
+Run [the focused script](../../scripts/reader_insertion_guard_predicate_test.sh)
 in the repository root with public Qt Core. Its optional QT_PROBE_SDK_ENV uses
 the existing ARM toolchain and QEMU path. The recorded runs used SDK image
 `sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618`.

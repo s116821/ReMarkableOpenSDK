@@ -1,6 +1,6 @@
 # Observing a closed Reader through its known UI composition
 
-The new [observer](../../tools/reader_closed_view.h) reports a sampled closed
+The new [observer](../../scripts/reader_closed_view.h) reports a sampled closed
 document state through the known legacy MainView composition. A missing Reader,
 hidden Loader, loading state or inactive document flag alone is insufficient.
 This source/owned result does not qualify a native close or acknowledge saved ink.

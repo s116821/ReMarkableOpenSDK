@@ -8,7 +8,7 @@ occurred in these controls.
 
 ## What the policy establishes
 
-The [header](../../tools/reader_fixed_stroke_policy.h) constructs one fixed
+The [header](../../scripts/reader_fixed_stroke_policy.h) constructs one fixed
 56-frame/178-record path and a separate five-record release group without X/Y
 movement or eraser events. Delays total92 modeled milliseconds. The original
 stroke and recovery deadlines are reserved together. An explicit noncopyable
@@ -25,7 +25,7 @@ release observation leaves contact unresolved, including cases with no recovery
 write attempted. Its `unknown` field describes release-dispatch ambiguity;
 `unknown=false` alone never authorizes close/reopen.
 
-The [fixture](../../tools/reader_fixed_stroke_policy_fixture.cpp) covers writes
+The [fixture](../../scripts/reader_fixed_stroke_policy_fixture.cpp) covers writes
 at initial release, hover, contact, middle and final release; permission/clock
 changes, exceptions, pause failures, duplicate/nested calls and sixteen actual
 two-thread claim races. Actual owned pipe/fork/wait/descriptor cases demonstrate
@@ -53,7 +53,7 @@ duplicates. The earlier pass is historical, not evidence for the final claim.
 
 ## Reproduction and evidence
 
-Run [reader_fixed_stroke_policy_test.sh](../../tools/reader_fixed_stroke_policy_test.sh)
+Run [reader_fixed_stroke_policy_test.sh](../../scripts/reader_fixed_stroke_policy_test.sh)
 with a frozen folder containing the header, fixture and runner, plus a fresh
 output directory. Select `READER_FIXED_STROKE_MODE=host`, `arm` or `asan`.
 The pinned image is

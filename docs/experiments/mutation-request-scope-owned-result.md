@@ -7,11 +7,11 @@ activation, insertion, writing, native retirement or owner release occurred.
 
 ## Implementation and repaired boundaries
 
-[Scope](../../tools/reader_request_scope.h) owns immutable hook storage before
+[Scope](../../scripts/reader_request_scope.h) owns immutable hook storage before
 acquisition and retains its lease until after hook-capture destruction. It has
 no QObject/Fence dependency and cannot be copied or moved. Default-unbound
 behavior preserves the legacy path; bound missing/null/throwing acquisition
-refuses. [The Fence adapter](../../tools/reader_retirement_scope.h) accepts only
+refuses. [The Fence adapter](../../scripts/reader_retirement_scope.h) accepts only
 a valid existing Frame, using C++17 elision without making Frame movable.
 Production hooks are nonreentrant GUI-only adapter internals, not arbitrary
 client callbacks. An entered terminal scope is not active permission.
@@ -81,9 +81,9 @@ QEMU. Scripts build the production coordinator branch separately compile-only;
 modeled seams cannot hide syntax errors in that branch. Original source snapshots,
 compiler output, artifacts, assertions and stderr are preserved privately.
 
-Run [reader_request_scope_test.sh](../../tools/reader_request_scope_test.sh) with
+Run [reader_request_scope_test.sh](../../scripts/reader_request_scope_test.sh) with
 `READER_REQUEST_SCOPE_OUTPUT` set to a fresh directory, and
-[reader_insertion_guard_entry_test.sh](../../tools/reader_insertion_guard_entry_test.sh)
+[reader_insertion_guard_entry_test.sh](../../scripts/reader_insertion_guard_entry_test.sh)
 with `INSERTION_ENTRY_OUTPUT`. Set `QT_PROBE_SDK_ENV` for ARM and the respective
 `READER_REQUEST_SCOPE_SANITIZERS=1` / `INSERTION_ENTRY_SANITIZERS=1` for host
 sanitizers. The first frozen matrix ran both fixtures in all three modes. The

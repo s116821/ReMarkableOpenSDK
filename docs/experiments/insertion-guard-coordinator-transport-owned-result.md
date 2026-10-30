@@ -14,9 +14,9 @@ accepted insertion, execution-time native rejection or supported SDK capability.
 
 ## Coordinator: real witnesses and modeled native boundaries
 
-The [coordinator](../../tools/reader_insertion_guard_entry.h) composes two fresh
+The [coordinator](../../scripts/reader_insertion_guard_entry.h) composes two fresh
 source joins, one worker-thread probe, one registration and one ordinary
-creation-method invocation. Its [fixture](../../tools/reader_insertion_guard_entry_fixture.cpp)
+creation-method invocation. Its [fixture](../../scripts/reader_insertion_guard_entry_fixture.cpp)
 uses the actual generic worker-callback witness, a value-copied callback on an
 owned QThread, and the actual ordinary QML callback witness against an owned,
 typed controller method. The first probe records a synchronized thread ID and
@@ -61,8 +61,8 @@ deletion from the finished receiver and the sanitizer run.
 
 ## Transport: actual files and publication uncertainty
 
-The [transport](../../tools/reader_insertion_guard_transport.h) and its
-[fixture](../../tools/reader_insertion_guard_transport_fixture.cpp) use real
+The [transport](../../scripts/reader_insertion_guard_transport.h) and its
+[fixture](../../scripts/reader_insertion_guard_transport_fixture.cpp) use real
 owned directories/files, the actual process PID/start identity, exact nonce
 bytes, no-follow opens, stat checks and exclusive hard-link publication.
 Dedicated friend access supplies request/window/deadline state and invokes
@@ -98,12 +98,12 @@ persistence. A consumer still needs its own strict receipt/binding checks.
 
 | Input | SHA-256 |
 | --- | --- |
-| [Coordinator header](../../tools/reader_insertion_guard_entry.h) | `af1c16421aa417c94af849e755fb01228127721274e74e59fc6e67a6e828b34d` |
-| [Coordinator fixture](../../tools/reader_insertion_guard_entry_fixture.cpp) | `91be4d33a9b531994720fd4aab0eec5bccb36533c0109646ce881c8d462f1edb` |
-| [Coordinator script](../../tools/reader_insertion_guard_entry_test.sh) | `2cd005b8161f430ea353e4598eb24997c5cd8f7bf8e71df65cab097e39f8ba24` |
-| [Transport header](../../tools/reader_insertion_guard_transport.h) | `3c8d8ee4d0c03e33d254a96c9f1e9d0eea620e08c3243fafde38a0bee947a013` |
-| [Transport fixture](../../tools/reader_insertion_guard_transport_fixture.cpp) | `3de51e538e70ea6d1ae73cdcc3a6b7a95d497a443eb8219c5177c3b237380525` |
-| [Transport script](../../tools/reader_insertion_guard_transport_test.sh) | `698f44dc142a0de2f52c52c10ab4a46889f943b13fb78bfd46b9bdfc70c06e31` |
+| [Coordinator header](../../scripts/reader_insertion_guard_entry.h) | `af1c16421aa417c94af849e755fb01228127721274e74e59fc6e67a6e828b34d` |
+| [Coordinator fixture](../../scripts/reader_insertion_guard_entry_fixture.cpp) | `91be4d33a9b531994720fd4aab0eec5bccb36533c0109646ce881c8d462f1edb` |
+| [Coordinator script](../../scripts/reader_insertion_guard_entry_test.sh) | `2cd005b8161f430ea353e4598eb24997c5cd8f7bf8e71df65cab097e39f8ba24` |
+| [Transport header](../../scripts/reader_insertion_guard_transport.h) | `3c8d8ee4d0c03e33d254a96c9f1e9d0eea620e08c3243fafde38a0bee947a013` |
+| [Transport fixture](../../scripts/reader_insertion_guard_transport_fixture.cpp) | `3de51e538e70ea6d1ae73cdcc3a6b7a95d497a443eb8219c5177c3b237380525` |
+| [Transport script](../../scripts/reader_insertion_guard_transport_test.sh) | `698f44dc142a0de2f52c52c10ab4a46889f943b13fb78bfd46b9bdfc70c06e31` |
 
 The private coordinator R5 receipt SHA-256 is
 `1b4840307804db2205fa361b00a6518841f9bfb5af679d1380bcfd79d72bc255`.

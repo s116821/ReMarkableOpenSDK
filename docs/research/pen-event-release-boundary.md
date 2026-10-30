@@ -40,7 +40,7 @@ Never redraw after possible dispatch; preserve/reconcile unknown effects first.
 
 ## Actual vendor input-event ABI probe
 
-The original [device-free probe source](../../tools/reader_pen_event_abi_fixture.cpp)
+The original [device-free probe source](../../scripts/reader_pen_event_abi_fixture.cpp)
 was compiled in the existing pinned SDK image
 `sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618`
 using the vendor RM2 environment

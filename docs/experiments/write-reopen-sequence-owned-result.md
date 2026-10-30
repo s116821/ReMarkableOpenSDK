@@ -1,6 +1,6 @@
 # Queued target write, ordinary close and reopen: owned composition
 
-[The sequence](../../tools/reader_write_reopen_sequence.h) composes the existing
+[The sequence](../../scripts/reader_write_reopen_sequence.h) composes the existing
 fixed-target mechanisms under one original setup deadline. Each host,
 vendor ARM-QEMU and sanitizer matrix passes38 scenarios/1218 checks. This is
 owned composition evidence; no tablet write, native close or saved-ink reopen
@@ -15,7 +15,7 @@ Uncertain dispatch stops later phases and requires reconciliation, without redra
 
 Each capture must consume its claim, return the exact ready target identity and
 committed scalar/PNG hashes, and confirm phase-owned descriptor retirement.
-The new [Files retirement](../../tools/reader_capture_files.h) revokes publication,
+The new [Files retirement](../../scripts/reader_capture_files.h) revokes publication,
 closes owned image/image-pin/duplicated-root FDs once with checked results, and
 preserves forensic files and the caller's borrowed directory. A nested retirement
 revokes/refuses without closing active IO, allowing cleanup after unwind. New

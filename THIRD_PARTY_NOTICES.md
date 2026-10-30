@@ -30,7 +30,7 @@ Private development tools and proprietary providers are outside the crate.
 
 ## Optional owned interception experiment
 
-The original tools/insertion_guard_owned fixture can be built separately with
+The original scripts/insertion_guard_owned fixture can be built separately with
 [Dobby e9fe7fb](https://github.com/jmpews/Dobby/tree/e9fe7fbecae47a2287e761080f8b1133cc22e8fa),
 licensed Apache-2.0. The explicit logging and ARM-mode initialization diffs preserve that
 upstream attribution; retain the upstream LICENSE and notices in derived build

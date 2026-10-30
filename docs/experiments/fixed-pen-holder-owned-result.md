@@ -14,7 +14,7 @@ neither report alone qualifies input-device delivery or target ink.
 
 ## Ownership and original deadlines
 
-[The holder core](../../tools/reader_fixed_pen_holder.h) forks one owned child,
+[The holder core](../../scripts/reader_fixed_pen_holder.h) forks one owned child,
 gates its first frame through a start pipe, cancels through a separate pipe,
 and retains a result pipe and parent-owned recovery descriptor. The child uses
 bounded plain IO and `_exit`, without Qt/heap/destructor unwinding. Parent code
@@ -27,12 +27,12 @@ The caller must be single threaded and fork safe, ignore SIGPIPE, retain the
 default SIGCHLD disposition without SA_NOCLDWAIT, and have no competing reaper.
 Actual ignored/custom-reaper controls exposed why an unknown wait result cannot
 authorize signaling a possibly reused raw PID. The repaired core refuses that
-state. The [CLI](../../tools/reader_fixed_pen_holder.cpp) normalizes its signal
+state. The [CLI](../../scripts/reader_fixed_pen_holder.cpp) normalizes its signal
 dispositions and checks its fixed device/profile/process/private-root controls.
 The planned dedicated unit must remain outside both xochitl and the actor's kill
 groups; compiling the CLI does not establish that topology.
 
-[Fresh handoff](../../tools/reader_fixed_pen_handoff.h) consumes a claim before
+[Fresh handoff](../../scripts/reader_fixed_pen_handoff.h) consumes a claim before
 callouts, checks a callback-local ready identity, and publishes exactly
 `nonce pid start request_ms` plus newline as its terminal action. No borrowed
 Reader guard is consulted afterward. It requires more than 3250ms of original
@@ -43,7 +43,7 @@ separate production-header host/ARM compilation and independent62-check review.
 
 ## Positive result means a conjunction
 
-[The consumer](../../tools/reader_fixed_pen_result.h) consumes one claim, checks
+[The consumer](../../scripts/reader_fixed_pen_result.h) consumes one claim, checks
 closed canonical JSON and exact types/keys, binds boot/nonce/candidate/holder/
 request/original deadlines, and requires externally supplied independent holder
 exit evidence. File appearance alone cannot complete it. Original scalar stdout

@@ -171,9 +171,9 @@ No current packet, held action or completed request is extended by this plan.
 
 ## Standalone implementation checkpoint
 
-The original [GUI fence](../../../tools/reader_request_retirement.h) and
-[owned fixture](../../../tools/reader_request_retirement_fixture.cpp) now model
-this narrow boundary. The [focused test](../../../tools/reader_request_retirement_test.sh)
+The original [GUI fence](../../../scripts/reader_request_retirement.h) and
+[owned fixture](../../../scripts/reader_request_retirement_fixture.cpp) now model
+this narrow boundary. The [focused test](../../../scripts/reader_request_retirement_test.sh)
 passes 743 checks on the host and ARM/qemu with unchanged sources. It covers
 real nested event loops, deferred cleanup/capture destruction, a depth-blocked
 queued check without repeated nested rescheduling, terminal/retired separation,

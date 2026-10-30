@@ -5,8 +5,8 @@ October 23, 2026 UTC. Six real Linux host parent/exec-child scenarios passed
 clearing inherited injection variables and after child execution. A separate
 ARM hard-float helper compile passed; the ARM object was not executed.
 
-These original [owned fixtures](../../tools/insertion_guard_owned/child_environment/test.sh)
-and the [small environment helper](../../tools/reader_insertion_child_environment.h)
+These original [owned fixtures](../../scripts/insertion_guard_owned/child_environment/test.sh)
+and the [small environment helper](../../scripts/reader_insertion_child_environment.h)
 address the [selected-process correction](../../openspec/changes/establish-native-platform-contract/native-insertion-child-environment.md).
 They do not prove the cause of the prior [native startup/navigation refusal](insertion-guard-startup-navigation-result.md).
 

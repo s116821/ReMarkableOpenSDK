@@ -9,7 +9,7 @@ wrapper caught it. This qualifies the tested owned principle only.
 
 ## Source, tool inputs and explicit compatibility
 
-Original [fixture source](../../tools/insertion_guard_owned/owned_fixture.cpp)
+Original [fixture source](../../scripts/insertion_guard_owned/owned_fixture.cpp)
 SHA-256 is
 `ad67d1c111372a62fd6f24aa36b561ebfaecc8fb31a68b5a03d23a38ef64f961`.
 It contains no firmware bodies, native declarations, private offsets or tablet
@@ -25,14 +25,14 @@ and notices remain applicable; no dependency is added to the Rust SDK.
 
 The build required explicit compatibility work:
 
-- The [preinclude header](../../tools/insertion_guard_owned/compat-gcc-armv7.h)
+- The [preinclude header](../../scripts/insertion_guard_owned/compat-gcc-armv7.h)
   accepts only GCC ARMv7 hard-float without pointer authentication. It supplies
   the missing Clang feature query as false. All eight upstream occurrences
   query only pointer-authentication calls; target predefines were retained.
-- The [owned CMake wrapper](../../tools/insertion_guard_owned/CMakeLists.txt)
+- The [owned CMake wrapper](../../scripts/insertion_guard_owned/CMakeLists.txt)
   selects C++17 and preincludes that header for the library targets.
 - A derived build tree applies the one-token
-  [logging overlay](../../tools/insertion_guard_owned/logging-inline.diff):
+  [logging overlay](../../scripts/insertion_guard_owned/logging-inline.diff):
   make the header-defined Logger::Shared inline. The pristine tree stays intact.
   An actual earlier link failure from its duplicate strong definitions is
   preserved. No arbitrary duplicate-symbol linker allowance was used.
@@ -43,8 +43,8 @@ failed attempts. They are not reclassified by this pass.
 
 ## Reproduction and observed controls
 
-The checked-in [library script](../../tools/insertion_guard_owned/build-library.sh)
-and [fixture script](../../tools/insertion_guard_owned/build-fixture.sh) record
+The checked-in [library script](../../scripts/insertion_guard_owned/build-library.sh)
+and [fixture script](../../scripts/insertion_guard_owned/build-fixture.sh) record
 the actual compiler commands. They expect an operator-provided RM2 SDK at the
 declared path, the tool files mounted at /inputs, library-build source at
 /source, output at /out and the built archive at /library for the fixture.
@@ -106,11 +106,11 @@ The proposed transfer of this principle to xochitl remains an inference.
 
 A distinct owned increment passed **four cases and 56 checks**, with independent
 source/assembly review and a second actual execution. Its
-[carrier declarations](../../tools/insertion_guard_owned/abi/carriers.h),
-[compile-only callers/callees](../../tools/insertion_guard_owned/abi/compile_carriers.cpp),
-[owned entry veneers](../../tools/insertion_guard_owned/abi/owned_entries.S),
-[runtime controls](../../tools/insertion_guard_owned/abi/runtime.cpp) and
-[build script](../../tools/insertion_guard_owned/abi/build.sh) are original code.
+[carrier declarations](../../scripts/insertion_guard_owned/abi/carriers.h),
+[compile-only callers/callees](../../scripts/insertion_guard_owned/abi/compile_carriers.cpp),
+[owned entry veneers](../../scripts/insertion_guard_owned/abi/owned_entries.S),
+[runtime controls](../../scripts/insertion_guard_owned/abi/runtime.cpp) and
+[build script](../../scripts/insertion_guard_owned/abi/build.sh) are original code.
 Mount that ABI directory at /inputs for this script, with the same upstream
 headers at /source, previously built archive at /library and fresh /out.
 
@@ -154,7 +154,7 @@ sets its mode flag true for Thumb addresses but does not initialize it false
 for even ARM addresses. The earlier owned paths passed, but those observations
 do not supply a general allocator-zeroing guarantee.
 
-The original [placement test](../../tools/insertion_guard_owned/repair/constructor.cpp)
+The original [placement test](../../scripts/insertion_guard_owned/repair/constructor.cpp)
 prefills storage with nonzero bytes, constructs the real class using owned data
 tokens and reads only the unsigned object representation. It never evaluates
 the old uninitialized bool and never patches or executes those token addresses.
@@ -163,9 +163,9 @@ constructor initializes false in both while retaining true for odd addresses.
 Each variant passes 13 checks across four placement cases.
 
 A separate derived tree applies the prior logging change plus exactly one
-[mode initialization](../../tools/insertion_guard_owned/repair/thumb-mode-init.diff)
+[mode initialization](../../scripts/insertion_guard_owned/repair/thumb-mode-init.diff)
 before the existing Thumb branch. The pristine tree and earlier library/results
-remain intact. The [constructor script](../../tools/insertion_guard_owned/repair/test-constructor.sh)
+remain intact. The [constructor script](../../scripts/insertion_guard_owned/repair/test-constructor.sh)
 uses the same SDK and public header tree, with old/new archives at /oldlib and
 /newlib. Its /inputs contains the constructor source and the unchanged guarded
 compatibility header; use fresh /out.

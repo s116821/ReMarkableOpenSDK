@@ -1,7 +1,7 @@
 # Private file backend and fixed-profile startup: source and owned checks
 
-The new [Directory](../../tools/reader_write_reopen_files.h) and
-[NativeFiles backend](../../tools/reader_write_reopen_backend.h) compose the
+The new [Directory](../../scripts/reader_write_reopen_files.h) and
+[NativeFiles backend](../../scripts/reader_write_reopen_backend.h) compose the
 private research protocol for the [queued sequence](write-reopen-sequence-owned-result.md).
 Real isolated file tests pass; a separately frozen ARM startup links. No dedicated
 holder unit, native positive capture/pen path or tablet activation was executed
@@ -42,7 +42,7 @@ path. A failed Control open now stages its FD until all checks pass, preventing 
 temporarily two-link readiness file from leaving a sticky descriptor. Earlier
 217- and248-check versions remain source-specific historical results.
 
-The separate [startup](../../tools/reader_write_reopen_startup.cpp) keeps the
+The separate [startup](../../scripts/reader_write_reopen_startup.cpp) keeps the
 existing exact xochitl/Qt/ARM fingerprint and pre-main actor claims, clears inherited
 injection variables, then queues one controller. It waits for a read-only known
 legacy composition and qualified holder before selected-ready, refuses an early

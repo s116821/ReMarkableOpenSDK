@@ -1,6 +1,6 @@
 # Experiment tools and findings
 
-Tool source and fixtures remain in [`tools/`](../../tools). Reusable usage and
+Tool source and fixtures remain in [`scripts/`](../../scripts). Reusable usage and
 technical findings live here. Change-specific proposals, approvals, numeric
 budgets and delivery status remain in the linked OpenSpec records. A historical
 packet or past trial is not permission to execute a new one.

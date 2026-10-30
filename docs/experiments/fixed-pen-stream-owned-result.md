@@ -5,7 +5,7 @@ It accepts filtered unchanged values and arbitrary record-batch boundaries;
 it does not require a native observer to echo all178 constructed records.
 Snapshots and records here are owned models, not tablet input observations.
 
-[The policy](../../tools/reader_fixed_pen_stream.h) separates possible raw
+[The policy](../../scripts/reader_fixed_pen_stream.h) separates possible raw
 contact, complete contact frames, endpoint observations and a successfully
 finalized released-state match. Unknown, dropped, malformed, repeated-contact,
 partial or over-quota inputs permanently refuse. Raw contact possibility is

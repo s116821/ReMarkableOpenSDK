@@ -75,7 +75,7 @@
     {
       "path": "docs/experiments/closed-reader-view-owned-result.md",
       "title": "Observing a closed Reader through its known UI composition",
-      "lf_utf8_sha256": "950d8da1f0ec2c6270aa4c1712f387e3d96931aeb7f2ddb6ea118aeeaf4a1063",
+      "lf_utf8_sha256": "20efed3da0afac25278810ba4841a8860a940cf770d57debfef1d87f659dd5bc",
       "headings": [
         {
           "line": 1,
@@ -240,7 +240,7 @@
     {
       "path": "docs/experiments/controlled-writer-failure-native-result.md",
       "title": "Native writer failure during contact",
-      "lf_utf8_sha256": "a2c7f20db29379e644cdac4029c4fd36b401d49dc2b96b00c802ad06af2ed73b",
+      "lf_utf8_sha256": "39a95164033cc7363c411a41a5c4f6d967516f88aac3b1222b0015be0339e1ad",
       "headings": [
         {
           "line": 1,
@@ -294,7 +294,7 @@
     {
       "path": "docs/experiments/fixed-pen-holder-owned-result.md",
       "title": "Fixed pen holder, handoff and original-byte consumer",
-      "lf_utf8_sha256": "801992e2eb48470173a2a0115c1dcbd113a148eb53f58a50edd89f32cecd5a1a",
+      "lf_utf8_sha256": "37c67d39cfe5f00b7f5bcc456726f28900b90313259922a08b1cb8e30c52b399",
       "headings": [
         {
           "line": 1,
@@ -348,7 +348,7 @@
     {
       "path": "docs/experiments/fixed-pen-stream-owned-result.md",
       "title": "Fixed pen stream: owned record validation",
-      "lf_utf8_sha256": "cf43342358044cab95ba2dedcfc17339de7b21724e296eefc3e3ab188c5c4777",
+      "lf_utf8_sha256": "3185a1d38f3b8d95df07e114fe7c58b781ff67f0ae99abe803727cc538a0a158",
       "headings": [
         {
           "line": 1,
@@ -359,7 +359,7 @@
     {
       "path": "docs/experiments/fixed-stroke-release-owned-result.md",
       "title": "Fixed stroke and independent release: owned policy result",
-      "lf_utf8_sha256": "d60ab3bd20f1004c8340a763d07253b74787f5a0e305b1841846646fafc1b46b",
+      "lf_utf8_sha256": "9ba083ad71115ed0c035c72cb1350ccccbbc02d0a6d1c2508e08a50f42db1465",
       "headings": [
         {
           "line": 1,
@@ -535,7 +535,7 @@
     {
       "path": "docs/experiments/insertion-child-environment-owned-result.md",
       "title": "Owned child-environment regression",
-      "lf_utf8_sha256": "527b30792ff10fa1476cb4615ffcd3e7f97e5a0fd4bee86235cb9991ad93d4c2",
+      "lf_utf8_sha256": "cb1b939cff7f99eaddcc6f12e80ffa5a9b4866365508145ca8c5df62ec7de3c7",
       "headings": [
         {
           "line": 1,
@@ -558,7 +558,7 @@
     {
       "path": "docs/experiments/insertion-guard-coordinator-transport-owned-result.md",
       "title": "Owned insertion-guard coordinator and transport result",
-      "lf_utf8_sha256": "f901e75a0700be8fb6535c224246e122a242a21297e9c0918556c8a7e8d600b8",
+      "lf_utf8_sha256": "f615501d01311b7563f75b8ce171eba89e6b458bad76e118cd60d34147d4760d",
       "headings": [
         {
           "line": 1,
@@ -619,7 +619,7 @@
     {
       "path": "docs/experiments/insertion-guard-owned-result.md",
       "title": "Owned ARM insertion guard and unwind result",
-      "lf_utf8_sha256": "9dd4715a10c4cb3ac3e8092bc976491343e84859c8d7b4cc499b5f38ccee6a8b",
+      "lf_utf8_sha256": "bcfe80f36c235be80b5c84c679dafc3b1a38b5d8b1ed27c947cc7a97a7cb447c",
       "headings": [
         {
           "line": 1,
@@ -650,7 +650,7 @@
     {
       "path": "docs/experiments/insertion-guard-predicate-owned-result.md",
       "title": "Owned passive insertion-predicate controls",
-      "lf_utf8_sha256": "eb6a874906091c6212ab06eb7fb30c568c64d5782159ca9df99b66d0f4bd0ad1",
+      "lf_utf8_sha256": "5e6235fc1213ad7ab823c13185e8486475e9606dde3416b77e530cc4fe81e2d8",
       "headings": [
         {
           "line": 1,
@@ -684,7 +684,7 @@
     {
       "path": "docs/experiments/insertion-guard-support-owned-result.md",
       "title": "Insertion-guard support and compile-only composition",
-      "lf_utf8_sha256": "f8c4c44996fe659cb26ec1eba9155f2dd85d04ca3ef1033adc0dfb724aeb0b68",
+      "lf_utf8_sha256": "38ee44ab34b5003e92a39e4d79c4f3d6f0ccfbf63db2972f7e89419614a3a8a7",
       "headings": [
         {
           "line": 1,
@@ -811,7 +811,7 @@
     {
       "path": "docs/experiments/mutation-request-scope-owned-result.md",
       "title": "Optional mutation request lifetime: owned source result",
-      "lf_utf8_sha256": "44b1c714416012ae1543ca201d5b7013196c888ea81e1efd033e28c272ad4ca2",
+      "lf_utf8_sha256": "03a9d4039c4c11279fb3d9cd735f97e0c9c4d53b7ab70e54cea223e47f5d2bd3",
       "headings": [
         {
           "line": 1,
@@ -910,7 +910,7 @@
     {
       "path": "docs/experiments/ordinary-reader-close-owned-result.md",
       "title": "Ordinary document close: owned helper result",
-      "lf_utf8_sha256": "8d468a35ec224a05c29ceac622c5e4c6eef4d6245c0ed3ac017f3e25e778fd01",
+      "lf_utf8_sha256": "24bde63249696faf6aae16a0dca97c2987c94cc1299bcfc588565c3df14d26a3",
       "headings": [
         {
           "line": 1,
@@ -921,7 +921,7 @@
     {
       "path": "docs/experiments/pen-device-readonly-native-result.md",
       "title": "RM2 pen device: read-only native profile",
-      "lf_utf8_sha256": "5fabdc506184a38e6fb9f5cfb98b6b391ff5fa76744d335e9d641e6470486d62",
+      "lf_utf8_sha256": "d5477527fea24c0ccd20f4863886ee3edc8bbcabe1c4206b732a37c52de32f37",
       "headings": [
         {
           "line": 1,
@@ -1068,7 +1068,7 @@
     {
       "path": "docs/experiments/README.md",
       "title": "Experiment tools and findings",
-      "lf_utf8_sha256": "5996fc92b5fd35cbabb311917b1889a042514bdbce1aec92054c1bd44012c968",
+      "lf_utf8_sha256": "ff16d551ddfff61361c0ce96fb972e725749f47c6c079abaf3c8a481c09a0a51",
       "headings": [
         {
           "line": 1,
@@ -1353,7 +1353,7 @@
     {
       "path": "docs/experiments/write-reopen-file-backend-owned-result.md",
       "title": "Private file backend and fixed-profile startup: source and owned checks",
-      "lf_utf8_sha256": "708a7417f2b0ad467d15015a046ccb801a912d80f6db4b133453f1be886d05a7",
+      "lf_utf8_sha256": "dff22e58a514fee1af05b41b1dc0c1793ce2f43743eb5e97c57bd4e090bd64f9",
       "headings": [
         {
           "line": 1,
@@ -1395,7 +1395,7 @@
     {
       "path": "docs/experiments/write-reopen-sequence-owned-result.md",
       "title": "Queued target write, ordinary close and reopen: owned composition",
-      "lf_utf8_sha256": "1ce44f70f8c13fb0281991401d7a825a4377e3917b1c694a664efa9cccb893f4",
+      "lf_utf8_sha256": "d0792018da5212e07c78689c53077e18e5f43fa52efc0ae09b430ab719bf335b",
       "headings": [
         {
           "line": 1,
@@ -2142,7 +2142,7 @@
     {
       "path": "docs/research/pen-event-release-boundary.md",
       "title": "Native pen events: release and ABI boundary",
-      "lf_utf8_sha256": "9b11a917c79de1e4bbf81e519c80d285ffe63ef62af4ca404d71930d0dfee16d",
+      "lf_utf8_sha256": "e2d292b634a29a0d1dc460507a0b0396f8914cad5536c2c9d4ea97c9e3f2d72a",
       "headings": [
         {
           "line": 1,
@@ -7418,7 +7418,7 @@
     {
       "path": "openspec/changes/establish-native-platform-contract/resident-request-retirement.md",
       "title": "Proposed resident request retirement",
-      "lf_utf8_sha256": "c1baed41a130cb30c58a6d91bba0ea1db92eb73381092cf8964753d8f80442c0",
+      "lf_utf8_sha256": "799f7b85aa49d405e010fde8ffed53b9c33aaf6211334a1b421f082eda6ec4f2",
       "headings": [
         {
           "line": 1,
