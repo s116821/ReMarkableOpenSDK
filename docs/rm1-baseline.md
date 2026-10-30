@@ -3,8 +3,8 @@
 This Linux-host tool uses an existing key-authenticated SSH alias. It installs nothing on the tablet and invokes no native page/capture/input operation. Explicit hardware authorization and sole device ownership are still required. The configured host alias must already target the intended USB connection; the tool does not configure routes or grant access.
 
 ```sh
-python3 -m unittest discover -s tools -p test_rm1_baseline.py -v
-python3 tools/collect_rm1_baseline.py --ssh-host remarkable1-usb --output /chosen/path/rm1-baseline.json
+python3 -m unittest discover -s scripts -p test_rm1_baseline.py -v
+python3 scripts/collect_rm1_baseline.py --ssh-host remarkable1-usb --output /chosen/path/rm1-baseline.json
 ```
 
 Python 3.11+ and OpenSSH are sufficient; no Rust toolchain or Python packages are required for this separate tool. Missing SSH access, changed host identity, unknown model, malformed observations or changing runtime fingerprints refuse rather than retry. Output is bounded to 16 KiB with a 30-second outer deadline. Remote diagnostics are suppressed; existing output survives refusal. Validated reports replace the chosen output atomically with mode 0600.
