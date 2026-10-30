@@ -11,7 +11,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = {"src/lib.rs", "src/capture.rs", "src/evidence.rs", "src/mock.rs", "src/capabilities.rs", "src/development_capture.rs", "src/navigation.rs", "src/navigation/gesture.rs"}
+SOURCES = {"src/lib.rs", "src/capture.rs", "src/evidence.rs", "src/mock.rs", "src/capabilities.rs", "src/development_capture.rs", "src/navigation.rs", "src/navigation/gesture.rs", "src/native_adapter.rs", "src/native_adapter/transport.rs", "src/native_adapter/capture.rs"}
 REQUIRED = SOURCES | {"Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"}
 GENERATED = {"Cargo.toml.orig", ".cargo_vcs_info.json"}
 
@@ -67,7 +67,7 @@ class PackageContents(unittest.TestCase):
         # Optional dependency pins are preserved while the default graph stays empty.
         self.assertTrue(all(d["optional"] for d in package["dependencies"] if d["kind"] is None))
         self.assertEqual(package["features"]["default"], [])
-        self.assertEqual({d["name"] for d in package["dependencies"]}, {"image", "sha2", "serde", "serde_json"})
+        self.assertEqual({d["name"] for d in package["dependencies"]}, {"image", "sha2", "serde", "serde_json", "nix"})
         notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
         self.assertIn("ded1caddccd30d6452fc2613a017f0118b0c575b", notices)
         self.assertIn("GPL-3.0-only", notices)

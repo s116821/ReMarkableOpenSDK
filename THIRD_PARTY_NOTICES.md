@@ -2,8 +2,8 @@
 
 ReMarkableOpenSDK is licensed under GPL-3.0-only; see LICENSE. The original
 third-party grants below remain unchanged. This file retains all license/notice
-texts from the 38 registry package instances in the locked all-feature graph,
-including optional development-capture dependencies. Byte-identical texts are
+texts from the 41 registry package instances in the locked all-feature graph,
+including optional development-capture and Linux resident transport dependencies. Byte-identical texts are
 printed once; every original package/file maps to its full text by SHA-256.
 Retaining alternative license texts does not convert an OR grant to AND or select
 a new license for upstream material. Preserve these notices with the SDK source
@@ -32,12 +32,16 @@ Private development tools and proprietary providers are outside the crate.
 
 Versions, registry checksums and declared grants correspond to Cargo.lock.
 The full source/VCS/file-hash inventory is retained in the repository at
-[dependency-license-inventory.json](https://github.com/s116821/ReMarkableOpenSDK/blob/a3c2037e2c33fb219a64e7d4021c74b17219a665/docs/reference/dependency-license-inventory.json).
+[dependency-license-inventory.json](tools/dependency-license-inventory.json).
 Declared expressions below are preserved verbatim. In particular, Unicode-3.0
 applies in addition to unicode-ident's MIT/Apache alternative.
 
 | Package | Declared grant | Original file | Full text |
 | --- | --- | --- | --- |
+| cfg_aliases 0.2.2 | MIT | [LICENSE](https://docs.rs/crate/cfg_aliases/0.2.2/source/LICENSE) | [31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812](#notice-31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812) |
+| cfg_aliases 0.2.2 | MIT | [NOTICES.md](https://docs.rs/crate/cfg_aliases/0.2.2/source/NOTICES.md) | [1e2b7ade3fb228130408b9990cae6a7618eb314c75aa0b164bfe485d9d9756ee](#notice-1e2b7ade3fb228130408b9990cae6a7618eb314c75aa0b164bfe485d9d9756ee) |
+| memoffset 0.9.1 | MIT | [LICENSE](https://docs.rs/crate/memoffset/0.9.1/source/LICENSE) | [3234ac55816264ee7b6c7ee27efd61cf0a1fe775806870e3d9b4c41ea73c5cb1](#notice-3234ac55816264ee7b6c7ee27efd61cf0a1fe775806870e3d9b4c41ea73c5cb1) |
+| nix 0.31.3 | MIT | [LICENSE](https://docs.rs/crate/nix/0.31.3/source/LICENSE) | [66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70](#notice-66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70) |
 | adler2 2.0.1 | 0BSD OR MIT OR Apache-2.0 | [LICENSE-0BSD](https://docs.rs/crate/adler2/2.0.1/source/LICENSE-0BSD) | [861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17](#notice-861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17) |
 | adler2 2.0.1 | 0BSD OR MIT OR Apache-2.0 | [LICENSE-APACHE](https://docs.rs/crate/adler2/2.0.1/source/LICENSE-APACHE) | [8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb](#notice-8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb) |
 | adler2 2.0.1 | 0BSD OR MIT OR Apache-2.0 | [LICENSE-MIT](https://docs.rs/crate/adler2/2.0.1/source/LICENSE-MIT) | [23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3](#notice-23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3) |
@@ -2722,4 +2726,110 @@ Except as contained in this notice, the name of a copyright holder shall
 not be used in advertising or otherwise to promote the sale, use or other
 dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
+```
+
+<a id="notice-31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812"></a>
+
+### 31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812
+
+```text
+MIT License
+
+Copyright (c) 2020 Katharos Technology
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+<a id="notice-1e2b7ade3fb228130408b9990cae6a7618eb314c75aa0b164bfe485d9d9756ee"></a>
+
+### 1e2b7ade3fb228130408b9990cae6a7618eb314c75aa0b164bfe485d9d9756ee
+
+```text
+# 3rd Party Notices
+
+The `cfg_aliases!` macro uses a lot of the code from [`tectonic_cfg_support::target_cfg!`] macro which is under the following license:
+
+[`tectonic_cfg_support::target_cfg!`]: https://github.com/tectonic-typesetting/tectonic/blob/f2439b936470ad27bdf92882064bc4702ee01899/cfg_support/src/lib.rs#L166
+
+    tectonic_cfg_support is licensed under the MIT License.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the “Software”), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+---
+
+```
+
+<a id="notice-3234ac55816264ee7b6c7ee27efd61cf0a1fe775806870e3d9b4c41ea73c5cb1"></a>
+
+### 3234ac55816264ee7b6c7ee27efd61cf0a1fe775806870e3d9b4c41ea73c5cb1
+
+```text
+Copyright (c) 2017 Gilad Naaman
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+<a id="notice-66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70"></a>
+
+### 66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2015 Carl Lerche + nix-rust Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
 ```

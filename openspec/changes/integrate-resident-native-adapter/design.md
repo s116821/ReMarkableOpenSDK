@@ -1,0 +1,391 @@
+# Resident SDK integration
+
+Current protocol amendment: [visual-only setup observation](visual-observation.md)
+advances live transport to revision 4 and preserves revision 3 as exact history.
+The revision 3 schema below records the source-capture increment; its existing
+tags retain their meaning in revision 4.
+
+October 24, 2026. This amendment selects implementation of the resident control
+boundary returned by [REM-57](https://linear.app/magentumdragon/issue/REM-57).
+The measured native procedures and remaining qualification are described in the
+[integration plan](https://github.com/s116821/ReMarkableOpenSDK/blob/05af65656e07c939349c9a10419ba94cd8b7457e/docs/research/native-adapter-integration-plan.md).
+
+## Facts and public contract
+
+Keep the existing synthetic `Platform` contract intact while introducing a
+separate, feature-gated `native_adapter` module. A native Reader sample contains
+actual document/page identity and a bounded complete observed order. It does
+not contain invented content revisions or input epochs. A sample is historical
+data, never a lease. It cannot be converted to `PageObservation`, a creation
+receipt, a capture permit or writing authority. The native executor must repeat
+its live ownership checks and enforce the measured source/count/right-neighbor/
+target-absence predicate at the original insertion boundary.
+
+The first integration increment implements the wire contract and session state;
+it does not advertise a native capability. Subsequent work must connect it to
+the exact native profile and consumer before capability qualification.
+
+## Wire and connection
+
+Select a local Unix stream with asynchronous Qt-side reads. Use a four-byte
+big-endian payload length and a maximum 65536-byte control payload. Only revision
+3 capture replies may use 1048576 PNG bytes and a 1114112-byte payload. All bounds
+exclude the four-byte prefix. All integers are
+big-endian and all fields have one binary representation. No pointers, arbitrary
+commands, filenames or native addresses are protocol inputs. Unknown versions,
+tags, trailing bytes, invalid UUIDs, duplicate order IDs, invalid counts and
+oversized frames close the connection. A partial frame remains incomplete;
+disconnect or deadline expiry never turns it into an accepted request.
+
+Every frame binds protocol revision, approved profile digest, executable digest,
+adapter artifact digest, boot UUID, process PID/start ticks, activation UUID and
+fresh client and server connection UUIDs. The caller and endpoint each obtain
+fresh nonces from their OS; Hello has no server nonce, Ready supplies it and all
+later frames bind both. This rejects old requests on a fresh endpoint connection
+even if a caller incorrectly reuses its own nonce. The
+supervisor supplies independently checked expected runtime identity. A handshake
+echo is correspondence, not proof of trusted peer credentials or Qt readiness;
+the Unix endpoint must additionally verify owner/permissions and peer identity.
+
+Handshake sequence is zero. Requests use strictly increasing nonzero sequence
+numbers and one active operation at a time. A retired request's sequence is
+never reused. Sequence exhaustion closes the session. Stale, duplicate,
+out-of-order and foreign-scope replies cannot complete a newer request.
+The original immutable request is included in response correlation through a
+SHA-256 digest of its canonical wire bytes. The digest is a correspondence check,
+not authentication. Local access control and exact runtime qualification remain
+mandatory. No reconnect automatically resends a mutation.
+
+## Mutation and lifetime
+
+### Owned Linux/Qt endpoint
+
+`native/resident` implements the same schema in Qt and an asynchronous local
+endpoint. Admission checks an existing owner-only mode0700 directory, a mode0600
+socket, `SO_PEERCRED` UID/PID and the expected peer process start ticks. The
+endpoint also checks its own boot/PID/start identity. The runtime's artifact and
+profile hashes still require independent verification by the native bootstrap;
+the transport does not turn supplied hashes into verified provenance.
+
+The listener retains its directory descriptor and socket inode. Permission
+changes use a pinned inode; cleanup removes only the recorded socket. This
+protects against accidental replacement after identification. Same-UID code
+with control of the directory is trusted, not an adversarial isolation boundary.
+Callbacks bind the original socket. Reentrant backend calls cannot install a
+replacement peer until the original read has unwound.
+
+There is one peer and one pending request, bounded input/output, a five-second
+handshake limit, thirty-second idle limit and a configured operation deadline
+of at most thirty seconds. Partial bytes never renew a deadline. A plain lease
+is invalidated on completion/disconnect/deadline. It contains no native owners;
+physical worker completion and native reclamation remain separate obligations.
+Without an executor, requests return Unsupported. The owned test backend may
+retain a plain request to exercise timeout; it never performs native mutation.
+
+The Rust and Qt implementations share generated test vectors, not native ABI
+structures. Native source is deliberately outside the Rust source package until
+the native distribution/build contract is implemented. Linux CI compiles and
+tests it separately, including a Rust Session talking to the real Qt socket.
+
+### Canonical binary schema
+
+The length prefix excludes itself. Each payload starts with ASCII `RSDK` then
+u16 protocol revision 3. It continues with three 32-byte digests (profile,
+executable, adapter), boot UUID (16 bytes), PID (u32), start ticks (u64), activation
+UUID (16 bytes), client connection UUID (16 bytes), server nonce (16 bytes), request sequence (u64), operation UUID
+(16 bytes), then one message tag. UUIDs use their 16 canonical bytes and cannot be
+nil, except the server nonce is all-zero only in Hello. Digests, PID and start ticks cannot be zero. Header fields are repeated in
+each frame. No platform word sizes or native endianness appear on the wire.
+
+Message tags: 0 Hello, 1 Ready, 2 Request, 3 Response. Hello/Ready contain no body
+and require sequence zero. Request/Response require a nonzero sequence.
+Requests contain a command byte: 0 Observe; 1 InsertAfter; 2 Reconcile;
+3 SelectAdjacent; 4 ReconcileSelection; 5 CaptureSource (expected facts only).
+InsertAfter/Reconcile then contain source facts and intended target UUID.
+SelectAdjacent/ReconcileSelection contain original expected facts and an existing
+target UUID equal to the expected current page or immediate successor. They never
+remove that target to construct insertion-shaped reconciliation facts.
+Facts are document UUID, selected page UUID, u16 count and that many page UUIDs.
+Order is nonempty, unique, includes the selected page and contains at most 2048
+IDs. InsertAfter must leave room for its one additional result ID. This wire
+bound is not a native document-size support claim; the measured native profile
+currently imposes its smaller independent diagnostic limits.
+
+Responses contain the 32-byte SHA-256 of the complete length-prefixed original
+request, then a result byte: 0 Observed (facts); 1 InsertionObserved (document UUID,
+target UUID, order count/IDs); 2 Reconciled (current facts and a strict 0/1
+target-present byte); 3 Rejected (reason byte); 4 Indeterminate (no body);
+5 TargetObserved (facts); 6 SelectionReconciled (current facts and strict 0/1
+target-present byte); 7 Captured. TargetObserved must name the original target/document and
+unchanged expected order. SelectionReconciled retains original-document identity
+and a presence bit matching its observed order; it never settles effect ambiguity.
+Rejection reasons are 0 Unsupported, 1 BeforeDispatch, 2 ExecutorBeforeMutation,
+3 UnknownIdentity and 4 Capacity. Future variants require a protocol revision.
+No trailing or optional bytes are accepted. Insertion result validation requires
+exactly the intended target and original order with one insertion after source.
+
+Captured contains before facts, after facts, width/height (u32 each), IEEE-754
+binary64 DPR bits (u64), procedure byte 1 (`rm2-reader-identity-full-order-png-v1`),
+32 raw SHA-256 bytes, PNG length (u32) and exactly that many PNG bytes. Both fact
+samples must equal the request, with at most 17 pages. DPR must be finite and
+positive; each dimension is 1..1872, with at most 2628288 pixels. The Qt codec
+validates the bounded envelope, header dimensions and digest. Rust additionally
+validates a complete static PNG container and fully decodes it under a 10513152
+byte allocation limit before constructing immutable `HistoricalCapture` evidence.
+It cannot construct operational `PageObservation` or write authority. Queued
+output retains the original request deadline until drained; large replies do not
+extend that deadline or admit a second request while output remains queued.
+
+## Mutation handling
+
+Persist the original operation/source/target in the consumer journal before
+calling create. The transport records possible dispatch before its first write;
+a partial write, lost reply, canceled wait or closed connection after that point
+is indeterminate. A returned insertion observation reports measured execution
+and order only; it does not establish persistence or select the target.
+Reconciliation is read-only and uses the original target. Presence alone cannot
+prove operation attribution or authorize another insertion.
+
+An explicit indeterminate mutation reply also retires the client session and
+retains its original operation/digest across repeated close calls. Client sequence
+correlation is not durable operation deduplication: the consumer journal and
+native endpoint must enforce original-operation reuse across connections.
+
+Logical retirement invalidates reply/getter authority immediately. Physical
+native callback completion, owner release and capacity reclamation are separate
+requirements. The production adapter must not retain one new leaked native owner
+per conversation or unload itself to end a conversation. Until callback ownership
+and bounded reclamation are connected and tested, mutation remains unavailable.
+
+### Exact-profile source integration
+
+Import the measured Reader/QML/native mechanisms from research revision
+`05af65656e07c939349c9a10419ba94cd8b7457e`, retaining the original Git-blob
+hashes separately from SDK adaptations. The new order observer executes only
+inside the original selected-Reader join's guarded callback. It verifies actual
+typed document identity, both page mappings, uniqueness and two matching complete
+orders. Its current 17-page envelope preserves the measured diagnostic bound;
+broader support remains a qualification task. Results contain only historical
+wire facts. Reconciliation rejects a different document and reports presence of
+the original target without authorizing another mutation.
+
+The read-only backend requires exact-loader facilities, an active endpoint lease
+and the live focused Reader window/engine. No borrowed native pointer, QVariant
+or guard crosses the synchronous callback. Source compilation and owned models
+do not qualify actual native dispatch. Bootstrap admission remains separate.
+
+Independent lifetime review rejects using matching job completion plus zero
+active outer-hook entries as a general native-release barrier. Completion
+precedes remaining native command cleanup. Last Worker-owner release on GUI can
+enter a thread wait; Document destruction has additional command-six waits with
+unresolved GUI dependencies. A single successful historical release does not
+settle that graph. A production release policy needs stronger evidence before
+mutation activation.
+
+Reusable Core registration must bind cancellation, snapshots and retirement to
+an opaque original generation. A stale Coordinator must never cancel the next
+request. Registry locks must not cover native release or reentrant destruction.
+Physical retirement must cover the exact once-submitted Task's future invocation
+possibility as well as currently active stacks; clearing a record must not turn
+a late formerly guarded call into ordinary unguarded forwarding. Any unknown
+physical mutation retains the bounded mutation slot while independent read-only
+observations remain possible. The executor implements this source policy;
+native reclamation and repeated-operation capacity remain unqualified.
+
+The Core source now uses opaque weak-record tokens for registration, cancellation
+and snapshots. Outer entry pins the record and records active frames before
+native dispatch; the inner predicate is unchanged. Registry locks cover only
+lookup/removal, with native calls and record destruction outside. Its private
+retirement method checks the original token and active frame count, but still
+requires the executor's independent no-future-invocation proof. The
+Coordinator passes its original token on every Core operation. Public
+no-argument cancel/snapshot operations are removed; the resident executor alone
+calls private production retirement.
+
+The imported GUI fence separates immediate logical invalidation, framed cleanup,
+and a distinct later retirement notification. Admission is later still, after
+the notification stack unwinds. Its scope binding carries no native owner and
+does not establish Task completion. The unchanged research implementation has
+a 256-nonce history bound; the executor uses one fence per request
+inside the single resident mutation slot, rather than treating that history as
+a process-wide operation allowance. Durable deduplication remains the journal's
+responsibility. Import-only tests remain separate from executor coverage.
+
+Coordinator acquisition and probe submission now require the process-resident
+slot. The returned token is retained even if a native callout deletes the GUI
+facade; the slot already owns any returned native words. The second source join
+checks the same token's Worker incarnation, and Core's owner marker identifies
+the slot. There is no per-request Bridge/Prepared fallback in this path. The
+Coordinator's plain resident record is deleted by framed executor cleanup;
+profile attribution remains retained until subsequent Core and slot retirement.
+
+The exact controller path provides a narrower retirement premise than generic
+`Task.finished`: its ordinary insertion method constructs one private AddPage
+Task, submits it once, and its completion/failure handlers disconnect and remove
+that Task without retry. The SDK Witness consumes its own one-call admission
+before invoking that method. For the consumed native command, dispatch occurs
+once before exact job completion; later payload cleanup does not invoke it
+again. Normal retirement therefore still requires the same Worker, exact job,
+normal attributed return, exact subsequent completion, and no active frames.
+The supplied JS callback must remain passive. Callback managers and their code
+can survive completion and remain loaded; this premise grants no unload or
+last-owner destruction authority. These are exact-artifact source premises,
+not qualification of a current native run.
+
+The slot now binds attribution creation to the same original token, with one
+attempt per occupied state. Failed, canceled or reentrant attribution quarantines
+the slot. Every later worker, submission and attribution admission rejects an
+unknown state. The profile retains one allocation set even on partial factory
+failure. Its private cleanup validates the original parts, clears all global
+dispatch addresses, destroys only adapter-owned snapshot/probe objects, then
+allows a fresh attribution. It never destroys a native mutex or native owner.
+Slot retirement performs that cleanup before consuming either native reference,
+and does not repeat it if a last/busy owner requires a later bounded retry.
+The executor retires Core first with the independent normal Task
+proof; these private cleanup primitives do not establish that proof themselves.
+
+### Non-last-only owner policy
+
+Exact-artifact analysis supports a narrower alternative to calling the ordinary
+native release helper: decrement only while the pinned strong count is greater
+than one. The primitive uses at most eight lock-free compare/exchange attempts,
+never touches the weak count and performs no native access after success. A
+competing owner may destroy the object immediately after that success.
+
+The private profile method verifies the same process, GUI thread, mapped release
+code and control-table prefixes, the actual multithreaded libc flag, writable
+control storage, exact vptr, raw/control relationship and positive weak count.
+Document raw==control+16 is a strict supported-shape gate, not a claim that every
+normally returned Document pair has this layout. Refusal retains the reference.
+
+The method is private to the typed resident slot. The resident mutation executor
+is its sole production retirement caller. Acquisition writes into retained storage
+before native dispatch; only normal complete returns become owned references.
+Exceptional or partial pairs quarantine the slot without interpreting or releasing
+them. Successful release consumes only that owner's local words; refusal preserves
+them and a later retry skips owners already consumed. No destructor invokes
+ordinary native release. Opaque weak-state tokens reject a replaced allocation;
+logical cancellation is separate from physical retirement. A single process-wide
+slot factory prevents allocating a new retained pair for each conversation.
+
+The executor must prove physical retirement independently before it can call the
+private retirement method. Last-owner or uncertain controls keep
+the bounded mutation slot occupied. Neither arithmetic fixtures nor offline ABI
+analysis establish normal native availability or repeated-operation capacity.
+
+### Resident mutation lifetime
+
+The process-resident executor owns one active request. Its private QObject base
+and destructor prevent an endpoint facade from parenting or deleting it. Each
+request has its own GUI Fence, Coordinator and original Core/owner tokens. A
+normal result requires distinct probe and mutation job IDs, exact normal probe
+delivery, conditional Core completion, one matching page-added/completed event,
+the creation callback and post-order evidence. Terminal correlation failures
+clear success and require reconciliation.
+
+After framed GUI callbacks unwind, queued cleanup disarms the Coordinator and
+destroys its facade and plain record. Native callbacks retain independent plain
+state; Core's owner marker and attribution storage belong to the retained slot.
+Only after the Fence's separate notification stack unwinds does the executor
+recheck the original Core outcome, retire that registration, clear attribution,
+and attempt Worker then Document non-last reference consumption. This relies on
+the exact consumed-command and controller no-resubmission proof above; generic
+Task finished delivery is insufficient. Late evidence changes require
+reconciliation, even if an earlier Coordinator snapshot reported success.
+
+Physical refusal retains one bounded slot. At most eight owner-retirement
+attempts occur; known operation evidence remains distinct from capacity
+availability. Publication and destruction of completion captures finish while
+the executor is still busy. A known refusal before any owner acquisition, Core
+registration, probe submission or creation attempt can release executor capacity
+after framed cleanup and notification, provided the owner slot remains empty.
+All other nonnormal operations retain their slot conservatively. Native reuse
+and activation remain unqualified.
+
+### Mutation endpoint dispatch
+
+The dispatcher translates an authenticated InsertAfter request into the exact
+original document/source/order/target and operation nonce. It passes the endpoint
+lease's immutable steady-clock deadline into the Coordinator. A by-value guarded
+permit binds the current facade, endpoint lease, focused window and engine;
+connection loss or facade deletion revokes that authority. The process-resident
+executor continues to own cleanup independently of those facade lifetimes.
+
+Only an observed result with the exact permitted after-order becomes historical
+InsertionObserved. Known refusal before a mutation attempt is distinct from
+indeterminate accepted work. A busy executor returns Capacity before dispatch.
+Completion must still pass the endpoint's original lease, incarnation, digest
+and deadline checks. The source dispatcher delegates Observe/Reconcile to the
+existing read-only backend. Bootstrap still installs the nonconditional profile,
+so the executor factory refuses mutation support; connecting this dispatch path
+does not activate mutation or advertise a qualified capability.
+
+## Verification and rollout
+
+### Linux client transport
+
+The Rust client consumes the Supervisor's retained activation-directory file
+descriptor. It requires an owned 0700 directory and 0600 socket, pins the socket
+device/inode and connects through `/proc/self/fd`. Kernel peer credentials,
+current boot and process start ticks must match the separately verified runtime.
+The Supervisor still owns artifact verification, fresh nonces and lifecycle
+recovery; echoed hashes do not attest code. The directory owner remains trusted.
+
+An optional Linux-only pinned Nix dependency provides safe socket/poll wrappers;
+the SDK retains `forbid(unsafe_code)` and dependency-free default builds. The
+client performs nonblocking socket IO with one absolute caller deadline and no
+automatic reconnect. Its blocking API belongs on a consumer IO thread.
+
+`Session::prepare` exposes the immutable next frame for journaling without
+consuming sequence or creating pending mutation state. Client dispatch requires
+a synchronous journal callback before `begin` or any request byte. The consumer
+must implement durable operation deduplication and fsync/recovery, not merely
+return success. Callback duration cannot be forcibly bounded here. Authentication
+and deadline are rechecked after it returns. Every error after begin closes the
+session with the original sticky operation/digest; known predispatch failure
+sends no mutation bytes. Late or partial IO never extends the deadline.
+
+### Admitted native bootstrap
+
+The build-only native artifact embeds the exact profile manifest digest and
+requires the retained repaired Dobby archive/header. Its loader has eager
+bindings, static TLS and NODELETE. It hashes the file backing its own executable
+anchor mapping, checks a one-use supervisor admission, then calls the original
+exact-profile verification/hook installer before main. The queued GUI startup
+creates the dispatcher and endpoint with mutation unavailable. Native startup ordering, activation
+and recovery are separately unqualified; loading this payload installs hooks
+and refusal terminates with code119 even though request operations are read-only.
+
+The [168-byte admission format](../../../native/rm2_3_28_0_172/BUILD.md) binds
+approved artifact/profile/executable hashes, boot, fresh activation UUID, direct
+supervisor parent identity, an admission window up to 60 seconds and operation
+budget. Rust encodes it without file creation or activation. The native consumer
+requires an owned mode0700 directory and regular mode0600 file and consumes it
+through exclusive hard-link creation. Evidence names remain; they are never
+cleared for retry. The endpoint pins the same directory and independently checks
+socket credentials. The process derives its own PID/start identity. The directory
+owner remains trusted. The launch deadline gates admission consumption, not the
+whole native loader/startup duration; Supervisor must bound recovery separately.
+
+Child processes do not inherit the preload, eager-binding or activation-directory
+environment variables. Existing hooks and mappings remain resident. No per-request
+unload/restart is introduced. This source integration is not a product capability
+or permission to activate an unreviewed candidate.
+
+Exercise real encoders/decoders with fragmented frames, invalid lengths and
+schema, identity mismatch, duplicate/stale replies, sequence exhaustion and
+mutation connection loss. Interoperate the Rust client with the Qt endpoint on
+owned local sockets. Then qualify the exact profile adapter and resident lifetime
+on disposable native fixtures. Pin the resulting SDK in Buddy PR 60 and update
+Docs PR 56. The broader REM-25 acceptance matrix remains open. Default features,
+source-package containment and unchanged synthetic behavior must keep passing.
+
+### Wire revision compatibility
+
+Revision 2 added adjacent selection and read-only selection reconciliation;
+revision 3 adds historical capture. Live transport rejects older revisions.
+`HistoricalFrame` separately preserves original revision 1/2/3 journal bytes,
+grammars and digests. Consumer upgrades must validate those original bytes and
+retain unresolved effects; they cannot rewrite, reset, replay or silently drop
+old attempts. The Buddy pin and integrated workflow require their own coordinated
+validation. These source additions do not enable native selection dispatch.

@@ -110,6 +110,34 @@ jobs:
           python scripts/test_package_contents.py -v
           cargo +1.98.1 fmt --manifest-path tests/fixtures/consumer-boundary/Cargo.toml --all -- --check
           git diff --exit-code
+      - name: Verify Rust and Qt resident wire and owned endpoint
+        if: steps.admission.outputs.application == 'true'
+        env:
+          RSDK_WIRE_VECTORS: ${{ runner.temp }}/resident-vectors
+          RESIDENT_WIRE_VECTORS: ${{ runner.temp }}/resident-vectors
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-declarative-dev
+          cargo +1.98.1 test --locked --offline --features native-adapter --test resident_wire_vectors -- --ignored
+          RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-wire" sh native/resident/wire_test.sh
+          RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-endpoint" sh native/resident/endpoint_test.sh
+          ACTIVATION_TEST_OUTPUT="$RUNNER_TEMP/resident-activation" ACTIVATION_TEST_SANITIZERS=1 sh native/resident/activation_test.sh
+          LOADED_ARTIFACT_TEST_OUTPUT="$RUNNER_TEMP/resident-artifact" sh native/resident/loaded_artifact_test.sh
+          NONLAST_RELEASE_OUTPUT="$RUNNER_TEMP/native-nonlast" NONLAST_RELEASE_SANITIZERS=1 sh native/rm2_3_28_0_172/nonlast_release_test.sh
+          RESIDENT_SLOT_OUTPUT="$RUNNER_TEMP/native-slot" RESIDENT_SLOT_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_worker_slot_test.sh
+          RESIDENT_CORE_OUTPUT="$RUNNER_TEMP/native-core" RESIDENT_CORE_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_core_lifetime_test.sh
+          READER_RETIREMENT_OUTPUT="$RUNNER_TEMP/native-retirement" READER_RETIREMENT_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_request_retirement_test.sh
+          READER_REQUEST_SCOPE_OUTPUT="$RUNNER_TEMP/native-scope" READER_REQUEST_SCOPE_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_request_scope_test.sh
+          INSERTION_ENTRY_OUTPUT="$RUNNER_TEMP/native-entry" INSERTION_ENTRY_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_insertion_guard_entry_test.sh
+          RESIDENT_MUTATION_OUTPUT="$RUNNER_TEMP/native-mutation" RESIDENT_MUTATION_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_mutation_test.sh
+          RESIDENT_PIPELINE_OUTPUT="$RUNNER_TEMP/native-pipeline" RESIDENT_PIPELINE_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_mutation_pipeline_test.sh
+          MUTATION_BACKEND_OUTPUT="$RUNNER_TEMP/native-mutation-backend" MUTATION_BACKEND_SANITIZERS=1 sh native/rm2_3_28_0_172/mutation_backend_test.sh
+          INSERTION_CONDITION_OUTPUT="$RUNNER_TEMP/native-condition" INSERTION_CONDITION_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_insertion_condition_test.sh
+          INSERTION_PREDICATE_OUTPUT="$RUNNER_TEMP/native-predicate" sh native/rm2_3_28_0_172/reader_insertion_guard_predicate_test.sh
+          ORDER_OBSERVATION_OUTPUT="$RUNNER_TEMP/native-order" ORDER_OBSERVATION_SANITIZERS=1 sh native/rm2_3_28_0_172/order_observation_test.sh
+          READER_IDENTITY_CAPTURE_OUTPUT="$RUNNER_TEMP/native-identity-capture" READER_IDENTITY_CAPTURE_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_identity_capture_test.sh
+          READER_SOURCE_CAPTURE_OUTPUT="$RUNNER_TEMP/native-source-capture" READER_SOURCE_CAPTURE_SANITIZERS=1 sh native/rm2_3_28_0_172/reader_source_capture_test.sh
+          RESIDENT_ENDPOINT_BINARY="$RUNNER_TEMP/resident-endpoint/endpoint-test" READER_SOURCE_CAPTURE_BINARY="$RUNNER_TEMP/native-source-capture/source-capture-test" RSDK_CAPTURE_IMAGE_OUTPUT="$RUNNER_TEMP/native-source-capture/consumer.png" timeout 60s cargo +1.98.1 test --locked --offline --features native-adapter --test resident_socket -- --ignored
       - name: Verify source staging admission and portable identity
         shell: bash
         run: |
