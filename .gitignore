@@ -2,3 +2,4 @@ target/
 build/
 .private/
 *.core
+/.ci-paths-filter/

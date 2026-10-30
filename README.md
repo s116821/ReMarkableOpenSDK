@@ -1,43 +1,68 @@
 # ReMarkableOpenSDK
 
-An independent, unofficial reMarkable hardware and native-runtime SDK, intended for ReMarkableBuddies and unrelated applications.
+Dependency-free persistent identity primitives: canonical nonnil `Uuid`, document/page `PageKey` and `OperationId`. No native operations or supported firmware claim. GPL-3.0-only; see LICENSE.
 
-**Status: active research, contract design and an unpublished experimental Rust model. No native adapter, supported firmware matrix or shipping page-creation capability is implemented here yet.**
+This unpublished Rust crate requires Rust 1.88. Source manifests omit a maintained project version; Git tags are the release authority. Cargo development metadata is not release identity.
 
-This SDK is licensed under **GNU GPL version 3 only (GPL-3.0-only)**. See the
-unmodified [license text](LICENSE) and [third-party notices and provenance](THIRD_PARTY_NOTICES.md).
-Commercial use is permitted under the license's terms. There is no requirement
-to have contributions merged upstream. Third-party material retains its stated
-licenses; the SDK grant does not relicense dependencies or other repositories.
+Run `cargo test --locked` and `cargo clippy --locked --all-targets -- -D warnings`. Existing RM1 baseline/input tools retain their separate qualifications.
 
-The first change is [establish-native-platform-contract](openspec/changes/establish-native-platform-contract/proposal.md). It targets a capability-oriented boundary for page identity, evidence-bound capture, navigation and safe native page creation. RM2/ARMv7 is the first qualification target. Paper Pro/AArch64 is an adapter target whose native qualification remains later work; cross-builds do not imply hardware support.
+Development helpers live in `scripts/`; release inputs live in `cicd/release/`.
+See [release maintenance](cicd/release/README.md) for the small set of
+SDK-specific checks retained alongside maintained GitHub Actions.
 
-SDK specifications and workflow live in this repository. [ReMarkableBuddiesDocs](https://github.com/s116821/ReMarkableBuddiesDocs) owns Buddy and Manager product/integration requirements and references exact SDK contract revisions. SDK definitions are not duplicated there.
+```rust
+use remarkable_open_sdk::{OperationId, PageKey, Uuid};
+let document = Uuid::parse("01234567-89ab-cdef-0123-456789abcdef").unwrap();
+let page = Uuid::parse("11234567-89ab-cdef-0123-456789abcdef").unwrap();
+let key = PageKey { document, page };
+let operation = OperationId(page);
+assert_eq!(key.document.to_string(), "01234567-89ab-cdef-0123-456789abcdef");
+```
 
-Buddy consumes the SDK at build time. Manager selects a compatible Buddy release artifact, without separately installing an SDK runtime. The SDK must remain independently consumable and mockable.
+These values identify persistent records; they cannot prove the current tablet page, authorize creation, or reconcile native operations. Later observation/creation/capture contracts will build on these types in separate coherent deliveries.
 
-Git tags are the canonical SDK release versions. Source manifests omit an own
-version; Cargo generates `0.0.0` development metadata and lock entries, which are
-not release identity. REM-50's official build staging derives its version only
-from a verified existing tag and exact source commit. No version bump is committed.
-See the [source/tag contract](openspec/changes/establish-native-platform-contract/tag-version-source.md).
+## Ordinary gesture planning
 
-Prefer robust direct/native integration. Supervised, session-scoped lazy XOVI is an allowed candidate where necessary under the October 1 lifecycle refinement, not a selected or qualified production dependency. See the [mechanism comparison and acceptance gates](docs/research/runtime-mechanism-comparison.md). Cold boot must remain stock, recovery must survive runtime/supervisor failure, and restart invalidates old source handles. Proprietary firmware binaries and reconstructed proprietary source must not be committed. Interface discovery is not proof of safe native operation.
+`navigation::gesture::plan_gesture` returns the existing RM2 portrait path in Reader's 768 by 1024 virtual input space. Other pairs return typed unsupported results. This calculation emits no input and establishes no current-page identity or native completion.
 
-Start with [SDK technical knowledge](docs/README.md) for research, reference
-contracts and experiment findings. Read [contributor guidance](CONTRIBUTING.md), the [workflow](openspec/README.md), and the active design before implementation.
+```rust
+use remarkable_open_sdk::navigation::{LogicalDirection, gesture::*};
+let plan = plan_gesture(TabletModel::Remarkable2, Orientation::Portrait, LogicalDirection::Next).unwrap();
+assert_eq!(plan.start(), (700, 512));
+assert_eq!(plan.movements().last(), Some(&(100, 512)));
+```
 
-The experimental Rust prototype models scoped page observations, creation/reconciliation outcomes and bounded synthetic PNG capture evidence. It pins image 0.25.10 (PNG only) and sha2 0.10.9; Cargo.lock records transitive dependencies. Its optional `mock` feature is synthetic; native defaults are unsupported. Run `cargo test --all-features` and `cargo clippy --all-targets --all-features -- -D warnings`. See [implementation limits](openspec/changes/establish-native-platform-contract/implementation.md) before using the prototype.
+Reader retains model/orientation admission, input conversion, dispatch, release and observed completion. See THIRD_PARTY_NOTICES.md for adapted Buddy source provenance.
 
-The separate opt-in `development-capture` feature provides
-`development_capture::ReadOnlyDevelopmentCapture::from_collected_v11` for exact
-PNG and completion bytes from the supervised v11 experiment. It checks saved
-correspondence against caller-supplied expected bindings, owns the original bytes,
-and labels them `DevelopmentUnqualifiedHistoricalCorrespondence`. It does not
-acquire a live capture, observe page order, construct synthetic/native capture
-facts, or grant any platform or Reader effect capability. Live collection and
-restoration remain the caller's responsibility. Focused checks:
-`cargo test --features development-capture --test development_capture`.
-The ignored private-fixture check uses `SDK_DEVELOPMENT_CAPTURE_FIXTURE` pointing
-to local `expected-binding.json`, `capture-observation-complete.json`, and
-`capture-window.png`; these private files must never be committed.
+## Saved development capture evidence
+
+Enable `development-capture` to validate already-collected v11 completion/PNG bytes with `development_capture::ReadOnlyDevelopmentCapture::from_collected_v11(&expected, completion, png)`. Supply an `ExpectedCaptureBinding` from the saved collection record, never a guessed current document. The result owns the original bytes and reports `DevelopmentUnqualifiedHistoricalCorrespondence`. Bounds, schema, expected bindings, digest and decoded image dimensions are checked before acceptance.
+
+This validates past receipt correspondence. It neither acquires pixels nor establishes current page, pixel freshness, render ordering or native operation authority. Collection/restoration and consumer persistence remain caller responsibilities. Default builds have no external dependencies; optional pinned dependencies and complete original notices are in THIRD_PARTY_NOTICES.md.
+
+Run `cargo test --locked --all-features --test development_capture`. The ignored private-fixture check is optional historical evidence and requires local files; no private files are shipped.
+
+## Synthetic platform contract
+
+`UnqualifiedPlatform` implements `Platform` with unsupported native operations. `capabilities()` reports availability only and never admits work. Enable `mock` for `mock::MockPlatform`, an in-memory scoped observation, creation/reconciliation and logical navigation/handoff fixture. Receipts are synthetic; they establish no native behavior or durable reconciliation.
+
+```rust
+use remarkable_open_sdk::{Platform, UnqualifiedPlatform, ObservationFailure, UnsupportedReason};
+assert_eq!(UnqualifiedPlatform.observe_page(), Err(ObservationFailure::Unsupported(UnsupportedReason::NoNativeAdapter)));
+```
+
+Capture acquisition and synthetic image/facts APIs remain a separate delivery. Historical development capture validation retains its own optional boundary.
+
+## Capture model and historical facts
+
+`capture` supplies immutable image/geometry descriptors; `evidence` exports bounded one-way historical facts from model observations, receipts and batches. Original encoded media must be stored separately alongside exported descriptors. Exact integers, durations and geometry bits remain available without converting historical facts into live guards.
+
+Enable `mock` for synthetic batch validation against parent-derived crop/resize pixels and explicit modeled owner/render assertions. These assertions establish model consistency only. `Platform::capture` defaults to unsupported; no native acquisition/freshness or current-page producer is supplied. Ordinary builds retain dependency-free defaults; image/hash libraries are selected for mock, development capture or tests. Reader's historical SDK_SOURCE remains its original provenance until coordinated consumer migration.
+
+## Research branch documentation
+
+This branch also retains the unfinished [native platform contract](openspec/changes/establish-native-platform-contract/proposal.md), its [implementation limits](openspec/changes/establish-native-platform-contract/implementation.md), [runtime mechanism comparison](docs/research/runtime-mechanism-comparison.md) and [source/tag contract](openspec/changes/establish-native-platform-contract/tag-version-source.md). Those research records do not establish a native adapter, supported firmware matrix or shipping page-creation capability. RM2/ARMv7 remains the first native qualification target; Paper Pro/AArch64 cross-builds do not establish hardware support.
+
+See [technical knowledge](docs/README.md), [contributor guidance](CONTRIBUTING.md) and the [SDK specification workflow](openspec/README.md). SDK requirements stay here; [ReMarkableBuddiesDocs](https://github.com/s116821/ReMarkableBuddiesDocs) owns Buddy and Manager product/integration requirements. Buddy consumes the SDK at build time, and Manager selects a compatible Buddy artifact without separately installing an SDK runtime.
+
+Supervised session-scoped lazy XOVI remains an unqualified research candidate. Stock cold boot and independent recovery remain required; old source handles are invalid after restart. Proprietary firmware and reconstructed proprietary source must not be committed. Research helpers now live in `scripts/`. Historical experiment commands and source identities retain their original attribution; moving a helper does not authorize executing it or qualify a previous run against the new branch.
