@@ -1,0 +1,4 @@
+# These are original owned wire bytes; preserve LF and hashes on Windows too.
+case-*/selected-result -text
+case-*/expectation.json -text
+case-*/visual-image.png -text

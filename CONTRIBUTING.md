@@ -34,3 +34,12 @@ experiment findings. New documentation belongs under `docs/`, except root projec
 guidance, conventional tool-discovery files and genuine OpenSpec workflow artifacts.
 Change-specific plans/checkpoints remain in `openspec/`; link to the canonical
 knowledge body and preserve evidence/provenance instead of copying it.
+
+For native findings, update the [simulator evidence map](docs/reference/simulator-evidence-map.md)
+with a pointer to the primary report and the affected model/test layer. Add a
+focused regression when practical; otherwise record the explicit coverage gap
+and owning follow-up rather than silently treating a Qt fixture as integrated
+Buddy simulation. Keep native-observed, synthetic/owned and inferred behavior
+separate. Refresh `python scripts/research_evidence_catalog.py --write` and verify
+`--check` when Markdown knowledge/specification files change. Product simulator
+requirements and implementation remain in the owning Buddy/Docs repositories.
