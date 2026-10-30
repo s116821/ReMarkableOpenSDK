@@ -16,4 +16,4 @@ for source/evidence identities and the reproduced lifecycle/publication defects.
 
 Run from the repository root with an existing Python/Pillow environment:
 
-    python -B tools/reader_identity_capture_consumer_test.py --entry-exports tests/fixtures/identity-capture-pair
+    python -B scripts/reader_identity_capture_consumer_test.py --entry-exports tests/fixtures/identity-capture-pair
