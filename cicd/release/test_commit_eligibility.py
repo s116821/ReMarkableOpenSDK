@@ -55,9 +55,9 @@ class ActualCommitEligibility(unittest.TestCase):
 
     def test_known_release_readme_is_excluded_but_unknown_source_markdown_is_versioned(self):
         f = self.fixture
-        (f.repo/'release').mkdir()
-        (f.repo/'release/README.md').write_text('Known documentation only')
-        f.git('add','release/README.md')
+        (f.repo/'cicd/release').mkdir(parents=True)
+        (f.repo/'cicd/release/README.md').write_text('Known documentation only')
+        f.git('add','cicd/release/README.md')
         f.git('commit','-m','feat(docs): known README must not supply a minor release')
         args = [psr.TOOL,'-c','releaserc.toml','--strict','version','--print-tag',
                 '--no-commit','--no-tag','--no-changelog','--skip-build','--no-push','--no-vcs-release']
@@ -80,7 +80,7 @@ class ActualCommitEligibility(unittest.TestCase):
     def test_actual_workflow_push_observation_refuses_ambiguous_history(self):
         import textwrap
         f = self.fixture
-        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/ci.yml').read_text()
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
         block = workflow.split('      - name: Require exactly one observed main first-parent commit\n', 1)[1]
         script = block.split('        run: |\n', 1)[1].split('      - uses:', 1)[0]
         script = textwrap.dedent(script)

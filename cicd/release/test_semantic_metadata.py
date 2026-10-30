@@ -41,9 +41,9 @@ class ReadOnlyMetadata(unittest.TestCase):
 
     def test_guidance_ignored_but_executable_tool_inventory_observed(self):
         fixture = self.fixture()
-        for name, expected in [("release/README.md", "v0.4.0"),
+        for name, expected in [("cicd/release/README.md", "v0.4.0"),
                                ("docs/reference/dependency-license-inventory.json", "v0.4.0"),
-                               ("tools/dependency-license-inventory.json", "v0.5.0")]:
+                               ("scripts/dependency-license-inventory.json", "v0.5.0")]:
             path = fixture.repo / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("Owned harmless fixture input\n")

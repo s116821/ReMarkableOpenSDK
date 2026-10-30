@@ -11,8 +11,8 @@ Unknown orientation/navigation remains unsupported in every report.
 Host verification:
 
 ```
-cc -std=c11 -Wall -Wextra -Werror -pedantic tools/rm1_input_geometry.c -o /tmp/rm1-geometry
-cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined tools/rm1_input_geometry_test.c -o /tmp/rm1-geometry-test
+cc -std=c11 -Wall -Wextra -Werror -pedantic scripts/rm1_input_geometry.c -o /tmp/rm1-geometry
+cc -std=c11 -Wall -Wextra -Werror -pedantic -fsanitize=address,undefined scripts/rm1_input_geometry_test.c -o /tmp/rm1-geometry-test
 /tmp/rm1-geometry-test
 ```
 
