@@ -1,6 +1,8 @@
 use remarkable_open_sdk::{
-    ObservationFailure, PageKey, Platform, UnqualifiedPlatform, UnsupportedReason, Uuid,
+    ObservationFailure, OperationId, PageKey, Platform, UnqualifiedPlatform, UnsupportedReason,
+    Uuid,
     capabilities::{CONTRACT_REVISION, CapabilityStatus, DeviceProfile},
+    navigation::{LogicalDirection, gesture::*},
 };
 
 fn main() {
@@ -10,7 +12,23 @@ fn main() {
         document: id,
         page: id,
     };
-    assert_eq!(page.page.as_bytes(), id.as_bytes());
+    assert_eq!(page.page.as_bytes(), OperationId(id).0.as_bytes());
+    let plan = plan_gesture(
+        TabletModel::Remarkable2,
+        Orientation::Portrait,
+        LogicalDirection::Next,
+    )
+    .unwrap();
+    assert_eq!(plan.start(), (700, 512));
+    assert_eq!(plan.movements().last(), Some(&(100, 512)));
+    assert_eq!(
+        plan_gesture(
+            TabletModel::Remarkable1,
+            Orientation::Portrait,
+            LogicalDirection::Next
+        ),
+        Err(UnsupportedGesture::UnimplementedPair)
+    );
     let platform = UnqualifiedPlatform;
     let report = platform.capabilities();
     assert_eq!(report.contract_revision(), CONTRACT_REVISION);
@@ -36,5 +54,5 @@ fn main() {
             UnsupportedReason::NoNativeAdapter
         ))
     );
-    println!("ordinary-consumer: unsupported native profile; no SDK features");
+    println!("ordinary-consumer: identity and pure geometry; no SDK features or native dispatch");
 }
