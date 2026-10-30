@@ -40,6 +40,6 @@ with a pointer to the primary report and the affected model/test layer. Add a
 focused regression when practical; otherwise record the explicit coverage gap
 and owning follow-up rather than silently treating a Qt fixture as integrated
 Buddy simulation. Keep native-observed, synthetic/owned and inferred behavior
-separate. Refresh `python tools/research_evidence_catalog.py --write` and verify
+separate. Refresh `python scripts/research_evidence_catalog.py --write` and verify
 `--check` when Markdown knowledge/specification files change. Product simulator
 requirements and implementation remain in the owning Buddy/Docs repositories.
