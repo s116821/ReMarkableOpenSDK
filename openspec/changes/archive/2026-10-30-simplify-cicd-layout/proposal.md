@@ -6,7 +6,7 @@ Root release/tool directories and custom rebuilding, transferring and testing of
 third-party Actions add avoidable maintenance. The upstream distributed uploader
 already provides the required explicit release-ID and no-overwrite inputs.
 
-## Changes
+## What Changes
 
 - Move `release/` to `cicd/release/` and `tools/` to `scripts/`; update all current
   source, workflow, package and contributor references.
