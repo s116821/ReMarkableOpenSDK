@@ -1445,7 +1445,7 @@
     {
       "path": "docs/README.md",
       "title": "SDK technical knowledge",
-      "lf_utf8_sha256": "6308a832046003d2818191f1468d590145cfed8256b95bc757070902b5552870",
+      "lf_utf8_sha256": "b1ad895993643394d15a43d051e430d3c804604ca1dbfb4713c08c0167498376",
       "headings": [
         {
           "line": 1,
@@ -1781,6 +1781,37 @@
         {
           "line": 34,
           "heading": "Existing raw-tap source and smallest useful distinction"
+        }
+      ]
+    },
+    {
+      "path": "docs/research/insertion-task-completion-selection.md",
+      "title": "Native insertion task completion and page selection",
+      "lf_utf8_sha256": "fab2367dac92345e6860fbf13f136f395c590d0670a7f9f5287932b56cb99ee0",
+      "headings": [
+        {
+          "line": 1,
+          "heading": "Native insertion task completion and page selection"
+        },
+        {
+          "line": 8,
+          "heading": "Provenance and scope"
+        },
+        {
+          "line": 32,
+          "heading": "Observed submission and completion chain"
+        },
+        {
+          "line": 48,
+          "heading": "Selection boundary and unresolved effects"
+        },
+        {
+          "line": 77,
+          "heading": "Follow-up: task result updates the remembered page"
+        },
+        {
+          "line": 132,
+          "heading": "Follow-up: wrapper forwarding and the known view setup"
         }
       ]
     },
