@@ -10,6 +10,7 @@ remain workflow records, not a shipping capability declaration.
 | Area | Start here | Contents |
 | --- | --- | --- |
 | Research | [Native-platform ledger](research/native-platform-ledger.md) | Attributed static/runtime findings, pinned prior art, positive/refused observations and unresolved limits |
+| Insertion completion | [Task and selection boundaries](research/insertion-task-completion-selection.md) | Exact-build static task submission and JavaScript completion route; no direct view selection identified and indirect effects unresolved |
 | Native insertion | [Caller-selected identity result](experiments/caller-selected-insertion-result.md) | One exact-ID insertion and native stroke persisted with originals preserved; deadline recovery and unexpected-close UI keep lifecycle qualification open |
 | Input coordinates | [Protocol-B retention and remaining evidence gap](research/input-coordinate-evidence-limits.md) | Ordinary release retains axes; fresh-handler and actual-event attribution remain unresolved |
 | Stock presentation | [Screen Share witness assessment](research/stock-screenshare-witness-assessment.md) | Distinct stock-service candidate does not establish the current source witness; account/start-path and exact-firmware evidence limits |
