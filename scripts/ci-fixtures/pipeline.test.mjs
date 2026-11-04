@@ -93,7 +93,7 @@ test('existing checks have one stage/platform owner with no duplicate SDK unit s
     for(const pattern of ['test_stage_admission.py','test_candidate_admission.py','test_portable_stage.py'])assert.equal(runs(job).split(pattern).length-1,1);
   const checks=runs(flow.jobs.checks);
   assert.equal(checks.split('-p test_rm1_baseline.py').length-1,1);
-  assert.ok(checks.includes('py_compile tools/collect_rm1_baseline.py tools/test_rm1_baseline.py'));
+  assert.ok(checks.includes('py_compile scripts/collect_rm1_baseline.py scripts/test_rm1_baseline.py'));
   for(const text of ['check_consumer_boundary.py --toolchain 1.88.0','check_consumer_boundary.py --toolchain 1.98.1','clippy','-fsanitize=address,undefined','qemu-arm'])assert.ok(checks.includes(text),text);
   assert.equal(flow.jobs.build.steps.some(s=>/cargo.*test|unittest/.test(s.run??'')),false);
   assert.equal(flow.jobs.integration.steps.some(s=>/cargo|rustc|SDK unit/.test(s.run??'')),false);
@@ -114,18 +114,12 @@ test('candidate is read-only after checks and integration uses the exact artifac
   assert.equal(integrate.env.SOURCE,'${{ needs.build.outputs.source_sha }}');
   assert.ok(integrate.run.includes('candidate_artifacts.py integration'));
   assert.ok(integrate.run.includes('test_candidate_artifacts.py'));
-  const uploader=flow.jobs.integration.steps.find(s=>s.with?.['artifact-ids']==='${{ needs.checks.outputs.uploader_artifact_id }}');
-  assert.ok(uploader);
-  assert.equal(uploader.with.name,undefined);
-  assert.equal(flow.jobs.checks.outputs.uploader_artifact_id,'${{ steps.uploader_artifacts.outputs.artifact-id }}');
-  assert.equal(flow.jobs.checks.outputs.uploader_provenance_sha,'${{ steps.uploader.outputs.provenance_sha256 }}');
-  const verify=flow.jobs.integration.steps.find(s=>s.run?.includes('--expected-provenance'));
-  assert.equal(verify.env.SDK_UPLOADER_PROVENANCE_SHA,'${{ needs.checks.outputs.uploader_provenance_sha }}');
-  assert.ok(verify.run.includes('--expected-provenance "$SDK_UPLOADER_PROVENANCE_SHA"'));
+  assert.equal(flow.jobs.integration.steps.some(s=>s.with?.['artifact-ids']?.includes('uploader')),false);
+  assert.deepEqual(Object.keys(flow.jobs.checks.outputs),['application']);
 });
 test('retained probe is a real built-library consumer rather than unit replay',()=>{
-  const helper=readFileSync(new URL('../../release/candidate_artifacts.py',import.meta.url),'utf8');
-  assert.ok(helper.includes('release/sdk_consumer_probe.rs'));
+  const helper=readFileSync(new URL('../../cicd/release/candidate_artifacts.py',import.meta.url),'utf8');
+  assert.ok(helper.includes('cicd/release/sdk_consumer_probe.rs'));
   assert.ok(helper.includes("'--extern', 'remarkable_open_sdk='"));
   assert.ok(helper.includes("'dependency=' + str(host / 'deps')"));
   assert.equal(helper.includes("'test', '--locked'"),false);
@@ -187,7 +181,7 @@ test('final Release consumes exact tested artifacts without rebuilding or replay
   assert.equal(release.env.RELEASE_TAG,'${{ needs.build.outputs.tag }}');
   const downloads=steps.filter(s=>s.uses?.startsWith('actions/download-artifact@'));
   assert.deepEqual(downloads.map(s=>s.with['artifact-ids']),[
-    '${{ needs.build.outputs.artifact_id }}','${{ needs.checks.outputs.uploader_artifact_id }}']);
+    '${{ needs.build.outputs.artifact_id }}']);
   for(const step of downloads)assert.equal(step.with.name,undefined);
   const verified=steps.findIndex(s=>s.name==='Revalidate exact tested build');
   const eligible=steps.findIndex(s=>s.name==='Require exact merged main PR before any official tag');
@@ -195,8 +189,6 @@ test('final Release consumes exact tested artifacts without rebuilding or replay
   assert.ok(verified>=0&&eligible>verified&&tag>eligible);
   assert.equal(steps[verified].env.RECEIPT,'${{ needs.build.outputs.receipt_sha }}');
   assert.equal(steps[verified].env.BUILT_SOURCE,'${{ needs.build.outputs.source_sha }}');
-  assert.equal(steps[verified].env.UPLOADER_PROVENANCE,'${{ needs.checks.outputs.uploader_provenance_sha }}');
-  assert.ok(steps[verified].run.includes('--expected-provenance "$UPLOADER_PROVENANCE"'));
   assert.ok(steps[verified].run.includes('candidate_artifacts.py verify'));
   assert.equal(/cargo |rustc |npm |unittest|candidate_artifacts.py (?:build|integration)/.test(text),false);
   assert.equal(text.includes('pip-audit'),false,'audit remains owned by Checks');
@@ -208,7 +200,7 @@ test('final Release consumes exact tested artifacts without rebuilding or replay
 test('maintained finalization retains original ID and verified missing-only bytes',()=>{
   const steps=flow.jobs.release.steps;
   const upload=steps.find(s=>s.id==='upload');
-  assert.equal(upload.uses,'./.qualified/uploader');
+  assert.equal(upload.uses,'svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de');
   for(const key of ['overwrite','promote','prerelease','make_latest'])assert.equal(upload.with[key],false,key);
   for(const key of ['draft','check_duplicates','file_glob'])assert.equal(upload.with[key],true,key);
   const replacement=steps.findIndex(s=>s.name==='Refuse a replacement uploader release ID');

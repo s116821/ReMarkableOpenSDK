@@ -19,8 +19,8 @@ class PackageInventory(unittest.TestCase):
         (self.repo/'README.md').write_text('Owned fixture only\n')
         (self.repo/'research').mkdir()
         (self.repo/'research/excluded.md').write_text('Tracked research stays out\n')
-        (self.repo/'tools').mkdir()
-        (self.repo/'tools/private-decoy.txt').write_text('Original harmless text\n')
+        (self.repo/'scripts').mkdir()
+        (self.repo/'scripts/private-decoy.txt').write_text('Original harmless text\n')
         paths = include if include is not None else ['/Cargo.toml','/Cargo.lock','/README.md','/src/lib.rs']
         if license_inputs:
             for name in ['LICENSE','THIRD_PARTY_NOTICES.md']:
@@ -79,7 +79,7 @@ class PackageInventory(unittest.TestCase):
     def test_missing_changed_or_unexpected_archive_members_refuse(self):
         _,artifact=self.packaged()
         for args in [{'drop':'src/lib.rs'},{'change':'src/lib.rs'},{'change':'Cargo.toml'},
-                     {'append':'tools/private-decoy.txt'},{'append':'research/excluded.md'}]:
+                     {'append':'scripts/private-decoy.txt'},{'append':'research/excluded.md'}]:
             with self.subTest(args=args),self.assertRaises(Refusal):
                 distribution_manifest(self.out,self.rewrite(artifact,**args))
 

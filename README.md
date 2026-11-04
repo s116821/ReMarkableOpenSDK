@@ -32,6 +32,10 @@ tracks the endpoint, native lifetime, consumer and device acceptance still neede
 
 Run `cargo test --locked` and `cargo clippy --locked --all-targets -- -D warnings`. Existing RM1 baseline/input tools retain their separate qualifications.
 
+Development helpers live in `scripts/`; release inputs live in `cicd/release/`.
+See [release maintenance](cicd/release/README.md) for the small set of
+SDK-specific checks retained alongside maintained GitHub Actions.
+
 ```rust
 use remarkable_open_sdk::{OperationId, PageKey, Uuid};
 let document = Uuid::parse("01234567-89ab-cdef-0123-456789abcdef").unwrap();

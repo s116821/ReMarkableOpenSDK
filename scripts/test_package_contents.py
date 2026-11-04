@@ -73,7 +73,7 @@ class PackageContents(unittest.TestCase):
         self.assertIn("GPL-3.0-only", notices)
 
     def test_locked_registry_and_complete_original_notices(self):
-        inventory = json.loads((ROOT / "tools/dependency-license-inventory.json").read_text(encoding="utf-8"))
+        inventory = json.loads((ROOT / "scripts/dependency-license-inventory.json").read_text(encoding="utf-8"))
         lock = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))
         registry = {(p["name"], p["version"], p["source"], p["checksum"])
                     for p in lock["package"] if p.get("source")}
@@ -113,7 +113,7 @@ class PackageContents(unittest.TestCase):
             # decoys. No remote, commit, user identity or historical file is used.
             subprocess.run(["git", "init", "--quiet"], cwd=root, check=True, capture_output=True)
             subprocess.run(["git", "add", "--", *sorted(REQUIRED)], cwd=root, check=True, capture_output=True)
-            decoys = {"tools/private-development.inc", "native/unselected.cpp", "private-observation.json"}
+            decoys = {"scripts/private-development.inc", "native/unselected.cpp", "private-observation.json"}
             for name in decoys:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)

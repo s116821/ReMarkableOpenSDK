@@ -13,7 +13,7 @@ from stage_source import Refusal, sdk_build_environment, verify_sdk_dependency
 from test_cargo_consumer import fixture_environment
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class CurrentGitConsumer(unittest.TestCase):
