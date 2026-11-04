@@ -195,3 +195,18 @@ boundaries SHALL remain unsupported, independently of passing host protocol test
 #### Scenario: Protocol feature enabled without native executor
 - **WHEN** a consumer enables the native-adapter protocol feature alone
 - **THEN** UnqualifiedPlatform continues to report unsupported native operations and the default dependency-free build remains available
+
+### Requirement: Reproducible installed Reader bundle
+The RM2 installed Reader adapter bundle SHALL bind its exact native library and
+profile to a tablet-tested digest pair. The build SHALL validate the pinned Dobby
+source archive, reconstruct the required compatibility edits, and verify the
+resulting library and profile before packaging. The bundle SHALL include both
+licenses and a checksum list, and remain separate from the Rust crate.
+
+#### Scenario: Rebuild for the admitted RM2 firmware
+- **WHEN** the pinned source inputs and the matching RM2 SDK are used to rebuild the bundle
+- **THEN** packaging succeeds only if both native artifacts match the approved digests
+
+#### Scenario: A changed source or native artifact is supplied
+- **WHEN** the upstream source archive, compiled library or profile does not match its pinned digest
+- **THEN** the build refuses to emit an installed Reader bundle

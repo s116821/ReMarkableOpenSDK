@@ -26,6 +26,39 @@ build artifact. The SDK's GPL-3.0-only license is copied too. The artifact links
 dynamically to the target Qt/runtime libraries; it does not bundle vendor firmware
 or those libraries. This build directory is not a complete release distribution.
 
+## Installed Reader bundle
+
+`package-installed-reader.sh` rebuilds the admitted Dobby archive from the
+[pinned upstream source archive](https://codeload.github.com/jmpews/Dobby/tar.gz/e9fe7fbecae47a2287e761080f8b1133cc22e8fa),
+applies the two compatibility edits, and checks both the adapter and profile
+against the tablet-tested digests before writing a tarball.
+
+Run it in a Linux container with the RM2 SDK for Qt 6.10.3 and GCC 13.4.0. Set
+`sdk_image` to the image with that toolchain, `sdk_environment` to its environment
+setup file, and `dobby_archive` to the absolute path of the downloaded tarball.
+Run from the SDK source root with an empty output directory.
+
+```sh
+mkdir native-bundle-output
+docker run --rm --network none --read-only \
+  --tmpfs /source:exec,size=64m --tmpfs /tmp:exec,size=256m \
+  --mount "type=bind,src=$PWD,dst=/src,readonly" \
+  --mount "type=bind,src=$PWD/native/rm2_3_28_0_172/dobby,dst=/inputs,readonly" \
+  --mount "type=bind,src=$dobby_archive,dst=/dobby.tar.gz,readonly" \
+  --mount "type=bind,src=$PWD/native-bundle-output,dst=/out" \
+  -e "QT_PROBE_SDK_ENV=$sdk_environment" \
+  -e RSDK_DOBBY_SOURCE_ARCHIVE=/dobby.tar.gz \
+  --entrypoint sh "$sdk_image" \
+  /src/native/rm2_3_28_0_172/package-installed-reader.sh
+```
+
+The fixed container paths and Dobby build date reproduce the original archive's
+build metadata. The resulting `remarkable-open-sdk-rm2-3.28.0.172-reader-insert.tar.gz`
+contains the library, profile, licenses and `SHA256SUMS`. Consumers must verify
+the library and profile against their independently approved digest pair before
+installation. The archive's checksum list verifies extraction and transport.
+The Rust source crate and compiler libraries remain separate distributions.
+
 ## Bootstrap contract
 
 The explicit supervisor must verify the approved manifest, executable and adapter

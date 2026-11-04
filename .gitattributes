@@ -2,3 +2,8 @@
 LICENSE -text
 # Upstream CRLF/trailing spaces are intentional; notice checks verify exact bytes.
 THIRD_PARTY_NOTICES.md -text -whitespace
+# The RM2 bundle hashes the exact profile and license bytes.
+native/rm2_3_28_0_172/Dobby-LICENSE -text
+native/rm2_3_28_0_172/installed-reader-insert-v1.json text eol=lf
+native/rm2_3_28_0_172/installed-reader-insert-v1.sha256 text eol=lf
+native/rm2_3_28_0_172/*.sh text eol=lf

@@ -49,6 +49,7 @@
   - [ ] 3.1b Pin the progress-aware SDK and connect Buddy handshake/request callbacks, including actual journal and startup cancellation behavior, before first-gesture integration.
 - [ ] 3.2 Complete disposable PDF/notebook middle/end, reuse/no-duplicate, preservation, interruption, write/reopen and blank-start/Writer acceptance with appropriate simulation and exact native evidence.
 - [ ] 3.3 Publish only qualified profile/capability results, pass exact-source CI/review, sync implemented specs and archive the completed coordinated change.
+  - [ ] Reproduce the installed RM2 Reader bundle from pinned Dobby source and the RM2 toolchain, and verify installation of the packaged profile and library on the tablet.
 
 ## Development-only native effect probe
 - [x] Build the explicitly selected development-effect-probe-v1 profile/artifact; keep ordinary factory/profile disabled. Local ARM build only; native execution remains below.
