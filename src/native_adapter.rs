@@ -11,7 +11,7 @@ pub mod transport;
 
 mod capture;
 pub use capture::{
-    HistoricalCapture, HistoricalVisual, CAPTURE_PROCEDURE, MAX_CAPTURE_PIXELS, MAX_CAPTURE_PNG,
+    CAPTURE_PROCEDURE, HistoricalCapture, HistoricalVisual, MAX_CAPTURE_PIXELS, MAX_CAPTURE_PNG,
     VISUAL_PROCEDURE,
 };
 
