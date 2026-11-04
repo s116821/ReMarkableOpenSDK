@@ -11,6 +11,11 @@ for independent reproduction of that archive remains part of native delivery.
 Set `QT_PROBE_SDK_ENV`, `RSDK_DOBBY_ARCHIVE`, `RSDK_DOBBY_INCLUDE` and a fresh
 `RSDK_NATIVE_OUTPUT`, then invoke `sh native/rm2_3_28_0_172/build.sh` in Linux.
 The output retains its profile manifest, ELF report and artifact hashes.
+Select `RSDK_BUILD_VARIANT=installed-reader-insert-v1` for the installed Reader
+insertion candidate. Its manifest must be admitted with the matching library by
+the consumer. The executor serializes requests and makes capacity available again
+only after the prior request retires. The profile leaves native Select, ordinary
+close, and fixture reopen disabled. The default build is still observation-only.
 The shared object has ARM hard-float ABI, eager bindings and NODELETE. No source
 or build success establishes native constructor ordering, activation or recovery.
 

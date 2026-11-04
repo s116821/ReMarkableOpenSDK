@@ -182,6 +182,11 @@ SHALL require separate physical callback-completion evidence and bounded capacit
 - **WHEN** a retired native request completes after the caller has canceled
 - **THEN** its late delivery cannot authorize another request or erase mutation ambiguity
 
+#### Scenario: Repeated insertions on an admitted installed profile
+- **WHEN** an installed Reader insertion profile receives a fresh request after the previous request has completed and its native owners have been reclaimed
+- **THEN** the executor can admit the fresh request in the same process subject to its ordinary identity, deadline and capacity checks
+- **AND** an outstanding or unreconciled request still prevents admission to the occupied executor
+
 ### Requirement: Unsupported until qualified
 Capability discovery SHALL remain observational and SHALL NOT activate the native
 runtime. Unknown model/firmware/profile combinations and unimplemented integration

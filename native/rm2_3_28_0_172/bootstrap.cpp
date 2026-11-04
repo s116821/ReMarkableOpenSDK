@@ -34,7 +34,7 @@ __attribute__((constructor(200))) void initialize() {
         if(!admitted)refuse();
         // The original loader independently verifies executable/provider hashes,
         // mapped code, eager bindings and pre-main conditions before any hook.
-        #ifdef RSDK_DEVELOPMENT_EFFECT_PROBE_V1
+#if defined(RSDK_INSTALLED_READER_INSERT_V1) || defined(RSDK_DEVELOPMENT_EFFECT_PROBE_V1)
         facilities=reader_insertion_native_profile::installBeforeMain(true);
 #else
         facilities=reader_insertion_native_profile::installBeforeMain(false);
