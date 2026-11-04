@@ -192,6 +192,14 @@ physical mutation retains the bounded mutation slot while independent read-only
 observations remain possible. The executor implements this source policy;
 native reclamation and repeated-operation capacity remain unqualified.
 
+The opt-in repeat-insertion development profile admits at most two insertion
+requests through the endpoint. The existing executor busy check and slot
+retirement rules apply to both. The profile reports whether the executor
+reclaimed its slot or retained it after the existing bounded retirement
+attempts. The second request still needs its own source, order, operation
+identity, and normal native admission. The request limit and profile have no
+effect on ordinary builds or the earlier single-insertion probe profiles.
+
 The Core source now uses opaque weak-record tokens for registration, cancellation
 and snapshots. Outer entry pins the record and records active frames before
 native dispatch; the inner predicate is unchanged. Registry locks cover only

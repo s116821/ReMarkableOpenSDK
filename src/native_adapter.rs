@@ -200,6 +200,16 @@ impl SelectAdjacent {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
+    /// Explicit development ordinary Reader close. Not save completion.
+    #[cfg(feature="development-native-close")]
+    CloseOrdinary(ReaderFacts),
+    /// Explicit diagnostic fixture reopen only after sampled closure; no production open API.
+    #[cfg(feature="development-native-close")]
+    ReopenFixture(ReaderFacts),
+    /// Fresh sampled closed UI, not a storage fence.
+    #[cfg(feature="development-native-close")]
+    ObserveClosed,
+
     Observe,
     /// Read-only window pixels; no Reader facts or page/write authority.
     CaptureVisual,
@@ -215,6 +225,8 @@ pub enum Command {
 }
 impl Command {
     pub fn is_effectful(&self) -> bool {
+        #[cfg(feature="development-native-close")]
+        if matches!(self,Self::CloseOrdinary(_) | Self::ReopenFixture(_)) { return true; }
         matches!(self, Self::InsertAfter(_) | Self::SelectAdjacent(_))
     }
 }
@@ -230,6 +242,13 @@ pub enum Rejection {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reply {
+    #[cfg(feature="development-native-close")]
+    OrdinaryCloseDispatched,
+    #[cfg(feature="development-native-close")]
+    FixtureReopenDispatched,
+    #[cfg(feature="development-native-close")]
+    ClosedObserved,
+
     Observed(ReaderFacts),
     Captured(HistoricalCapture),
     VisualCaptured(HistoricalVisual),
@@ -403,6 +422,12 @@ impl Frame {
             Message::Request(command) => {
                 w.u8(2);
                 match command {
+                    #[cfg(feature="development-native-close")]
+                    Command::CloseOrdinary(expected) => {if revision<4{return Err(ProtocolError::UnsupportedVersion);} w.u8(7);w.facts(expected);}
+                    #[cfg(feature="development-native-close")]
+                    Command::ReopenFixture(expected) => {if revision<4{return Err(ProtocolError::UnsupportedVersion);}w.u8(9);w.facts(expected);}
+                    #[cfg(feature="development-native-close")]
+                    Command::ObserveClosed => {if revision<4{return Err(ProtocolError::UnsupportedVersion);}w.u8(8);}
                     Command::Observe => w.u8(0),
                     Command::CaptureVisual => w.u8(6),
                     Command::CaptureSource(expected) => {
@@ -446,6 +471,12 @@ impl Frame {
                 w.u8(3);
                 w.0.extend(request_sha256);
                 match reply {
+                    #[cfg(feature="development-native-close")]
+                    Reply::OrdinaryCloseDispatched => {if revision<4{return Err(ProtocolError::UnsupportedVersion);}w.u8(9);}
+                    #[cfg(feature="development-native-close")]
+                    Reply::FixtureReopenDispatched => {if revision<4{return Err(ProtocolError::UnsupportedVersion);}w.u8(11);}
+                    #[cfg(feature="development-native-close")]
+                    Reply::ClosedObserved => {if revision<4{return Err(ProtocolError::UnsupportedVersion);}w.u8(10);}
                     Reply::Observed(facts) => {
                         w.u8(0);
                         w.facts(facts);
@@ -576,6 +607,12 @@ impl Frame {
             0 => Message::Hello,
             1 => Message::Ready,
             2 => Message::Request(match r.u8()? {
+                #[cfg(feature="development-native-close")]
+                7 if revision>=4 => Command::CloseOrdinary(r.facts()?),
+                #[cfg(feature="development-native-close")]
+                9 if revision>=4 => Command::ReopenFixture(r.facts()?),
+                #[cfg(feature="development-native-close")]
+                8 if revision>=4 => Command::ObserveClosed,
                 0 => Command::Observe,
                 6 if revision >= 4 => Command::CaptureVisual,
                 5 if revision >= 3 => {
@@ -617,6 +654,12 @@ impl Frame {
             3 => {
                 let request_sha256 = r.take()?;
                 let reply = match r.u8()? {
+                    #[cfg(feature="development-native-close")]
+                    9 if revision>=4 => Reply::OrdinaryCloseDispatched,
+                    #[cfg(feature="development-native-close")]
+                    11 if revision>=4 => Reply::FixtureReopenDispatched,
+                    #[cfg(feature="development-native-close")]
+                    10 if revision>=4 => Reply::ClosedObserved,
                     0 => Reply::Observed(r.facts()?),
                     8 if revision >= 4 => {
                         let dimensions = [r.u32()?, r.u32()?];
@@ -1006,6 +1049,12 @@ impl Session {
             unreachable!()
         };
         let valid = match (command, reply) {
+            #[cfg(feature="development-native-close")]
+            (Command::CloseOrdinary(_),Reply::OrdinaryCloseDispatched) => true,
+            #[cfg(feature="development-native-close")]
+            (Command::ReopenFixture(_),Reply::FixtureReopenDispatched) => true,
+            #[cfg(feature="development-native-close")]
+            (Command::ObserveClosed,Reply::ClosedObserved) => true,
             (Command::Observe, Reply::Observed(_)) => true,
             (Command::CaptureVisual, Reply::VisualCaptured(_)) => true,
             (Command::CaptureSource(expected), Reply::Captured(capture)) => {

@@ -615,3 +615,17 @@ EOF or ECONNRESET as closure, without weakening client assertions. r2 passed its
 tests but strict lint rejected an obsolete mutable reference in a private test;
 r3 validates the corrected final source. No prior failure is relabeled a pass.
 
+## Live repeat-insertion development profile
+
+RM2 firmware 3.28.0.172 ran two separate insertions in Reader PID 7389
+with start ticks 231128794 and activation
+`c0b5d67a-9d09-44e2-ad84-8d1923cbd41e`. The r29 installed Buddy experiment
+r23 used profile SHA-256 `40b1ddfc7a85d856e8c0091f136196f57dbdef99df29886bcca0947911d68070`
+and adapter SHA-256 `1c7073cb698be50f05cdf78a13a31163dc3baa5a71bcbae4373261a6a2d1fa56`.
+The profile permits at most two requests and uses the existing slot
+retirement rules. The native log reports executor reclamation at 09:29:23.126
+and 09:31:36.478. Separate native target facts, exact saved page orders and
+fresh stock Reader reopen corroborate both operations. The original
+page records and ink stayed exact. This exercises normal completion in one
+development activation. Last-owner release, cancellation and open-ended
+production capacity still require independent evidence.

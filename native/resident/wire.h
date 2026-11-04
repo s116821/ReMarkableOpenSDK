@@ -125,7 +125,21 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
     if(f.message>3 || ((f.message<2)!=(f.sequence==0)) ||
        (f.message==0?f.server!=QByteArray(16,0):!validId(f.server)))return {};
     if(f.message==2) {
-        f.kind=r.number<quint8>();if(f.kind>6)return {};
+        f.kind=r.number<quint8>();
+#ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
+#ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
+        if(f.kind>9)return {};
+        if(f.kind==9){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
+        else
+#else
+        if(f.kind>8)return {};
+#endif
+        if(f.kind==7){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
+        else if(f.kind==8){}
+        else
+#else
+        if(f.kind>6)return {};
+#endif
         if(f.kind==5) {f.facts=r.facts();if(f.facts.order.size()>17)return {};}
         else if(f.kind&&f.kind!=6) {
             f.facts=r.facts();f.target=r.id();
@@ -134,7 +148,16 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
             if(f.kind==1&&f.facts.order.size()==MaxPages)return {};
         }
     } else if(f.message==3) {
-        f.requestDigest=r.take(32);f.kind=r.number<quint8>();if(f.kind>8)return {};
+        f.requestDigest=r.take(32);f.kind=r.number<quint8>();
+#ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
+#ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
+        if(f.kind>11)return {};
+#else
+        if(f.kind>10)return {};
+#endif
+#else
+        if(f.kind>8)return {};
+#endif
         if(f.kind==7||f.kind==8) {
             auto &c=f.capture;
             if(f.kind==7){f.facts=r.facts();c.after=r.facts();}
@@ -157,7 +180,7 @@ inline QByteArray encode(const Frame &f) {
     // Reject oversized fields before appending any caller-controlled collection.
     if(f.runtime.size()!=140||f.client.size()!=16||f.server.size()!=16||f.operation.size()!=16||
        f.facts.order.size()>MaxPages||f.capture.png.size()>MaxCapturePng)return {};
-    if((f.message==2&&f.kind&&f.kind!=6)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
+    if((f.message==2&&f.kind&&f.kind!=6&&f.kind!=8)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
         if(!validFacts(f.facts))return {};
     }
     if(((f.message==2&&f.kind&&f.kind<5)||(f.message==3&&f.kind==1))&&!validId(f.target))return {};
@@ -167,7 +190,7 @@ inline QByteArray encode(const Frame &f) {
     w.bytes+=f.client;w.bytes+=f.server;w.number<quint64>(f.sequence);w.bytes+=f.operation;w.number<quint8>(f.message);
     if(f.message==2) {
         w.number<quint8>(f.kind);
-        if(f.kind&&f.kind!=6){w.facts(f.facts);if(f.kind!=5)w.bytes+=f.target;}
+        if(f.kind&&f.kind!=6&&f.kind!=8){w.facts(f.facts);if(f.kind!=5&&f.kind!=7&&f.kind!=9)w.bytes+=f.target;}
     } else if(f.message==3) {
         if(f.requestDigest.size()!=32)return {};
         w.bytes+=f.requestDigest;w.number<quint8>(f.kind);
@@ -208,6 +231,7 @@ public:
         if(bytes_.size()!=qsizetype(size)+4)return result;
         result.frame=decode(bytes_.mid(4));if(!result.frame)return fail();bytes_.clear();return result;
     }
+    bool idle()const{return !poisoned_&&bytes_.isEmpty();}
     void close(){poisoned_=true;bytes_.clear();}
 };
 }

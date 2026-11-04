@@ -69,3 +69,66 @@ recovery and a fresh bounded native activation must be qualified before use.
 The directory owner is trusted; these checks do not isolate hostile same-UID
 code or authenticate a signature. No per-request unload or process restart is
 part of the contract.
+
+## Development effect probe variant
+
+`RSDK_BUILD_VARIANT=development-effect-probe-v1` explicitly selects
+`development-effect-probe-v1.json` and compiles the conditional native insertion
+profile plus separate development selection factory. The default `observation`
+variant still uses the unchanged mutation-disabled `profile.json` and closed
+production selection factory. The experimental backend consumes at most one
+Insert request and one Select request; a refusal does not replenish either slot.
+
+Build into a fresh `RSDK_NATIVE_OUTPUT` using the same pinned Qt/Dobby inputs.
+Do not replace an artifact already bound to a capture candidate. The output
+`build-variant.txt`, profile digest and shared-object digest identify this probe.
+All source/input hashes and ELF metadata remain beside it.
+
+The existing admitted Buddy observer/supervisor is the only authenticated client;
+a standalone CLI cannot impersonate that parent PID. After fresh source capture,
+the observer may journal and dispatch one `InsertAfter { source: actual_facts,
+target: fresh_absent_uuid }`, retain the exact reply, then take a fresh Observe.
+Selection uses a distinct journal/operation and `SelectAdjacent { expected:
+fresh_actual_facts, target }`; the target must be current or immediate successor.
+The original absolute budget is never renewed inside a request. Timeout/loss is
+not a retry invitation. Read-only reconciliation is the only uncertain follow-up.
+
+Insertion observation does not select the page or prove durable persistence.
+The existing shared effect gate may return Busy for selection if insertion-owner
+retirement cannot finish; retain that outcome rather than clearing the gate.
+A separately admitted selection-only candidate can test an existing adjacent
+page. Fresh target pixels, save/reopen, stock preservation and independent recovery
+are device evidence; this build does not establish production qualification.
+
+## Endpoint lifecycle diagnostics
+
+`RSDK_BUILD_VARIANT=observation-endpoint-diagnostics-v1` keeps the exact ordinary
+mutation-disabled profile bytes and conditional-profile/selection gates unchanged.
+It adds only `RSDK_ENDPOINT_DIAGNOSTICS_V1` to the build. At most64 lines of at
+most255 bytes are written directly to the supervisor-owned stderr descriptor.
+Each line names a fixed accept/Hello/Ready/timer/retirement branch, monotonic
+milliseconds, process/connection generation, ready/read/pending flags and socket
+buffer counts. No request payload, pointer, document content or path is logged.
+The original5-second Hello,30-second idle and configured operation clocks remain;
+there is no reconnection retry, stale-peer takeover or deadline extension.
+
+This separates candidate8e62675's still-unproven reset branches: retained old peer
+versus accepted-peer Hello timeout or another explicit retirement. The prior
+mutation-disabled observation library and development-effect artifact stay pinned
+separately; a rebuilt diagnostics library needs its own exact digest admission.
+
+The subsequent disconnected-idle-peer fix preserves this trace variant/profile.
+It admits a replacement only after authenticated new-peer checks and existing
+retirement of an already unconnected, decoder-idle, nonpending old transport.
+Queued callbacks bind the original socket and nonwrapping generation. Existing
+native effect debt and all clocks remain unchanged; use its separate build hash.
+
+The later kernel-EOF fix supersedes the Qt-state terminal check: one nonconsuming
+MSG_PEEK|MSG_DONTWAIT read of one byte must return0, after all idle guards pass.
+Data/EAGAIN/errors/invalid descriptors still reject. Its trace logs guard mask
+and EOF/data/negative errno; all generation guards and original clocks remain.
+
+The terminal-proof union also accepts Qt UnconnectedState together with a
+negative socketDescriptor, only under the same complete idle guards. This
+explicit Qt-fully-closed branch is not a valid-fd EBADF exception. Trace marks
+it retire-qt-closed-idle-peer; valid-fd EOF remains the other terminal proof.

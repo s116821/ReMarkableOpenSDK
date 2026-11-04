@@ -45,6 +45,17 @@ public:
                 return reader_selected::observeCreationJoin(window,permit,budget,{},action);
             });
     }
+#ifdef RSDK_DEVELOPMENT_EFFECT_PROBE_V1
+    // Explicit experimental artifact only; does not change production qualification.
+    static ResidentSelection *createDevelopmentProbe(const reader_insertion_native_profile::Facilities *profile) {
+        if(!gui()||!profile||!profile->conditionQualified||!profile->applicationAbsent||
+           !profile->core||!profile->baseAdmission.profileAndProviders)return nullptr;
+        return new ResidentSelection(ResidentEffectGate::process(),
+            [](QQuickWindow *window,const Permit &permit,int budget,const reader_selected::ValidatedSourceAction &action){
+                return reader_selected::observeCreationJoin(window,permit,budget,{},action);
+            });
+    }
+#endif
     bool busy()const{return !gui()||bool(active_)||effects_.busy();}
     bool start(QQuickWindow *window,resident::Frame request,Clock::time_point deadline,Permit permit,Completion completion) {
         if(busy()||!window||window->thread()!=QCoreApplication::instance()->thread()||QGuiApplication::focusWindow()!=window||

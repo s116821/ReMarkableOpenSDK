@@ -133,9 +133,15 @@ void ResidentMutation::maintain() {
         reclaimed=result.reclaimed;
     }
     if(reclaimed) {
+#ifdef RSDK_DEVELOPMENT_REPEAT_INSERT_V1
+        qInfo("resident repeat-insert: executor reclaimed");
+#endif
         publish(state);active_.reset();effects_.release(state->effect);return;
     }
     if(++state->retirementAttempts<8){maintenance_.start(100);return;}
+#ifdef RSDK_DEVELOPMENT_REPEAT_INSERT_V1
+    qInfo("resident repeat-insert: executor retained after retirement attempts (core=%d)",int(coreRetired));
+#endif
     publish(state); // Capacity remains occupied; no ordinary-release fallback.
 }
 }

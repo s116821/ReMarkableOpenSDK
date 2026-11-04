@@ -34,7 +34,11 @@ __attribute__((constructor(200))) void initialize() {
         if(!admitted)refuse();
         // The original loader independently verifies executable/provider hashes,
         // mapped code, eager bindings and pre-main conditions before any hook.
+        #ifdef RSDK_DEVELOPMENT_EFFECT_PROBE_V1
+        facilities=reader_insertion_native_profile::installBeforeMain(true);
+#else
         facilities=reader_insertion_native_profile::installBeforeMain(false);
+#endif
         if(!facilities||!admitted->directoryCurrent()||!reader_child_environment::clearInheritedInjection())refuse();
         activation=admitted.release(); // One process-resident admission/directory.
     }catch(...){refuse();}
@@ -47,7 +51,7 @@ void startup() {
         try {
             auto *gui=qobject_cast<QGuiApplication*>(app);
             if(!gui||QThread::currentThread()!=gui->thread()||!activation->directoryCurrent())refuse();
-            // installBeforeMain(false) keeps mutation unavailable. The source
+            // Ordinary installBeforeMain(false) keeps mutation unavailable. The source
             // dispatcher cannot manufacture conditional-profile admission.
             auto *backend=new remarkable::rm2_3_28_0_172::MutationBackend(facilities,gui);
             const QPointer<remarkable::rm2_3_28_0_172::MutationBackend> guarded(backend);

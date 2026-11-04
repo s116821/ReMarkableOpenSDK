@@ -30,6 +30,7 @@
       - [x] 2.3c2d Bind one-shot attribution creation to the owner-slot token and add private adapter-context cleanup before owner consumption; quarantine uncertain state across all later admissions. Executor ordering is tracked below; native validation remains open.
       - [x] 2.3c2e Implement the resident executor's staged GUI/Core/attribution/owner retirement and bounded quarantine; independently review its lifecycle and test injected settled states on host/ARM. Full Coordinator-to-executor coverage is tracked below; native activation remains open.
       - [x] 2.3c2f Exercise real Coordinator start, Qt worker/witness delivery, framed deletion, Core/attribution/slot retirement and reuse together with explicit native callout models; preserve uncertain quarantine while recovering capacity after known pre-acquisition refusals. Endpoint/native qualification remains open.
+      - [x] 2.3c2g Exercise two distinct admitted insertions and observe executor reclamation after both in one live RM2 Reader process. The bounded development result is recorded in verification.md. Production admission, interruption and last-owner cases remain open.
 - [ ] 2.4 Integrate read-only reconciliation and fresh conditional adjacent target acquisition; retain unknown outcomes without mutation replay.
   - [x] 2.4a1 Add revision 2 selection/reconciliation framing, sticky effect loss, Linux/Qt transport coverage and the guarded existing-target inner call with owned host/ARM checks. This does not enable the native executor.
   - [x] 2.4a2 Integrate a process-shared effect reservation with mutation retirement, retaining unknown work across executors and releasing only after proven no-effect/reclamation plus completion capture destruction; verify owned host/ARM cases. Selection executor integration remains open.
@@ -48,3 +49,16 @@
   - [ ] 3.1b Pin the progress-aware SDK and connect Buddy handshake/request callbacks, including actual journal and startup cancellation behavior, before first-gesture integration.
 - [ ] 3.2 Complete disposable PDF/notebook middle/end, reuse/no-duplicate, preservation, interruption, write/reopen and blank-start/Writer acceptance with appropriate simulation and exact native evidence.
 - [ ] 3.3 Publish only qualified profile/capability results, pass exact-source CI/review, sync implemented specs and archive the completed coordinated change.
+
+## Development-only native effect probe
+- [x] Build the explicitly selected development-effect-probe-v1 profile/artifact; keep ordinary factory/profile disabled. Local ARM build only; native execution remains below.
+- [ ] Root separately admits exact disposable Insert/Select candidate and records actual results/recovery without product qualification.
+
+## Development ordinary-close persistence diagnostic
+- [x] Add explicit typed feature-off close/closed protocol, distinct development profile and one-close/Busy guards using exact REM57 source.
+- [ ] Complete direct ARM artifact build and checksum-bound consumer integration.
+- [ ] Execute fresh existing-target ink/ordinary-close, sampled storage and exact target reopen; retain failure and recovery independently.
+- [ ] Qualify target-visible product settlement without mandatory Library/manual reopen; no production capability from diagnostic close.
+
+- [x] Source-integrate feature-only same-process ReopenFixture against exact closed target/runtime using the retained known diagnostic navigation implementation.
+- [ ] Build the fresh write/reopen artifact and run the known complete sequence, keeping actual cold reopen/save proof separate and current failures unchanged.
