@@ -37,18 +37,21 @@ selecting reverse engineering, an upstream query or another native experiment.
 
 ## Smallest later observation and decision
 
-After the existing hold/operator checks, run the unchanged host collector once
+After the existing hold/operator checks, run the transport-corrected collector once
 with a fresh private output path (commands shown for review, not executed here):
 
 ```sh
 # Preserved RM1 worktree layout:
 python3 tools/collect_rm1_baseline.py --ssh-host remarkable1-usb --output /fresh/private/rm1-baseline.json
-# Delivered SDK layout has the identical script at scripts/collect_rm1_baseline.py.
+# The current SDK layout uses scripts/collect_rm1_baseline.py after integration.
 ```
 
 The operator must establish that this alias is still direct USB/key-only for the
 intended RM1, with existing trusted host identity and no WLAN/proxy fallback.
 The collector accepts an alias; it does not prove or configure that route.
+Its SSH invocation must explicitly set UpdateHostKeys=no and ConnectionAttempts=1
+alongside strict host-key checking, key-only authentication and existing bounds.
+Do not edit config/known_hosts or add a wrapper to obtain these guarantees.
 Use a fresh path: successful output is an atomic replacement, while refusal
 preserves the previous selected output. Do not delete the old baseline.
 

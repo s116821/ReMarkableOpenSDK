@@ -113,10 +113,17 @@ class TransportTests(unittest.TestCase):
                 f'sys.stdout.buffer.write({fixture()!r})\n')
             self.assertEqual(baseline.transport('fixture', command=command), fixture())
             args = json.loads(args_path.read_text())
-            for option in ('BatchMode=yes', 'IdentitiesOnly=yes', 'StrictHostKeyChecking=yes',
-                           'ForwardAgent=no', 'ClearAllForwardings=yes'):
-                self.assertIn(option, args)
-            self.assertEqual(args[-1], baseline.REMOTE_SCRIPT)
+            # Inspect the actual spawned argv, not a parallel option constant.
+            # Exact ordered pairs also reject contrary duplicate options, whose
+            # first value OpenSSH would otherwise take from this invocation.
+            self.assertEqual(args[0], '-T')
+            self.assertEqual(args[-2:], ['fixture', baseline.REMOTE_SCRIPT])
+            options = args[1:-2]
+            self.assertEqual(options[::2], ['-o'] * 8)
+            self.assertEqual(options[1::2], [
+                'BatchMode=yes', 'IdentitiesOnly=yes', 'StrictHostKeyChecking=yes',
+                'UpdateHostKeys=no', 'ConnectionAttempts=1', 'ForwardAgent=no',
+                'ClearAllForwardings=yes', 'ConnectTimeout=8'])
 
 
 class OutputTests(unittest.TestCase):

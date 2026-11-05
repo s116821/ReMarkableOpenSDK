@@ -125,7 +125,8 @@ def transport(host, deadline=DEADLINE, command='ssh'):
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', host):
         raise Refusal('Invalid SSH host token')
     args = [command, '-T', '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes',
-            '-o', 'StrictHostKeyChecking=yes', '-o', 'ForwardAgent=no',
+            '-o', 'StrictHostKeyChecking=yes', '-o', 'UpdateHostKeys=no',
+            '-o', 'ConnectionAttempts=1', '-o', 'ForwardAgent=no',
             '-o', 'ClearAllForwardings=yes', '-o', 'ConnectTimeout=8',
             host, REMOTE_SCRIPT]
     try:

@@ -5,6 +5,7 @@
 - [x] Inspect shipped SDK v0.2.0/a0c6480 and returned RM2 research integration; replace stale candidate-waiting language without borrowing RM2 qualification.
 - [x] Record the RM1 profile/evidence/refusal matrix and delivered collector's smallest later refresh and limits.
 - [ ] Obtain independent review of this exact source-only reconciliation; no native task is completed by this checkpoint.
+- [x] Pin UpdateHostKeys=no and ConnectionAttempts=1 in the existing collector; all 11 owned local controls pass, and the focused spawned-argv control fails against the old collector as expected. Independent successor review/publication and any tablet read remain pending; trust, route, deadlines and output bounds are retained.
 
 ## Remaining native qualification
 

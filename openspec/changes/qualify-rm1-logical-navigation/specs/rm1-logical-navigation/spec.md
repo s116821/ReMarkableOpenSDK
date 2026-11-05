@@ -44,6 +44,11 @@ RM1 baseline refresh SHALL reuse the delivered bounded collector without native
 activation, input or document reads. Its observations SHALL NOT authorize native
 operations or fill evidence fields absent from its schema.
 
+#### Scenario: Inherited SSH configuration permits host-key maintenance or retries
+- **WHEN** the collector prepares its SSH invocation
+- **THEN** it explicitly sets UpdateHostKeys=no and ConnectionAttempts=1 while retaining StrictHostKeyChecking=yes and existing key/forwarding/deadline controls, without editing config or known_hosts.
+- **AND** owned transport validation checks the actual spawned arguments for a single non-conflicting instance of each required option before the host alias and fixed remote command.
+
 #### Scenario: Matching baseline does not complete qualification
 - **WHEN** a fresh successful collector report matches the retained model/runtime fingerprints
 - **THEN** native operations remain unsupported and orientation, provider ABI, page identity, capture and recovery qualification remain separate.

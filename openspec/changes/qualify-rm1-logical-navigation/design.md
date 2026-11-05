@@ -72,10 +72,21 @@ No runtime hook, input, restart, device operation or native experiment is select
 ## Smallest later read-only refresh
 
 After existing device/operator holds are cleared and the sole operator verifies
-the intended key-only USB alias, reuse the delivered collector unchanged. Local
-`tools/collect_rm1_baseline.py` equals delivered
-`scripts/collect_rm1_baseline.py`, SHA256
-`281fb718e99904956aa13003f30dd4b7dfcf5d6517f8cb0d819413af6229a2dc`.
+the intended key-only USB alias, reuse the existing collector with only two
+explicit per-invocation transport corrections: `UpdateHostKeys=no` prevents
+authenticated host-key maintenance, and `ConnectionAttempts=1` pins the single
+connection bound independently of inherited configuration. Keep
+`StrictHostKeyChecking=yes`, key-only authentication, forwarding controls,
+connect/outer deadlines, fixed remote reads and all parser/output bounds.
+No config/known_hosts edits, wrapper, alternate route or replacement transport
+are introduced. An owned transport control must inspect the actual spawned SSH
+argv, requiring each safety option once before the alias and the unchanged
+remote command; no contrary duplicate may permit maintenance or retries.
+
+The source baseline before this correction was delivered collector SHA256
+`281fb718e99904956aa13003f30dd4b7dfcf5d6517f8cb0d819413af6229a2dc`,
+at local `tools/collect_rm1_baseline.py` / delivered
+`scripts/collect_rm1_baseline.py`. Review the exact successor hash before use.
 It needs host Python/OpenSSH only: no upload, installation or native load.
 Retain its16KiB output/30-second outer bounds, fixed remote reads, strict host-key
 checking and generic diagnostics. Use a fresh private host output path because a
