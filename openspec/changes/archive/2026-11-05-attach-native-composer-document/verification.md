@@ -29,3 +29,13 @@ The canonical child spec is synchronized; archive follows acceptance in this PR.
 
 No tablet operation, payload transfer, loaded-profile acceptance, real native
 callback delivery, Submit, clear or runtime selection occurred.
+
+## Acceptance and archive
+
+Independent review accepted head 9851572ef38f1ac44ece2bd6c07d35bac961aa4e
+on 2026-11-05 within the documented trusted-process/native-borrow preconditions.
+[Exact-head CI](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/42131610396)
+passed title, Linux, Windows staging, Build and Integration. The canonical spec
+was already synchronized. This archive does not change implementation or repeat
+passed tests; final-head checks and merge remain with Root. Actual native
+delivery and tablet qualification remain separate unfinished REM-61 work.
