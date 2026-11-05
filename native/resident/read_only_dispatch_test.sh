@@ -12,6 +12,9 @@ else
 fi
 pkg-config --print-errors --exists Qt6Core Qt6Gui Qt6Network Qt6Qml Qt6Quick
 test -x "$moc"
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -fsyntax-only \
+    "$root/../rm1_observation/bootstrap.cpp" \
+    $(pkg-config --cflags Qt6Core Qt6Gui Qt6Network Qt6Qml Qt6Quick)
 mkdir "$out"
 "$moc" "$root/../rm2_3_28_0_172/reader_selected_view_probe.h" -o "$out/moc_reader_selected_view_probe.cpp"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread \
