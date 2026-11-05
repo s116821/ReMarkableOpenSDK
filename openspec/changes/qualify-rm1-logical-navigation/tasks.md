@@ -1,6 +1,15 @@
 # Unfinished RM1 navigation tasks
 
-- [ ] Coordinate an exact independently reviewed native observation/input/render capability with Main and the SDK owner.
+## Source reconciliation checkpoint
+
+- [x] Inspect shipped SDK v0.2.0/a0c6480 and returned RM2 research integration; replace stale candidate-waiting language without borrowing RM2 qualification.
+- [x] Record the RM1 profile/evidence/refusal matrix and delivered collector's smallest later refresh and limits.
+- [x] Obtain independent review of the source-only reconciliation and transport correction; integration preserves the delivered scripts/docs/CI layout. No native task is completed by this checkpoint.
+- [x] Pin UpdateHostKeys=no and ConnectionAttempts=1 in the existing collector; all 11 owned local controls pass, and the focused spawned-argv control fails against the old collector as expected. Independent successor review/publication and any tablet read remain pending; trust, route, deadlines and output bounds are retained.
+
+## Remaining native qualification
+
+- [ ] Coordinate the exact RM1 observation/input/render profile against the shipped SDK boundary with Main and the SDK owner; generic capability/historical facts remain insufficient.
 - [ ] Establish an own disposable RM1 fixture with full backup and exact source/target/order evidence.
 - [ ] Independently qualify the real RM1 model/runtime/input profile and orientation mapping; kernel bounds alone are insufficient.
 - [ ] Review requirements/design/scenarios against the coordinated shared contract before implementing the RM1 adapter.

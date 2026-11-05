@@ -1,5 +1,9 @@
 # RM1 navigation input metadata
 
+## Purpose
+Record read-only RM1 input metadata and require qualified physical/source mapping before any native navigation authority.
+
+## Requirements
 ### Requirement: RM1 input metadata remains read-only and unqualified
 The RM1 input probe SHALL read only fixed device metadata, verify stable model,
 device/capability/range identity and exclude current coordinates or personal
