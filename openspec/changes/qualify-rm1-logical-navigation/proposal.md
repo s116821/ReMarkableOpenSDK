@@ -18,5 +18,22 @@ Remaining work is RM1-specific runtime/input/render/lifecycle qualification, not
 rebuilding the shared protocol. See the [profile and refusal matrix](profile-evidence-matrix.md).
 This source reconciliation selects no hardware experiment, runtime activation,
 firmware update, account pairing, native artifact or consumer adoption. The
-smallest later observation is the delivered read-only baseline collector;
-success still leaves native operations unsupported.
+delivered read-only baseline collector retains its separate observation-only
+scope; a matching result still leaves native operations unsupported.
+
+## Observation-only preparation
+
+Before gesture implementation, separate historical observation admission from
+the insertion-hook Facilities required by the current RM2 bootstrap. The RM1
+path must independently establish its exact artifact/runtime/provider and
+pre-main correspondence, then reuse the existing guarded historical dispatcher.
+It must not install insertion hooks, acquire native worker owners or enable
+mutation. Keep the existing RM2 loader, checks and installed bundle behavior.
+
+The reviewed private RM1 comparison supports the Reader discovery and static
+page-map/readiness declarations. It does not establish actual loaded providers,
+live object/metatype relationships, capture behavior or lifecycle qualification.
+Missing evidence keeps RM1 unsupported; static hash substitutions or modeled
+facts cannot fill those gaps. See the observation-only design and test plan in
+[design.md](design.md). This preparation does not replace or complete any of the
+nine remaining native acceptance tasks, and selects no build or device action.

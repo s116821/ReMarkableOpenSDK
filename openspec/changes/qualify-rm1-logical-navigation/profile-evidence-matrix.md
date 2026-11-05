@@ -21,6 +21,23 @@ runtime framework, device action or mock producer is introduced.
 | Capacity/install | Existing non-root staging and ownership principles | Historical root12,284,928 free reserved bytes/zero ordinary available; home6,661,337,088 available | Refresh capacity before artifact planning; no root install, cleanup or native artifact is part of this source pass |
 | Result advertisement | Unsupported defaults and explicit historical/synthetic facts | Baseline always native_operations=unsupported/source_authority=false | A successful collector, architecture build or RM2 result cannot advertise RM1 capture/navigation/creation support |
 
+## Observation-only source preparation checkpoint
+
+The November5 private comparison recorded in REM-49 found the four Reader anchors
+in embedded compressed QML and matched the checked static page-map/readiness and
+library lookup declarations. It also confirmed that the current read-only facade
+does not call its insertion core, although startup still installs it. These are
+static/source findings; no RM1 profile or native acceptance is established.
+
+The [observation-only design](design.md#observation-only-admission-before-navigation)
+separates that incidental insertion dependency while retaining exact independent
+RM1 admission. The original matrix's live-object, ABI/provider, capture, input,
+orientation, freshness and recovery gaps remain. The retained xochitl/Qt Core/libc
+files do not establish every provider used by the linked observation artifact.
+Missing evidence refuses; neither static declarations nor modeled facts fill it.
+This preparation does not change the RM2 loader/bundle, claim product capability
+or authorize another baseline read, acquisition, build or device trial.
+
 ## Exact historical fingerprint mismatch
 
 | Artifact | Retained RM1 observation | Delivered RM2 installed profile |

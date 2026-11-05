@@ -118,6 +118,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y qt6-base-dev qt6-declarative-dev
+          python -B native/rm1_observation/build_contract_test.py -v
+          READ_ONLY_DISPATCH_TEST_OUTPUT="$RUNNER_TEMP/read-only-dispatch" sh native/resident/read_only_dispatch_test.sh
           cargo +1.98.1 test --locked --offline --features native-adapter --test resident_wire_vectors -- --ignored
           RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-wire" sh native/resident/wire_test.sh
           RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-endpoint" sh native/resident/endpoint_test.sh
