@@ -4,6 +4,32 @@ Dependency-free persistent identity primitives: canonical nonnil `Uuid`, documen
 
 This unpublished Rust crate requires Rust 1.88. Source manifests omit a maintained project version; Git tags are the release authority. Cargo development metadata is not release identity.
 
+## Resident adapter integration
+
+The opt-in `native-adapter` feature supplies bounded binary framing, runtime and
+request correspondence, and historical Reader identity/order facts. It depends
+on pinned SHA-256 and, on Linux, optional Nix socket/poll wrappers; default builds
+remain dependency-free. Linux `native_adapter::transport::Client` connects through
+the supervisor's retained activation-directory descriptor and authenticates the
+kernel peer PID/UID, boot and process start time. Artifact verification and fresh
+nonces remain supervisor responsibilities. Its bounded blocking IO belongs on a
+consumer IO thread. Requests require an absolute deadline and a journal callback;
+mutations must be durably recorded before that callback returns success.
+This is an integration boundary under implementation; native qualification is open.
+Enabling it does not activate xochitl or change `UnqualifiedPlatform` capabilities.
+
+Native facts have no fabricated content revision or input epoch and cannot become
+operational `PageObservation` guards. Insertion observations do not prove durable
+commit, current target selection or writing authority. Persist the original
+operation/source/target before dispatch. An uncertain mutation closes its session
+and retains that uncertainty across cleanup; reconnect only to reconcile it.
+Consumer/server integration must enforce durable deduplication across connections;
+client sequence correlation alone does not implement that pending obligation.
+
+Run `cargo test --locked --features native-adapter --test resident_protocol`.
+The [active integration design](openspec/changes/integrate-resident-native-adapter/design.md)
+tracks the endpoint, native lifetime, consumer and device acceptance still needed.
+
 Run `cargo test --locked` and `cargo clippy --locked --all-targets -- -D warnings`. Existing RM1 baseline/input tools retain their separate qualifications.
 
 Development helpers live in `scripts/`; release inputs live in `cicd/release/`.

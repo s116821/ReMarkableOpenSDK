@@ -22,3 +22,7 @@ path = "forbidden_mock.rs"
 [[bin]]
 name = "forbidden-development-capture"
 path = "forbidden_development_capture.rs"
+
+[[bin]]
+name = "forbidden-native-adapter"
+path = "forbidden_native_adapter.rs"
