@@ -124,6 +124,7 @@ jobs:
           ACTIVATION_TEST_OUTPUT="$RUNNER_TEMP/resident-activation" ACTIVATION_TEST_SANITIZERS=1 sh native/resident/activation_test.sh
           LOADED_ARTIFACT_TEST_OUTPUT="$RUNNER_TEMP/resident-artifact" sh native/resident/loaded_artifact_test.sh
           COMPOSER_OBSERVER_OUTPUT="$RUNNER_TEMP/composer-observer" COMPOSER_OBSERVER_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_document_observer_test.sh
+          COMPOSER_SCENE_OUTPUT="$RUNNER_TEMP/composer-attachment" COMPOSER_SCENE_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_scene_attachment_test.sh
           NONLAST_RELEASE_OUTPUT="$RUNNER_TEMP/native-nonlast" NONLAST_RELEASE_SANITIZERS=1 sh native/rm2_3_28_0_172/nonlast_release_test.sh
           RESIDENT_SLOT_OUTPUT="$RUNNER_TEMP/native-slot" RESIDENT_SLOT_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_worker_slot_test.sh
           RESIDENT_CORE_OUTPUT="$RUNNER_TEMP/native-core" RESIDENT_CORE_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_core_lifetime_test.sh

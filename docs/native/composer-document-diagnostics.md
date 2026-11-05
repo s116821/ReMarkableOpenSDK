@@ -42,3 +42,7 @@ Native IME scope, page/visit, owned range and complete native callback nesting s
 `composer_document_observer_test.sh` uses real owned Qt documents. Controls cover Unicode/Undo/Redo, unchanged attachment, bounds, destruction, retirement during activation, wrong-thread notification, subclass refusal, blocked signals, nested notification and concurrent stop/destruction. A deterministic barrier control pauses an admitted publication, proves the closer contends on its lock, then verifies the frozen prefix after closure and later notifications. Host or ARM-emulated Qt controls are not Xochitl/tablet evidence. CI runs the focused host check with address/undefined-behavior sanitizers.
 
 The implementation is original. The lifetime interpretation is corroborated by Qt 6.10.3 [QObject activation and SlotObjectGuard](https://raw.githubusercontent.com/qt/qtbase/v6.10.3/src/corelib/kernel/qobject.cpp) and [document notification implementation](https://raw.githubusercontent.com/qt/qtbase/v6.10.3/src/gui/text/qtextdocument_p.cpp). No Qt implementation code or reconstructed proprietary source is incorporated.
+
+The separate [scene attachment adapter](composer-scene-attachment.md) supplies the
+borrowed native join and original absolute deadline; native delivery remains an
+external prerequisite.
