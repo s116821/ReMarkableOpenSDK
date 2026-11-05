@@ -22,8 +22,11 @@ read only on the installation thread with matching QObject affinity; other threa
 record a mismatch without reading the document.
 
 Connections own only shared recorder state and a borrowed sender used during its
-direct notification. No callback captures the observer handle. Cancellation marks
-the state closed before disconnecting. Already-entered Qt functors retain their
+direct notification. No callback captures the observer handle. Cancellation requests closure immediately, then serializes terminal closure and
+record publication under the same mutex before disconnecting. A record admitted
+before the request may publish before terminal closure. Once stop returns, the
+terminal snapshot is a frozen prefix. Emitter callbacks only try-lock; caller-side
+retirement may wait for the short publication section. Already-entered Qt functors retain their
 state; the handle can disappear without invalidating them. Destruction notifications
 never read QTextDocument members. Stop/disconnect is logical retirement, not proof
 that every preempted Qt activation has unwound or that payload code may be unloaded.

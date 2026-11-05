@@ -1,3 +1,4 @@
+#define COMPOSER_OBSERVER_TESTING
 #include "composer_document_observer.h"
 #include <QGuiApplication>
 #include <QTextCursor>
@@ -158,6 +159,68 @@ static void cancelWhileEmitting() {
     done.store(true, std::memory_order_release);
     emitter.join();
 }
+
+namespace remarkable::composer_diagnostic::testing {
+struct Access {
+    static void hooks(Observer &observer, void *context,
+                      void (*publish)(void *), void (*contended)(void *)) {
+        observer.state_->hookContext = context;
+        observer.state_->beforePublish = publish;
+        observer.state_->closeContended = contended;
+    }
+    static End terminal(const Observer &observer) {
+        return observer.state_->end.load(std::memory_order_acquire);
+    }
+};
+}
+static void closeVersusAdmittedPublication() {
+    struct Phases {
+        std::promise<void> atPublish, closeBlocked, releasePublish, start, afterStop;
+        std::shared_future<void> release = releasePublish.get_future().share();
+    } phases;
+    auto atPublish = phases.atPublish.get_future();
+    auto closeBlocked = phases.closeBlocked.get_future();
+    auto start = phases.start.get_future();
+    auto afterStop = phases.afterStop.get_future();
+    std::promise<std::unique_ptr<Observer>> installed;
+    auto ready = installed.get_future();
+    std::thread emitter([&] {
+        QTextDocument doc;
+        auto observer = Observer::attach(doc);
+        testing::Access::hooks(*observer, &phases,
+            [](void *p) {
+                auto &phase = *static_cast<Phases *>(p);
+                phase.atPublish.set_value();
+                phase.release.wait(); // Paused after final gate, before append.
+            },
+            [](void *p) { static_cast<Phases *>(p)->closeBlocked.set_value(); });
+        installed.set_value(std::move(observer));
+        start.wait();
+        doc.contentsChanged();
+        afterStop.wait();
+        for (int i = 0; i < 100; ++i) doc.contentsChanged();
+    });
+    auto observer = ready.get();
+    phases.start.set_value();
+    assert(atPublish.wait_for(5s) == std::future_status::ready);
+    std::atomic<bool> stopReturned{false};
+    std::thread closer([&] { observer->stop(); stopReturned.store(true); });
+    // The real try_lock failed while publication is paused. No timing guess:
+    // terminal closure cannot happen until that admitted publication releases.
+    assert(closeBlocked.wait_for(5s) == std::future_status::ready);
+    assert(!stopReturned.load());
+    assert(testing::Access::terminal(*observer) == End::Open);
+    phases.releasePublish.set_value();
+    closer.join();
+    const auto frozen = observer->snapshot();
+    assert(frozen.available && frozen.end == End::Canceled && frozen.count == 2);
+    phases.afterStop.set_value();
+    emitter.join();
+    const auto final = observer->snapshot();
+    assert(final.available && final.end == End::Canceled && final.count == frozen.count);
+    assert(final.records[1].revisionPresent);
+}
+
 int main(int argc, char **argv) {
     QGuiApplication app(argc, argv);
     unicodeAndUndo();
@@ -166,6 +229,7 @@ int main(int argc, char **argv) {
     wrongThread();
     coalescingAndReentry();
     cancelWhileEmitting();
-    std::cout << "composer document observer: 6 Qt scenarios passed; Qt "
+    closeVersusAdmittedPublication();
+    std::cout << "composer document observer: 7 Qt scenarios passed; Qt "
               << qVersion() << "; native runtime unqualified\n";
 }

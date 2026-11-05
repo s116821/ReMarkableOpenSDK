@@ -22,14 +22,15 @@ It SHALL NOT mutate the document, enqueue native work or issue draft authority.
 
 ### Requirement: Diagnostic lifetime and retirement
 The observer SHALL retain only its own recorder state in connection functors.
-Cancellation SHALL close collection before disconnecting; document destruction
+Cancellation SHALL serialize terminal closure with record publication before disconnecting; document destruction
 SHALL terminate collection without reading destroyed QTextDocument state.
 Logical retirement SHALL NOT be advertised as native owner reclamation or safe
 payload unloading.
 
 #### Scenario: Handle retired during signal processing
 - **WHEN** the observer is canceled or destroyed while Qt activation is underway
-- **THEN** any entered functor retains valid recorder storage and cannot publish a new successful observation after closure
+- **THEN** any entered functor retains valid recorder storage; an admitted record may publish before terminal closure, but stop returns only after closure establishes a frozen record prefix
+- **AND** emitter callbacks never wait for the publication mutex, while caller-side retirement may wait for its short critical section
 
 #### Scenario: Native document is destroyed
 - **WHEN** QObject destruction notification runs

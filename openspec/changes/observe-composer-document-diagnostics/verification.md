@@ -17,3 +17,20 @@ bundle inputs were untouched. Independent review and CI remain pending; the
 OpenSpec change stays active until that review accepts this diagnostic component.
 
 See [diagnostic contract and limitations](../../../docs/native/composer-document-diagnostics.md).
+
+## Cancellation/publication correction
+
+Independent review found that the first revision could append after stop returned.
+Terminal transitions now share the publication mutex. Closure requests stop new
+admission; a previously admitted append precedes the serialized terminal transition.
+The returned terminal snapshot is a frozen prefix. Emitter callbacks still only
+try-lock; caller-side retirement can wait for the short publication section.
+
+A deterministic control pauses after the last admission gate, observes actual
+close-lock contention, releases publication, and checks the terminal prefix after
+later signals. No sleep determines that interleaving. Test-only hooks are absent
+from production compilation, which the script now checks separately.
+
+Focused retest: seven grouped scenarios passed on host Qt6.4.2 with ASan/UBSan
+(8.7 seconds including compilation) and ARM-emulated Qt6.10.3 (8.2 seconds).
+Original R4 receipts remain preserved; the correction has separate R4b receipts.

@@ -40,6 +40,9 @@ struct Snapshot {
 };
 static_assert(sizeof(Snapshot) < 65536, "Diagnostic storage must stay bounded");
 
+#ifdef COMPOSER_OBSERVER_TESTING
+namespace testing { struct Access; }
+#endif
 class Observer final {
     struct State {
         const std::thread::id owner = std::this_thread::get_id();
@@ -47,7 +50,12 @@ class Observer final {
         const Clock::time_point deadline;
         const std::uintptr_t address;
         const std::size_t limit;
-        std::atomic<End> end{End::Open};
+        std::atomic<End> end{End::Open}, requested{End::Open};
+#ifdef COMPOSER_OBSERVER_TESTING
+        void *hookContext = nullptr;
+        void (*beforePublish)(void *) = nullptr;
+        void (*closeContended)(void *) = nullptr;
+#endif
         std::atomic<unsigned> active{0};
         std::mutex mutex;
         std::array<Record, Snapshot::Capacity> records{};
@@ -55,12 +63,29 @@ class Observer final {
         State(QTextDocument &doc, std::chrono::milliseconds budget, std::size_t cap)
             : deadline(started + budget),
               address(reinterpret_cast<std::uintptr_t>(&doc)), limit(cap) {}
-        void close(End reason) noexcept {
+        void request(End reason) noexcept {
             End open = End::Open;
-            end.compare_exchange_strong(open, reason, std::memory_order_acq_rel);
+            requested.compare_exchange_strong(open, reason, std::memory_order_acq_rel);
+        }
+        // All publication and terminal transitions share mutex. A close request
+        // stops new admission immediately; the frozen prefix linearizes here.
+        void settleLocked() noexcept {
+            const auto reason = requested.load(std::memory_order_acquire);
+            if (reason != End::Open) end.store(reason, std::memory_order_release);
+        }
+        void close(End reason) {
+            request(reason);
+            std::unique_lock<std::mutex> lock(mutex, std::defer_lock);
+            if (!lock.try_lock()) {
+#ifdef COMPOSER_OBSERVER_TESTING
+                if (closeContended) closeContended(hookContext);
+#endif
+                lock.lock(); // Caller-side retirement may wait for publication.
+            }
+            settleLocked();
         }
         void expire() noexcept {
-            if (Clock::now() >= deadline) close(End::Deadline);
+            if (Clock::now() >= deadline) request(End::Deadline);
         }
     };
     struct Entry {
@@ -76,6 +101,9 @@ class Observer final {
         }
         ~Entry() { top = previous; state.active.fetch_sub(1, std::memory_order_release); }
     };
+#ifdef COMPOSER_OBSERVER_TESTING
+    friend struct testing::Access;
+#endif
     std::shared_ptr<State> state_;
     std::array<QMetaObject::Connection, 3> connections_{};
     explicit Observer(std::shared_ptr<State> state) : state_(std::move(state)) {}
@@ -84,7 +112,7 @@ class Observer final {
                        Event event, int position = -1, int removed = -1, int added = -1) {
         Entry entry(*s);
         s->expire();
-        if (s->end.load(std::memory_order_acquire) != End::Open) return;
+        if (s->requested.load(std::memory_order_acquire) != End::Open) return;
         // A direct connection can run on an unexpected emitting thread.
         // Never touch QTextDocument on that path, including its thread() getter.
         const bool owner = std::this_thread::get_id() == s->owner;
@@ -101,14 +129,23 @@ class Observer final {
                               doc->thread() == QThread::currentThread();
         if (readable) { value.revision = doc->revision(); value.revisionPresent = true; }
         std::unique_lock<std::mutex> lock(s->mutex, std::try_to_lock);
-        if (!lock.owns_lock()) { s->close(End::Contention); return; }
+        if (!lock.owns_lock()) { s->request(End::Contention); return; }
         s->expire();
+        s->settleLocked();
         if (s->end.load(std::memory_order_acquire) != End::Open) return;
-        if (s->count == s->limit) { s->close(End::Capacity); return; }
+        if (s->count == s->limit) {
+            s->request(End::Capacity); s->settleLocked(); return;
+        }
+#ifdef COMPOSER_OBSERVER_TESTING
+        if (s->beforePublish) s->beforePublish(s->hookContext);
+#endif
         s->records[s->count++] = value;
-        if (event == Event::Destroyed) s->close(End::Destroyed);
-        else if (!readable) s->close(End::WrongThread);
-        else if (s->count == s->limit) s->close(End::Capacity);
+        if (event == Event::Destroyed) s->request(End::Destroyed);
+        else if (!readable) s->request(End::WrongThread);
+        else if (s->count == s->limit) s->request(End::Capacity);
+        // A concurrent close request may have arrived after admission. Publish
+        // this admitted record before closure, under the same lock.
+        s->settleLocked();
     }
     void disconnect() noexcept {
         for (auto &connection : connections_) {
@@ -161,7 +198,8 @@ public:
     // worker dispatch or background thread is created by this observer.
     void poll() noexcept {
         state_->expire();
-        if (state_->end.load(std::memory_order_acquire) != End::Open) disconnect();
+        const auto reason = state_->requested.load(std::memory_order_acquire);
+        if (reason != End::Open) { state_->close(reason); disconnect(); }
     }
     Snapshot snapshot() const {
         const auto s = state_;
@@ -172,6 +210,7 @@ public:
         result.activeCallbacks = s->active.load(std::memory_order_acquire);
         std::unique_lock<std::mutex> lock(s->mutex, std::try_to_lock);
         if (!lock.owns_lock()) return result;
+        s->settleLocked();
         result.records = s->records;
         result.count = s->count;
         result.end = s->end.load(std::memory_order_acquire);
