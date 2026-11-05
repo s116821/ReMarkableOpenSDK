@@ -1,0 +1,12 @@
+# Conservative nonpublishing SDK check admission; unknown paths compile.
+application:
+  - '**'
+  - '!README.md'
+  - '!AGENTS.md'
+  - '!CONTRIBUTING.md'
+  - '!THIRD_PARTY_NOTICES.md'
+  - '!CHANGELOG.md'
+  - '!SECURITY.md'
+  - '!docs/**'
+  - '!cicd/release/README.md'
+  - '!openspec/**/*.md'

@@ -1,0 +1,59 @@
+name: SDK PR Title
+on:
+  workflow_call:
+    outputs:
+      application:
+        description: Maintained application path admission
+        value: ${{ jobs.title.outputs.application }}
+      body_only:
+        description: Positively identified exact PR body-only edit
+        value: ${{ jobs.title.outputs.body_only }}
+permissions:
+  contents: read
+  pull-requests: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  title:
+    name: PR Title
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      application: ${{ steps.paths.outputs.application }}
+      body_only: ${{ steps.metadata.outputs.body_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify only exact body edits as metadata
+        id: metadata
+        shell: bash
+        run: |
+          jq --version
+          body_only="$(jq -r '
+            if .action == "edited" and (.changes | type) == "object" then
+              .changes | if keys == ["body"] and (.body | type) == "object" then
+                .body | keys == ["from"] and (.from | type) == "string"
+              else false end
+            else false end
+          ' "$GITHUB_EVENT_PATH")"
+          printf 'body_only=%s\n' "$body_only" >> "$GITHUB_OUTPUT"
+      - name: Require complete PR file observation
+        if: github.event_name == 'pull_request' && !(github.event.pull_request.changed_files > 0 && github.event.pull_request.changed_files < 3000)
+        shell: bash
+        run: exit 1
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+        id: paths
+        with:
+          base: ${{ github.event.before || '' }}
+          filters: .github/sdk-paths.yml
+          predicate-quantifier: every
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50
+        if: github.event_name == 'pull_request'
+        with:
+          requireScope: false
+          types: ${{ steps.paths.outputs.application == 'true' && '(feat|fix|perf|build|ci|chore|refactor|test|revert)' || '(feat|fix|perf|build|ci|chore|refactor|test|revert|docs)' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

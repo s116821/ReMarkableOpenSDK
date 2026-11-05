@@ -41,9 +41,8 @@ After the existing hold/operator checks, run the transport-corrected collector o
 with a fresh private output path (commands shown for review, not executed here):
 
 ```sh
-# Preserved RM1 worktree layout:
-python3 tools/collect_rm1_baseline.py --ssh-host remarkable1-usb --output /fresh/private/rm1-baseline.json
-# The current SDK layout uses scripts/collect_rm1_baseline.py after integration.
+# Current SDK layout (the preserved research branch used tools/):
+python3 scripts/collect_rm1_baseline.py --ssh-host remarkable1-usb --output /fresh/private/rm1-baseline.json
 ```
 
 The operator must establish that this alias is still direct USB/key-only for the
