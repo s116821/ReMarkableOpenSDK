@@ -138,3 +138,9 @@ including real Qt callback delivery with modeled native callouts. The Rust clien
 also interoperates with the owned Qt endpoint. Actual bootstrap activation,
 native dispatch, repeated mutation and product acceptance remain open in the
 [active integration change](../../openspec/changes/integrate-resident-native-adapter/tasks.md).
+
+## Optional composer diagnostics
+
+The [composer document observer](composer-document-diagnostics.md) records bounded
+Qt revision notifications from a caller-established live document. It is separate
+from the installed Reader bundle and supplies no composer lease or native activation.

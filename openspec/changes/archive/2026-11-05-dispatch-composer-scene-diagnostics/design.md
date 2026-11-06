@@ -1,0 +1,11 @@
+# Design
+
+Use a separate composer_scene::Delivery adapter and exact Request type: qulonglong (*)(void*, const QString&, const std::function<bool(Scene*)>&). A validated Profile admits the fixed native address; the generic request pointer is never substituted or cast. The caller supplies an existing ready ResidentSlot token, the selected page QString and its current permission guard. The slot supplies native worker ownership; no new raw worker acceptance is introduced.
+
+Delivery handle methods run on the GUI thread and are serialized. Capture shared state before permit callbacks, since those may reenter or delete the handle. Consume both delivery and slot before dispatch. Copy the bounded page and callback before the final permit/live check. Once attempted, a zero job, exception, cancellation or reentry means unknown; never retry. A nonzero returned job is enqueue acceptance, not delivery or completion.
+
+The native callback owns only a shared attachment callback and scalar counters/cancellation state. It never retains the handle or dereferences a stored Scene/worker pointer. Late delivery after cancellation does not inspect its Scene argument; duplicates are refused by the accepted one-use attachment. Original absolute deadline is not refreshed. Logical stop closes the observer and cancels future joins without revoking native queued copies.
+
+Any native request attempt pins the resident owner slot against the generic physical-retirement path. Cancellation through the slot shares an atomic gate with the typed callback; polling closes an already-created observer. There is deliberately no typed physical-release/unload claim until a genuine typed-task quiescence proof is integrated. This bounded one-slot diagnostic is not reusable after attempted dispatch. Failure before attempt retains existing safe owner-management semantics.
+
+A narrow friendship and typed-cancellation field extend ResidentSlot; the historical/generic request implementation and RM1 dispatcher extraction remain unchanged. Owned request fakes retain/copy/throw/cancel and execute the real Attachment callback against real Qt documents. Tests exercise 64-bit job IDs, original page ownership, late/duplicate delivery, destructive permit reentry, terminal failure and blocked physical retirement.
