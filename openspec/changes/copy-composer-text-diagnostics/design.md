@@ -1,166 +1,102 @@
 # Design
 
 ## Status and integration
-Precode proposal for integration-owner review; no implementation or executed
-text-copy controls are claimed. Parent typed delivery is archived in PR38.
+Root accepted precode2d1cb60 before implementation. This change now implements the
+bounded read and its focused owned controls; independent review/current CI and
+same-PR archive remain pending. Parent typed delivery belongs to PR38.
 
-Add a small composer_text diagnostic helper and an optional immutable ReadRange
-to Attachment preparation. Delivery forwards that optional request to its
-existing Attachment. Existing callers without a range retain their behavior.
-The request is copied before native enqueue; one attachment can produce at most
-one text result under its original deadline. Reuse its shared State, claim flag,
-cancellation gate and publication mutex. Do not add another worker, owner token,
-queue, observer connection family or lifetime manager.
+A small composer_text helper and optional immutable ReadRange extend existing
+Attachment preparation. Delivery forwards the range and shares its existing
+cancellation atomic with Attachment. Existing callers without a range retain
+their behavior. Reuse shared State, one-use claim, original deadline, publication
+mutex and Observer. No worker, queue, registry or lifetime framework is added.
 
-The public production route remains the accepted Profile plus typed Scene
-callback. An internal helper may take a live document reference only from that
-admitted join; a fixture-only seam supplies owned Qt documents. This does not
-introduce a public arbitrary-pointer or borrowed-document authority constructor.
+The production route remains the accepted Profile plus typed Scene callback.
+The internal helper requires a live owner-thread document borrow, with relevant
+writers serialized for the entire read. Public diagnostics do not construct
+that authority. No new native strong/weak ownership acquisition is introduced.
 
-## Input, output and bounds
-ReadRange contains signed 64-bit start and length, measured in QTextDocument
-UTF-16 code-unit positions. The interval is half-open [start, start + length).
-Before integer narrowing or addition, require start >= 0, length >= 0,
-length <= 4096, and a representable non-overflowing end. During the borrow require
-characterCount >= 1, start <= characterCount - 1 and
-length <= characterCount - 1 - start. The final Qt document sentinel is excluded.
-Zero length is a successful empty read at an otherwise admissible boundary,
-including the end of an empty document; it does not bypass structural checks.
+## Range and result
+Signed64-bit start/length form [start,start+length) in UTF-16 code-unit positions.
+Check nonnegative values, length<=4096 and addition overflow before preparation;
+check against characterCount-1 before narrowing during the borrow. Exclude the
+terminal Qt sentinel. Empty/end ranges pass the same admission checks.
 
-Use a fixed array of 4096 uint16_t elements and an explicit used length (maximum
-8192 payload bytes), with requested range and optional native revision-before/
-revision-after scalars. No NUL-terminated interpretation, UTF-8 conversion,
-normalization, trimming or implicit full-document inference. Result states are
-NotRequested, Pending, Copied and Refused, with typed refusal reasons. Refused
-results expose zero text units, never an accepted partial prefix. Native scalar
-facts remain diagnostics and contain no dereferenceable retained object.
+Result contains a fixed4096-element uint16_t array, explicit count/range,
+NotRequested/Pending/Copied/Refused status, typed failure and optional native
+revision-before/after diagnostics. Refusal zeroes public units/count; no accepted
+partial prefix. NUL/NBSP/U2028/U2029 and raw isolated surrogates are preserved.
+Reject boundaries splitting a valid surrogate pair. No normalization, UTF-8
+conversion or grapheme/original-keystroke reconstruction is attempted.
 
-Preserve code units exactly: embedded U+0000, U+00A0, U+2028, U+2029, combining
-marks, surrogate pairs and ZWJ sequences. U+2029 denotes the document's paragraph
-separator; it does not identify the original keyboard newline spelling.
-Reject a start or end between a high and low surrogate. Otherwise raw isolated
-surrogate units, if present in the document, are preserved without replacement.
-This is lossless UTF-16 storage, not a promise of a valid Unicode scalar string
-or whole-grapheme selection. A future transport needs its own lossless encoding.
+## Concrete getter route
+COMPOSER_TEXT_PRIVATE_QT opts into matching private Qt headers. Production copy
+requires Qt6.10.3; fixture builds use their own matching host provider. Ordinary
+builds compile and refuse requested copying as Unsupported. Macro/header choices
+must be consistent across translation units. The existing Profile remains the
+loaded-provider gate; this does not select runtime bootstrap.
 
-## Admission and bounded structural inspection
-Run only during the trusted native Scene borrow on the actual document owner
-thread. Reuse exact provider/profile and focused-root joins; require the exact
-QTextDocument type, matching root/document identity, participant operation scope,
-IME scope and nesting all zero, native compose start -1, compose length zero,
-virtual extension zero and Qt edit depth zero.
+The audited implementation avoids public cursor/root-frame/object/fragment
+getters with layout, lazy creation or hidden traversal. It uses:
+- Existing document QObject children and RTTI to find materialized non-root frames.
+- Exposed private block/fragment maps to inspect one physical entry per visit.
+- Existing format scalar properties and existing block-layout preedit storage.
+- Bounded raw characterAt reads after range validation.
 
-Admit ordinary root-frame paragraphs only. Refuse a selected or boundary block
-inside a table/child frame, list blocks, inline object formats or U+FFFC. Ordinary
-font/style formatting may remain, but this result contains text only and grants
-no formatting or object preservation claim. Check every touched block and the
-blocks containing both interval endpoints; an endpoint at a new paragraph
-therefore also checks that paragraph, even for an empty interval.
+Every intersecting frame/table and selected/boundary list/object format refuses.
+All touched and endpoint blocks receive composition checks; ordinary text styling
+is permitted but not returned. U+FFFC and frame markers in the copied text refuse.
+The live coherent Qt document premise includes completed native/Qt transactions;
+object discovery does not repair or validate arbitrary corrupt Qt memory.
 
-Use root-frame/block/fragment iterators and positional interval checks to prove
-root membership and inspect the actual selected character formats. Avoid
-QTextCursor positioning: Qt6.10.3 setPosition calls setX and can enter layout.
-Do not use cursor charFormat as a selected-character test; it normally refers
-to the preceding character. Do not flatten all document text or copy entire
-fragments to obtain a short slice.
+One8192-visit counter covers both full structural passes: root inspection entry,
+every document child, every inspected block and every physical fragment,
+including extra boundary entries. Private map lookup avoids unnecessary prefix
+block/fragment scans; all actual QObject-prefix visits are counted. No recursion,
+whole-document string, hidden same-format scan or unbounded repeat is used.
+Qt tree metadata lookups are not a hard real-time bound. Cancellation/deadline
+checks occur between structural visits and output units.
 
-A single structural-visit budget of 8192 counts every frame-entry, block and
-fragment inspection, including skipped prefix entries needed to reach the
-range. Exceeding it refuses with InspectionLimit, without widening or retrying.
-Thus a late range in a highly fragmented document can deliberately refuse.
-Skip disjoint child-frame subtrees without recursion; refuse intersecting or
-endpoint-containing child frames. No unbounded whole-document scan or temporary
-whole-document string is permitted. Use characterAt only for the bounded output
-and at most four adjacent code units for surrogate endpoint checks. All copied
-positions must have passed the structural checks; NUL is data only after bounds
-have been verified, since an out-of-range Qt read can also return NUL.
+See the [getter audit](../../../docs/native/composer-text-getter-audit.md) for
+specific Qt sources, accessor behavior and the executed no-callout controls.
+Matching headers supply the data access; no copied private layout, access-control
+macro, new binary offset or provider patch is involved.
 
-Check preedit on each touched/boundary block's QTextLayout and refuse any nonempty
-preedit. Do not create a document layout, request shaping, fetch a resource or
-call a virtual layout provider. Audit the chosen block/layout getters against
-the pinned Qt source before implementation acceptance. These local checks make
-no claim of absence of unrelated preedit elsewhere in the document.
+## Coherence and publication
+The accepted native join checks loaded identity, focused root and actual document
+thread, native operation/IME/nesting/composition/virtual-extension fields and Qt
+edit depth. Observer attaches under its existing contract. The text helper also
+requires exact QTextDocument type and no Qt edit block, reads revision/count,
+performs structural/composition inspection, copies units, repeats inspection and
+reads revision/count again. Attachment then rejoins the same native root/document
+and rechecks revision/count before final publication admission.
 
-## Coherence, reentry and lifetime
-Inside the admitted callback, use this sequence:
-1. Validate the native join, document affinity/type and quiescent fields.
-2. Record revisionBefore, validate range/structures/preedit and copy raw units.
-3. Revalidate the join and the same document/root scalar correspondence plus all
-   native transaction/composition guards, touched-block preedit and document
-   character count; record revisionAfter.
-4. Require matching revisions and unchanged correspondence. Recheck the existing
-   cancellation/duplicate state and original deadline before publishing.
+No event pump, IPC, queue wait, edit or application/virtual layout callback occurs
+in the copy. All object references stay in the synchronous borrow. Equal finite
+revisions and identity scalars cannot establish lifetime, global ABA protection,
+an active visit or a genuine edit lease.
 
-No edit block, text mutation, nested event pump, IPC, queue wait or application
-callback is allowed between revision reads. No arbitrary caller hook runs under
-the Attachment mutex. Temporary block/layout/frame references remain inside the
-borrow. Do not retain Scene, item, document, cursor or frame pointers in the
-published value. The native callback continues to return false.
+The existing mutex orders admitted publication and terminal settlement. Stop's
+atomic request and the shared slot cancellation gate prevent further admission;
+cancellation observed before final publication admission discards local data.
+An already-admitted value can publish before terminal closure, matching the
+observer's frozen-prefix model. Stop waits for settlement; no new text publishes
+after it returns. Previously published copies remain historical data. Snapshot
+reports copy status separately from attachment retirement.
 
-The native borrow must keep the document alive and serialize relevant writers
-through the complete synchronous read. Equal finite revisions and identity
-scalars do not prove that premise, defeat ABA/full counter wrap, or make a lease.
-A getter path that can invoke user/virtual code, or cannot be shown to fit this
-premise, is a source blocker rather than permission to rely on a second revision
-read as lifetime protection. This proposal adds no native ownership acquisition.
+Duplicate callbacks use the existing claim and never rejoin. Late callbacks
+refuse before examining Scene. Handle methods remain serialized; stop must not
+be reentered from inside native join. Fixture phase hooks can change owned state
+or request cancellation, but do not delete an admitted borrowed document.
+Native callbacks still return false, and typed slots remain pinned after request.
 
-Attachment callback claim/try-lock rules reject duplicate and concurrent entry.
-Cancellation or expiry before publication discards the local result; exception,
-revision change, composition or join drift produces a typed refusal without
-text. Existing stop waits for admitted callback settlement and closes the
-observer. Stop remains forbidden as reentrant same-thread join work, as in the
-accepted parent contract; do not add callbacks that could create that deadlock.
-Test-only phase hooks can inject owned state changes or atomic cancellation,
-but must not delete a document while the helper holds an admitted live borrow.
+## Verification and remaining boundary
+See [verification](verification.md) for executed exact source/fixture evidence.
+Six focused text groups and changed Attachment/Delivery regressions passed on host
+sanitizers and ARM Qt emulation; ordinary and private-Qt production headers compile.
+Initial compile failures are preserved, and generated outputs expire after review.
 
-Publication and stop settlement use the existing mutex. A copied value published
-before closure remains frozen historical data, like the observer prefix; closure
-does not retroactively revoke copies already returned. Snapshot reports copy
-status separately from attachment retirement. After stop returns, no new text
-can publish. Late callback copies refuse before touching their Scene argument.
-Logical cancellation/copy completion does not permit typed slot reuse, native
-owner release or payload unload.
-
-## Planned controls and acceptance
-After proposal acceptance, exercise the actual helper and Attachment/Delivery
-integration using owned Qt documents on host ASan/UBSan and the pinned ARM Qt
-provider under emulation. Compile production headers without fixture macros.
-Controls must assert exact units/count, explicit refusal and unchanged native
-document content, revision, selection state and Undo/Redo availability.
-
-Cover empty/end ranges; negatives, overflow and 4096/4097 limits; NUL/NBSP,
-paragraph/line separators, combining marks, supplementary characters, ZWJ,
-isolated surrogates and split-pair endpoints; multiline and styled root text;
-tables, nested frames, lists, images/custom objects and boundary-only structure;
-preedit in selected/endpoint blocks; inspection-budget exhaustion in fragmented
-prefixes; wrong thread, native/Qt transaction guards and before/after revision or
-identity drift. Include duplicates, original deadline, cancellation before/
-during publication, stop settlement and late callbacks after handle destruction.
-Use deterministic owned fixture hooks, never timing-based race sleeps or deliberate
-dangling-pointer document access. Check that no layout/resource callback is
-entered by the read path. Native field refusal remains exercised through the
-existing fixture join seam; fake guards are not real Xochitl execution.
-
-Run only these meaningful focused controls once PR-ready, and repeat changed
-controls only for a concrete failure/change. CI owns the ordinary broad checks.
-No test runs are part of this precode publication. Source/fixture acceptance does
-not qualify actual device selection, delivery, serialization or draft authority.
-
-## Source basis and remaining boundary
-Current accepted Attachment/Observer/Delivery source supplies dispatch and
-settlement. Retained R2 findings (SHA256
-4228949cc270dd9db2dae0e6be696f532dd3661f5785047008c73b579dc1faee)
-supply native field, finite revision and UTF-16/paragraph evidence; they are
-offline evidence, not runtime observation.
-
-Qt6.10.3 primary source confirms raw characterAt storage access and the cursor
-layout/format pitfalls:
-- https://raw.githubusercontent.com/qt/qtbase/v6.10.3/src/gui/text/qtextdocument.cpp
-- https://raw.githubusercontent.com/qt/qtbase/v6.10.3/src/gui/text/qtextcursor.cpp
-
-Caps, optional API shape, structural refusal policy and publication semantics
-above are proposed design decisions. Actual owned range/page/visit provenance,
-native writer serialization, folio/OSK semantic Submit, genuine edit lease,
-conditional native clear, focus acknowledgement and typed physical retirement
-remain separate unfinished work. Consumers must retain their current refusal
-when genuine content-revision authority is absent.
+There is no actual Xochitl delivery or device qualification. Owned range/page/visit,
+writer serialization, folio/OSK semantic Submit, genuine edit lease, conditional
+native clear, focus acknowledgement and typed physical retirement remain open.
+Consumers requiring genuine content authority continue refusing.

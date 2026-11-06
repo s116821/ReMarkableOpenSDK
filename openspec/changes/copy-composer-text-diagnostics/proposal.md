@@ -11,12 +11,12 @@ integration inspect real document content without manufacturing composer ownersh
   retaining native revision observations before and after the read.
 - Preserve NUL, NBSP and native paragraph separators; refuse unsupported structure,
   composition, invalid bounds, split surrogate endpoints or unsettled publication.
-- Add focused owned Qt controls after design acceptance, then synchronize the
-  canonical spec and archive this same change after implementation acceptance.
+- Add focused owned Qt controls, synchronize the canonical spec and archive
+  this same change after implementation acceptance.
 
 ## Impact
-This publication is precode only. Integration-owner review is required before
-implementation. Existing Attachment, Observer and typed owner retention remain
+The integration owner accepted the precode contract before implementation.
+Existing Attachment, Observer and typed owner retention remain
 the lifetime and dispatch mechanisms. No new dispatcher, owner framework,
 runtime selection, native activation, text mutation or transport endpoint.
 
