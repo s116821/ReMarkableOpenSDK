@@ -145,7 +145,7 @@ call/cleanup structure. Inspect A32 registers, branch targets and unwind tables;
 exercise original exceptions across the actual route. This catches integration
 defects that a fake forwarding callback cannot.
 
-After source acceptance, Root schedules a finite disposable native check: exact
+After source acceptance, the runtime maintainer schedules a finite disposable native check: exact
 loaded profile/site, real stock pair/current root/thread correspondence, copied
 pre-LF bytes, one preserved stock edit, and active-composition refusal with stock
 input continuing. Folio and pen-operated OSK coverage belong to that qualification.

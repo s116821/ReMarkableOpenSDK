@@ -79,6 +79,32 @@ addresses SHALL NOT be treated as cross-invocation owner/ABA authority.
 - **WHEN** only the historical pre-Enter diagnostic is available
 - **THEN** a consumer requiring owned-draft/currentness authority continues refusing
 
+### Requirement: Private pre-main exclusion and resident preparation
+Production patch admission SHALL be established inside the existing private
+pre-main loader after all allocating preparation. The final interval SHALL
+verify effective blocked asynchronous-signal delivery, current constructor-thread
+identity and a qualified current kernel single-thread observation. Old task
+counts, absence of a Qt application, repeated directory scans alone or a
+caller-set token SHALL NOT substitute for this admission. The route SHALL be
+eagerly prepared and resident without lazy entry initialization or an ordinary
+exit destructor that can destroy state while patched calls remain possible.
+After mutation, the installer SHALL verify code/cache/protection state and
+restore the prior mask only after coherent publication or verified startup
+rollback. Uncertain partial state SHALL use the existing fail-closed startup
+policy without input replay or later live unhook.
+
+#### Scenario: A thread or mask check is uncertain
+- **WHEN** an extra task, unsupported kernel count semantics or incomplete signal blocking is observed
+- **THEN** capture installation refuses before changing the stock callsite
+
+#### Scenario: Route requires lazy setup or exit destruction
+- **WHEN** route entry can acquire an initialization guard or ordinary cleanup can destroy its live state
+- **THEN** production patch admission remains Unsupported
+
+#### Scenario: Patch restoration fails
+- **WHEN** code, cache, protection or prior-mask restoration is uncertain after mutation
+- **THEN** startup cannot continue with that uncertainty and no original input is replayed
+
 ### Requirement: Real bridge verification boundary
 Verification SHALL exercise the production shim, branch/veneer and installer
 against an owned ARM caller, including original exception unwinding. Fake callback

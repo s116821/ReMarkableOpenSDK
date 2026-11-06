@@ -88,9 +88,10 @@ struct State {
         finished.store(true,std::memory_order_release);
     }
 };
-// The route is immutable once installed and process-retained. No production
-// installation/arming admission exists yet. Owned tests configure it before any
-// fixture thread/call starts, never by handing production a quiescence boolean.
+// Production requires immutable prepared state and process residency. This lazy
+// test route has no production installation/arming admission; its initialization
+// and exit destruction must be replaced by the reviewed private loader design.
+// Owned tests bind it only while idle, without minting a quiescence boolean.
 extern "C" void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
 class Route final {
     std::shared_ptr<State> retained_;

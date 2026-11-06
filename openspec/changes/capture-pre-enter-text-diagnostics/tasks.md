@@ -27,8 +27,10 @@
 - [ ] Qualify the loaded production profile/site and native unindent bypass at runtime.
 
 ## 5. Integration and runtime qualification
+- [x] Prepare source-only private-loader thread/signal/patch/lifetime precode and primary references for maintainer review.
+- [ ] Accept the loader precode before implementing production installation or resident route lifetime changes.
 - [ ] Integrate the real resident arming/installation caller under its established lifetime/quiescence boundary, without automatic bootstrap selection.
-- [ ] Root schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
+- [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.
 
 ## 6. Coordinated closeout

@@ -60,7 +60,13 @@ is a candidate for stronger one-thread and signal-reentry admission; actual
 profile satisfaction remains unqualified. No live stop-the-world machinery or
 physical unhook/reclaim path is introduced here.
 
-Root owns the installation seam, source acceptance and later disposable native
-checks for real owner/thread correspondence, preserved stock behavior from folio
+Maintainer review of the private loader must precede implementation/selection of
+installation and disposable native checks for owner/thread correspondence and preserved stock behavior from folio
 and OSK, and composition refusal. Direct teardown settlement and consumer-owned
 range/current-visit/Submit/clear authority remain outside this source delivery.
+
+The current Route::instance is a function-local static with initialization guards
+and ordinary exit destruction. That implementation supplies no production
+process-lifetime guarantee. The proposed private-loader extension must replace
+it with eagerly prepared resident storage that is never destroyed while patched
+calls remain possible. See the active change's loader-admission design.
