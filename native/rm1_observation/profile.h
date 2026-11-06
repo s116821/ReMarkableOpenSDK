@@ -40,6 +40,34 @@ struct ArtifactSelfPin {
     const BindingSite *sites=nullptr;
     std::size_t siteCount=0;
 };
+struct OptionalCrtNull {
+    const char *name=nullptr;
+    std::uint32_t dynsymIndex=0;
+    const BindingSite *sites=nullptr;
+    std::size_t siteCount=0;
+};
+inline int optionalCrtName(const char *name) noexcept {
+    if(!name)return -1;
+    if(std::strcmp(name,"_ITM_registerTMCloneTable")==0)return 0;
+    if(std::strcmp(name,"_ITM_deregisterTMCloneTable")==0)return 1;
+    if(std::strcmp(name,"__gmon_start__")==0)return 2;
+    return -1;
+}
+inline bool optionalCrtShape(const OptionalCrtNull &pin) noexcept {
+    const auto name=optionalCrtName(pin.name);
+    if(name<0||!pin.dynsymIndex||pin.dynsymIndex>=65536||!pin.sites||pin.siteCount!=(name==2?2u:1u))return false;
+    unsigned glob=0,jump=0;
+    for(std::size_t i=0;i<pin.siteCount;++i) {
+        const auto &s=pin.sites[i];
+        if(s.consumer!=Consumer::Adapter||!s.offset||s.offset%4||s.dynsymIndex!=pin.dynsymIndex||
+           s.versionIndex!=1||s.addend)return false;
+        if(s.relocation==21)++glob;
+        else if(s.relocation==22&&name==2)++jump;
+        else return false;
+        for(std::size_t j=0;j<i;++j)if(s.offset==pin.sites[j].offset)return false;
+    }
+    return glob==1&&jump==unsigned(name==2);
+}
 inline bool bindingForm(const SymbolPin &s,const BindingSite &site) noexcept {
     if(s.kind!=SymbolKind::Function&&s.kind!=SymbolKind::Object)return false;
     if(site.relocation==21||site.relocation==22)
@@ -66,6 +94,8 @@ struct Profile {
     std::size_t symbolCount=0;
     const ArtifactSelfPin *selfSymbols=nullptr;
     std::size_t selfSymbolCount=0;
+    const OptionalCrtNull *optionalCrt=nullptr;
+    std::size_t optionalCrtCount=0;
 };
 inline bool digest(const char *s) noexcept {
     if(!s||std::strlen(s)!=64)return false;
@@ -121,6 +151,26 @@ inline bool complete(const Profile &p) noexcept {
                 if(site.consumer==p.symbols[k].sites[n].consumer&&site.offset==p.symbols[k].sites[n].offset)return false;
             for(std::size_t k=0;k<=i;++k)for(std::size_t n=0;n<(k==i?j:p.selfSymbols[k].siteCount);++n)
                 if(site.offset==p.selfSymbols[k].sites[n].offset)return false;
+        }
+    }
+    if(bool(p.optionalCrt)!=bool(p.optionalCrtCount)||(p.optionalCrtCount&&p.optionalCrtCount!=3))return false;
+    std::array<bool,3> crtNames{};
+    for(std::size_t i=0;i<p.optionalCrtCount;++i) {
+        const auto &pin=p.optionalCrt[i];
+        if(!optionalCrtShape(pin)||totalSites>8192-pin.siteCount)return false;
+        totalSites+=pin.siteCount;const auto name=std::size_t(optionalCrtName(pin.name));
+        if(crtNames[name])return false;
+        crtNames[name]=true;
+        for(std::size_t k=0;k<p.symbolCount;++k)if(std::strcmp(pin.name,p.symbols[k].name)==0)return false;
+        for(std::size_t k=0;k<p.selfSymbolCount;++k)if(std::strcmp(pin.name,p.selfSymbols[k].name)==0)return false;
+        for(std::size_t j=0;j<pin.siteCount;++j) {
+            const auto &site=pin.sites[j];
+            for(std::size_t k=0;k<p.symbolCount;++k)for(std::size_t n=0;n<p.symbols[k].siteCount;++n)
+                if(site.consumer==p.symbols[k].sites[n].consumer&&site.offset==p.symbols[k].sites[n].offset)return false;
+            for(std::size_t k=0;k<p.selfSymbolCount;++k)for(std::size_t n=0;n<p.selfSymbols[k].siteCount;++n)
+                if(site.offset==p.selfSymbols[k].sites[n].offset)return false;
+            for(std::size_t k=0;k<i;++k)for(std::size_t n=0;n<p.optionalCrt[k].siteCount;++n)
+                if(site.offset==p.optionalCrt[k].sites[n].offset)return false;
         }
     }
     for(bool present:represented)if(!present)return false;

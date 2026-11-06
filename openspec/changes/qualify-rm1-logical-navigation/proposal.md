@@ -59,3 +59,9 @@ Extend only the observed versioned external ABS32 cases and finite weak/default
 artifact-self exact-site correspondence. This follows the separately reviewed
 diagnostic-forms design; it does not select its CRT-null, TLS or dependency-closure
 work. Keep COPY refusal, original nine native gates and null reviewedProfile.
+
+## Selected optional CRT null-only source follow-up
+
+Add only the three observed optional CRT weak imports/four sites as a distinct
+no-provider null-only domain after the finite ABS32/self increment. No new native
+profile, CRT call, fallback lookup, TLS/closure scope or constructor-safety claim.

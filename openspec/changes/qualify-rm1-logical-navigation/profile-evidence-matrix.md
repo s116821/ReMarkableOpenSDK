@@ -154,3 +154,9 @@ and accepts it after this change; it is a runtime parser behavior difference,
 not a new-API compilation failure. Matching SDK ARM admission compilation and
 fixture syntax checks pass. Production reviewedProfile remains null. All nine
 native tasks, optional CRT/TLS/closure and actual runtime bindings remain open.
+
+Optional CRT source selection covers only _ITM_registerTMCloneTable GLOB_DAT,
+_ITM_deregisterTMCloneTable GLOB_DAT and __gmon_start__ GLOB_DAT/JUMP_SLOT.
+Separate no-provider records require exact weak/default undefined NOTYPE raw1
+value0/size0 and actual live zeros. Retained emitted-file initializers do not
+prove live zero, startup safety, loader behavior or any native qualification.

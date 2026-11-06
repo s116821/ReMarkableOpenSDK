@@ -97,6 +97,31 @@ int main() {
         if(fault==11)selfSites[0].offset=selfSites[1].offset;
         assert(!complete(p));self=saved;selfSites[0]=first;
     }
+    BindingSite crtSites[]={{Consumer::Adapter,0x300,3,1,21,0},{Consumer::Adapter,0x304,4,1,21,0},
+        {Consumer::Adapter,0x308,5,1,21,0},{Consumer::Adapter,0x30c,5,1,22,0}};
+    OptionalCrtNull crt[]={{"_ITM_registerTMCloneTable",3,crtSites,1},
+        {"_ITM_deregisterTMCloneTable",4,crtSites+1,1},{"__gmon_start__",5,crtSites+2,2}};
+    p.optionalCrt=crt;p.optionalCrtCount=3;assert(complete(p));
+    for(unsigned fault=0;fault<15;++fault) {
+        const auto saved=crt[0];const auto site=crtSites[0];const auto symbol=symbols[0];const auto own=self;
+        if(fault==0)crt[0].name="another_optional_symbol";
+        if(fault==1)crt[0].name=crt[1].name;
+        if(fault==2)crtSites[0].offset=crtSites[1].offset;
+        if(fault==3)crtSites[0].offset=sites[0].offset;
+        if(fault==4)crtSites[0].offset=selfSites[0].offset;
+        if(fault==5)crtSites[0].consumer=Consumer::Main;
+        if(fault==6)crtSites[0].relocation=22;
+        if(fault==7)crtSites[0].versionIndex=2;
+        if(fault==8)crt[0].siteCount=0;
+        if(fault==9)crt[0].dynsymIndex=0;
+        if(fault==10)crtSites[0].dynsymIndex=99;
+        if(fault==11)crtSites[0].addend=4;
+        if(fault==12)symbols[0].name=crt[0].name;
+        if(fault==13)self.name=crt[0].name;
+        if(fault==14)crt[0].sites=nullptr;
+        assert(!complete(p));crt[0]=saved;crtSites[0]=site;symbols[0]=symbol;self=own;
+    }
+    p.optionalCrtCount=2;assert(!complete(p));p.optionalCrtCount=3;
     assert(reviewedProfile()==nullptr);
     std::puts("PASS sealed admission traits and 49 incomplete-profile controls; no RM1 admission or target facts");
 }

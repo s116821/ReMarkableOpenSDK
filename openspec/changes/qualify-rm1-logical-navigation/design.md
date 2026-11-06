@@ -479,3 +479,19 @@ only on the host plus controlled whole-word/state/extent/mapping mechanics; no A
 fixture/vendor image is loaded or executed, no provider acquisition or device work.
 Whole-word/tag-loss/addend/version/type/size/overflow/interior/site ambiguity and
 self-preemption negatives must distinguish old refusal from new finite positives.
+
+## OptionalCrtNull finite source selection
+
+Only _ITM_registerTMCloneTable and _ITM_deregisterTMCloneTable each have one
+Adapter GLOB_DAT site; __gmon_start__ has one Adapter GLOB_DAT and one JUMP_SLOT.
+Pin exact dynsym/raw-versym1 and require SHN_UNDEF, STT_NOTYPE, STB_WEAK, default
+visibility, value0 and size0. Separate OptionalCrtNull records have no provider
+or version string; all three names/four sites must be represented exactly if
+this optional domain is present. Unknown, duplicate or cross-domain names/sites
+refuse. Preserve existing total-site bounds and exact file/table/mapping checks.
+GLOB_DAT original word must be0; JUMP_SLOT original PLT initializer is inspected
+only for valid file-backed place, never as live zero evidence. Existing eager
+NOW admission remains required. Every actual live word must equal0; a nonzero
+provider or lazy stub refuses without calling it or falling back to dlsym.
+Current zero cannot establish safety of constructors that ran before admission.
+All nine native gates, actual startup/runtime proof, TLS and closure remain open.
