@@ -163,10 +163,81 @@ void absSelfControls(const Fixture &provider,const Fixture &consumer) {
     }
     std::printf("PASS emitted ABS32/provider and weak artifact-self exact sites: %u positive, %u refusals; never loaded\n",positive,negative);
 }
+void crtControls(const Fixture &consumer) {
+    BindingImage image(consumer.bytes);unsigned positive=0,negative=0;
+    auto *word=static_cast<std::uint32_t*>(mmap(nullptr,4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0));
+    assert(word!=MAP_FAILED);unsigned lazy=0;
+    for(const auto *name:{"_ITM_registerTMCloneTable","_ITM_deregisterTMCloneTable","__gmon_start__"}) {
+        auto sites=consumer.sites(name);OptionalCrtNull pin{name,std::uint32_t(consumer.index(name)),sites.data(),sites.size()};
+        image.definition(pin);image.sites(pin,Consumer::Adapter);++positive;
+        for(const auto &site:sites) {
+            *word=0;assert(optionalCrtWordMatches(*word));
+            for(const auto nonzero:{1u,0x1001u,UINT32_MAX}){*word=nonzero;assert(!optionalCrtWordMatches(*word));++negative;}
+            const auto original=image.fileWord(site.offset);
+            if(site.relocation==R_ARM_JUMP_SLOT) {
+                assert(original);*word=original;assert(!optionalCrtWordMatches(*word));++lazy;++negative;
+            }else assert(original==0);
+        }
+        for(unsigned fault=0;fault<11;++fault) {
+            auto bad=pin;auto changed=sites;
+            if(fault==0)bad.name="unreviewed_weak_crt";
+            if(fault==1)++bad.dynsymIndex;
+            if(fault==2)changed[0].consumer=Consumer::Main;
+            if(fault==3)changed[0].versionIndex=2;
+            if(fault==4)changed[0].versionIndex=0x8001;
+            if(fault==5)changed[0].relocation=R_ARM_ABS32;
+            if(fault==6)changed[0].addend=1;
+            if(fault==7)++changed[0].offset;
+            if(fault==8)changed.push_back(changed[0]);
+            if(fault==9)changed.clear();
+            if(fault==10)changed[0].dynsymIndex=0;
+            bad.sites=changed.data();bad.siteCount=changed.size();
+            refuses([&]{image.sites(bad,Consumer::Adapter);});++negative;
+        }
+        for(unsigned fault=0;fault<9;++fault) {
+            auto bytes=consumer.bytes;const auto at=consumer.sections[consumer.dynsym].sh_offset+pin.dynsymIndex*sizeof(Elf32_Sym);
+            auto symbol=read<Elf32_Sym>(bytes,at);
+            if(fault==0)symbol.st_info=ELF32_ST_INFO(STB_GLOBAL,STT_NOTYPE);
+            if(fault==1)symbol.st_info=ELF32_ST_INFO(STB_WEAK,STT_FUNC);
+            if(fault==2)symbol.st_info=ELF32_ST_INFO(STB_WEAK,STT_OBJECT);
+            if(fault==3)symbol.st_shndx=1;
+            if(fault==4)symbol.st_shndx=SHN_ABS;
+            if(fault==5)symbol.st_other=STV_HIDDEN;
+            if(fault==6)symbol.st_value=4;
+            if(fault==7)symbol.st_size=4;
+            if(fault==8)write(bytes,consumer.sections[consumer.versym].sh_offset+pin.dynsymIndex*2,Elf32_Half(2));
+            write(bytes,at,symbol);BindingImage changed(bytes);
+            refuses([&]{changed.sites(pin,Consumer::Adapter);});++negative;
+        }
+        for(unsigned fault=0;fault<5;++fault) {
+            auto bytes=consumer.bytes;std::size_t target=0,other=0;
+            for(const auto &section:consumer.sections)if(section.sh_type==SHT_REL)
+                for(std::size_t at=0;at<section.sh_size;at+=sizeof(Elf32_Rel)) {
+                    const auto offset=section.sh_offset+at;const auto r=read<Elf32_Rel>(bytes,offset);
+                    if(ELF32_R_SYM(r.r_info)==pin.dynsymIndex&&ELF32_R_TYPE(r.r_info)==R_ARM_GLOB_DAT)target=offset;
+                    else other=offset;
+                }
+            assert(target&&other);auto r=read<Elf32_Rel>(bytes,target);
+            if(fault==0){r.r_info=ELF32_R_INFO(pin.dynsymIndex,R_ARM_COPY);write(bytes,target,r);}
+            if(fault==1){r.r_offset+=4;write(bytes,target,r);}
+            if(fault==2){r.r_info=ELF32_R_INFO(0,R_ARM_GLOB_DAT);write(bytes,target,r);}
+            if(fault==3)write(bytes,other,r);
+            if(fault==4)for(std::size_t i=0;i<consumer.header.e_phnum;++i) {
+                const auto ph=read<Elf32_Phdr>(bytes,consumer.header.e_phoff+i*sizeof(Elf32_Phdr));
+                if(ph.p_type==PT_LOAD&&ph.p_vaddr<=r.r_offset&&r.r_offset+4<=ph.p_vaddr+ph.p_filesz)
+                    write(bytes,ph.p_offset+r.r_offset-ph.p_vaddr,UINT32_C(1));
+            }
+            BindingImage changed(bytes);refuses([&]{changed.sites(pin,Consumer::Adapter);});++negative;
+        }
+    }
+    assert(lazy==1);assert(munmap(word,4096)==0);
+    std::printf("PASS emitted OptionalCrtNull: %u names/four sites, %u refusals; actual owned zero/nonzero/lazy words; no ARM loading\n",positive,negative);
+}
 void emittedControls(char **paths) {
     Fixture provider(paths[0]),consumer(paths[1]),main(paths[2]);
     BindingImage definitions(provider.bytes),bindings(consumer.bytes),executable(main.bytes);
     absSelfControls(provider,consumer);
+    crtControls(consumer);
     unsigned positive=0,negative=0;
     for(const auto *name:{"arm_fn","thumb_fn","owned_data","owned_bss"}) {
         auto pin=provider.pin(name,std::strncmp(name,"owned_",6)==0?SymbolKind::Object:SymbolKind::Function);

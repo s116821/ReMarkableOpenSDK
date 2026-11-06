@@ -178,3 +178,23 @@ SHALL remain outside this slice, with null production profile and native gates o
 #### Scenario: New or ambiguous form
 - **WHEN** a function interior, unknown object addend/vtable, malformed/overlapping place, wrong state/version/extent, weak undefined CRT or TLS/dependency gap is presented
 - **THEN** the verifier refuses without profile enablement, source acquisition or fallback
+
+### Requirement: Finite optional CRT null-only bindings
+The RM1 source SHALL represent only the three observed undefined optional CRT
+names in a distinct no-provider domain and SHALL refuse every nonzero live slot.
+
+#### Scenario: Exact eager zero bindings
+- **WHEN** the exact weak/default/NOTYPE/SHN_UNDEF/value0/size0 raw-versym1 imports
+  and four reviewed Adapter GLOB_DAT/JUMP_SLOT sites match the pinned file and
+  existing eager/mapping admission, and every actual slot is zero
+- **THEN** only that null-only binding condition passes, without a call or lookup
+
+#### Scenario: Unknown or nonzero optional binding
+- **WHEN** a name, definition, version, site, count or mapping differs, a domain
+  collision occurs, or any live word is nonzero (including a lazy PLT stub)
+- **THEN** admission refuses without a call or fallback
+
+#### Scenario: File initializer and earlier constructor limits
+- **WHEN** a PLT file initializer exists or current slots are zero
+- **THEN** the file initializer is not live zero evidence, and current zero is
+  not retroactive constructor-safety proof or native qualification

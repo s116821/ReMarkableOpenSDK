@@ -115,8 +115,7 @@ competing mappings. No live-word-derived addend is accepted.
 Separate artifact-self pins admit only exact own-image defined WEAK/default raw
 versym1 FUNC/OBJECT sites with A0; no provider placeholder or version string is
 invented. Exact own-image comparison refuses preemption to a different image;
-default visibility alone does not prove nonpreemption. Optional CRT-null forms,
-TLS/IFUNC/unique definitions and same-name competing consumer versions remain
+default visibility alone does not prove nonpreemption. TLS/IFUNC/unique definitions and same-name competing consumer versions remain
 outside this increment; relevant unreviewed sites refuse. These gaps prevent claiming a complete profile
 or final adapter closure. The existing eight provider roles are not a completeness
 proof for emitted DT_NEEDED/transitive dependencies.
@@ -146,3 +145,17 @@ RSDK_BINDING_DIAGNOSTIC and RSDK_BINDING_LIBC add passive checks of the selected
 observation diagnostic and already-held libc. Keep their hashes/provenance;
 none can issue Admission. These are metadata/range/slot mechanics tests, not
 actual loader relocation, pre-main startup, live Reader/capture or tablet tests.
+
+The selected OptionalCrtNull follow-up covers exactly three undefined weak/default
+NOTYPE raw-versym1 value0/size0 imports: _ITM_registerTMCloneTable and
+_ITM_deregisterTMCloneTable each GLOB_DAT, and __gmon_start__ GLOB_DAT/JUMP_SLOT.
+It has no provider/version placeholder, lookup or call. If present, all three
+names/four sites are required, with cross-domain name/site collisions refused.
+Existing eager NOW/NODELETE, full file/table/mapping and stable-source admission
+remain mandatory. Every actual slot must be zero, including the PLT word. Its
+file initializer may be nonzero and is not live zero evidence; any live provider
+address/lazy stub refuses. Current zero is not retroactive constructor safety.
+
+Owned emitted-file metadata/site mutations and actual host mapped words exercise
+zero acceptance and nonzero/lazy refusal without loading ARM code. All native
+startup/provider/runtime qualification and TLS/dependency closure remain open.

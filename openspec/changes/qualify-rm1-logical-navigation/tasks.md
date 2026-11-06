@@ -57,3 +57,15 @@ increment does not archive or claim completion of the unfinished qualification.
 - [ ] Review exact source/artifact/operator and recovery before any separately announced idle RM1 trial.
 - [ ] Qualify intended native target/order and fresh settled pixels, distinguishing emulator/synthetic evidence from real-device proof.
 - [ ] Obtain final independent review and required CI, sync canonical specifications and archive only completed scope.
+
+## Selected optional CRT null-only source follow-up
+
+- [x] Define finite three-name/four-site no-provider scope and limits before code.
+- [x] Implement exact weak/default/undefined/NOTYPE/raw1/value0/size0 and site checks.
+- [x] Require actual live zeros under existing eager full-file/mapping admission.
+- [x] Add emitted/passive and owned host zero/nonzero/lazy/definition/site controls.
+- [x] Verify matching SDK compile, null profile and current source/spec controls. Six host tests pass; CRT3names/four sites88refusals plus16profile refusals, existing ABS32/self8positive94refusals, typed6positive98negative and PT_DYNAMIC13refusals preserved. Matching SDK ARM compile/syntax and strict named OpenSpec validation pass.
+- [ ] Reconcile actual SDK42 research merge normally before successor publication;
+  obtain independent review/current hosted checks and research integration.
+
+All nine native gates remain open; no full qualification sync/archive is selected.

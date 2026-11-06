@@ -226,15 +226,18 @@ void ownDynamicFlags(const Module &module,const std::vector<Map> &all) {
     }
     need(terminated&&now&&nodelete);
 }
+std::uint32_t slotWord(const File &file,const Module &module,const std::vector<Map> &all,
+                       const detail::BindingSite &site) {
+    std::uintptr_t at=0;need(add(module.base,site.offset,at)&&fileRange(file,module,all,at,4));
+    const auto *m=cover(all,at,4,false);need(m&&!m->x);
+    std::uint32_t actual=0;std::memcpy(&actual,reinterpret_cast<const void*>(at),4);return actual;
+}
 template<class Pin>void boundSlots(const File &file,const Module &module,const std::vector<Map> &all,
                                   const Pin &pin,detail::Consumer consumer,std::uint32_t definitionBase) {
     file.bindings().sites(pin,consumer);
     for(std::size_t i=0;i<pin.siteCount;++i)if(pin.sites[i].consumer==consumer) {
         std::uint32_t expected=0;need(detail::relocationWord(definitionBase,pin,pin.sites[i],expected));
-        std::uintptr_t at=0;need(add(module.base,pin.sites[i].offset,at)&&fileRange(file,module,all,at,4));
-        const auto *m=cover(all,at,4,false);need(m&&!m->x);
-        std::uint32_t actual=0;std::memcpy(&actual,reinterpret_cast<const void*>(at),4);
-        need(detail::slotMatches(actual,expected));
+        need(detail::slotMatches(slotWord(file,module,all,pin.sites[i]),expected));
     }
 }
 
@@ -294,6 +297,12 @@ const Admission *admitBeforeMain(const resident::Activation &activation) noexcep
             (void)exactDefinition(adapter,adapterModule,all,pin);
             boundSlots(adapter,adapterModule,all,pin,detail::Consumer::Adapter,std::uint32_t(adapterModule.base));
         }
+        for(std::size_t i=0;i<profile->optionalCrtCount;++i) {
+            const auto &pin=profile->optionalCrt[i];adapter.bindings().sites(pin,detail::Consumer::Adapter);
+            for(std::size_t j=0;j<pin.siteCount;++j)
+                need(detail::optionalCrtWordMatches(slotWord(adapter,adapterModule,all,pin.sites[j])));
+        }
+        // These post-INIT zeros cannot establish earlier constructor safety.
         for(const auto &file:providerFiles){need(bool(file));file->stable();}
         main.stable();adapter.stable();
         need(!QCoreApplication::instance()&&activation.directoryCurrent());

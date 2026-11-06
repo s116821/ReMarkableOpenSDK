@@ -11,3 +11,10 @@ extern int self_thumb(void);
 __attribute__((weak)) int self_data[4]={3,4,5,6};
 void *abs_self_arm=(void *)self_arm,*abs_self_thumb=(void *)self_thumb,*abs_self_data=(void *)self_data;
 int self_calls(unsigned k) {return self_arm()+self_thumb()+self_data[k&3];}
+extern void _ITM_registerTMCloneTable(void) __attribute__((weak));
+extern void _ITM_deregisterTMCloneTable(void) __attribute__((weak));
+extern void __gmon_start__(void) __attribute__((weak));
+void (*crt_register_address(void))(void) {return _ITM_registerTMCloneTable;}
+void (*crt_deregister_address(void))(void) {return _ITM_deregisterTMCloneTable;}
+// Emit both the GOT and PLT forms. This owned fixture is never loaded/executed.
+void crt_guarded_call(void) {if(__gmon_start__)__gmon_start__();}

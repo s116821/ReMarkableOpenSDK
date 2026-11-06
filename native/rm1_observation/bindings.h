@@ -24,6 +24,7 @@ template<class Pin>inline bool functionExtent(std::uint32_t base,const Pin &pin,
     return out.code%((pin.value&1)?2:4)==0;
 }
 inline bool slotMatches(std::uint32_t actual,std::uint32_t expected) {return actual&&actual==expected;}
+inline bool optionalCrtWordMatches(std::uint32_t actual) {return actual==0;}
 template<class Pin>inline bool relocationWord(std::uint32_t base,const Pin &pin,
                                             const BindingSite &site,std::uint32_t &out) {
     if(!bindingForm(pin,site))return false;
@@ -236,6 +237,34 @@ public:
         for(std::size_t i=0;i<sections_[dynsym_].sh_size/sizeof(Elf32_Sym);++i)
             if(string(sections_[dynsym_].sh_link,symbol(i).st_name)==pin.name&&versionIndex(i)==1)++matches;
         bindingNeed(matches==1);
+    }
+    void definition(const OptionalCrtNull &pin)const {
+        bindingNeed(header_.e_type==ET_DYN&&optionalCrtShape(pin));
+        const auto s=symbol(pin.dynsymIndex);
+        bindingNeed(string(sections_[dynsym_].sh_link,s.st_name)==pin.name&&s.st_shndx==SHN_UNDEF&&
+            ELF32_ST_TYPE(s.st_info)==STT_NOTYPE&&ELF32_ST_BIND(s.st_info)==STB_WEAK&&
+            s.st_other==STV_DEFAULT&&s.st_value==0&&s.st_size==0&&versionIndex(pin.dynsymIndex)==1);
+        unsigned names=0;
+        for(std::size_t i=0;i<sections_[dynsym_].sh_size/sizeof(Elf32_Sym);++i)
+            if(string(sections_[dynsym_].sh_link,symbol(i).st_name)==pin.name)++names;
+        bindingNeed(names==1);
+    }
+    void sites(const OptionalCrtNull &pin,Consumer consumer)const {
+        bindingNeed(consumer==Consumer::Adapter);definition(pin);
+        std::vector<bool> seen(pin.siteCount,false);
+        relocations([&](const Elf32_Rel &r,std::size_t i,const std::string &name) {
+            if(name!=pin.name)return;
+            bindingNeed(i==pin.dynsymIndex);std::size_t match=pin.siteCount;
+            for(std::size_t j=0;j<pin.siteCount;++j)if(r.r_offset==pin.sites[j].offset) {
+                bindingNeed(match==pin.siteCount);match=j;
+            }
+            bindingNeed(match<pin.siteCount&&!seen[match]&&ELF32_R_TYPE(r.r_info)==pin.sites[match].relocation);
+            const auto original=fileWord(r.r_offset);
+            if(ELF32_R_TYPE(r.r_info)==R_ARM_GLOB_DAT)bindingNeed(original==0);
+            // JUMP_SLOT file initialization is not a resolved zero word.
+            seen[match]=true;
+        });
+        for(bool present:seen)bindingNeed(present);
     }
     bool hasCopy(const char *name)const {
         bool copy=false;relocations([&](const Elf32_Rel &r,std::size_t,const std::string &n){
