@@ -120,6 +120,19 @@ inline Join join(::Scene *borrowed) {
 #endif
     return result;
 }
+// Shared final read check. Both callers must still hold their admitted native
+// borrow; this helper does not extend it or acquire native ownership.
+inline void revalidateText(const Join &first, const Join &again, composer_text::Result &candidate) {
+    const auto &f = again.facts;
+    if (again.refusal != Refusal::None || again.document != first.document ||
+        f.documentAddress != first.facts.documentAddress ||
+        f.idHigh != first.facts.idHigh || f.idLow != first.facts.idLow) {
+        candidate.refuse(composer_text::Failure::Join);
+    } else if (first.document->revision() != candidate.revisionAfter ||
+               first.document->characterCount() != candidate.characterCount) {
+        candidate.refuse(composer_text::Failure::Revision);
+    }
+}
 } // namespace detail
 
 class Attachment;
@@ -292,15 +305,7 @@ public:
                 if (s->canceled.load(std::memory_order_acquire)) { s->retireLocked(); return false; }
                 if (s->range) {
                     const auto again = s->join(scene);
-                    const auto &f = again.facts;
-                    if (again.refusal != Refusal::None || again.document != joined.document ||
-                        f.documentAddress != joined.facts.documentAddress ||
-                        f.idHigh != joined.facts.idHigh || f.idLow != joined.facts.idLow) {
-                        candidate.refuse(composer_text::Failure::Join);
-                    } else if (joined.document->revision() != candidate.revisionAfter ||
-                               joined.document->characterCount() != candidate.characterCount) {
-                        candidate.refuse(composer_text::Failure::Revision);
-                    }
+                    detail::revalidateText(joined,again,candidate);
                     s->expire();
                     if (s->canceled.load(std::memory_order_acquire)) { s->retireLocked(); return false; }
                     s->text = candidate;
