@@ -160,3 +160,12 @@ _ITM_deregisterTMCloneTable GLOB_DAT and __gmon_start__ GLOB_DAT/JUMP_SLOT.
 Separate no-provider records require exact weak/default undefined NOTYPE raw1
 value0/size0 and actual live zeros. Retained emitted-file initializers do not
 prove live zero, startup safety, loader behavior or any native qualification.
+
+Finite CRT local evidence: the matching compiler emits the exact three undefined
+weak NOTYPE raw1 names and four sites. Host checks accept exact passive metadata
+and actual mapped zero words, refuse nonzero/provider-like words and the actual
+nonzero PLT file initializer copied to owned host storage. Eighty-eight controls
+include actual symbol/type/visibility/version/value/size and relocation-table/
+original-word mutations, alongside missing/duplicate/unknown/domain checks.
+Sixteen profile controls cover count, names, forms and cross-domain collisions.
+Matching SDK admission compilation and fixture syntax pass; no ARM file is loaded.
