@@ -9,6 +9,6 @@
 - [x] Extend accepted Attachment/Delivery with optional copied request and settled diagnostic result.
 - [x] Audit chosen Qt getters for bounded reads without layout/resource callbacks.
 - [x] Exercise focused host/ARM owned Qt controls and macro-free compilation.
-- [ ] Preserve exact source pins, results and any failures; clean reviewed generated outputs.
+- [x] Preserve exact source pins, results and any failures; clean reviewed generated outputs.
 - [x] Synchronize canonical specification and document the actual implemented limits.
-- [ ] Complete independent review/current CI and archive this change in the same PR.
+- [x] Complete independent review/current CI and archive this change in the same PR.

@@ -37,5 +37,5 @@ are necessary diagnostics; they are not an owned-range/page/visit or edit lease.
 Consumers requiring genuine authority must continue refusing. Submit, native
 conditional clear, focus acknowledgement and typed physical retirement are absent.
 
-Owned host/ARM controls and macro-free compilation are recorded in the active
-OpenSpec verification. They do not qualify actual Xochitl delivery or tablet use.
+Owned host/ARM controls and macro-free compilation are recorded in the
+[archived verification](../../openspec/changes/archive/2026-11-05-copy-composer-text-diagnostics/verification.md). They do not qualify actual Xochitl delivery or tablet use.

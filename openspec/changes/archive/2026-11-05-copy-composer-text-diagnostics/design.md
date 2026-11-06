@@ -2,8 +2,8 @@
 
 ## Status and integration
 Root accepted precode2d1cb60 before implementation. This change now implements the
-bounded read and its focused owned controls; independent review/current CI and
-same-PR archive remain pending. Parent typed delivery belongs to PR38.
+bounded read and its focused owned controls; independent review and current CI
+passed, and this finite change is archived. Parent typed delivery belongs to PR38.
 
 A small composer_text helper and optional immutable ReadRange extend existing
 Attachment preparation. Delivery forwards the range and shares its existing
@@ -57,7 +57,7 @@ whole-document string, hidden same-format scan or unbounded repeat is used.
 Qt tree metadata lookups are not a hard real-time bound. Cancellation/deadline
 checks occur between structural visits and output units.
 
-See the [getter audit](../../../docs/native/composer-text-getter-audit.md) for
+See the [getter audit](../../../../docs/native/composer-text-getter-audit.md) for
 specific Qt sources, accessor behavior and the executed no-callout controls.
 Matching headers supply the data access; no copied private layout, access-control
 macro, new binary offset or provider patch is involved.
