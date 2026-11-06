@@ -5,6 +5,8 @@
 #include "reader_insertion_guard_native_profile.h"
 #include <atomic>
 
+namespace remarkable::composer_scene { class Delivery; }
+
 namespace reader_worker_native {
 class ResidentMutation;
 #ifdef RESIDENT_WORKER_SLOT_TESTING
@@ -34,6 +36,8 @@ class ResidentSlot final {
         QPointer<QObject> controller,publicWorker;
         bool ready=false,consumed=false,canceled=false,unknown=false,physicalRetired=false;
         bool preparing=true,submitting=false;
+        // A typed Scene request needs its own physical-retirement proof.
+        std::shared_ptr<std::atomic<bool>> sceneCancellation;
         bool live()const {
             return !canceled&&!unknown&&!physicalRetired&&controller&&publicWorker&&detail::gui()&&
                 controller->thread()==QThread::currentThread()&&publicWorker->thread()==QThread::currentThread();
@@ -64,6 +68,7 @@ private:
     ResidentSlot(detail::Functions fn,const reader_insertion_native_profile::Facilities *facilities):fn_(fn),facilities_(facilities){}
     ~ResidentSlot()=default; // Only process-resident construction is public.
     friend class ResidentMutation;
+    friend class remarkable::composer_scene::Delivery;
 #ifdef RESIDENT_WORKER_SLOT_TESTING
     friend struct testing::SlotAccess;
     ReleaseResult (*testRelease_)(Kind,std::uintptr_t,std::uintptr_t)=nullptr;
@@ -95,6 +100,12 @@ private:
         detail::Gate gate;auto state=match(token);
         if(!state||state->preparing||state->submitting)return result;
         result.matched=true;result.unknown=state->unknown;
+        if(state->sceneCancellation) {
+            state->canceled=true;state->sceneCancellation->store(true,std::memory_order_release);
+            result.documentRetained=!state->document.settled();
+            result.workerRetained=!state->worker.settled();
+            return result; // Generic Task proof cannot retire a typed Scene request.
+        }
         state->canceled=true;
         if(!state->unknown) {
             state->physicalRetired=true;result.retired=true;
@@ -135,7 +146,9 @@ public:
     bool cancel(const Token &token) {
         if(!detail::gui())return false;
         auto state=match(token);if(!state)return false;
-        state->canceled=true;return true;
+        state->canceled=true;
+        if(state->sceneCancellation)state->sceneCancellation->store(true,std::memory_order_release);
+        return true;
     }
     QObject *worker(const Token &token)const {
         if(!detail::gui())return nullptr;
@@ -146,7 +159,7 @@ public:
         detail::Gate gate;
         if(!gate.entered||!detail::gui())return {};
         auto state=match(token);
-        if(!state||!state->ready||state->preparing||state->submitting||state->attributionAttempted||!state->live())return {};
+        if(!state||!state->ready||state->preparing||state->submitting||state->attributionAttempted||state->sceneCancellation||!state->live())return {};
         state->attributionAttempted=true;
 #ifdef RESIDENT_WORKER_SLOT_TESTING
         state->attribution=testAttribution_?testAttribution_(state->publicWorker.data(),wantCondition):reader_insertion_native_profile::AttributionParts{};

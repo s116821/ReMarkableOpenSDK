@@ -85,3 +85,7 @@ These controls neither invoke Xochitl nor prove that a real focused item accepts
 attachment. Actual scene delivery, loaded-profile acceptance, Qt thread affinity,
 native callback nesting and live writer behavior remain tablet qualification.
 Root owns that integration and scheduling.
+
+The [typed delivery adapter](composer-scene-delivery.md) now connects this callback
+to the distinct native scene request through a validated resident owner slot.
+Actual runtime selection and tablet qualification remain external.
