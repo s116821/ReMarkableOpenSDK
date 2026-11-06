@@ -1,6 +1,8 @@
 # Qualify RM1 logical navigation
 
-REM-49, SCRAPPY-DOO. Preserve the unfinished follow-up from
+This is the unfinished RM1 compatibility follow-up to the completed read-only
+baseline collector, delivered in [SDK PR2](https://github.com/s116821/ReMarkableOpenSDK/pull/2).
+Preserve the unfinished follow-up from
 `qualify-rm1-navigation-input` as an active SDK change. Metadata delivery gives
 kernel axis observations, not a supported gesture or live navigation authority.
 

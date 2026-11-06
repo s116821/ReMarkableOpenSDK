@@ -5,7 +5,7 @@
 - [x] Inspect shipped SDK v0.2.0/a0c6480 and returned RM2 research integration; replace stale candidate-waiting language without borrowing RM2 qualification.
 - [x] Record the RM1 profile/evidence/refusal matrix and delivered collector's smallest later refresh and limits.
 - [x] Obtain independent review of the source-only reconciliation and transport correction; integration preserves the delivered scripts/docs/CI layout. No native task is completed by this checkpoint.
-- [x] Pin UpdateHostKeys=no and ConnectionAttempts=1 in the existing collector; all 11 owned local controls pass, and the focused spawned-argv control fails against the old collector as expected. Independent successor review/publication and any tablet read remain pending; trust, route, deadlines and output bounds are retained.
+- [x] Pin UpdateHostKeys=no and ConnectionAttempts=1 in the existing collector; all 11 owned local controls pass, and the focused spawned-argv control fails against the old collector as expected. The reviewed source was delivered in [SDK PR34](https://github.com/s116821/ReMarkableOpenSDK/pull/34); trust, route, deadlines and output bounds are retained. This source checkpoint does not complete the native qualification tasks below.
 
 ## Observation-only source preparation
 
@@ -24,8 +24,8 @@ broader verifier/RM2 regressions and target qualification remain separate.
 
 ## Typed-binding precode and follow-up
 
-This is a specification-only review increment. It completes no native gate.
-Implementation and link-only execution require separate selection after review.
+This section records the earlier precode review and the subsequent selected
+typed-binding implementation delivered in [SDK PR40](https://github.com/s116821/ReMarkableOpenSDK/pull/40). It completes no native gate; broader regression and runtime obligations below remain open.
 
 - [x] Obtain independent review of this RM1-only typed-binding design and exact patch; Root accepted f005b62c and selected local link-only measurement plus bounded implementation. reviewedProfile stays null and all original native tasks stay open.
 - [x] Implement bounded typed definition/site metadata and FUNC tagged-pointer/code-extent checks without changing RM2 loader/hook/Facilities checks. Exact GNU versions and disk dynamic-table correspondence are checked; unreviewed forms refuse.
@@ -41,9 +41,9 @@ Implementation and link-only execution require separate selection after review.
 - [x] Implement separate finite weak/default artifact-self records, raw versym1/defined symbol/site and exact own-image correspondence without provider placeholders.
 - [x] Add meaningful compiler-emitted/passive and controlled live-word/mapping positives and negatives; no ARM/native execution.
 - [x] Verify null production profile, duplicate/domain/refusal controls and matching SDK compile compatibility. Six host contract tests pass, emitted ABS32/self controls report8positive/94refusals, existing typed controls6positive/98negative and13PT_DYNAMIC refusals; actual matching SDK ARM compile/syntax passes. Same passive probe refuses emitted FUNC ABS32 A0 against delivered0109269 and accepts it with this source.
-- [ ] Obtain independent review, current required hosted checks and normal research-branch integration of the finite source/spec/evidence handoff. Local source controls do not complete native qualification.
+- [x] Obtain independent review, current required hosted checks and normal research-branch integration of the finite source/spec/evidence handoff. [SDK PR42](https://github.com/s116821/ReMarkableOpenSDK/pull/42) merged as `59edae7093f578e7ae13deb7250cd6cc1865144f` after [exact-head CI](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/42170384711) passed. This completes only the finite source delivery, not native qualification.
 
-CRT, TLS, closure and all nine native tasks remain unselected/open. This source
+Further CRT/startup safety, TLS, closure and all nine native tasks remain open. This source
 increment does not archive or claim completion of the unfinished qualification.
 
 ## Remaining native qualification
@@ -65,7 +65,11 @@ increment does not archive or claim completion of the unfinished qualification.
 - [x] Require actual live zeros under existing eager full-file/mapping admission.
 - [x] Add emitted/passive and owned host zero/nonzero/lazy/definition/site controls.
 - [x] Verify matching SDK compile, null profile and current source/spec controls. Six host tests pass; CRT3names/four sites88refusals plus16profile refusals, existing ABS32/self8positive94refusals, typed6positive98negative and PT_DYNAMIC13refusals preserved. Matching SDK ARM compile/syntax and strict named OpenSpec validation pass.
-- [ ] Reconcile actual SDK42 research merge normally before successor publication;
+- [x] Reconcile actual SDK42 research merge normally before successor publication;
   obtain independent review/current hosted checks and research integration.
+  [SDK PR43](https://github.com/s116821/ReMarkableOpenSDK/pull/43) merged as
+  `170643e234e7a93684042aa37d0f177f5528c321` after
+  [exact-head CI](https://github.com/s116821/ReMarkableOpenSDK/actions/runs/42173380109)
+  passed. The reviewed source tree is unchanged by final ancestry reconciliation.
 
 All nine native gates remain open; no full qualification sync/archive is selected.
