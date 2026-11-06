@@ -114,3 +114,39 @@ operations or fill evidence fields absent from its schema.
 #### Scenario: Baseline changed or collection refused
 - **WHEN** model/runtime facts differ from the retained candidate, change during collection, or transport/output validation refuses
 - **THEN** the old candidate is not admitted, no native action or automatic retry follows, and the prior evidence is preserved.
+
+### Requirement: RM1 binding admission distinguishes definition and effective storage
+RM1 observation admission SHALL retain exact artifact/executable/provider file,
+size, ELF/ABI, ownership, stability, mapping, pre-main and Activation checks.
+It SHALL match typed, versioned definitions and all reviewed binding sites rather
+than infer every import is an ARM function or every effective address is ET_DYN.
+Missing evidence SHALL refuse. reviewedProfile SHALL remain null until a separate
+evidence-backed profile review; RM2 hook/Facilities checks SHALL remain unchanged.
+
+#### Scenario: Exact Thumb function pointer
+- **WHEN** a reviewed FUNC has a Thumb-tagged raw value
+- **THEN** admission compares the complete callable pointer including its state bit, checks the untagged code extent and appropriate alignment within verified executable file-backed mappings, and refuses a flipped tag even when the masked address matches.
+
+#### Scenario: Provider OBJECT binding
+- **WHEN** a reviewed OBJECT import has a GLOB_DAT binding and no main COPY
+- **THEN** admission verifies exact definition/version/size/provider, readable data extent and backing mappings, and the consumer's exact resolved slot without function alignment or code-range substitutions.
+
+#### Scenario: Main COPY preempts provider storage
+- **WHEN** an OBJECT binding resolves to a main executable copy
+- **THEN** admission requires the exact main COPY relocation and destination allocation, compatible pinned source definition with proved loaded source scope, and effective-address correspondence at every reviewed consumer site; default lookup or dladdr on the copy alone cannot prove the source.
+- **AND** mutable or relocated data contents are not compared to unrelocated file bytes, and missing source-scope or mapping proof refuses.
+
+#### Scenario: Unsupported or ambiguous binding form
+- **WHEN** a definition/version/provider, relocation/site, addend, copy size/source or mapping is missing, malformed, unreviewed or ambiguous
+- **THEN** admission refuses without a generic ET_EXEC-provider exception, masked-address fallback or test/profile bypass.
+
+### Requirement: Link-only diagnostics cannot qualify RM1 runtime admission
+Any separately selected observation link diagnostic SHALL preserve the null
+production profile and production build refusal, retain the actual optimized
+observation path, record exact source/toolchain/CRT/link/ELF/import/version inputs
+and outputs, and remain non-installable and never loaded. Its evidence SHALL be
+limited to its own composition; final adapter closure and native gates stay open.
+
+#### Scenario: Optimized observation diagnostic links
+- **WHEN** a separately selected diagnostic links with the matching RM1 SDK and retained observation wrapper
+- **THEN** only its actual emitted imports/versions are established; differing bootstrap/closed-admission paths require later production reconciliation, and no approved manifest, profile, tablet activation or native qualification follows.

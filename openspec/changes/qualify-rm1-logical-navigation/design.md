@@ -268,3 +268,174 @@ the pinned tag here is an evidence reference, not a maintained source version.
 [components]: https://github.com/s116821/ReMarkableOpenSDK/blob/a0c6480be6785480c2e0da76a3c06697a18efae4/docs/native/resident-components.md
 [gesture]: https://github.com/s116821/ReMarkableOpenSDK/blob/a0c6480be6785480c2e0da76a3c06697a18efae4/src/navigation/gesture.rs
 [rm2-profile]: https://github.com/s116821/ReMarkableOpenSDK/blob/a0c6480be6785480c2e0da76a3c06697a18efae4/native/rm2_3_28_0_172/installed-reader-insert-v1.json
+
+## RM1 typed-binding admission: proposal for independent review
+
+### Observed gap and scope
+
+At source base `d9379d5592b0bd300bcfd6af65dbf23b269d0cd2`,
+`profile.h::SymbolPin` has name/version/provider/value/size and two binding
+booleans. `admission.cpp::File::function`, `jumpSlot`, `exactExport`, `provider`
+and `boundSlot` accept only STT_FUNC, JUMP_SLOT, raw four-byte alignment and an
+ET_DYN effective provider. They cannot describe the observed alternatives.
+The existing checks correctly refuse them; do not convert that refusal into a
+profile by substituting hashes or globally masking addresses.
+
+The saved RM1 SDK report has 321 unresolved O0 probe imports, including 20 OBJECT
+references, three odd-valued libc functions (memchr/strcmp/strlen), and two
+candidate versions/providers for __aeabi_atexit. The saved main declares 17 COPY
+relocations corresponding to probe data imports. These are static observations,
+not proof of optimized closure, copy contents, current mappings or live lookup.
+SDK Core/libc match the saved files; six other SDK provider identities are still
+candidates until independently matched to actual target files.
+
+### Small local record and lookup change
+
+Replace the two booleans with a bounded list of binding sites and keep a separate
+definition record. A definition records exact provider role, name, GNU version
+identity (including hidden/default distinction), defined dynsym type/binding/
+visibility, raw st_value and positive st_size. A site records consumer (main or
+adapter), exact relocation offset/type and referenced dynsym/version index. A
+COPY site additionally records main destination dynsym/value/size and source
+definition identity. Index values are tied to the exact file; version names and
+version-definition/requirement links must also agree. Do not equate indices from
+different files or collapse all same-name version aliases.
+
+Keep these records private to RM1 `profile.h`/`admission.cpp`; no general loader
+framework, public API or environment/test admission switch. Retain schema bounds
+and checked arithmetic. Each required site must occur exactly once at its pinned
+location and every relevant binding site must be accounted for. Several reviewed
+sites may refer to one definition; conflicting aliases, missing/extra sites,
+wrong section/table links, malformed strings/versions and overlapping sites
+refuse. Undefined imports may be NOTYPE, but their selected definitions must have
+the reviewed FUNC or OBJECT type. Unreviewed weak/unique/IFUNC/TLS/absolute/common
+or other definition forms and new relocation forms refuse pending separate review.
+Linker/CRT locals such as __dso_handle are recorded as such, not invented providers.
+
+### Function identity and code extent
+
+For a pinned FUNC, preserve raw tagged value for identity. Compute with checked
+32-bit arithmetic `callable = load_bias + raw_value` and
+`code = load_bias + (raw_value & ~1u)`. Compare dlvsym result and every admitted
+resolved slot to the full callable value, including bit zero. Check ARM code at
+four-byte alignment and Thumb code at two-byte alignment; never mask OBJECT
+addresses or accept a changed execution-state bit. The positive size describes
+the extent starting at code, not at the tagged pointer. Require the entire extent
+inside the verified executable PT_LOAD/file-backed mapping with expected file
+offset and unchanged mapped code bytes. Preserve exact provider hash, size,
+ELF/ABI, loaded phdr and stability checks. Passing -marm for the adapter does not
+imply all imported providers are ARM-state functions.
+
+### Binding and data rules
+
+| Case | Exact admission rule |
+| --- | --- |
+| FUNC JUMP_SLOT or FUNC GLOB_DAT | Require the pinned relocation, dynsym/version and consumer offset; four-byte aligned, fully mapped file-backed slot; read the actual resolved word and compare to the exact callable pointer. NOW/eager-binding remains required; a lazy PLT stub or another provider fails. Initially accept only reviewed zero-addend sites; other addends require separate rules. |
+| OBJECT GLOB_DAT without main COPY | Select the exact ET_DYN definition and effective address `bias + st_value`, without tag masking or executable-range demand. Require positive exact size within readable non-executable PT_LOAD memory, verified provider-backed file extent or its explicitly described zero-fill tail, and matching live file/anonymous mapping coverage. The consumer's four-byte slot must equal that exact effective address. |
+| OBJECT with main COPY | Keep the ET_DYN source definition distinct from effective storage in the exact ET_EXEC main. Require a unique pinned COPY relocation whose offset equals the main definition value, matching name/version/type and equal reviewed positive source/destination sizes. Require destination extent within the main's readable non-executable PT_LOAD memory and its expected file-backed or zero-fill mapping, with recorded alignment and RELRO/writable policy. Adapter GLOB_DAT and versioned default lookup must resolve to the exact main copy address, not the source address. Do not demand a fictitious main JUMP_SLOT for an object. |
+
+The COPY source remains an independently hashed/sized/mapped ET_DYN provider;
+`dladdr` on the effective main address cannot identify that source. Before
+admitting a COPY edge, the reviewed loaded lookup scope must establish the unique
+compatible source definition excluding the main copy. Record the actual loader
+and ordered relevant provider identities/version matches, and reject an
+unaccounted competing definition/interposition. A default dlvsym result alone is
+insufficient to establish copy-source provenance. Do not perform a new dlopen,
+assume a provider-specific lookup reproduces COPY search semantics, or relax
+`provider()` to accept arbitrary ET_EXEC exports. If this scope cannot be proved
+with the existing read-only loaded-object evidence, COPY stays refused and the
+profile stays closed; no loader introspection framework is selected here.
+
+Do not compare mutable object values to file bytes or assume NOBITS occupies file
+bytes. QCoreApplication::self and __libc_single_threaded are identity/storage
+checks, not pinned values. Relocated metaobjects/vtables likewise need not equal
+their unrelocated file representation. Mapping checks distinguish the provider's
+file portion, partial last page and anonymous zero-fill pages; anonymous memory
+is accepted only for the exact reviewed PT_LOAD zero-fill interval with continuous
+coverage, not by dropping file identity for the whole data range. This slice
+proves structural definition/storage/binding correspondence, not historical copy
+contents or semantic validity of a Qt object. Existing live metatype/Reader/
+notification checks and all native acceptance gates remain necessary.
+
+All current executable/artifact hashes and size checks, ownership/mode/stability,
+ELF ABI, pre-main/application absence, one-use Activation, retained directory,
+actual artifact mapping, environment clearing, GUI dispatch and lifetime guards
+remain mandatory. No RM2 loader, hook checks, approved pins, bundle recipe or
+Native REM-61 helpers/callbacks are edited by this proposal.
+
+### Meaningful controls for later implementation
+
+Use bounded metadata fixtures for malformed-table refusals and compiler/linker-
+produced ELF fixtures plus actual mapped owned slots for positive correspondence.
+No fixture can select a production profile. Future ARM fixture execution requires
+its own selection; it is not part of this precode update.
+
+- Positive ARM and Thumb functions with exact tagged pointer and full code extent;
+  negative flipped tag (same masked address), wrong version/provider/size, ARM
+  misalignment, overflow, truncated/non-executable range or changed mapped code.
+- Positive real resolved JUMP_SLOT and GLOB_DAT sites; negative lazy/unresolved
+  word, wrong slot offset/type, nonzero unreviewed addend, wrong section link,
+  missing/duplicate/extra site and a different provider exporting the same name.
+- Positive provider OBJECT and executable COPY + adapter GLOB_DAT fixtures, with
+  both file-backed RELRO data and zero-fill mutable data. Change a permitted
+  mutable value after relocation: structural checks still pass. Change identity,
+  version, size, copy destination, source provider/scope or actual slot: refuse.
+  Positive COPY requires the scoped source proof, not just a hand-written word.
+- Negative data-as-FUNC, FUNC-as-OBJECT, tag-masked data, undersized copy, COPY in
+  ET_DYN, wrong/missing main COPY, unrelated ET_EXEC symbol, overlapping extent,
+  unmapped/incorrect file offset, fabricated anonymous tail and ambiguous source.
+- Retain actual sealed-admission/profile-null/build refusal controls, endpoint/
+  activation/dispatch controls and RM2 regressions. Host fixtures prove mechanics;
+  cross-compiled ELF proves emitted metadata; neither qualifies the tablet.
+
+### Smallest separately selectable link-only measurement
+
+Propose one non-installable `librem49-observation-link-diagnostic.so`, from a new
+owned diagnostic TU that calls the actual `ReadOnlyBackend::submit` through an
+explicit default-visible, retained function taking existing backend/lease
+references, plus unchanged `admission.cpp` and the actual RM1 SDK-generated Epoch
+moc TU. This extends the already compiled facade probe. Compile/link only with
+the selected RM1 Cortex-A9 hard-float SDK, -marm, -O2, C++17, PIC, exceptions/RTTI,
+no LTO/GNU-unique, hidden default visibility, initial-exec TLS, the same Qt package
+order and -ldl/-pthread, shared NOW/RELRO/NODELETE and --no-undefined as build.sh.
+Retain the wrapper explicitly so optimization cannot erase the observation path.
+No calls to it, loading, QEMU, tablet transfer or installation are allowed.
+
+Omit bootstrap.cpp: it contains activation/startup constructors and its null
+profile can optimize away the interesting path. Do not replace reviewedProfile,
+pass fake pins, disable admission or route around production build.sh. A later
+explicit diagnostic recipe is a separate measurement target, not an alternate
+production build mode. Audit all emitted constructors/dynamic dependencies and
+record ordinary CRT/moc initialization; never load it even if those appear benign.
+No approved manifest, runtime marker, release asset or operational adapter is
+emitted. Source/build-input hashes, compiler/moc/linker/CRT identities, exact argv,
+link map, ELF headers/attributes, full dynsym/relocations/versions/DT_NEEDED and
+artifact digest must accompany the result. Check the retained observation wrapper
+and expected Qt calls actually survived before interpreting missing imports.
+
+This would settle optimized imports and selected versions for this diagnostic,
+including whether __aeabi_atexit selects libc GLIBC_2.4 or CXXABI_ARM_1.3.3 and
+which OBJECT slots survive. It does not settle the final adapter's full closure:
+actual admission is currently optimized closed, and bootstrap composition differs.
+Reconcile the exact production adapter after its separately reviewed profile/build
+selection; never promote this diagnostic's import list or digest to production.
+The saved O0 list is only a candidate list, not an allowlist, guaranteed superset
+or completeness proof; optimization can also introduce imports. Link-only execution is not selected by this specification patch.
+
+### Source basis and unresolved evidence
+
+Current source paths above and saved compile/static reports are direct evidence.
+Private report receipts are tracked in REM-49: import candidates SHA256
+`65aff239e8a8183e1972c421bb839879534c7c3dce72ae692c1706647d448f9b`;
+main COPY comparison `e20b96e7b521d6dc6217e7f2a4baf2f9977721faef0a8eb2b521522062685d6a`.
+No vendor binary or private output is added to the repository.
+
+Arm's [AAELF32 symbol values](https://github.com/ARM-software/abi-aa/blob/2026Q3/aaelf32/aaelf32.rst#symbol-values)
+distinguish the Thumb state bit from the instruction address.
+Its [dynamic relocations](https://github.com/ARM-software/abi-aa/blob/2026Q3/aaelf32/aaelf32.rst#dynamic-relocations)
+describe aligned address slots, resolved JUMP_SLOT comparison, and COPY storage in
+ET_EXEC that preempts other references. The checks, record layout, conservative
+zero-addend/equal-size policy and diagnostic boundary above are proposed project
+design, not claims that the ABI requires this particular verifier. Actual target
+provider identities, loaded scope/copy-source selection, resolved slots, pre-main
+startup, live Reader/metatypes/capture and recovery remain unqualified.

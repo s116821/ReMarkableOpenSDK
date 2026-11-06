@@ -5,6 +5,7 @@
 #endif
 #include "admission.h"
 #include "profile.h"
+#include "bindings.h"
 #include "../resident/activation.h"
 #include "../resident/loaded_artifact.h"
 #include <QCoreApplication>
@@ -39,11 +40,7 @@ bool add(std::uintptr_t a,std::size_t n,std::uintptr_t &end) {
     if(a>UINTPTR_MAX-n)return false;
     end=a+n;return true;
 }
-struct Map {
-    std::uintptr_t begin=0,end=0,offset=0;
-    unsigned major=0,minor=0;unsigned long long inode=0;
-    bool r=false,w=false,x=false;
-};
+using Map=detail::BindingMap;
 std::optional<std::vector<Map>> inspectMaps() {
     FILE *file=std::fopen("/proc/self/maps","r");if(!file)return {};
     struct Guard {FILE *file;~Guard(){if(file)std::fclose(file);}} guard{file};
@@ -74,6 +71,7 @@ bool sameStat(const struct stat &a,const struct stat &b) {
 }
 class File {
     int fd_=-1;struct stat identity_{};
+    mutable std::unique_ptr<detail::BindingImage> bindings_;
 public:
     Elf32_Ehdr header{};std::vector<Elf32_Phdr> ph;
     explicit File(const char *path,const char *hash,std::size_t exactSize=0) {
@@ -125,23 +123,12 @@ public:
         need(i<s.values.size());const auto offset=s.values[i].st_name;need(offset<s.strings.size());
         const char *name_=s.strings.data()+offset;need(std::memchr(name_,0,s.strings.size()-offset));return name_;
     }
-    Elf32_Sym function(const char *wanted)const {
-        const auto s=symbols();Elf32_Sym result{};bool found=false;
-        for(std::size_t i=0;i<s.values.size();++i)if(std::strcmp(name(s,i),wanted)==0&&s.values[i].st_shndx!=SHN_UNDEF) {
-            need(ELF32_ST_TYPE(s.values[i].st_info)==STT_FUNC);
-            if(found)need(result.st_value==s.values[i].st_value&&result.st_size==s.values[i].st_size);
-            result=s.values[i];found=true;
-        }need(found&&result.st_size>0);return result;
-    }
-    std::uintptr_t jumpSlot(const char *wanted)const {
-        const auto syms=symbols();const auto s=sections();std::uintptr_t result=0;
-        for(const auto &section:s)if(section.sh_type==SHT_REL) {
-            need(section.sh_entsize==sizeof(Elf32_Rel)&&section.sh_size%sizeof(Elf32_Rel)==0&&section.sh_size<=4*1024*1024);
-            std::vector<Elf32_Rel> rel(section.sh_size/sizeof(Elf32_Rel));read(section.sh_offset,rel.data(),section.sh_size);
-            for(const auto &r:rel)if(ELF32_R_TYPE(r.r_info)==R_ARM_JUMP_SLOT&&std::strcmp(name(syms,ELF32_R_SYM(r.r_info)),wanted)==0) {
-                need(!result);result=r.r_offset;
-            }
-        }need(result&&result%4==0);return result;
+    const detail::BindingImage &bindings()const {
+        if(!bindings_) {
+            std::vector<unsigned char> bytes(std::size_t(identity_.st_size));
+            read(0,bytes.data(),bytes.size());stable();
+            bindings_=std::make_unique<detail::BindingImage>(std::move(bytes));
+        }return *bindings_;
     }
     void staticMainFacts()const {
         need(header.e_type==ET_EXEC);const auto s=sections();const auto syms=symbols();
@@ -206,9 +193,21 @@ Provider provider(void *symbol,const char *hash,const std::vector<Map> &all) {
     Provider p{loaded(reinterpret_cast<std::uintptr_t>(info.dli_fbase)),info.dli_fname};code(file,p.module,all);return p;
 }
 void *version(const char *name,const char *version_) {void *p=::dlvsym(RTLD_DEFAULT,name,version_);need(p);return p;}
-void exactExport(const File &file,const Provider &p,void *address_,const char *name,std::uint32_t expected,std::size_t size) {
-    const auto symbol=file.function(name);need(symbol.st_value==expected&&(!size||symbol.st_size==size));
-    std::uintptr_t at=0;need(add(p.module.base,symbol.st_value,at)&&at==reinterpret_cast<std::uintptr_t>(address_)&&at%4==0&&inLoad(p.module,at,symbol.st_size,true));
+void exactExport(const File &file,const Provider &p,const std::vector<Map> &all,
+                 void *address_,const detail::SymbolPin &pin) {
+    file.bindings().definition(pin);
+    const auto resolved=reinterpret_cast<std::uintptr_t>(address_);
+    need(p.module.base<=UINT32_MAX&&resolved<=UINT32_MAX);
+    if(pin.kind==detail::SymbolKind::Function) {
+        detail::FunctionExtent extent;
+        need(detail::functionExtent(std::uint32_t(p.module.base),pin,extent)&&resolved==extent.callable&&
+             inLoad(p.module,extent.code,pin.size,true)&&fileRange(file,p.module,all,extent.code,pin.size));
+    }else {
+        std::uint32_t expected=0;const auto page=::sysconf(_SC_PAGESIZE);
+        need(page>0&&std::uint64_t(page)<=UINT32_MAX&&detail::add32(std::uint32_t(p.module.base),pin.value,expected)&&resolved==expected&&
+            detail::dataCovered(file.ph,std::uint32_t(p.module.base),pin,all,std::uint32_t(page),
+                [&](const Map &m,std::uint32_t at,std::uint32_t offset){return file.backed(m,at,offset);}));
+    }
 }
 
 void ownDynamicFlags(const Module &module,const std::vector<Map> &all) {
@@ -226,12 +225,18 @@ void ownDynamicFlags(const Module &module,const std::vector<Map> &all) {
     }
     need(terminated&&now&&nodelete);
 }
-void boundSlot(const File &file,const Module &module,const std::vector<Map> &all,
-               const char *name,void *resolved) {
-    std::uintptr_t at=0;need(add(module.base,file.jumpSlot(name),at)&&fileRange(file,module,all,at,4));
-    std::uint32_t actual=0;std::memcpy(&actual,reinterpret_cast<const void*>(at),4);
-    need(actual==reinterpret_cast<std::uintptr_t>(resolved));
+void boundSlots(const File &file,const Module &module,const std::vector<Map> &all,
+                const detail::SymbolPin &pin,detail::Consumer consumer,void *resolved) {
+    file.bindings().sites(pin,consumer);
+    const auto expected=reinterpret_cast<std::uintptr_t>(resolved);need(expected<=UINT32_MAX);
+    for(std::size_t i=0;i<pin.siteCount;++i)if(pin.sites[i].consumer==consumer) {
+        std::uintptr_t at=0;need(add(module.base,pin.sites[i].offset,at)&&fileRange(file,module,all,at,4));
+        const auto *m=cover(all,at,4,false);need(m&&!m->x);
+        std::uint32_t actual=0;std::memcpy(&actual,reinterpret_cast<const void*>(at),4);
+        need(detail::slotMatches(actual,std::uint32_t(expected)));
+    }
 }
+
 #endif
 }
 
@@ -269,14 +274,17 @@ const Admission *admitBeforeMain(const resident::Activation &activation) noexcep
         for(std::size_t i=0;i<profile->symbolCount;++i) {
             const auto &pin=profile->symbols[i];const auto role=std::size_t(pin.provider);
             const auto &filePin=profile->providers[role];
+            // COPY provenance needs actual loaded source-scope evidence, not dladdr
+            // on effective ET_EXEC storage. No such evidence exists: refuse it.
+            if(pin.kind==detail::SymbolKind::Object)need(!main.bindings().hasCopy(pin.name));
             void *resolved=version(pin.name,pin.version);
             if(!providerFiles[role]) {
                 supplied[role]=provider(resolved,filePin.sha256,all);
                 providerFiles[role]=std::make_unique<File>(supplied[role].path.c_str(),filePin.sha256,filePin.bytes);
             }
-            exactExport(*providerFiles[role],supplied[role],resolved,pin.name,pin.value,pin.size);
-            if(pin.adapterBinding)boundSlot(adapter,adapterModule,all,pin.name,resolved);
-            if(pin.mainBinding)boundSlot(main,mainModule,all,pin.name,resolved);
+            exactExport(*providerFiles[role],supplied[role],all,resolved,pin);
+            boundSlots(adapter,adapterModule,all,pin,detail::Consumer::Adapter,resolved);
+            boundSlots(main,mainModule,all,pin,detail::Consumer::Main,resolved);
         }
         for(const auto &file:providerFiles){need(bool(file));file->stable();}
         main.stable();adapter.stable();
