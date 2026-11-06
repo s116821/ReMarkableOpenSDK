@@ -5,7 +5,9 @@
 #include <array>
 #include <cassert>
 #include <cstdio>
+#include <future>
 #include <memory>
+#include <thread>
 #include <vector>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -173,7 +175,23 @@ int main(int argc,char **argv) {
     pe::detail::OwnedTestAccess::bind(observedState);
     // Publication contention is a real dropped candidate, not a blocking stock
     // call or accepted partial snapshot.
-    observedState->mutex.lock(); call(); observedState->mutex.unlock();
+    // A mutex cannot be try_locked by its owning thread. Keep Qt/native entry
+    // on this thread and let a distinct bounded holder supply real contention.
+    // The only executable patch was installed before any fixture thread started.
+    std::promise<void> acquired,release;
+    auto acquiredFuture=acquired.get_future();
+    auto releaseFuture=release.get_future();
+    const auto entryThread=std::this_thread::get_id();
+    std::thread holder([&,observedState] {
+        assert(std::this_thread::get_id()!=entryThread);
+        std::unique_lock<std::mutex> lock(observedState->mutex);
+        acquired.set_value();
+        assert(releaseFuture.wait_for(std::chrono::seconds(5))==std::future_status::ready);
+    });
+    assert(acquiredFuture.wait_for(std::chrono::seconds(5))==std::future_status::ready);
+    call();
+    release.set_value();
+    holder.join();
     auto snapshot=observed->snapshot();
     assert(snapshot.available && snapshot.finished && snapshot.originalReturned);
     assert(snapshot.text.status==composer_text::Status::Refused && !snapshot.text.count);
