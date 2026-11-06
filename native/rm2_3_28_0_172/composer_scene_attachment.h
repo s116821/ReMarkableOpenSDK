@@ -217,6 +217,7 @@ public:
         if (budget.count() < 1 || budget > std::chrono::milliseconds(120000)) return {};
         return std::unique_ptr<Attachment>(new Attachment(std::make_shared<State>(Clock::now() + budget)));
     }
+    Clock::time_point deadline() const noexcept { return state_->deadline; }
     Callback callback() const {
         const auto s = state_;
         return [s](::Scene *scene) noexcept -> bool {
