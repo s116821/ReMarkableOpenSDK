@@ -60,8 +60,8 @@ class Observer final {
         std::mutex mutex;
         std::array<Record, Snapshot::Capacity> records{};
         std::size_t count = 0;
-        State(QTextDocument &doc, std::chrono::milliseconds budget, std::size_t cap)
-            : deadline(started + budget),
+        State(QTextDocument &doc, Clock::time_point until, std::size_t cap)
+            : deadline(until),
               address(reinterpret_cast<std::uintptr_t>(&doc)), limit(cap) {}
         void request(End reason) noexcept {
             End open = End::Open;
@@ -166,11 +166,18 @@ public:
     static std::unique_ptr<Observer> attach(QTextDocument &doc,
             std::chrono::milliseconds budget = std::chrono::milliseconds(120000),
             std::size_t maximumRecords = Snapshot::Capacity) {
-        if (budget.count() < 1 || budget > std::chrono::milliseconds(120000) ||
+        if (budget.count() < 1 || budget > std::chrono::milliseconds(120000)) return {};
+        return attachUntil(doc, Clock::now() + budget, maximumRecords);
+    }
+    // Preserve a caller-established absolute budget across native dispatch.
+    static std::unique_ptr<Observer> attachUntil(QTextDocument &doc,
+            Clock::time_point deadline, std::size_t maximumRecords = Snapshot::Capacity) {
+        const auto now = Clock::now();
+        if (deadline <= now || deadline - now > std::chrono::milliseconds(120000) ||
             maximumRecords < 1 || maximumRecords > Snapshot::Capacity ||
             doc.thread() != QThread::currentThread() || typeid(doc) != typeid(QTextDocument))
             return {};
-        auto state = std::make_shared<State>(doc, budget, maximumRecords);
+        auto state = std::make_shared<State>(doc, deadline, maximumRecords);
         auto result = std::unique_ptr<Observer>(new Observer(state));
         // Context is the sender itself: Qt disconnects it on sender destruction.
         // Captured shared state, never 'this', survives an entered Qt functor.
