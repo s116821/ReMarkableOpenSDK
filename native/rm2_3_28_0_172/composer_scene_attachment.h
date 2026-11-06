@@ -1,6 +1,8 @@
 #pragma once
 // Exact-build diagnostic attachment. No native dispatch or draft authority.
 #include "composer_document_observer.h"
+#include "composer_text_copy.h"
+#include <optional>
 #if defined(__linux__)
 #include "../resident/loaded_artifact.h"
 #include <dlfcn.h>
@@ -19,7 +21,7 @@ using Clock = composer_diagnostic::Clock;
 enum class Refusal {
     None, Unsupported, Canceled, Deadline, Duplicate, Busy, NullScene, MissingRoot,
     SceneBackReference, FocusMismatch, ItemType, NativeTransaction, Composition,
-    DocumentThread, QtTransaction, Observer, Exception
+    DocumentThread, QtTransaction, Observer, Text, Exception
 };
 struct Facts {
     std::uint32_t idHigh = 0, idLow = 0;
@@ -175,10 +177,14 @@ struct Snapshot {
     Refusal refusal = Refusal::None;
     Facts facts;
     composer_diagnostic::Snapshot observations;
+    composer_text::Result text;
 };
 class Attachment final {
     struct State {
         const Clock::time_point deadline;
+        const std::optional<composer_text::ReadRange> range;
+        const std::shared_ptr<std::atomic<bool>> externalCancellation;
+        composer_text::Result text;
         std::atomic<bool> canceled{false}, claimed{false};
         std::atomic<Refusal> refusal{Refusal::None};
         std::mutex mutex;
@@ -187,18 +193,36 @@ class Attachment final {
         void *hookContext = nullptr;
         void (*stopContended)(void *) = nullptr;
         void (*beforePublish)(void *) = nullptr;
+#ifdef COMPOSER_TEXT_TESTING
+        void (*afterTextCopy)(void *) = nullptr;
+#endif
 #endif
         Facts facts;
         std::unique_ptr<composer_diagnostic::Observer> observer;
         Join (*join)(::Scene *) = detail::join;
-        explicit State(Clock::time_point limit) : deadline(limit) {}
+        explicit State(Clock::time_point limit,
+                std::optional<composer_text::ReadRange> read = {},
+                std::shared_ptr<std::atomic<bool>> external = {})
+            : deadline(limit), range(read), externalCancellation(std::move(external)) {
+            if (range) { text.status = composer_text::Status::Pending; text.range = *range; }
+        }
         void reject(Refusal reason) noexcept {
             Refusal none = Refusal::None;
             refusal.compare_exchange_strong(none, reason, std::memory_order_acq_rel);
             canceled.store(true, std::memory_order_release);
         }
-        void expire() noexcept { if (Clock::now() >= deadline) reject(Refusal::Deadline); }
+        void expire() noexcept {
+            if (externalCancellation && externalCancellation->load(std::memory_order_acquire))
+                reject(Refusal::Canceled);
+            if (Clock::now() >= deadline) reject(Refusal::Deadline);
+        }
         void retireLocked() {
+            if (text.status == composer_text::Status::Pending) {
+                const auto reason = refusal.load(std::memory_order_acquire);
+                text.refuse(reason == Refusal::Deadline ? composer_text::Failure::Deadline :
+                    reason == Refusal::Canceled ? composer_text::Failure::Canceled :
+                    composer_text::Failure::Attachment);
+            }
             if (observer) observer->stop();
             retirementSettled = true;
         }
@@ -213,9 +237,13 @@ public:
     Attachment &operator=(const Attachment &) = delete;
     // Serialize handle methods/destruction; delivered callback copies may race.
     ~Attachment() { stop(); }
-    static std::unique_ptr<Attachment> prepare(const Profile &, std::chrono::milliseconds budget) {
-        if (budget.count() < 1 || budget > std::chrono::milliseconds(120000)) return {};
-        return std::unique_ptr<Attachment>(new Attachment(std::make_shared<State>(Clock::now() + budget)));
+    static std::unique_ptr<Attachment> prepare(const Profile &, std::chrono::milliseconds budget,
+            std::optional<composer_text::ReadRange> range = {},
+            std::shared_ptr<std::atomic<bool>> externalCancellation = {}) {
+        if (budget.count() < 1 || budget > std::chrono::milliseconds(120000) ||
+            (range && !composer_text::detail::validRequest(*range))) return {};
+        return std::unique_ptr<Attachment>(new Attachment(std::make_shared<State>(
+            Clock::now() + budget,range,std::move(externalCancellation))));
     }
     Clock::time_point deadline() const noexcept { return state_->deadline; }
     Callback callback() const {
@@ -245,11 +273,41 @@ public:
                 auto observer = composer_diagnostic::Observer::attachUntil(*joined.document, s->deadline);
                 if (!observer) { s->reject(Refusal::Observer); return false; }
                 s->observer = std::move(observer);
+                composer_text::Result candidate;
+                if (s->range) {
+                    candidate = composer_text::detail::copy(*joined.document,*s->range,
+                        {s->canceled,s->externalCancellation.get(),s->deadline}
+#ifdef COMPOSER_TEXT_TESTING
+                        ,s->hookContext,s->afterTextCopy
+#endif
+                    );
+                    if (candidate.status != composer_text::Status::Copied) {
+                        s->text = candidate; s->reject(Refusal::Text); s->retireLocked(); return false;
+                    }
+                }
 #ifdef COMPOSER_SCENE_TESTING
                 if (s->beforePublish) s->beforePublish(s->hookContext);
 #endif
                 s->expire();
-                if (s->canceled.load(std::memory_order_acquire)) s->retireLocked();
+                if (s->canceled.load(std::memory_order_acquire)) { s->retireLocked(); return false; }
+                if (s->range) {
+                    const auto again = s->join(scene);
+                    const auto &f = again.facts;
+                    if (again.refusal != Refusal::None || again.document != joined.document ||
+                        f.documentAddress != joined.facts.documentAddress ||
+                        f.idHigh != joined.facts.idHigh || f.idLow != joined.facts.idLow) {
+                        candidate.refuse(composer_text::Failure::Join);
+                    } else if (joined.document->revision() != candidate.revisionAfter ||
+                               joined.document->characterCount() != candidate.characterCount) {
+                        candidate.refuse(composer_text::Failure::Revision);
+                    }
+                    s->expire();
+                    if (s->canceled.load(std::memory_order_acquire)) { s->retireLocked(); return false; }
+                    s->text = candidate;
+                    if (candidate.status != composer_text::Status::Copied) {
+                        s->reject(Refusal::Text); s->retireLocked();
+                    }
+                }
             } catch (...) {
                 s->reject(Refusal::Exception); s->retireLocked();
             }
@@ -280,6 +338,7 @@ public:
         if (s->observer) s->observer->poll();
         result.callbackEntered = s->entered;
         result.facts = s->facts;
+        result.text = s->text;
         if (s->observer) result.observations = s->observer->snapshot();
         result.retired = s->retirementSettled;
         result.refusal = s->refusal.load(std::memory_order_acquire);
