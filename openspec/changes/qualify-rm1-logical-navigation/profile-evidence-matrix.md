@@ -133,3 +133,24 @@ prove only metadata/guard mechanics; actual RM1 compiler checks prove source
 compatibility. They do not execute the ARM fixture or diagnostic, establish actual
 loader bindings or qualify the tablet. No RM2 checks/pins/helper ownership changed.
 The exact final adapter and all nine native acceptance tasks remain unfinished.
+
+## Finite source slice selected: observed ABS32 and artifact-self
+
+| Case | Source check in this slice | Still required / refused |
+| -- | -- | -- |
+| External FUNC A0, OBJECT A0 and exact Cxx vtable A8 ABS32 | Original file addend, exact definition/version/site, full mapped extent and whole live word/state | Actual provider/runtime correspondence and main COPY source scope; no native pass |
+| Exact weak/default artifact-self ABS32/GLOB_DAT/JUMP_SLOT A0 | Separate finite table, raw versym1/defined symbol and exact own-image address | No blanket weak exports or global RTTI/interposition proof |
+| Optional CRT/TLS/dependency closure | No implementation selected | Remain unreviewed/refused; original nine native tasks remain open |
+
+Finite ABS32/self source verification uses owned compiler-emitted ARM/Thumb files
+parsed by host code, never loaded. Eight positive groups include provider ARM,
+Thumb, OBJECT A0 and both exact A8 vtables, plus weak self ARM/Thumb/OBJECT.
+Ninety-four refusals cover wrong addend/name/version/site/domain/definition,
+whole-word/state/image arithmetic and executable/ambiguous/partial/zero-fill
+relocation places; existing typed98refusals and PT_DYNAMIC13refusals remain.
+Owned host mappings separately exercise full storage extent and wrong live words.
+A common passive probe refuses the same emitted FUNC ABS32 A0 on delivered0109269
+and accepts it after this change; it is a runtime parser behavior difference,
+not a new-API compilation failure. Matching SDK ARM admission compilation and
+fixture syntax checks pass. Production reviewedProfile remains null. All nine
+native tasks, optional CRT/TLS/closure and actual runtime bindings remain open.

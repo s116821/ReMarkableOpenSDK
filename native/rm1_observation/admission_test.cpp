@@ -73,8 +73,29 @@ int main() {
         if(fault==3)sites[0].dynsymIndex=0;
         if(fault==4)sites[0].versionIndex=1;
         if(fault==5)sites[0].relocation=20; // COPY cannot be selected by schema.
-        if(fault==6)sites[0].relocation=2; // Observed ABS32 awaits separate rules.
+        if(fault==6){sites[0].relocation=2;sites[0].addend=1;} // Function interior remains refused.
         assert(!complete(p));sites[0]=saved;
+    }
+    sites[0].relocation=2;assert(complete(p));sites[0].relocation=22;
+    BindingSite selfSites[]={{Consumer::Adapter,0x100,2,1,2,0},{Consumer::Adapter,0x104,2,1,21,0}};
+    ArtifactSelfPin self;self.name="owned-self-fixture";self.value=0x200;self.size=16;self.dynsymIndex=2;
+    self.kind=SymbolKind::Object;self.alignment=4;self.sites=selfSites;self.siteCount=2;
+    p.selfSymbols=&self;p.selfSymbolCount=1;assert(complete(p));
+    for(int fault=0;fault<12;++fault) {
+        const auto saved=self;const auto first=selfSites[0];
+        if(fault==0)self.binding=1;
+        if(fault==1)self.visibility=2;
+        if(fault==2)self.versionIndex=2;
+        if(fault==3)self.name=symbols[0].name;
+        if(fault==4)selfSites[0].offset=sites[0].offset;
+        if(fault==5)selfSites[0].consumer=Consumer::Main;
+        if(fault==6)selfSites[0].addend=8;
+        if(fault==7)selfSites[0].versionIndex=2;
+        if(fault==8)selfSites[0].relocation=20;
+        if(fault==9)self.sites=nullptr;
+        if(fault==10)self.siteCount=0;
+        if(fault==11)selfSites[0].offset=selfSites[1].offset;
+        assert(!complete(p));self=saved;selfSites[0]=first;
     }
     assert(reviewedProfile()==nullptr);
     std::puts("PASS sealed admission traits and 49 incomplete-profile controls; no RM1 admission or target facts");

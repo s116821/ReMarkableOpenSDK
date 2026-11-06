@@ -34,6 +34,18 @@ Implementation and link-only execution require separate selection after review.
 - [x] Link and passively inspect the separately selected retained optimized observation diagnostic with exact SDK/CRT/source/ELF/version receipts; never loaded or treated as final adapter closure. It selects CXXABI_ARM_1.3.3 for __aeabi_atexit and exposes 56 external ABS32 sites outside this implementation; record that finding before expansion.
 - [ ] Reconcile actual production closure and remaining provider/runtime evidence before proposing a real profile or native trial.
 
+## Selected finite ABS32/artifact-self source work
+
+- [x] Reconcile the delivered0109269 base and18file identities with the accepted diagnostic-forms design; define this slice before code.
+- [x] Implement exact original ABS32 addends and whole-word checked provider arithmetic, preserving FUNC state/full extent, OBJECT interior bounds and main COPY refusal.
+- [x] Implement separate finite weak/default artifact-self records, raw versym1/defined symbol/site and exact own-image correspondence without provider placeholders.
+- [x] Add meaningful compiler-emitted/passive and controlled live-word/mapping positives and negatives; no ARM/native execution.
+- [x] Verify null production profile, duplicate/domain/refusal controls and matching SDK compile compatibility. Six host contract tests pass, emitted ABS32/self controls report8positive/94refusals, existing typed controls6positive/98negative and13PT_DYNAMIC refusals; actual matching SDK ARM compile/syntax passes. Same passive probe refuses emitted FUNC ABS32 A0 against delivered0109269 and accepts it with this source.
+- [ ] Obtain independent review, current required hosted checks and normal research-branch integration of the finite source/spec/evidence handoff. Local source controls do not complete native qualification.
+
+CRT, TLS, closure and all nine native tasks remain unselected/open. This source
+increment does not archive or claim completion of the unfinished qualification.
+
 ## Remaining native qualification
 
 - [ ] Coordinate the exact RM1 observation/input/render profile against the shipped SDK boundary with Main and the SDK owner; generic capability/historical facts remain insufficient.

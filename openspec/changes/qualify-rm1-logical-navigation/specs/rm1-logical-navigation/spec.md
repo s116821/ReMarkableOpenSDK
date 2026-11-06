@@ -150,3 +150,31 @@ limited to its own composition; final adapter closure and native gates stay open
 #### Scenario: Optimized observation diagnostic links
 - **WHEN** a separately selected diagnostic links with the matching RM1 SDK and retained observation wrapper
 - **THEN** only its actual emitted imports/versions are established; differing bootstrap/closed-admission paths require later production reconciliation, and no approved manifest, profile, tablet activation or native qualification follows.
+
+### Requirement: Finite observed ABS32 and artifact-self exact-site correspondence
+The private RM1 source verifier SHALL distinguish versioned provider definitions
+from finite artifact-self definitions. It SHALL preserve exact symbol/version/
+index/type/value/size, PT_DYNAMIC/table, consumer mapping and main-COPY refusal.
+Provider ABS32 SHALL permit only FUNC A0, OBJECT A0 and exact Cxx role/CXXABI_1.3
+size44 class-type-info vtable OBJECT A8. Original REL file addends, unique aligned
+non-executable four-byte places and checked whole-word state/extent correspondence
+SHALL be required; no masked pointer or inferred live addend SHALL substitute.
+
+Artifact-self SHALL use a separate finite record domain, defined WEAK/default
+symbols with raw versym1 and Adapter-only exact sites. Only observed ABS32 A0,
+OBJECT GLOB_DAT A0 and FUNC JUMP_SLOT A0 SHALL be admitted. Exact own-image code/
+data extent and live address SHALL be proved; same-name external resolution,
+duplicate sites or missing correspondence SHALL refuse. Optional CRT/TLS/closure
+SHALL remain outside this slice, with null production profile and native gates open.
+
+#### Scenario: Exact provider ABS32 word
+- **WHEN** original addend and complete typed provider/site/version/extent evidence match an observed allowed form
+- **THEN** the full live word must equal checked definition-plus-addend with exact ARM/Thumb state, and a main COPY remains refused
+
+#### Scenario: Artifact-self binding is preempted
+- **WHEN** a finite self site's live word differs from its exact reviewed own definition address
+- **THEN** admission refuses even if another image exports the same name
+
+#### Scenario: New or ambiguous form
+- **WHEN** a function interior, unknown object addend/vtable, malformed/overlapping place, wrong state/version/extent, weak undefined CRT or TLS/dependency gap is presented
+- **THEN** the verifier refuses without profile enablement, source acquisition or fallback
