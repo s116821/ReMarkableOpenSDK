@@ -65,8 +65,41 @@ installation and disposable native checks for owner/thread correspondence and pr
 and OSK, and composition refusal. Direct teardown settlement and consumer-owned
 range/current-visit/Submit/clear authority remain outside this source delivery.
 
-The current Route::instance is a function-local static with initialization guards
-and ordinary exit destruction. That implementation supplies no production
-process-lifetime guarantee. The proposed private-loader extension must replace
-it with eagerly prepared resident storage that is never destroyed while patched
-calls remain possible. See the active change's loader-admission design.
+Route storage now uses eagerly prepared allocations whose destructor is deleted;
+entry loads only the published pointer. Unpublishing an idle test route never
+destroys its retained state. Preparation pins the already loaded shim DSO with
+RTLD_NOLOAD|RTLD_NODELETE and retains that loader reference. The owned shim is also
+linked with NODELETE; its symbol control rejects lazy guards and Route exit
+destruction. These mechanisms retain SDK state/code, not native item ownership.
+
+## Private prepared patch capsule
+
+composer_pre_enter_patch_private.h implements a fixed-profile, one-use transaction
+with direct Linux syscall leaves and fixed buffers. It saves/blocks/queries the
+kernel mask, checks constructor PID/TID and current task/status observations,
+verifies unchanged complete mappings, exact branch bytes and RX site/original/
+veneer/shim spans, then changes only the admitted site page. Cache/protection
+failure rolls back only while exclusion remains established; unexpected code,
+lost exclusion or failed restoration terminates119. Prior-mask restoration occurs
+only after coherent code/protection state. There is no production StartupBuilder:
+only the owned test factory can currently construct a ready capsule, and no
+bootstrap selector or installation call is enabled.
+
+composer_pre_enter_patch_test.sh runs owned Linux children with real pending
+signals, a distinct extra thread, code mismatch, injected cache/protection errors,
+rollback and fail-closed exits. It checks exact prior-mask restoration and no C++
+allocation during the excluded interval. Host Linux controls pass. ARM compilation
+passes, but SDK QEMU8.2.7 makes its private ARM cacheflush syscall a no-op without
+setting r0; this fails the capsule's strict native zero-return check in preparation.
+The test reports unsupported instead of weakening the native leaf or claiming an
+ARM patch-transaction pass. The independent actual ARM forwarding/unwind route
+still runs under its existing owned installer. Raw ARM cache maintenance remains
+an actual-provider qualification gap.
+
+Retained identity reports 5.4.70-v1.6.3-rm11x with source identity unverified. The
+company kernel branch at d54fe67bf86e918468b936f97a2ec39f4f87a3d9 is tagged
+RM1XX_5.4.70_v1.6.2. Its proc thread count is read under the shared sighand lock;
+clone increments the count under that lock before wakeup, and exit decrements it
+in exit cleanup. Those source facts do not bind the shipped v1.6.3 binary to this
+commit. No production builder can be admitted from that evidence alone. See the
+active change's loader-admission design and implementation notes.

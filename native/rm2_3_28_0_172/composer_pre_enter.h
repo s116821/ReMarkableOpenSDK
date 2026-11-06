@@ -88,21 +88,26 @@ struct State {
         finished.store(true,std::memory_order_release);
     }
 };
-// Production requires immutable prepared state and process residency. This lazy
-// test route has no production installation/arming admission; its initialization
-// and exit destruction must be replaced by the reviewed private loader design.
-// Owned tests bind it only while idle, without minting a quiescence boolean.
+// Prepared state is retained by never-destroyed SDK route allocations; entry
+// only loads a published pointer. Production construction/admission is still
+// unavailable. Owned tests bind only while idle, without a quiescence boolean.
 extern "C" void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
+// Preparation only: pins the already loaded shim DSO with RTLD_NODELETE. Never
+// call from interception or the excluded patch interval. No installation proof.
+bool pinPreparedRouteCode() noexcept;
+namespace patch { class StartupBuilder; }
 class Route final {
     std::shared_ptr<State> retained_;
-    Route()=default;
+    explicit Route(std::shared_ptr<State> s) : retained_(std::move(s)) {}
+    ~Route()=delete; // Process-resident storage; never register exit destruction.
+    static std::atomic<Route *> current_;
+    static_assert(std::atomic<Route *>::is_always_lock_free);
     friend void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
+    friend class patch::StartupBuilder;
 #ifdef COMPOSER_PRE_ENTER_TESTING
     friend struct OwnedTestAccess;
 #endif
-public:
-    // Must be initialized and pinned by the private installer before entry.
-    static Route &instance() { static Route route; return route; }
+    static Route *current() noexcept { return current_.load(std::memory_order_acquire); }
 };
 } // namespace detail
 
@@ -115,6 +120,7 @@ struct Snapshot {
 class Capture final {
     std::shared_ptr<detail::State> state_;
     explicit Capture(std::shared_ptr<detail::State> s) : state_(std::move(s)) {}
+    friend class detail::patch::StartupBuilder;
 #ifdef COMPOSER_PRE_ENTER_TESTING
     friend struct TestAccess;
 #endif

@@ -2,6 +2,9 @@
 #if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING) || defined(READER_RESIDENT_TESTING) || defined(RESIDENT_WORKER_SLOT_TESTING) || defined(READER_INSERTION_LIFECYCLE_TESTING) || defined(READER_INSERTION_GUARD_ENTRY_TESTING) || defined(RESIDENT_MUTATION_TESTING) || defined(RESIDENT_MUTATION_BACKEND_TESTING) || defined(RESIDENT_SELECTION_TESTING) || defined(READER_IDENTITY_CAPTURE_TESTING) || defined(VISUAL_CAPTURE_TESTING)
 #error Fixture hooks must not enter the native artifact.
 #endif
+#if defined(COMPOSER_PRE_ENTER_TESTING) || defined(COMPOSER_PATCH_OWNED_TESTING)
+#error Fixture hooks must not enter the native artifact.
+#endif
 #ifndef RSDK_PROFILE_SHA256
 #error Build must bind the exact profile manifest digest.
 #endif

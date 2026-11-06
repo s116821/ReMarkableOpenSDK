@@ -16,8 +16,13 @@ namespace pe=composer_pre_enter;
 using pe::detail::StockPair;
 namespace remarkable::composer_pre_enter::detail {
 struct OwnedTestAccess {
-    static void bind(std::shared_ptr<State> s) { Route::instance().retained_=std::move(s); }
-    static State *state() { return Route::instance().retained_.get(); }
+    static void bind(std::shared_ptr<State> s) {
+        // Preparation while the owned route is idle. No guard or exit destructor
+        // can destroy these intentionally resident allocations after publication.
+        auto *r=s ? new Route(std::move(s)) : nullptr;
+        Route::current_.store(r,std::memory_order_release);
+    }
+    static State *state() { auto *r=Route::current(); return r?r->retained_.get():nullptr; }
 };
 }
 namespace remarkable::composer_pre_enter {
@@ -99,6 +104,10 @@ int main(int argc,char **argv) {
     assert(!pe::detail::branch(pe::detail::Site,pe::detail::Site+33554440,word));
     assert(!pe::detail::branch(pe::detail::Site,pe::detail::Original+1,word));
     assert(pe::detail::installProduction()==pe::detail::Installation::Unsupported);
+    assert(pe::detail::pinPreparedRouteCode());
+    auto startupState=std::make_shared<pe::detail::State>(composer_text::ReadRange{0,0},std::chrono::seconds(5));
+    startupState->canceled.store(true);
+    pe::detail::OwnedTestAccess::bind(startupState); // Fully prepared, disabled, resident before patch.
     installOwned();
     alignas(8) std::array<unsigned char,0x280> scene{};
     alignas(8) std::array<unsigned char,0x60> participant{};
@@ -205,6 +214,6 @@ int main(int argc,char **argv) {
     gone.reset(); assert(!weak.expired()); call(); // canceled handle, retained route
     assert(weak.lock()->result.failure==composer_text::Failure::Canceled);
     pe::detail::OwnedTestAccess::bind(nullptr);
-    assert(weak.expired()); // Only fixture teardown removes its idle route.
+    assert(!weak.expired()); // Unpublishing does not destroy process-resident state.
     std::puts("owned ARM patched BL -> near veneer -> compiled shim: copy, once, refusal, cancellation, reentry and original unwind passed");
 }

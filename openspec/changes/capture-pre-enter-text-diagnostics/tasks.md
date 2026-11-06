@@ -28,7 +28,12 @@
 
 ## 5. Integration and runtime qualification
 - [x] Prepare source-only private-loader thread/signal/patch/lifetime precode and primary references for maintainer review.
-- [ ] Accept the loader precode before implementing production installation or resident route lifetime changes.
+- [x] Accept the loader precode for private capsule/resident lifetime implementation; keep production selection unenabled.
+- [x] Replace lazy Route initialization/exit destruction with eager resident allocations and explicit loaded-code pinning.
+- [x] Implement the private fixed-profile raw-leaf capsule and bounded owned Linux signal/thread/protection/rollback/fail-closed controls.
+- [x] Inspect retained kernel identity and primary company clone/exit/count source; record the exact v1.6.3 source-binding gap.
+- [x] Trace initial preload from the existing fresh-exec launch and constructor/Activation source path without a caller phase boolean.
+- [ ] Bind the exact shipped kernel source/build and qualify raw ARM cache maintenance with a provider that implements the native contract; SDK QEMU8.2.7 refuses the capsule before patching.
 - [ ] Integrate the real resident arming/installation caller under its established lifetime/quiescence boundary, without automatic bootstrap selection.
 - [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.

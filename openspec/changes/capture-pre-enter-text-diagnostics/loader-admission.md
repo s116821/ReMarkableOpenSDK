@@ -1,7 +1,8 @@
 # Proposed private pre-main installation admission
 
-This is source-only precode requiring maintainer review before implementation.
-The production installer remains Unsupported. No new constructor, runtime
+This reviewed design now has a private owned transaction and eager resident route
+implementation; see implementation-notes.md for evidence and limitations. The
+production StartupBuilder remains absent and the installer Unsupported. No new constructor, runtime
 activation, late patch path or caller-constructible quiescence token is proposed.
 
 ## Existing source envelope
@@ -150,8 +151,9 @@ to later capture refusal, exception, cancellation or missing acknowledgement.
 Proposed implementation files are the existing private loader/profile source,
 bootstrap integration and a small private fixed-profile patch capsule/leaf unit.
 Do not expose an installer or general patch/token framework in public headers.
-Route eager resident storage replaces the current lazy Route::instance lifetime;
-actual source changes to it and production installation await this precode review.
+Route eager resident storage replaces the earlier lazy Route::instance lifetime.
+The private owned transaction does not issue real launch/kernel admission;
+production construction/selection still requires the unresolved target evidence.
 
 Focused owned controls must establish: extra-thread refusal with unchanged bytes;
 mask verification including libc-reserved RT signals; pending async signal held
