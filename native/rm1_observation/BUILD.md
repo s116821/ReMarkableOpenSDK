@@ -104,9 +104,20 @@ Main COPY bindings explicitly refuse before provider inference: actual loaded
 copy-source scope is not proved. There is no ET_EXEC-provider exception, fake
 provenance, new dlopen or production profile. The selected optimized observation
 diagnostic also exposed external ABS32 sites, local initial-exec TLS relocations
-and weak CRT imports. ABS32/addend semantics, weak/unversioned/unique definitions,
-TLS/IFUNC and same-name competing consumer versions are outside this increment;
-relevant unreviewed sites refuse. These gaps prevent claiming a complete profile
+and weak CRT imports. The finite follow-up accepts only observed provider ABS32
+FUNC A0, OBJECT A0, and A8 for the two exact 44-byte CXXABI_1.3 type-info vtables.
+It pins the original file word and checks the entire live word against checked
+provider-base/definition/addend arithmetic, retaining ARM/Thumb state and full
+definition/storage extent. Each four-byte place must be aligned, uniquely
+file-backed, readable and non-executable, including against partial or zero-fill
+competing mappings. No live-word-derived addend is accepted.
+
+Separate artifact-self pins admit only exact own-image defined WEAK/default raw
+versym1 FUNC/OBJECT sites with A0; no provider placeholder or version string is
+invented. Exact own-image comparison refuses preemption to a different image;
+default visibility alone does not prove nonpreemption. Optional CRT-null forms,
+TLS/IFUNC/unique definitions and same-name competing consumer versions remain
+outside this increment; relevant unreviewed sites refuse. These gaps prevent claiming a complete profile
 or final adapter closure. The existing eight provider roles are not a completeness
 proof for emitted DT_NEEDED/transitive dependencies.
 

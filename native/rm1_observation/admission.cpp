@@ -193,20 +193,21 @@ Provider provider(void *symbol,const char *hash,const std::vector<Map> &all) {
     Provider p{loaded(reinterpret_cast<std::uintptr_t>(info.dli_fbase)),info.dli_fname};code(file,p.module,all);return p;
 }
 void *version(const char *name,const char *version_) {void *p=::dlvsym(RTLD_DEFAULT,name,version_);need(p);return p;}
-void exactExport(const File &file,const Provider &p,const std::vector<Map> &all,
-                 void *address_,const detail::SymbolPin &pin) {
+template<class Pin>std::uint32_t exactDefinition(const File &file,const Module &module,
+                                               const std::vector<Map> &all,const Pin &pin) {
     file.bindings().definition(pin);
-    const auto resolved=reinterpret_cast<std::uintptr_t>(address_);
-    need(p.module.base<=UINT32_MAX&&resolved<=UINT32_MAX);
+    need(module.base<=UINT32_MAX);
     if(pin.kind==detail::SymbolKind::Function) {
         detail::FunctionExtent extent;
-        need(detail::functionExtent(std::uint32_t(p.module.base),pin,extent)&&resolved==extent.callable&&
-             inLoad(p.module,extent.code,pin.size,true)&&fileRange(file,p.module,all,extent.code,pin.size));
+        need(detail::functionExtent(std::uint32_t(module.base),pin,extent)&&
+             inLoad(module,extent.code,pin.size,true)&&fileRange(file,module,all,extent.code,pin.size));
+        return extent.callable;
     }else {
         std::uint32_t expected=0;const auto page=::sysconf(_SC_PAGESIZE);
-        need(page>0&&std::uint64_t(page)<=UINT32_MAX&&detail::add32(std::uint32_t(p.module.base),pin.value,expected)&&resolved==expected&&
-            detail::dataCovered(file.ph,std::uint32_t(p.module.base),pin,all,std::uint32_t(page),
+        need(page>0&&std::uint64_t(page)<=UINT32_MAX&&detail::add32(std::uint32_t(module.base),pin.value,expected)&&
+            detail::dataCovered(file.ph,std::uint32_t(module.base),pin,all,std::uint32_t(page),
                 [&](const Map &m,std::uint32_t at,std::uint32_t offset){return file.backed(m,at,offset);}));
+        return expected;
     }
 }
 
@@ -225,15 +226,15 @@ void ownDynamicFlags(const Module &module,const std::vector<Map> &all) {
     }
     need(terminated&&now&&nodelete);
 }
-void boundSlots(const File &file,const Module &module,const std::vector<Map> &all,
-                const detail::SymbolPin &pin,detail::Consumer consumer,void *resolved) {
+template<class Pin>void boundSlots(const File &file,const Module &module,const std::vector<Map> &all,
+                                  const Pin &pin,detail::Consumer consumer,std::uint32_t definitionBase) {
     file.bindings().sites(pin,consumer);
-    const auto expected=reinterpret_cast<std::uintptr_t>(resolved);need(expected<=UINT32_MAX);
     for(std::size_t i=0;i<pin.siteCount;++i)if(pin.sites[i].consumer==consumer) {
+        std::uint32_t expected=0;need(detail::relocationWord(definitionBase,pin,pin.sites[i],expected));
         std::uintptr_t at=0;need(add(module.base,pin.sites[i].offset,at)&&fileRange(file,module,all,at,4));
         const auto *m=cover(all,at,4,false);need(m&&!m->x);
         std::uint32_t actual=0;std::memcpy(&actual,reinterpret_cast<const void*>(at),4);
-        need(detail::slotMatches(actual,std::uint32_t(expected)));
+        need(detail::slotMatches(actual,expected));
     }
 }
 
@@ -282,9 +283,16 @@ const Admission *admitBeforeMain(const resident::Activation &activation) noexcep
                 supplied[role]=provider(resolved,filePin.sha256,all);
                 providerFiles[role]=std::make_unique<File>(supplied[role].path.c_str(),filePin.sha256,filePin.bytes);
             }
-            exactExport(*providerFiles[role],supplied[role],all,resolved,pin);
-            boundSlots(adapter,adapterModule,all,pin,detail::Consumer::Adapter,resolved);
-            boundSlots(main,mainModule,all,pin,detail::Consumer::Main,resolved);
+            need(reinterpret_cast<std::uintptr_t>(resolved)==exactDefinition(*providerFiles[role],supplied[role].module,all,pin));
+            const auto base=std::uint32_t(supplied[role].module.base);
+            boundSlots(adapter,adapterModule,all,pin,detail::Consumer::Adapter,base);
+            boundSlots(main,mainModule,all,pin,detail::Consumer::Main,base);
+        }
+        for(std::size_t i=0;i<profile->selfSymbolCount;++i) {
+            const auto &pin=profile->selfSymbols[i];
+            if(pin.kind==detail::SymbolKind::Object)need(!main.bindings().hasCopy(pin.name));
+            (void)exactDefinition(adapter,adapterModule,all,pin);
+            boundSlots(adapter,adapterModule,all,pin,detail::Consumer::Adapter,std::uint32_t(adapterModule.base));
         }
         for(const auto &file:providerFiles){need(bool(file));file->stable();}
         main.stable();adapter.stable();

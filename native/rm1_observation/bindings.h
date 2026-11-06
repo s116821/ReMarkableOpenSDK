@@ -17,13 +17,27 @@ inline bool add32(std::uint32_t a,std::uint32_t b,std::uint32_t &out) {
     out=a+b;return true;
 }
 struct FunctionExtent {std::uint32_t callable=0,code=0,end=0;};
-inline bool functionExtent(std::uint32_t base,const SymbolPin &pin,FunctionExtent &out) {
+template<class Pin>inline bool functionExtent(std::uint32_t base,const Pin &pin,FunctionExtent &out) {
     if(pin.kind!=SymbolKind::Function||!pin.value||!pin.size||base%4)return false;
     if(!add32(base,pin.value,out.callable)||!add32(base,pin.value&~1u,out.code)||
        !add32(out.code,pin.size,out.end))return false;
     return out.code%((pin.value&1)?2:4)==0;
 }
 inline bool slotMatches(std::uint32_t actual,std::uint32_t expected) {return actual&&actual==expected;}
+template<class Pin>inline bool relocationWord(std::uint32_t base,const Pin &pin,
+                                            const BindingSite &site,std::uint32_t &out) {
+    if(!bindingForm(pin,site))return false;
+    if(pin.kind==SymbolKind::Function) {
+        FunctionExtent extent;if(!functionExtent(base,pin,extent))return false;
+        out=extent.callable;return true; // Only A0, including exact callable state.
+    }
+    if(pin.kind!=SymbolKind::Object||!pin.alignment||(pin.alignment&(pin.alignment-1)))return false;
+    std::uint32_t start=0,end=0;
+    if(!add32(base,pin.value,start)||!add32(start,pin.size,end)||start%pin.alignment)return false;
+    if(site.relocation==2&&(pin.size<4||site.addend>pin.size-4))return false;
+    if(!add32(start,site.addend,out))return false;
+    return site.relocation!=2||(out%4==0&&out%pin.alignment==0);
+}
 
 // Bounded passive parser for the exact ELF32 ARM files already hash-verified by File.
 // It checks the table/entry actually referenced, not a name-only readelf match.
@@ -211,24 +225,42 @@ public:
             if(string(sections_[dynsym_].sh_link,symbol(i).st_name)==pin.name&&versionIndex(i)==pin.versionIndex)++matches;
         bindingNeed(matches==1);
     }
+    void definition(const ArtifactSelfPin &pin)const {
+        bindingNeed(header_.e_type==ET_DYN);const auto s=symbol(pin.dynsymIndex);
+        bindingNeed(pin.name&&string(sections_[dynsym_].sh_link,s.st_name)==pin.name&&
+            s.st_shndx>SHN_UNDEF&&s.st_shndx<sections_.size()&&
+            ELF32_ST_TYPE(s.st_info)==std::uint8_t(pin.kind)&&ELF32_ST_BIND(s.st_info)==STB_WEAK&&
+            pin.binding==STB_WEAK&&s.st_other==STV_DEFAULT&&pin.visibility==STV_DEFAULT&&
+            s.st_value==pin.value&&s.st_size==pin.size&&pin.size&&pin.versionIndex==1&&versionIndex(pin.dynsymIndex)==1);
+        unsigned matches=0;
+        for(std::size_t i=0;i<sections_[dynsym_].sh_size/sizeof(Elf32_Sym);++i)
+            if(string(sections_[dynsym_].sh_link,symbol(i).st_name)==pin.name&&versionIndex(i)==1)++matches;
+        bindingNeed(matches==1);
+    }
     bool hasCopy(const char *name)const {
         bool copy=false;relocations([&](const Elf32_Rel &r,std::size_t,const std::string &n){
             if(n==name&&ELF32_R_TYPE(r.r_info)==R_ARM_COPY)copy=true;
         });return copy;
     }
     std::uint32_t fileWord(std::uint32_t value)const {
+        bindingNeed(value&&value%4==0);std::uint32_t end=0;bindingNeed(add32(value,4,end));
         unsigned matches=0;std::uint32_t result=0;
-        for(const auto &p:loads_)if(value>=p.p_vaddr&&value-p.p_vaddr<=p.p_filesz&&4<=p.p_filesz-(value-p.p_vaddr)) {
+        for(const auto &p:loads_) {
+            std::uint32_t memoryEnd=0,fileEnd=0;
+            bindingNeed(add32(p.p_vaddr,p.p_memsz,memoryEnd)&&add32(p.p_vaddr,p.p_filesz,fileEnd));
+            if(value>=memoryEnd||p.p_vaddr>=end)continue;
+            bindingNeed((p.p_flags&PF_R)&&!(p.p_flags&PF_X)&&p.p_vaddr<=value&&end<=fileEnd);
             result=get<Elf32_Word>(std::size_t(p.p_offset)+value-p.p_vaddr);++matches;
         }bindingNeed(matches==1);return result;
     }
     void sites(const SymbolPin &pin,Consumer consumer)const {
+        bindingNeed(pin.sites&&pin.siteCount);
         std::vector<bool> seen(pin.siteCount,false);
         relocations([&](const Elf32_Rel &r,std::size_t i,const std::string &name){
             if(name!=pin.name)return;
             const auto sym=symbol(i);const auto type=ELF32_R_TYPE(r.r_info);
-            bindingNeed((type==R_ARM_GLOB_DAT||type==R_ARM_JUMP_SLOT)&&
-                (pin.kind!=SymbolKind::Object||type==R_ARM_GLOB_DAT)&&r.r_offset&&r.r_offset%4==0&&
+            bindingNeed((type==R_ARM_ABS32||type==R_ARM_GLOB_DAT||type==R_ARM_JUMP_SLOT)&&
+                r.r_offset&&r.r_offset%4==0&&
                 sym.st_shndx==SHN_UNDEF&&ELF32_ST_BIND(sym.st_info)==STB_GLOBAL&&sym.st_other==STV_DEFAULT&&
                 (ELF32_ST_TYPE(sym.st_info)==STT_NOTYPE||ELF32_ST_TYPE(sym.st_info)==std::uint8_t(pin.kind)));
             std::size_t match=pin.siteCount;
@@ -236,13 +268,32 @@ public:
                 bindingNeed(match==pin.siteCount);match=j;
             }
             bindingNeed(match<pin.siteCount&&!seen[match]);const auto &expected=pin.sites[match];
-            bindingNeed(expected.relocation==type&&expected.dynsymIndex==i&&expected.versionIndex==versionIndex(i)&&
+            bindingNeed(bindingForm(pin,expected)&&expected.relocation==type&&expected.dynsymIndex==i&&expected.versionIndex==versionIndex(i)&&
                 versionName(expected.versionIndex,false)==pin.version);
             // REL JUMP_SLOT has implicit addend zero even though its initial word is a PLT stub.
-            if(type==R_ARM_GLOB_DAT)bindingNeed(fileWord(r.r_offset)==0);
+            if(type!=R_ARM_JUMP_SLOT)bindingNeed(fileWord(r.r_offset)==expected.addend);
+            else (void)fileWord(r.r_offset); // PLT initializer is not an ABS32 addend.
             seen[match]=true;
         });
         for(std::size_t i=0;i<pin.siteCount;++i)if(pin.sites[i].consumer==consumer)bindingNeed(seen[i]);
+    }
+    void sites(const ArtifactSelfPin &pin,Consumer consumer)const {
+        bindingNeed(consumer==Consumer::Adapter&&pin.sites&&pin.siteCount);definition(pin);
+        std::vector<bool> seen(pin.siteCount,false);
+        relocations([&](const Elf32_Rel &r,std::size_t i,const std::string &name){
+            if(name!=pin.name)return;
+            std::size_t match=pin.siteCount;
+            for(std::size_t j=0;j<pin.siteCount;++j)if(pin.sites[j].consumer==consumer&&pin.sites[j].offset==r.r_offset) {
+                bindingNeed(match==pin.siteCount);match=j;
+            }
+            bindingNeed(match<pin.siteCount&&!seen[match]);const auto &expected=pin.sites[match];
+            bindingNeed(bindingForm(pin,expected)&&expected.dynsymIndex==i&&i==pin.dynsymIndex&&
+                expected.versionIndex==1&&versionIndex(i)==1&&expected.relocation==ELF32_R_TYPE(r.r_info));
+            if(expected.relocation!=R_ARM_JUMP_SLOT)bindingNeed(fileWord(r.r_offset)==0);
+            else (void)fileWord(r.r_offset);
+            seen[match]=true;
+        });
+        for(std::size_t i=0;i<pin.siteCount;++i)bindingNeed(seen[i]);
     }
 };
 
@@ -253,8 +304,8 @@ struct BindingMap {
 };
 // File-backed bytes, the file-backed last-page tail and anonymous BSS are distinct.
 // No object contents are read or compared. The caller has verified loaded phdrs.
-template<class Backed>bool dataCovered(const std::vector<Elf32_Phdr> &ph,std::uint32_t base,
-    const SymbolPin &pin,const std::vector<BindingMap> &maps,std::uint32_t page,const Backed &backed) {
+template<class Pin,class Backed>bool dataCovered(const std::vector<Elf32_Phdr> &ph,std::uint32_t base,
+    const Pin &pin,const std::vector<BindingMap> &maps,std::uint32_t page,const Backed &backed) {
     std::uint32_t begin=0,end=0;if(pin.kind!=SymbolKind::Object||!pin.size||!pin.alignment||
        (pin.alignment&(pin.alignment-1))||!page||(page&(page-1))||!add32(base,pin.value,begin)||
        begin%pin.alignment||!add32(begin,pin.size,end))return false;

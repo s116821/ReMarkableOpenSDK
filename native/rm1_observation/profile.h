@@ -14,7 +14,8 @@ struct BindingSite {
     Consumer consumer=Consumer::Count;
     std::uint32_t offset=0,dynsymIndex=0;
     std::uint16_t versionIndex=0; // Exact consumer versym, including hidden bit.
-    std::uint8_t relocation=0; // Reviewed R_ARM_GLOB_DAT(21)/JUMP_SLOT(22) only.
+    std::uint8_t relocation=0; // Exact reviewed ABS32(2)/GLOB_DAT(21)/JUMP_SLOT(22).
+    std::uint32_t addend=0; // Original REL word; never inferred from live memory.
 };
 struct SymbolPin {
     const char *name=nullptr,*version=nullptr;
@@ -28,12 +29,43 @@ struct SymbolPin {
     const BindingSite *sites=nullptr;
     std::size_t siteCount=0;
 };
+struct ArtifactSelfPin {
+    const char *name=nullptr;
+    std::uint32_t value=0,size=0,dynsymIndex=0;
+    SymbolKind kind=SymbolKind::Function;
+    std::uint8_t binding=2,visibility=0; // Only observed WEAK/default definitions.
+    std::uint16_t versionIndex=1;
+    std::uint32_t alignment=1;
+    bool writable=false;
+    const BindingSite *sites=nullptr;
+    std::size_t siteCount=0;
+};
+inline bool bindingForm(const SymbolPin &s,const BindingSite &site) noexcept {
+    if(s.kind!=SymbolKind::Function&&s.kind!=SymbolKind::Object)return false;
+    if(site.relocation==21||site.relocation==22)
+        return site.addend==0&&(s.kind==SymbolKind::Function||site.relocation==21);
+    if(site.relocation!=2)return false;
+    if(s.kind==SymbolKind::Function)return site.addend==0;
+    if(s.kind!=SymbolKind::Object||s.size<4)return false;
+    if(site.addend==0)return true;
+    return site.addend==8&&s.provider==ProviderRole::Cxx&&s.size==44&&s.name&&s.version&&
+        std::strcmp(s.version,"CXXABI_1.3")==0&&
+        (std::strcmp(s.name,"_ZTVN10__cxxabiv117__class_type_infoE")==0||
+         std::strcmp(s.name,"_ZTVN10__cxxabiv120__si_class_type_infoE")==0);
+}
+inline bool bindingForm(const ArtifactSelfPin &s,const BindingSite &site) noexcept {
+    return site.consumer==Consumer::Adapter&&site.addend==0&&
+        ((site.relocation==2&&(s.kind==SymbolKind::Function||(s.kind==SymbolKind::Object&&s.size>=4)))||
+         (site.relocation==21&&s.kind==SymbolKind::Object)||(site.relocation==22&&s.kind==SymbolKind::Function));
+}
 struct Profile {
     const char *manifestSha256=nullptr,*executableSha256=nullptr,*qtVersion=nullptr;
     std::size_t executableBytes=0;
     std::array<ProviderPin,std::size_t(ProviderRole::Count)> providers{};
     const SymbolPin *symbols=nullptr;
     std::size_t symbolCount=0;
+    const ArtifactSelfPin *selfSymbols=nullptr;
+    std::size_t selfSymbolCount=0;
 };
 inline bool digest(const char *s) noexcept {
     if(!s||std::strlen(s)!=64)return false;
@@ -61,8 +93,7 @@ inline bool complete(const Profile &p) noexcept {
             const auto &site=s.sites[j];
             if(site.consumer>=Consumer::Count||!site.offset||site.offset%4||!site.dynsymIndex||
                site.dynsymIndex>=65536||(site.versionIndex&0x7fff)<2||
-               (site.relocation!=21&&site.relocation!=22)||
-               (s.kind==SymbolKind::Object&&site.relocation!=21))return false;
+               !bindingForm(s,site))return false;
             for(std::size_t k=0;k<=i;++k){
                 const auto &other=p.symbols[k];
                 for(std::size_t n=0;n<(k==i?j:other.siteCount);++n)
@@ -70,6 +101,27 @@ inline bool complete(const Profile &p) noexcept {
             }
         }
         represented[role]=true;
+    }
+    if(p.selfSymbolCount>4096||bool(p.selfSymbols)!=bool(p.selfSymbolCount))return false;
+    for(std::size_t i=0;i<p.selfSymbolCount;++i) {
+        const auto &s=p.selfSymbols[i];
+        if(!s.name||!*s.name||!s.value||!s.size||!s.dynsymIndex||s.dynsymIndex>=65536||
+           s.binding!=2||s.visibility!=0||s.versionIndex!=1||
+           (s.kind!=SymbolKind::Function&&s.kind!=SymbolKind::Object)||!s.alignment||
+           (s.alignment&(s.alignment-1))||s.alignment>4096||!s.sites||!s.siteCount||s.siteCount>256||
+           totalSites>8192-s.siteCount)return false;
+        totalSites+=s.siteCount;
+        for(std::size_t j=0;j<p.symbolCount;++j)if(std::strcmp(s.name,p.symbols[j].name)==0)return false;
+        for(std::size_t j=0;j<i;++j)if(std::strcmp(s.name,p.selfSymbols[j].name)==0)return false;
+        for(std::size_t j=0;j<s.siteCount;++j) {
+            const auto &site=s.sites[j];
+            if(!site.offset||site.offset%4||!site.dynsymIndex||site.dynsymIndex>=65536||
+               site.versionIndex!=1||!bindingForm(s,site))return false;
+            for(std::size_t k=0;k<p.symbolCount;++k)for(std::size_t n=0;n<p.symbols[k].siteCount;++n)
+                if(site.consumer==p.symbols[k].sites[n].consumer&&site.offset==p.symbols[k].sites[n].offset)return false;
+            for(std::size_t k=0;k<=i;++k)for(std::size_t n=0;n<(k==i?j:p.selfSymbols[k].siteCount);++n)
+                if(site.offset==p.selfSymbols[k].sites[n].offset)return false;
+        }
     }
     for(bool present:represented)if(!present)return false;
     return true;

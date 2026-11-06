@@ -45,18 +45,128 @@ struct Fixture {
         p.dynsymIndex=std::uint32_t(index(name_));const auto s=read<Elf32_Sym>(bytes,sections[dynsym].sh_offset+p.dynsymIndex*sizeof(Elf32_Sym));
         p.value=s.st_value;p.size=s.st_size;p.versionIndex=read<Elf32_Half>(bytes,sections[versym].sh_offset+p.dynsymIndex*2);return p;
     }
+    ArtifactSelfPin selfPin(const char *name_,SymbolKind kind)const {
+        const auto p=pin(name_,kind);ArtifactSelfPin self;
+        self.name=p.name;self.value=p.value;self.size=p.size;self.dynsymIndex=p.dynsymIndex;
+        self.kind=kind;self.versionIndex=p.versionIndex;self.alignment=kind==SymbolKind::Object?4:1;
+        self.writable=kind==SymbolKind::Object;return self;
+    }
     std::vector<BindingSite> sites(const char *wanted)const {
         std::vector<BindingSite> result;const auto i=index(wanted);
         for(const auto &s:sections)if(s.sh_type==SHT_REL)for(std::size_t at=0;at<s.sh_size;at+=sizeof(Elf32_Rel)) {
             const auto r=read<Elf32_Rel>(bytes,s.sh_offset+at);
             if(ELF32_R_SYM(r.r_info)==i)result.push_back({Consumer::Adapter,r.r_offset,std::uint32_t(i),
-                read<Elf32_Half>(bytes,sections[versym].sh_offset+i*2),std::uint8_t(ELF32_R_TYPE(r.r_info))});
+                read<Elf32_Half>(bytes,sections[versym].sh_offset+i*2),std::uint8_t(ELF32_R_TYPE(r.r_info)),
+                ELF32_R_TYPE(r.r_info)==R_ARM_ABS32?BindingImage(bytes).fileWord(r.r_offset):0});
         }assert(!result.empty());return result;
     }
 };
+void absSelfControls(const Fixture &provider,const Fixture &consumer) {
+    BindingImage definitions(provider.bytes),bindings(consumer.bytes);
+    unsigned positive=0,negative=0;
+    for(const auto *name:{"arm_fn","thumb_fn","owned_data","_ZTVN10__cxxabiv117__class_type_infoE",
+                         "_ZTVN10__cxxabiv120__si_class_type_infoE"}) {
+        const bool function=std::strcmp(name,"arm_fn")==0||std::strcmp(name,"thumb_fn")==0;
+        auto pin=provider.pin(name,function?SymbolKind::Function:SymbolKind::Object);
+        const bool vtable=std::strncmp(name,"_ZTV",4)==0;
+        if(vtable){pin.provider=ProviderRole::Cxx;pin.version="CXXABI_1.3";assert(pin.size==44);}
+        if(!function)pin.alignment=4;
+        auto sites=consumer.sites(name);pin.sites=sites.data();pin.siteCount=sites.size();
+        definitions.definition(pin);bindings.sites(pin,Consumer::Adapter);
+        unsigned absolute=0;
+        for(const auto &site:sites)if(site.relocation==R_ARM_ABS32) {
+            ++absolute;assert(site.addend==(vtable?8u:0u));
+            std::uint32_t expected=0;assert(relocationWord(0x10000000,pin,site,expected));
+            assert(expected==0x10000000+pin.value+site.addend);
+            assert(slotMatches(expected,expected)&&!slotMatches(expected^1u,expected));
+            auto bad=site;bad.addend=vtable?4:1;assert(!relocationWord(0x10000000,pin,bad,expected));++negative;
+        }
+        assert(absolute);++positive;
+        for(int fault=0;fault<7;++fault) {
+            auto broken=pin;auto changed=sites;
+            if(fault==0)++changed[0].offset;
+            if(fault==1)changed.push_back(changed[0]);
+            if(fault==2)++changed[0].addend;
+            if(fault==3)changed[0].versionIndex^=0x8000;
+            if(fault==4)changed[0].relocation=R_ARM_COPY;
+            if(fault==5)changed[0].dynsymIndex=0;
+            if(fault==6)broken.version="wrong";
+            broken.sites=changed.data();broken.siteCount=changed.size();
+            refuses([&]{bindings.sites(broken,Consumer::Adapter);});++negative;
+        }
+    }
+    for(const auto *name:{"self_arm","self_thumb","self_data"}) {
+        const bool object=std::strcmp(name,"self_data")==0;
+        auto pin=consumer.selfPin(name,object?SymbolKind::Object:SymbolKind::Function);
+        auto sites=consumer.sites(name);pin.sites=sites.data();pin.siteCount=sites.size();
+        bindings.definition(pin);bindings.sites(pin,Consumer::Adapter);assert(pin.versionIndex==1);++positive;
+        bool absolute=false,other=false;
+        for(const auto &site:sites) {
+            absolute=absolute||site.relocation==R_ARM_ABS32;other=other||site.relocation==(object?R_ARM_GLOB_DAT:R_ARM_JUMP_SLOT);
+            std::uint32_t own=0,otherImage=0;
+            assert(relocationWord(0x10000000,pin,site,own)&&relocationWord(0x20000000,pin,site,otherImage));
+            assert(slotMatches(own,own)&&!slotMatches(otherImage,own));
+            if(!object)assert(bool(own&1)==(std::strcmp(name,"self_thumb")==0));
+        }assert(absolute&&other);
+        for(int fault=0;fault<11;++fault) {
+            auto bad=pin;auto changed=sites;
+            if(fault==0)bad.binding=STB_GLOBAL;
+            if(fault==1)bad.versionIndex=2;
+            if(fault==2)bad.visibility=STV_HIDDEN;
+            if(fault==3)++bad.value;
+            if(fault==4)++bad.size;
+            if(fault==5)bad.kind=object?SymbolKind::Function:SymbolKind::Object;
+            if(fault==6)changed[0].consumer=Consumer::Main;
+            if(fault==7)changed[0].addend=8;
+            if(fault==8)changed.push_back(changed[0]);
+            if(fault==9)changed[0].dynsymIndex=0;
+            if(fault==10)changed[0].versionIndex=2;
+            bad.sites=changed.data();bad.siteCount=changed.size();
+            refuses([&]{bindings.sites(bad,Consumer::Adapter);});++negative;
+        }
+        for(int fault=0;fault<5;++fault) {
+            auto bytes=consumer.bytes;
+            const auto at=consumer.sections[consumer.dynsym].sh_offset+pin.dynsymIndex*sizeof(Elf32_Sym);
+            auto symbol=read<Elf32_Sym>(bytes,at);
+            if(fault==0)symbol.st_shndx=SHN_UNDEF;
+            if(fault==1)symbol.st_shndx=SHN_ABS;
+            if(fault==2)symbol.st_info=ELF32_ST_INFO(STB_GLOBAL,ELF32_ST_TYPE(symbol.st_info));
+            if(fault==3)symbol.st_other=STV_HIDDEN;
+            if(fault==4)symbol.st_size=0;
+            write(bytes,at,symbol);
+            refuses([&]{BindingImage image(bytes);image.definition(pin);});++negative;
+        }
+    }
+    const auto places=consumer.sites("arm_fn");
+    const auto place=std::find_if(places.begin(),places.end(),[](const BindingSite &s){return s.relocation==R_ARM_ABS32;});
+    assert(place!=places.end());assert(bindings.fileWord(place->offset)==0);
+    refuses([&]{bindings.fileWord(place->offset+1);});++negative;
+    refuses([&]{bindings.fileWord(UINT32_MAX-3);});++negative;
+    Elf32_Phdr backing{};std::size_t spare=0,backingAt=0;
+    for(std::size_t i=0;i<consumer.header.e_phnum;++i) {
+        const auto at=consumer.header.e_phoff+i*sizeof(Elf32_Phdr),p=at;
+        const auto ph=read<Elf32_Phdr>(consumer.bytes,p);
+        if(ph.p_type==PT_GNU_STACK)spare=at;
+        if(ph.p_type==PT_LOAD&&ph.p_vaddr<=place->offset&&place->offset+4<=ph.p_vaddr+ph.p_filesz){backing=ph;backingAt=at;}
+    }assert(spare&&backingAt);
+    for(unsigned fault=0;fault<4;++fault) {
+        auto bytes=consumer.bytes;auto ph=backing;
+        if(fault==0){ph.p_flags|=PF_X;write(bytes,backingAt,ph);}
+        else {
+            ph.p_vaddr=place->offset+(fault==2?2:0);ph.p_offset=backing.p_offset+ph.p_vaddr-backing.p_vaddr;
+            ph.p_memsz=fault==2?2:4;ph.p_filesz=fault==3?0:ph.p_memsz;ph.p_align=1;
+            write(bytes,spare,ph);
+        }
+        // Metadata remains parseable: reject the actual executable, duplicate,
+        // partial or zero-fill competing four-byte place, not a malformed header.
+        BindingImage mutated(bytes);refuses([&]{mutated.fileWord(place->offset);});++negative;
+    }
+    std::printf("PASS emitted ABS32/provider and weak artifact-self exact sites: %u positive, %u refusals; never loaded\n",positive,negative);
+}
 void emittedControls(char **paths) {
     Fixture provider(paths[0]),consumer(paths[1]),main(paths[2]);
     BindingImage definitions(provider.bytes),bindings(consumer.bytes),executable(main.bytes);
+    absSelfControls(provider,consumer);
     unsigned positive=0,negative=0;
     for(const auto *name:{"arm_fn","thumb_fn","owned_data","owned_bss"}) {
         auto pin=provider.pin(name,std::strncmp(name,"owned_",6)==0?SymbolKind::Object:SymbolKind::Function);
@@ -81,7 +191,7 @@ void emittedControls(char **paths) {
             if(fault==0)brokenSites[0].offset+=4;
             if(fault==1)brokenSites[0].dynsymIndex=0;
             if(fault==2)brokenSites[0].versionIndex^=0x8000;
-            if(fault==3)brokenSites[0].relocation=R_ARM_ABS32;
+            if(fault==3)brokenSites[0].relocation=R_ARM_COPY;
             if(fault==4)brokenSites[0].consumer=Consumer::Main;
             if(fault==5)brokenSites.push_back(brokenSites[0]);
             if(fault==6)broken.version="other-version";
@@ -193,7 +303,7 @@ void diagnosticControls(const char *path) {
     auto weak=diagnostic.pin("_ITM_registerTMCloneTable",SymbolKind::Function);weak.version="not-versioned";
     auto weakSites=diagnostic.sites(weak.name);weak.sites=weakSites.data();weak.siteCount=weakSites.size();
     refuses([&]{image.sites(weak,Consumer::Adapter);});
-    std::puts("PASS actual optimized diagnostic: FUNC/versioned OBJECT sites; observed ABS32 refuses");
+    std::puts("PASS actual optimized diagnostic: FUNC/versioned OBJECT sites; incomplete ABS32 definition and unreviewed CRT refuse");
 }
 void savedLibcControls(const char *path) {
     Fixture libc(path);BindingImage image(libc.bytes);
@@ -215,6 +325,31 @@ void addressControls() {
     pin.value=0xfffffff1;assert(!functionExtent(0x1000,pin,extent));
     pin.value=0xfffffff9;pin.size=8;assert(!functionExtent(0,pin,extent));
     pin.kind=SymbolKind::Object;assert(!functionExtent(0,pin,extent));assert(!slotMatches(0,0));
+    SymbolPin vtable;vtable.name="_ZTVN10__cxxabiv117__class_type_infoE";vtable.version="CXXABI_1.3";
+    vtable.provider=ProviderRole::Cxx;vtable.kind=SymbolKind::Object;vtable.value=0x100;vtable.size=44;vtable.alignment=4;
+    BindingSite absolute{Consumer::Adapter,0x200,1,2,R_ARM_ABS32,8};std::uint32_t word=0;
+    assert(relocationWord(0x1000,vtable,absolute,word)&&word==0x1108);
+    for(int fault=0;fault<11;++fault) {
+        auto broken=vtable;auto site=absolute;std::uint32_t base=0x1000;
+        if(fault==0)broken.name="another-vtable";
+        if(fault==1)broken.version="another-version";
+        if(fault==2)broken.provider=ProviderRole::Core;
+        if(fault==3)broken.size=43;
+        if(fault==4)broken.kind=SymbolKind::Function;
+        if(fault==5)site.addend=4;
+        if(fault==6)site.addend=40; // Within44 but not the observed addend.
+        if(fault==7)site.addend=UINT32_MAX;
+        if(fault==8)broken.value++;
+        if(fault==9)base=UINT32_MAX-0x80;
+        if(fault==10)broken.alignment=3;
+        assert(!relocationWord(base,broken,site,word));
+    }
+    absolute.addend=0;vtable.size=3;assert(!relocationWord(0x1000,vtable,absolute,word));
+    vtable.size=UINT32_MAX;assert(!relocationWord(0x1000,vtable,absolute,word));
+    pin.kind=SymbolKind::Function;pin.value=0x101;pin.size=8;
+    assert(relocationWord(0x1000,pin,absolute,word)&&word==0x1101&&!slotMatches(word&~1u,word));
+    absolute.addend=1;assert(!relocationWord(0x1000,pin,absolute,word));
+    absolute.addend=0;pin.value=0xfffffff9;assert(!relocationWord(0,pin,absolute,word));
     std::puts("PASS tagged pointer/code-extent, alignment/overflow and resolved-word controls");
 }
 void mappedControls() {
@@ -241,6 +376,14 @@ void mappedControls() {
     auto *slot=static_cast<std::uint32_t*>(reservation);std::memcpy(slot,&p.value,4);
     assert(slotMatches(*slot,p.value));*slot=base;assert(!slotMatches(*slot,p.value));
     tail[0]=37;assert(dataCovered(segments,base,p,maps,page,backed)); // Mutable contents are not identity.
+    SymbolPin vtable;vtable.name="_ZTVN10__cxxabiv117__class_type_infoE";vtable.version="CXXABI_1.3";
+    vtable.provider=ProviderRole::Cxx;vtable.kind=SymbolKind::Object;vtable.value=128;vtable.size=44;vtable.alignment=4;vtable.writable=true;
+    BindingSite absolute{Consumer::Adapter,4,1,2,R_ARM_ABS32,8};std::uint32_t expected=0;
+    assert(dataCovered(segments,base,vtable,maps,page,backed)&&relocationWord(base,vtable,absolute,expected));
+    *slot=expected;assert(slotMatches(*slot,expected));*slot=expected^1u;assert(!slotMatches(*slot,expected));
+    *slot=expected+page;assert(!slotMatches(*slot,expected)); // Another image/base is not self/provider correspondence.
+    auto escaping=vtable;escaping.value=page*4-8;
+    assert(!dataCovered(segments,base,escaping,maps,page,backed)); // Interior target cannot replace full object extent.
     for(int fault=0;fault<10;++fault) {
         auto changed=maps;auto pin=p;auto loads=segments;
         if(fault==0)changed[0].inode++;

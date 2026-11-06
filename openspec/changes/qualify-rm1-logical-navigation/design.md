@@ -439,3 +439,43 @@ zero-addend/equal-size policy and diagnostic boundary above are proposed project
 design, not claims that the ABI requires this particular verifier. Actual target
 provider identities, loaded scope/copy-source selection, resolved slots, pre-main
 startup, live Reader/metatypes/capture and recovery remain unqualified.
+
+## Selected observed ABS32/provider and artifact-self slice
+
+Implement only the first reviewed diagnostic-forms slice. Preserve the delivered
+typed/versioned/PT_DYNAMIC source and original observation-only boundary. The
+retained diagnostic records 56 external ABS32 sites: 30 FUNC A0, four OBJECT A0,
+and 22 OBJECT A8 sites to exactly the two CXXABI_1.3 class-type-info vtables
+`_ZTVN10__cxxabiv117__class_type_infoE` and
+`_ZTVN10__cxxabiv120__si_class_type_infoE`, each GLOBAL/default OBJECT size44.
+Self records cover 13 ABS32 (eight OBJECT/five FUNC), three OBJECT GLOB_DAT and
+12 FUNC JUMP_SLOT, defined WEAK/default in the exact artifact, raw versym1.
+Diagnostic counts/offsets are evidence, not production profile pins.
+
+Retain exact provider definitions, version/name/index/value/size, mapped full code/
+data extents and main-COPY refusal. Add a pinned original REL addend per site.
+External ABS32 permits only FUNC A0, OBJECT A0, or the named/versioned/size44/Cxx
+vtable OBJECT A8. No generic data interior or function interior is admitted.
+Original file word must equal that addend at one aligned readable, non-executable
+four-byte file-backed place with no competing whole/partial/zero-fill LOAD view.
+JUMP_SLOT keeps implicit A0; GLOB_DAT keeps original file A0.
+
+Use checked32-bit arithmetic for definition base/value, untagged code extent and
+interior word. ABS32 OBJECT requires A+4<=exact object size and reviewed/word
+alignment; FUNC preserves the exact ARM/Thumb tag with full code extent. Compare
+the complete live word, never mask its state bit or derive A from relocated data.
+
+Use a separate finite ArtifactSelfPin table without provider/version placeholders.
+Require Adapter-only sites, ordinary defined dynsym section, exact name/index/type/
+value/size, WEAK/default and raw versym1. Support only observed self ABS32 A0,
+OBJECT GLOB_DAT A0 and FUNC JUMP_SLOT A0. Validate the own artifact's code/data
+extent and require each live slot to equal its own definition's exact address.
+A same-name symbol in main/another DSO fails; default visibility is not evidence of
+non-preemption. Reject duplicate sites within/across provider/self domains.
+
+Keep optional CRT, TLS and dependency closure unimplemented/refused. Profile
+selection stays nullptr. Tests use real compiler-emitted owned ARM files parsed
+only on the host plus controlled whole-word/state/extent/mapping mechanics; no ARM
+fixture/vendor image is loaded or executed, no provider acquisition or device work.
+Whole-word/tag-loss/addend/version/type/size/overflow/interior/site ambiguity and
+self-preemption negatives must distinguish old refusal from new finite positives.

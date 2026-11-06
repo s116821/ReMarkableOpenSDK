@@ -52,3 +52,10 @@ its own optimized imports and selected symbol versions without a profile bypass.
 It cannot settle the final adapter closure or loaded bindings. This proposal
 selects specification edits only: no linking, loading, emulation, provider
 acquisition or tablet action.
+
+## Selected finite ABS32 and artifact-self source slice
+
+Extend only the observed versioned external ABS32 cases and finite weak/default
+artifact-self exact-site correspondence. This follows the separately reviewed
+diagnostic-forms design; it does not select its CRT-null, TLS or dependency-closure
+work. Keep COPY refusal, original nine native gates and null reviewedProfile.

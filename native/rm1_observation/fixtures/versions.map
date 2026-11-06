@@ -1,1 +1,2 @@
+CXXABI_1.3 { global: _ZTVN10__cxxabiv117__class_type_infoE; _ZTVN10__cxxabiv120__si_class_type_infoE; };
 RM49_FIXTURE_1 { global: arm_fn; thumb_fn; owned_data; owned_bss; local: *; };
