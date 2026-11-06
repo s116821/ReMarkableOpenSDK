@@ -1,5 +1,63 @@
 ## ADDED Requirements
 
+### Requirement: RM1 historical observation has independent native admission
+An RM1 observation-only adapter SHALL use its own privately constructed admission
+record after independently verifying its exact reviewed executable, adapter and
+required loaded-provider identities, file/mapping correspondence, ABI, actual
+pre-main application absence and eager-binding conditions. It SHALL NOT depend
+on installation of insertion hooks or manufacture insertion Facilities. Existing
+RM2 admission, provider/code/owner checks and installed bundle behavior SHALL
+remain intact. Static metadata, a version string, test facts or a renamed RM2
+hash/address table SHALL NOT satisfy missing RM1 evidence or advertise support.
+
+#### Scenario: Reader declarations match but provider evidence is incomplete
+- **WHEN** private static RM1 resources and metadata match observer declarations but the actual required provider, ABI, binding or startup evidence is missing or mismatched
+- **THEN** RM1 admission refuses before exposing an endpoint, and capabilities remain unsupported without substituting static hashes, mocked facts or an RM2 profile.
+
+#### Scenario: Observation startup without insertion machinery
+- **WHEN** an explicitly selected RM1 observation artifact passes all its independently reviewed admission checks
+- **THEN** it starts only the guarded historical observation facade, without installing insertion hooks, constructing mutation/selection executors, acquiring worker owners or linking Dobby and the creation bridge.
+- **AND** the existing RM2 facade still requires its original Facilities gate and retains its original behavior.
+
+### Requirement: Observation-only startup preserves resident admission and lifetime
+The RM1 bootstrap SHALL preserve one-use Activation, exact actual artifact and
+executable correspondence, boot/parent incarnation and nonce/expiry checks,
+retained-directory/socket correspondence and authenticated peer admission. It
+SHALL retain required ownership/stability/ELF/mapping/ABI/provider checks, actual
+pre-main ordering, inherited injection-environment clearing, queued GUI startup,
+absolute deadlines and process-resident lifetime. Missing or changed admission
+SHALL fail closed without endpoint publication, consumption-marker removal,
+automatic retry, routine process restart or module unload.
+
+#### Scenario: Directory changes after consumption
+- **WHEN** the consumed activation directory is replaced before startup or ceases to match during a request
+- **THEN** no replacement endpoint or late successful result is published, and the original consumption evidence remains intact.
+
+#### Scenario: Expired or retired observation request
+- **WHEN** cancellation, connection loss, reentry, object loss or the original absolute deadline retires observation or capture
+- **THEN** no late successful result is admitted and incomplete capture encoding is not published as valid image evidence; retirement does not unload the adapter, restart xochitl or create a retry admission.
+
+### Requirement: RM1 observation reuses only historical dispatch semantics
+The admitted RM1 path SHALL reuse the existing bounded Observe, presence-only
+reconciliation, source capture and visual-only capture semantics. It SHALL keep
+the original GUI/window/engine/lifetime/notification/source/order guards and final
+owned-image publication checks. It SHALL refuse mutation, selection, close/reopen
+and unknown commands without dispatch or clearing outstanding effect uncertainty.
+Admission and historical facts/images SHALL NOT create operational page guards,
+settled-render or writing authority, or a supported RM1 navigation capability.
+
+#### Scenario: Non-observation command reaches the RM1 facade
+- **WHEN** an admitted client requests insertion, selection, close/reopen or an unknown command
+- **THEN** the path refuses before any native effect, without a fallback executor or quarantine/reservation clearing.
+
+#### Scenario: Final source or capture context changes
+- **WHEN** the original source/order, guarded object/context, epoch or deadline becomes invalid before final publication, including after PNG encoding
+- **THEN** no successful historical capture or intermediate PNG is published, and no consumer binding/write authority is granted.
+
+#### Scenario: Host fixture or source build succeeds
+- **WHEN** owned model/process/socket controls or a source build pass without actual RM1 runtime qualification
+- **THEN** results establish only their named mechanics and RM1 capabilities remain unsupported; the original native acceptance tasks remain open.
+
 ### Requirement: RM1 gestures preserve shared logical navigation semantics
 The RM1 adapter SHALL use the coordinated SDK logical Next/Previous contract,
 qualify its own model/runtime/orientation profile and issue at most one supported
