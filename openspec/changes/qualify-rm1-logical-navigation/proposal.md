@@ -37,3 +37,18 @@ Missing evidence keeps RM1 unsupported; static hash substitutions or modeled
 facts cannot fill those gaps. See the observation-only design and test plan in
 [design.md](design.md). This preparation does not replace or complete any of the
 nine remaining native acceptance tasks, and selects no build or device action.
+
+## Typed-binding admission follow-up (precode review)
+
+Actual RM1 SDK compile/static comparison exposed Thumb-tagged function values,
+OBJECT imports and main COPY relocations that the current function/JUMP_SLOT-only
+verifier cannot represent. Specify a small RM1-only typed definition/binding
+record and exact checks before implementation. Preserve all nine native gates,
+`reviewedProfile() == nullptr`, the existing RM2 hook/Facilities checks and helper
+ownership. See the typed-binding section in [design.md](design.md).
+
+A separately selected, non-installable link-only observation diagnostic can settle
+its own optimized imports and selected symbol versions without a profile bypass.
+It cannot settle the final adapter closure or loaded bindings. This proposal
+selects specification edits only: no linking, loading, emulation, provider
+acquisition or tablet action.

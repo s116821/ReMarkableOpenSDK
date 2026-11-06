@@ -22,6 +22,18 @@ broader verifier/RM2 regressions and target qualification remain separate.
 - [ ] Run meaningful admission-correspondence, activation/endpoint, dispatch/refusal and actual build-dependency controls plus RM2 regressions when their implementation/build scope is selected; label host/model evidence explicitly.
 - [x] Return the exact source/test/artifact diff and unresolved RM1 provider/runtime evidence for independent review before any separately selected native qualification.
 
+## Typed-binding precode and follow-up
+
+This is a specification-only review increment. It completes no native gate.
+Implementation and link-only execution require separate selection after review.
+
+- [x] Obtain independent review of this RM1-only typed-binding design and exact patch; Root accepted f005b62c and selected local link-only measurement plus bounded implementation. reviewedProfile stays null and all original native tasks stay open.
+- [x] Implement bounded typed definition/site metadata and FUNC tagged-pointer/code-extent checks without changing RM2 loader/hook/Facilities checks. Exact GNU versions and disk dynamic-table correspondence are checked; unreviewed forms refuse.
+- [x] Implement reviewed provider OBJECT GLOB_DAT mapping/storage checks and explicit main COPY refusal. Actual loaded copy-source scope is not proved, so no COPY success path or generic loader introspection is implemented.
+- [ ] Complete retained activation/dispatch/RM2 regressions and independent source review for the typed increment. Local sealed/profile/build controls, compiler-produced ARM-file positive/refusal controls, real owned host mapping mechanics and actual RM1 compile/syntax checks pass; no loader/QEMU/native pass is inferred.
+- [x] Link and passively inspect the separately selected retained optimized observation diagnostic with exact SDK/CRT/source/ELF/version receipts; never loaded or treated as final adapter closure. It selects CXXABI_ARM_1.3.3 for __aeabi_atexit and exposes 56 external ABS32 sites outside this implementation; record that finding before expansion.
+- [ ] Reconcile actual production closure and remaining provider/runtime evidence before proposing a real profile or native trial.
+
 ## Remaining native qualification
 
 - [ ] Coordinate the exact RM1 observation/input/render profile against the shipped SDK boundary with Main and the SDK owner; generic capability/historical facts remain insufficient.

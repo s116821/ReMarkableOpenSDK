@@ -3,6 +3,7 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -23,6 +24,28 @@ class Contract(unittest.TestCase):
             ran=self.run_command([str(exe)])
             self.assertEqual(ran.returncode,0,ran.stderr)
             self.assertIn('no RM1 admission',ran.stdout)
+
+    @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux ELF/mmap mechanics')
+    def test_typed_binding_mechanics(self):
+        with tempfile.TemporaryDirectory(prefix='rm1-bindings-') as work:
+            exe=Path(work)/'bindings'
+            built=self.run_command([os.environ.get('RSDK_HOST_CXX','c++'),'-std=c++17','-Wall','-Wextra','-Werror',str(ROOT/'bindings_test.cpp'),'-o',str(exe)])
+            self.assertEqual(built.returncode,0,built.stderr)
+            args=[str(exe)]
+            if os.environ.get('RSDK_BINDING_FIXTURE_DIR'):
+                fixtures=Path(os.environ['RSDK_BINDING_FIXTURE_DIR'])
+                args += [str(fixtures/name) for name in ['libbinding-fixture.so','consumer.so','main']]
+                if os.environ.get('RSDK_BINDING_DIAGNOSTIC'):
+                    args.append(os.environ['RSDK_BINDING_DIAGNOSTIC'])
+                    if os.environ.get('RSDK_BINDING_LIBC'):
+                        args.append(os.environ['RSDK_BINDING_LIBC'])
+            ran=self.run_command(args)
+            self.assertEqual(ran.returncode,0,ran.stderr)
+            print(ran.stdout,end='')
+            if 'SKIP 32-bit host mapping' in ran.stdout:self.skipTest('host cannot allocate owned low mapping')
+            self.assertIn('PASS tagged pointer',ran.stdout)
+            self.assertIn('PASS real owned low mappings',ran.stdout)
+            if len(args)>1:self.assertIn('PASS emitted ARM/Thumb/OBJECT',ran.stdout)
 
     def test_direct_constructor_is_inaccessible(self):
         with tempfile.TemporaryDirectory(prefix='rm1-seal-') as work:

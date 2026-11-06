@@ -83,3 +83,55 @@ are still host/model evidence, not RM1 runtime proof. Actual target compilation,
 provider/startup/Reader/metatype/capture/recovery qualification and all nine native
 acceptance tasks remain open. Native's REM-61 observer/callback/recorder paths are
 unchanged and are not a second investigation in this lane.
+
+## Typed binding implementation and remaining limits
+
+RM1-only metadata now separates an exact provider definition from each consumer
+site. The bounded passive ELF parser checks GNU definition/requirement versions,
+raw version indices including hidden bits, dynsym type/binding/visibility/value/
+size, dynamic-table/section/file-range correspondence and exact relocation sites.
+Only reviewed global/default FUNC and OBJECT definitions and zero-addend
+GLOB_DAT/JUMP_SLOT sites are represented. It is not a general dynamic loader.
+
+Function slots compare the full callable pointer; code ranges use the untagged
+address, exact size and ARM/Thumb alignment. Data checks use unmasked storage
+addresses and exact readable non-executable mapping coverage, distinguishing
+file bytes, last-page zero fill and anonymous BSS. Mutable/relocated object values
+are not file-byte identity pins. The original file/hash/size/phdr/code/stability,
+pre-main, Activation, endpoint and GUI/lifetime checks remain mandatory.
+
+Main COPY bindings explicitly refuse before provider inference: actual loaded
+copy-source scope is not proved. There is no ET_EXEC-provider exception, fake
+provenance, new dlopen or production profile. The selected optimized observation
+diagnostic also exposed external ABS32 sites, local initial-exec TLS relocations
+and weak CRT imports. ABS32/addend semantics, weak/unversioned/unique definitions,
+TLS/IFUNC and same-name competing consumer versions are outside this increment;
+relevant unreviewed sites refuse. These gaps prevent claiming a complete profile
+or final adapter closure. The existing eight provider roles are not a completeness
+proof for emitted DT_NEEDED/transitive dependencies.
+
+The separately selected diagnostic excluded bootstrap and kept admission closed;
+its retained wrapper proves only that observation code survived optimization.
+It was never loaded/emulated/installed. Production build.sh still exits78 before
+SDK sourcing/output creation. A final artifact must be reconciled separately.
+
+`python3 -B native/rm1_observation/build_contract_test.py -v` includes the typed
+pointer, real owned low-address mapped-slot/data/backing and profile-refusal
+controls without Qt. On a host unable to allocate low mappings that control is
+explicitly skipped, not reported as a native pass. Optional emitted-file controls
+need an explicitly selected matching SDK and a fresh output:
+
+```sh
+QT_PROBE_SDK_ENV=/selected/rm1/environment \
+RSDK_BINDING_FIXTURE_OUTPUT=/fresh/owned/fixtures \
+sh native/rm1_observation/binding_fixtures.sh
+RSDK_BINDING_FIXTURE_DIR=/fresh/owned/fixtures \
+python3 -B native/rm1_observation/build_contract_test.py -v
+```
+
+The fixture script emits owned ARM/Thumb provider, consumer and COPY executable
+files for passive parser controls; it never executes/loads them. Optional
+RSDK_BINDING_DIAGNOSTIC and RSDK_BINDING_LIBC add passive checks of the selected
+observation diagnostic and already-held libc. Keep their hashes/provenance;
+none can issue Admission. These are metadata/range/slot mechanics tests, not
+actual loader relocation, pre-main startup, live Reader/capture or tablet tests.

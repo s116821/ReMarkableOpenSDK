@@ -97,3 +97,39 @@ requests, Manager packaging and final package matrices remain separate scope.
 Source basis: exact shipped source, preserved sanitized RM1 baseline and reviewed
 metadata records. Reuse and sequencing are design judgments. No builds, native
 artifacts, tablet observations, recovery tests or compatibility passes are added.
+
+## Typed-binding precode checkpoint
+
+The matching RM1 SDK compiles the selected ABI/admission/facade/bootstrap/Epoch
+units. SDK Core/libc match saved anchors; six other provider files remain SDK
+candidates. O0 import metadata includes Thumb FUNC and OBJECT references; the
+saved main has 17 corresponding COPY relocation declarations. These observations
+expose a real limitation in the current FUNC/JUMP_SLOT-only verifier, not an
+approved profile. See the typed-binding proposal in [design.md](design.md).
+
+The proposal separates definition provenance, callable pointer/code extent,
+consumer slots and effective main-copy storage. COPY source scope must be proved
+or refused. Mutable/relocated data contents are not file-byte pins. The planned
+link-only observation diagnostic measures its own optimized versions/imports;
+bootstrap and closed-admission optimization prevent treating it as final adapter
+closure. No link or native action is selected. reviewedProfile stays null and
+all existing provider/mapping/startup/Reader/metatype/capture/recovery gaps and
+all nine native acceptance tasks remain open. Source basis: current SDK source
+and REM-49's saved compiler/passive-file receipts; proposed rules are design.
+
+## Typed-binding implementation checkpoint
+
+Root accepted the precode and selected the local diagnostic and bounded source
+implementation. The optimized observation-only diagnostic links, retains the
+actual dispatcher call, selects __aeabi_atexit@CXXABI_ARM_1.3.3 and has 15 undefined
+OBJECT imports. Its 56 external ABS32 sites and local TLS/weak CRT forms remain
+outside this increment; they are concrete next review inputs, not implicit support.
+
+Typed versioned FUNC/provider-OBJECT metadata, exact reviewed JUMP_SLOT/GLOB_DAT
+sites, tagged-callable/untagged-code ranges and data mapping checks are implemented
+locally. Main COPY explicitly refuses because loaded source scope is unavailable.
+The original profile remains null. Owned emitted ARM-file and host mapping controls
+prove only metadata/guard mechanics; actual RM1 compiler checks prove source
+compatibility. They do not execute the ARM fixture or diagnostic, establish actual
+loader bindings or qualify the tablet. No RM2 checks/pins/helper ownership changed.
+The exact final adapter and all nine native acceptance tasks remain unfinished.
