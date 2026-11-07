@@ -16,8 +16,7 @@ inline bool branch(std::uintptr_t site, std::uintptr_t target, std::uint32_t &wo
     return true;
 }
 
-enum class Installation { Unsupported };
-// No boolean, raw-pointer installer or same-thread bypass. The private pre-main
-// loader must establish installation admission before this stub can change.
-inline Installation installProduction() noexcept { return Installation::Unsupported; }
+// Deliberately no manifest, environment or consumer switch. A later qualified
+// artifact must explicitly select the private constructor path.
+constexpr bool StartupSelected = false;
 } // namespace remarkable::composer_pre_enter::detail

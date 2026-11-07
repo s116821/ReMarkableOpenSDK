@@ -1,4 +1,4 @@
-// Owned Linux children only. No target process or production admission builder.
+// Owned Linux children exercise the shared preparation and raw transaction.
 #include "composer_pre_enter_patch_private.h"
 #include <cassert>
 #include <cstdio>
@@ -29,8 +29,16 @@ static void handler(int) {
         signalCommitted=static_cast<sig_atomic_t>(flag->load(std::memory_order_acquire));
     ++signalsSeen;
 }
+namespace remarkable::composer_pre_enter::detail { class Route {}; }
 namespace remarkable::composer_pre_enter::detail::patch {
 struct OwnedAccess {
+    static std::unique_ptr<Prepared> build(std::uintptr_t shim,std::uint64_t expiry) {
+        return StartupBuilder::prepare(4096,shim,expiry);
+    }
+    static Outcome install(Prepared &c,Route &route,std::atomic<Route *> &slot) {
+        return StartupBuilder::install(c,route,slot);
+    }
+    static std::uintptr_t veneer(const Prepared &c) {return c.veneer_;}
     static std::unique_ptr<Prepared> prepare(Fault fault,bool signal) {
         auto c=std::unique_ptr<Prepared>(new Prepared);
         c->pageSize_=4096; c->page_=Site&~std::uintptr_t(4095);
@@ -46,8 +54,7 @@ struct OwnedAccess {
         }
         assert(c->readAll(c->maps_,c->baseline_.data(),c->baseline_.size(),c->baselineSize_));
         // This constructor is compiled only for the owned ELF/map fixture. There
-        // is intentionally no production builder that treats these observations
-        // as proof of target-kernel or initial-load constructor provenance.
+        // bypasses preparation to inject raw-interval faults.
         c->fault_=fault; c->pendingSignal_=signal?SIGUSR1:0; c->ready_=true;
         return c;
     }
@@ -125,6 +132,63 @@ static int run(p::Fault f,bool signal=false,bool extra=false,bool mismatch=false
     if(result==78)return 78;
     assert(result==expected);return 0;
 }
+static void runBuilder() {
+    const auto pid=::fork();
+    assert(pid>=0);
+    if(!pid) {
+        const auto page=d::Site&~std::uintptr_t(4095);
+        const auto original=d::Original&~std::uintptr_t(4095);
+        const auto shim=original+0x100;
+        // Exercise a middle-page permission transition in a file-backed RX
+        // span, including the post-write VMA restoration check.
+        auto *file=std::tmpfile();
+        assert(file);
+        const int fd=::fileno(file);
+        assert(::ftruncate(fd,3*4096)==0);
+        assert(::pwrite(fd,&d::OriginalWord,4,d::Site-original)==4);
+        assert(::mmap(reinterpret_cast<void *>(original),3*4096,PROT_READ|PROT_EXEC,
+                      MAP_PRIVATE,fd,0)==reinterpret_cast<void *>(original));
+        assert(std::fclose(file)==0);
+        auto *word=reinterpret_cast<std::uint32_t *>(d::Site);
+        p::BootTime now{};
+        assert(p::bootNow(now));
+        const auto expiry=std::uint64_t(now.seconds+5)*1000+now.nanoseconds/1000000;
+        assert(::mprotect(reinterpret_cast<void *>(original),4096,PROT_READ|PROT_WRITE)==0);
+        assert(!p::OwnedAccess::build(shim,expiry)); // Original and shim still RW.
+        assert(::mprotect(reinterpret_cast<void *>(original),4096,PROT_READ|PROT_EXEC)==0);
+        assert(!p::OwnedAccess::build(shim,1)); // Original expiry is exhausted.
+        assert(!p::OwnedAccess::build(shim+1,expiry)); // A32 alignment.
+        assert(::mprotect(reinterpret_cast<void *>(page),4096,PROT_READ|PROT_WRITE)==0);
+        *word=0;
+        assert(::mprotect(reinterpret_cast<void *>(page),4096,PROT_READ|PROT_EXEC)==0);
+        assert(!p::OwnedAccess::build(shim,expiry)&&*word==0);
+        assert(::mprotect(reinterpret_cast<void *>(page),4096,PROT_READ|PROT_WRITE)==0);
+        *word=d::OriginalWord;
+        assert(::mprotect(reinterpret_cast<void *>(page),4096,PROT_READ|PROT_EXEC)==0);
+        auto capsule=p::OwnedAccess::build(shim,expiry);
+        assert(capsule&&*word==d::OriginalWord);
+        const auto veneer=p::OwnedAccess::veneer(*capsule);
+        assert(veneer!=page&&veneer!=original);
+        d::Route route;
+        std::atomic<d::Route *> slot{&route};
+        assert(p::OwnedAccess::install(*capsule,route,slot)==p::Outcome::Refused);
+        capsule.reset();
+        unsigned char residency=0;
+        assert(::mincore(reinterpret_cast<void *>(veneer),4096,&residency)==-1&&errno==ENOMEM);
+        assert(*word==d::OriginalWord);
+        slot.store(nullptr);
+        capsule=p::OwnedAccess::build(shim,expiry);
+        assert(capsule);
+        const auto committedVeneer=p::OwnedAccess::veneer(*capsule);
+        assert(p::OwnedAccess::install(*capsule,route,slot)==p::Outcome::Installed);
+        assert(slot.load()==&route&&*word==p::OwnedAccess::expected(*capsule));
+        capsule.reset();
+        assert(::mincore(reinterpret_cast<void *>(committedVeneer),4096,&residency)==0);
+        std::_Exit(0);
+    }
+    int status=0;
+    assert(waitpid(pid,&status,0)==pid&&WIFEXITED(status)&&WEXITSTATUS(status)==0);
+}
 int main() {
     if(run(p::Fault::None,true)==78) {
         std::puts("owned capsule: raw-cache ABI or real task observation refuses this environment; no patch was installed");
@@ -138,5 +202,7 @@ int main() {
     assert(run(p::Fault::RollbackFatal,false,false,false,119)==0);
     assert(run(p::Fault::MaskFatal,false,false,false,119)==0);
     assert(run(p::Fault::ExclusionFatal,false,false,false,119)==0);
+    runBuilder();
     std::puts("owned Linux capsule: pending signal/coherent release, extra-thread refusal, original-word refusal, cache/protection rollback and fail-closed children passed");
+    std::puts("startup builder: executable spans, deadline/alignment refusal, route publication and veneer ownership passed");
 }

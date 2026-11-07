@@ -15,8 +15,8 @@
 - [x] Implement the hard-float compiled shim and original-once behavior across capture outcomes.
 - [x] Exercise original exception propagation through registered ARM unwind metadata without retry.
 - [x] Exercise an owned near tail veneer and patch/cache/protection path through the actual compiled shim.
-- [ ] Implement production mapping/site/near-veneer admission under qualified runtime quiescence; the private production installer remains an Unsupported stub.
-- [ ] Resolve with the runtime owner which existing resident boundary supplies installation quiescence; do not assume aligned-write safety.
+- [x] Implement private production mapping/site/near-veneer preparation and raw admission checks. Leave runtime selection disabled.
+- [x] Select the authenticated initial-load constructor as the private exclusion boundary under the supported process model.
 
 ## 4. Focused source verification
 - [x] Test pre-LF text and one owned original insertion through the real state/read helper.
@@ -37,8 +37,9 @@
 - [x] Record the successful own-memory result separately from the remaining private constructor-to-capsule source admission seam and stock/composer authority.
 - [x] Retain the authenticated startup expiry in Activation and use the same CLOCK_BOOTTIME domain in the private raw transaction, with owned claim and exhausted-budget controls.
 - [x] Record the reviewed trusted-kernel group accounting assumptions and the separate shared-address-space premise.
-- [ ] Establish the no-shared-address-space premise across the initial loader, dependency initializers and Reader preparation for production admission.
-- [ ] Integrate the real resident arming/installation caller under its established lifetime/quiescence boundary, without automatic bootstrap selection.
+- [x] Adopt the trusted fresh-exec/ordinary creator model and check explicit loader policy at the private constructor boundary.
+- [x] Integrate private constructor installation with a dormant resident route and verify shared builder success/refusal in owned Linux children.
+- [ ] Qualify a current runtime profile and connect its separately admitted capture arming request.
 - [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.
 

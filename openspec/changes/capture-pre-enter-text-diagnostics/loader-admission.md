@@ -1,9 +1,8 @@
 # Proposed private pre-main installation admission
 
-This reviewed design now has a private owned transaction and eager resident route
-implementation; see implementation-notes.md for evidence and limitations. The
-production StartupBuilder remains absent and the installer Unsupported. No new constructor, runtime
-activation, late patch path or caller-constructible quiescence token is proposed.
+The existing constructor has a private preparation path to the raw transaction.
+The source selection constant is false for every current build. See
+implementation-notes.md for evidence and limitations.
 
 The unchanged owned ARM capsule now has positive admitted-RM2 raw-cache/task/
 transaction evidence. Preserve the separate strict QEMU refusal and the remaining
@@ -107,15 +106,18 @@ externally minted token can substitute for its checks.
    profile may rely on the explicitly reviewed behavioral contract. The proc
    field name, repeated enumeration and the owned diagnostic alone supply no
    such guarantee. Unsupported semantics, extra tasks or ambiguity refuse.
-4. The trusted initial-load chain must also exclude out-of-group users of the
-   same address space, including CLONE_VM without CLONE_THREAD. Fresh exec
-   supplies an initial condition. Dependency initializers and Reader
-   preparation must preserve it, a premise still open for production.
-   Given both premises, a blocked constructor that observes itself as the sole
-   counted task and then executes only leaves without clone or callback has no
-   peer that can run or create another peer. The trusted process boundary also
-   excludes debugger/ptrace, external memory mutation and unreviewed
-   interposition.
+4. The supported initial-load profile trusts the admitted image, adapter, libc,
+   dependencies and stable loader configuration to use ordinary process
+   creation. Pthread peers are counted. Fork uses a separate address space.
+   A valid vfork or synchronous shared-memory spawn retains its counted
+   originator until the child releases the address space. Fatal interruption
+   terminates the originating group before successful constructor admission.
+   Independent CLONE_VM sharing, invalid vfork child execution, reentry,
+   debugger/ptrace, external mutation and unreviewed interposition are outside
+   this profile. Under these premises, a blocked sole constructor running only
+   non-cloning leaves has no live userspace peer sharing the address space.
+   This is a supported behavior contract rather than a measured count of
+   address-space users.
 
 SIGKILL/SIGSTOP cannot be blocked; they do not run application handlers.
 Synchronous instruction/memory faults are not recoverable installation branches.
@@ -171,8 +173,12 @@ Proposed implementation files are the existing private loader/profile source,
 bootstrap integration and a small private fixed-profile patch capsule/leaf unit.
 Do not expose an installer or general patch/token framework in public headers.
 Route eager resident storage replaces the earlier lazy Route::instance lifetime.
-The private owned transaction does not issue real launch/kernel admission;
-production construction/selection still requires the unresolved target evidence.
+The constructor reuses the pinned Reader file and mapping checks and exact
+composer provider checks. It requires a single preload matching the adapter,
+an absent system preload file, the pinned main's lack of audit tags, and no
+other LD_* overrides or GLIBC_TUNABLES. Stable system library resolution and
+the admitted dependencies' behavior are trusted profile premises. The route
+starts dormant. Runtime selection and qualification remain separate.
 
 Focused owned controls must establish: extra-thread refusal with unchanged bytes;
 mask verification including libc-reserved RT signals; pending async signal held
@@ -205,5 +211,5 @@ Fixed-buffer directory parsing uses the kernel interface documented by
 Linux permits address-space sharing independently of group membership
 ([clone(2)](https://man7.org/linux/man-pages/man2/clone.2.html)). The candidate
 [kernel helper](https://github.com/reMarkable/linux/blob/d54fe67bf86e918468b936f97a2ec39f4f87a3d9/lib/is_single_threaded.c)
-also checks other address-space users. The reviewed startup path still needs a
-basis for ruling them out.
+also checks other address-space users. Step 4 gives the separate supported
+process-model premise.

@@ -1,9 +1,8 @@
 # Private capsule implementation and remaining admission evidence
 
-The private capsule and eager route are implemented for owned verification.
-Production StartupBuilder and its selector remain absent; installProduction
-continues returning Unsupported. Exact target admission is not fabricated from
-owned-test construction or observed numeric counts.
+The existing initial-load constructor now has a private path to prepare and
+install a dormant resident route. The source selection constant is false for
+every current build. Runtime admission requires a separate qualification.
 
 ## Initial-load source path
 
@@ -22,8 +21,8 @@ For that reviewed fresh-exec launch, initial preload is a source-supported path,
 not a timestamp/Qt-absence assertion. It does not authenticate an arbitrary late
 dlopen or an external call to installBeforeMain. A production StartupBuilder must
 remain internal to that actual constructor/Activation path, not accept a caller
-phase boolean. No new builder is enabled here. Runtime satisfaction of that
-selected launch remains separate from this source finding.
+phase boolean. The implementation uses that boundary and leaves runtime
+selection disabled.
 
 The inspected Reader path reaches `Core::install` and two calls to the pinned
 `DobbyHook`. The Dobby inline-hook sources route through allocation,
@@ -40,12 +39,9 @@ Quick/Gui/Qml/Network/Core and libc/runtime dependencies. The
 explains why dependency initializers can run before the adapter constructor.
 The source checks reject PREINIT, IRELATIVE and TEXTREL in the main image.
 They do not establish the behavior of the earlier dependency initializers
-and resolver paths. The precise remaining evidence gap is the executable's
-initial dependency closure through the constructor and Reader preparation,
-including any reachable creator of a separate task sharing the address space.
-The linked pthread entries are ordinary group-thread creators under the
-supported libc/kernel model. They do not establish the presence or absence
-of out-of-group address-space sharers.
+and resolver paths. The supported profile relies on ordinary creator behavior
+and a stable trusted loader configuration as specified in loader-admission.md.
+The linked pthread entries are ordinary group-thread creators under that model.
 
 ## Candidate kernel count mechanism and production premise
 
@@ -69,8 +65,8 @@ ordering and no out-of-group address-space sharer, a count of one and a
 non-cloning raw path establish exclusion. Two directory scans cannot supply
 those premises. The current design states the ordering as a trusted kernel
 behavioral assumption. The v1.6.2 source is candidate evidence and the shipped
-v1.6.3 binding remains unverified. Production construction still requires a
-reviewed basis for the separate initialization and address-space premise.
+v1.6.3 binding remains unverified. The separately adopted process model covers
+ordinary vfork/spawn and fatal group termination.
 
 Primary source:
 [proc producer](https://github.com/reMarkable/linux/blob/d54fe67bf86e918468b936f97a2ec39f4f87a3d9/fs/proc/array.c),
@@ -108,7 +104,7 @@ Primary source:
 ## Owned controls and residency
 
 The startup deadline increment retains the authenticated original expiry in
-Activation for the future constructor boundary. A live capture preparation
+Activation for the constructor boundary. A live capture preparation
 request obtains that absolute CLOCK_BOOTTIME value, and an expired or stale
 claim yields zero. The private raw transaction uses CLOCK_BOOTTIME and checks
 before mutation and commit. The owned fixture's synthetic budget is confined
@@ -126,8 +122,17 @@ the excluded interval. Test faults/factories are rejected by production bootstra
 preprocessing. Production kernel/launch admission is not replaceable by this
 test-only factory.
 
-Route preparation allocates before interception, retains immutable SDK state in
-objects with a deleted destructor and publishes only a pointer. There is no
+The constructor rechecks the exact main file and mappings for the whole site
+page and original target after Reader preparation. The shared builder preopens
+genuine procfs files, verifies original bytes and RX spans, prepares an A32
+veneer with bounded non-clobbering hints and snapshots mappings. An owned Linux
+child exercises a middle-page patch in a file-backed RX span and checks VMA
+restoration, permission, original-word, alignment, expiry and occupied-route
+refusals, publication, and release or retention of the veneer as appropriate.
+
+Route preparation allocates before interception and publishes only a pointer.
+The installed route is retained for process lifetime and begins dormant.
+The constructor can delete only unpublished allocations. There is no
 function-local lazy Route guard or ordinary Route exit destructor. Preparation
 pins the already loaded code with RTLD_NODELETE and retains the handle; the owned
 shared artifact also has NODELETE set. Actual native ownership remains borrowed.

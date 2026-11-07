@@ -86,8 +86,11 @@ verify effective blocked asynchronous-signal delivery, current constructor-threa
 identity and a qualified current kernel thread-group observation. The
 supported kernel SHALL count group tasks before they can run and retain the
 count until they can no longer execute userspace or create another task.
-Production admission SHALL separately establish that the initial-load path
-through preparation leaves no out-of-group task sharing the address space.
+Production admission SHALL bind a fresh exec with trusted loader policy and
+ordinary process creation. Any temporary out-of-group sharing SHALL retain
+its counted creator until the child leaves the address space, or fatal
+interruption SHALL prevent the originating group from completing admission.
+Independent uncounted sharing SHALL remain outside the supported profile.
 Old task
 counts, absence of a Qt application, repeated directory scans alone or a
 caller-set token SHALL NOT substitute for this admission. The route SHALL be
@@ -105,6 +108,10 @@ Capture installation SHALL preserve the separate endpoint session lifetime.
 
 #### Scenario: A thread or mask check is uncertain
 - **WHEN** an extra task, unsupported kernel count semantics, incomplete signal blocking or unresolved address-space sharing prevents exclusion
+- **THEN** capture installation refuses before changing the stock callsite
+
+#### Scenario: Loader policy is outside the supported profile
+- **WHEN** constructor provenance, preload selection or loader policy is outside the admitted profile
 - **THEN** capture installation refuses before changing the stock callsite
 
 #### Scenario: Startup expiry is exhausted during installation

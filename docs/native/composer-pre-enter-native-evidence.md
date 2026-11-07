@@ -32,20 +32,15 @@ independently contained/reaped/zero-member/closed host Job.
 | RM2 own-memory capsule run | Positive ARM raw-cache/task/transaction behavior for the unchanged owned binary and admitted runtime | No stock memory, actual composer or general capsule qualification |
 | Existing compiled ARM forwarding/unwind controls | Owned BL/veneer/shim register and exception route | Not newly exercised inside stock by this run |
 | Company kernel source | Candidate count/clone/exit mechanism | Exact shipped v1.6.3 source/build binding remains unverified |
-| Production constructor/installer | Existing source launch/Activation path identified | StartupBuilder and production selector remain absent; installProduction returns Unsupported |
+| Production constructor/installer | Private builder implemented in the existing startup path and exercised with owned Linux mappings | Source selection disabled; loaded stock site, loader policy and actual ARM constructor execution remain unqualified |
 | Semantic composer operations | No new claim | Submit identity, edit/currentness lease, conditional clear and focus acknowledgement remain unproved |
 
-## Next local source/contract seam
+## Constructor source seam
 
 The completed diagnostic removes the need to repeat the same owned ARM question.
-The next source seam is the private constructor-to-capsule admission path already
-specified in [loader admission](../../openspec/changes/capture-pre-enter-text-diagnostics/loader-admission.md).
-It can be reviewed and implemented locally without selecting stock activation.
-
-The current source has only a forward declaration of StartupBuilder;
-`bootstrap.cpp::initialize` claims Activation and obtains existing Facilities,
-but supplies no capture capsule. The internal constructor call after existing
-Reader installation/preparation and before queued startup must bind:
+The implemented private constructor path follows
+[loader admission](../../openspec/changes/capture-pre-enter-text-diagnostics/loader-admission.md).
+Its internal call after Reader preparation and before queued startup binds:
 
 - The claimed current Activation and reviewed fresh-exec initial-load callpath;
   a public callable, phase boolean, Qt absence or observed count alone is insufficient.
@@ -56,13 +51,9 @@ Reader installation/preparation and before queued startup must bind:
 - The original absolute deadline, one-use state, coherent publication, exact mask
   restoration and already defined rollback-or-fatal behavior.
 
-This is a finite integration obligation using existing Activation, Facilities,
-resident lifetime and private capsule boundaries. It introduces no public token,
-new owner registry or alternate late-patch mechanism. Source construction cannot
-grant missing runtime/kernel admission, enable a bootstrap selector, release a
-retained route or authorize a device action. Production and stock qualification
-remain separate open tasks, without turning them into a denial of the successful
-owned diagnostic or a prerequisite for unrelated local source work.
+The route starts dormant. Runtime selection, capture arming and target behavior
+require their own qualification. The earlier owned ARM run and the current
+owned Linux builder fixture cover different artifacts and execution paths.
 
 ## Provenance and reproduction limits
 

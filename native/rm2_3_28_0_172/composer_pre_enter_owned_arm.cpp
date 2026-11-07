@@ -103,7 +103,7 @@ int main(int argc,char **argv) {
     assert(word==pe::detail::OriginalWord);
     assert(!pe::detail::branch(pe::detail::Site,pe::detail::Site+33554440,word));
     assert(!pe::detail::branch(pe::detail::Site,pe::detail::Original+1,word));
-    assert(pe::detail::installProduction()==pe::detail::Installation::Unsupported);
+    static_assert(!pe::detail::StartupSelected);
     assert(pe::detail::pinPreparedRouteCode());
     auto startupState=std::make_shared<pe::detail::State>(composer_text::ReadRange{0,0},std::chrono::seconds(5));
     startupState->canceled.store(true);

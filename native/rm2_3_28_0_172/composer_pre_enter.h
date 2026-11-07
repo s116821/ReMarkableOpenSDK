@@ -89,21 +89,21 @@ struct State {
     }
 };
 // Prepared state is retained by never-destroyed SDK route allocations; entry
-// only loads a published pointer. Production construction/admission is still
-// unavailable. Owned tests bind only while idle, without a quiescence boolean.
+// only loads a published pointer. Owned tests bind only while idle, without a
+// quiescence boolean.
 extern "C" void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
 // Preparation only: pins the already loaded shim DSO with RTLD_NODELETE. Never
 // call from interception or the excluded patch interval. No installation proof.
 bool pinPreparedRouteCode() noexcept;
-namespace patch { class StartupBuilder; }
+namespace patch { class StartupBuilder; class ConstructorStartup; }
 class Route final {
     std::shared_ptr<State> retained_;
     explicit Route(std::shared_ptr<State> s) : retained_(std::move(s)) {}
-    ~Route()=delete; // Process-resident storage; never register exit destruction.
+    ~Route()=default; // Only unpublished allocations can be destroyed.
     static std::atomic<Route *> current_;
     static_assert(std::atomic<Route *>::is_always_lock_free);
     friend void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
-    friend class patch::StartupBuilder;
+    friend class patch::ConstructorStartup;
 #ifdef COMPOSER_PRE_ENTER_TESTING
     friend struct OwnedTestAccess;
 #endif

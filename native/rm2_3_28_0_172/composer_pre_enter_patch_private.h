@@ -1,6 +1,5 @@
 #pragma once
-// Private fixed-profile prepared patch. No production builder/selector exists.
-// Only the future reviewed startup builder may admit real target provenance.
+// Private fixed-profile patch. The constructor owns launch admission.
 #include "composer_pre_enter_arm.h"
 #include <array>
 #include <atomic>
@@ -8,10 +7,14 @@
 #include <cstdint>
 #include <csignal>
 #include <fcntl.h>
+#include <memory>
 #include <asm/unistd.h>
+#include <linux/magic.h>
 #include <sys/mman.h>
+#include <sys/vfs.h>
 #include <time.h>
 
+namespace remarkable::composer_pre_enter::detail { class Route; }
 namespace remarkable::composer_pre_enter::detail::patch {
 // Raw leaves: no libc errno, cancellation wrapper, lazy binding or allocation.
 inline long raw(long n,long x=0,long y=0,long z=0,long u=0,long v=0,long w=0) noexcept {
@@ -55,7 +58,7 @@ enum class Fault { None, Expired, BeforeWrite, AfterWrite, Cache, Protection, Ro
 #endif
 
 class Prepared final {
-    friend class StartupBuilder; // No implementation until target evidence admits it.
+    friend class StartupBuilder;
 #ifdef COMPOSER_PATCH_OWNED_TESTING
     friend struct OwnedAccess;
     Fault fault_=Fault::None;
@@ -67,6 +70,7 @@ class Prepared final {
     alignas(8) std::array<unsigned char,4096> dents_{};
     std::size_t baselineSize_=0,pageSize_=0;
     std::uintptr_t page_=0,veneer_=0,shim_=0;
+    bool ownsVeneer_=false;
     int maps_=-1,statusFd_=-1,tasks_=-1;
     std::uint32_t encoded_=0;
     std::uint64_t oldMask_=0;
@@ -74,6 +78,8 @@ class Prepared final {
     BootTime deadline_{};
     bool ready_=false,used_=false;
     std::atomic<unsigned> committed_{0}; // Local patch fact, never consumer authority.
+    Route *route_=nullptr;
+    std::atomic<Route *> *routeSlot_=nullptr;
     static_assert(std::atomic<unsigned>::is_always_lock_free);
     Prepared()=default;
     static bool same(const char *a,const char *b,std::size_t n) noexcept {
@@ -205,7 +211,7 @@ class Prepared final {
         const auto threads=threadCount();
         if(threads<1)return refuse(Outcome::Refused);
         if(threads!=1)return refuse(Outcome::ExtraThread);
-        if(!onlyTask(tid)||threadCount()!=1||!mapsMatch()||siteWord()!=OriginalWord)
+        if(!onlyTask(tid)||threadCount()!=1||!mapsMatch())
             return refuse(Outcome::Refused);
         std::uint32_t expected=0;
         if(!pageSize_||(pageSize_&(pageSize_-1))||page_!=(Site&~(pageSize_-1))||
@@ -214,7 +220,8 @@ class Prepared final {
            (reinterpret_cast<std::uintptr_t>(&cache)&~(pageSize_-1))==page_)
             return refuse(Outcome::Refused);
         if(*reinterpret_cast<volatile std::uint32_t *>(veneer_)!=VeneerLoad||
-           *reinterpret_cast<volatile std::uint32_t *>(veneer_+4)!=shim_)
+           *reinterpret_cast<volatile std::uint32_t *>(veneer_+4)!=shim_||siteWord()!=OriginalWord||
+           (routeSlot_&&routeSlot_->load(std::memory_order_acquire)))
             return refuse(Outcome::Refused);
 #ifdef COMPOSER_PATCH_OWNED_TESTING
         if(pendingSignal_&&raw(__NR_tgkill,tid,tid,pendingSignal_)!=0)fatal();
@@ -253,6 +260,7 @@ class Prepared final {
 #endif
         // The caller's prepared route must already be resident/coherent. Pending
         // handlers may run as soon as this exact mask restoration takes effect.
+        if(routeSlot_)routeSlot_->store(route_,std::memory_order_release);
         committed_.store(1,std::memory_order_release);
         if(!restoreMask())fatal();
         return Outcome::Installed;
@@ -261,9 +269,72 @@ public:
     Prepared(const Prepared &)=delete;
     Prepared &operator=(const Prepared &)=delete;
     ~Prepared() { // Outside exclusion; never restores code or destroys a route.
+        if(ownsVeneer_&&!committed_.load(std::memory_order_acquire))
+            ::munmap(reinterpret_cast<void *>(veneer_),pageSize_);
         if(maps_>=0)raw(__NR_close,maps_);
         if(statusFd_>=0)raw(__NR_close,statusFd_);
         if(tasks_>=0)raw(__NR_close,tasks_);
+    }
+};
+
+class ConstructorStartup;
+class StartupBuilder final {
+    friend class ConstructorStartup;
+#ifdef COMPOSER_PATCH_OWNED_TESTING
+    friend struct OwnedAccess;
+#endif
+    static bool procFile(int fd) noexcept {
+        struct statfs fs{};
+        return fd>=0&&::fstatfs(fd,&fs)==0&&fs.f_type==PROC_SUPER_MAGIC;
+    }
+    static std::unique_ptr<Prepared> prepare(std::size_t pageSize,std::uintptr_t shim,
+                                            std::uint64_t expiryBootMs) {
+        if(pageSize<8||(pageSize&(pageSize-1))||pageSize>65536||
+           !shim||(shim&3)||shim>UINT32_MAX||!expiryBootMs)return {};
+        auto c=std::unique_ptr<Prepared>(new Prepared);
+        c->pageSize_=pageSize;
+        c->page_=Site&~(pageSize-1);
+        c->shim_=shim;
+        c->deadline_={static_cast<std::int64_t>(expiryBootMs/1000),
+                      static_cast<std::int64_t>(expiryBootMs%1000)*1000000};
+        if(!c->inTime())return {};
+        c->maps_=::open("/proc/self/maps",O_RDONLY|O_CLOEXEC);
+        c->statusFd_=::open("/proc/self/status",O_RDONLY|O_CLOEXEC);
+        c->tasks_=::open("/proc/self/task",O_RDONLY|O_DIRECTORY|O_CLOEXEC);
+        if(!procFile(c->maps_)||!procFile(c->statusFd_)||!procFile(c->tasks_))return {};
+        if(!c->readAll(c->maps_,c->baseline_.data(),c->baseline_.size(),c->baselineSize_)||
+           !c->executable(c->page_,pageSize)||!c->executable(Original,4)||
+           !c->executable(shim,4)||siteWordChanged())return {};
+
+        // Hints never replace a live mapping. Keep only a returned, in-range page.
+        for(unsigned i=1;i<=31&&!c->ownsVeneer_;++i) {
+            const auto hint=c->page_+i*std::uintptr_t(1U<<20);
+            void *mapped=::mmap(reinterpret_cast<void *>(hint),pageSize,PROT_READ|PROT_WRITE,
+                                MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+            if(mapped==MAP_FAILED)continue;
+            const auto actual=reinterpret_cast<std::uintptr_t>(mapped);
+            if(!actual||!branch(Site,actual,c->encoded_)) {
+                ::munmap(mapped,pageSize);
+                continue;
+            }
+            c->veneer_=actual;
+            c->ownsVeneer_=true;
+        }
+        if(!c->ownsVeneer_)return {};
+        auto *words=reinterpret_cast<std::uint32_t *>(c->veneer_);
+        words[0]=VeneerLoad;
+        words[1]=static_cast<std::uint32_t>(shim);
+        if(!cache(words,8)||::mprotect(words,pageSize,PROT_READ|PROT_EXEC)||
+           !c->readAll(c->maps_,c->baseline_.data(),c->baseline_.size(),c->baselineSize_)||
+           !c->executable(c->veneer_,pageSize)||!c->inTime())return {};
+        c->ready_=true;
+        return c;
+    }
+    static bool siteWordChanged() noexcept {return Prepared::siteWord()!=OriginalWord;}
+    static Outcome install(Prepared &capsule,Route &route,std::atomic<Route *> &slot) noexcept {
+        capsule.route_=&route;
+        capsule.routeSlot_=&slot;
+        return capsule.run();
     }
 };
 } // namespace remarkable::composer_pre_enter::detail::patch

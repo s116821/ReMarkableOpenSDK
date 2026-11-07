@@ -31,7 +31,7 @@ done
 ${CXX:?} -std=c++17 -marm -Wall -Wextra -Werror -O2 -fPIC -fexceptions -frtti \
     -fno-lto -fno-gnu-unique -fvisibility=hidden -ftls-model=initial-exec \
     $probe_flag -DRSDK_PROFILE_SHA256="\"$profile\"" -I"$RSDK_DOBBY_INCLUDE" -I"$work" \
-    "$root/bootstrap.cpp" "$root/reader_insertion_guard_native_profile.cpp" "$root/qt_qml_creation_bridge.cpp" "$root/resident_mutation.cpp" \
+    "$root/bootstrap.cpp" "$root/composer_pre_enter.cpp" "$root/reader_insertion_guard_native_profile.cpp" "$root/qt_qml_creation_bridge.cpp" "$root/resident_mutation.cpp" \
     "$work"/moc_*.cpp \
     $(pkg-config --cflags --libs Qt6Core Qt6Network Qt6Qml Qt6Quick) "$RSDK_DOBBY_ARCHIVE" -ldl -pthread \
     -shared -Wl,-z,now,-z,relro,-z,nodelete,--no-undefined,--exclude-libs,ALL -o "$work/libremarkable-resident.so"
@@ -41,7 +41,7 @@ cp "$root/Dobby-LICENSE" "$work/Dobby-LICENSE"
 cp "$root/../../LICENSE" "$work/LICENSE"
 ${READELF:-readelf} -h -d "$work/libremarkable-resident.so" > "$work/elf.txt"
 sha256sum "$work/libremarkable-resident.so" "$work/profile.json" "$RSDK_DOBBY_ARCHIVE" > "$work/artifacts.sha256"
-sha256sum "$root/bootstrap.cpp" "$root/reader_insertion_guard_native_profile.cpp" "$root/qt_qml_creation_bridge.cpp" \
+sha256sum "$root/bootstrap.cpp" "$root/composer_pre_enter.cpp" "$root/reader_insertion_guard_native_profile.cpp" "$root/qt_qml_creation_bridge.cpp" \
     "$root/resident_mutation.cpp" "$root"/*.h "$root/../resident"/*.h "$manifest" "$root/build.sh" "$RSDK_DOBBY_INCLUDE/dobby.h" \
     "$work"/moc_*.cpp "$work/qt_qml_creation_bridge.moc" > "$work/inputs.sha256"
 ${CXX:?} --version > "$work/compiler.txt"

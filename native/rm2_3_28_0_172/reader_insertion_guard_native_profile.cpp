@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #endif
 #include "reader_insertion_guard_native_profile.h"
+#include "composer_pre_enter_arm.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QPointer>
@@ -149,7 +150,7 @@ public:
             }
         }need(result&&result%4==0);return result;
     }
-    void staticMainFacts()const {
+    void staticMainFacts(bool composer=false)const {
         need(header.e_type==ET_EXEC);const auto s=sections();const auto syms=symbols();
         for(const auto &v:syms.values)need(ELF32_ST_TYPE(v.st_info)!=STT_GNU_IFUNC);
         for(const auto &section:s) {
@@ -162,7 +163,10 @@ public:
         }
         for(const auto &p:ph)if(p.p_type==PT_DYNAMIC) {
             need(p.p_filesz%sizeof(Elf32_Dyn)==0&&p.p_filesz<=65536);std::vector<Elf32_Dyn> d(p.p_filesz/sizeof(Elf32_Dyn));read(p.p_offset,d.data(),p.p_filesz);
-            for(const auto &v:d)need(v.d_tag!=DT_PREINIT_ARRAY&&v.d_tag!=DT_PREINIT_ARRAYSZ&&v.d_tag!=DT_TEXTREL);
+            for(const auto &v:d) {
+                need(v.d_tag!=DT_PREINIT_ARRAY&&v.d_tag!=DT_PREINIT_ARRAYSZ&&v.d_tag!=DT_TEXTREL);
+                if(composer)need(v.d_tag!=DT_AUDIT&&v.d_tag!=DT_DEPAUDIT);
+            }
         }
     }
 };
@@ -388,6 +392,27 @@ Facilities *installBeforeMain(bool wantCondition) {
         plan.outerBytes={{0xf0,0x4f,0x2d,0xe9,0x00,0x40,0xa0,0xe1}};plan.innerBytes={{0xf0,0x4f,0x2d,0xe9,0x03,0x50,0xa0,0xe1}};
         s->core->install(plan);s->installed.store(true,std::memory_order_release);return new Facilities(s);
     }catch(...){die();}
+}
+
+bool Facilities::composerPatchSite(std::size_t pageSize) const {
+    using namespace remarkable::composer_pre_enter::detail;
+    if(pageSize<8||(pageSize&(pageSize-1))||pageSize>65536||QCoreApplication::instance()||
+       state_->ownerProcess!=::getpid()||!state_->installed.load(std::memory_order_acquire))return false;
+    const auto all=inspectMaps();
+    if(!all)return false;
+    const auto page=Site&~(pageSize-1);
+    File main("/proc/self/exe",MainHash,22046100);
+    main.staticMainFacts(true);
+    if(!cover(*all,page,pageSize,true)||!cover(*all,Original,4,true)||
+       !inLoad(state_->main,page,pageSize,true)||!inLoad(state_->main,Original,4,true)||
+       !fileRange(main,state_->main,*all,page,pageSize)||!fileRange(main,state_->main,*all,Original,4))
+        return false;
+    const auto word=pinBytes<4>(main,state_->main,*all,Site);
+    pinBytes<4>(main,state_->main,*all,Original);
+    main.stable();
+    std::uint32_t instruction=0,expected=0;
+    std::memcpy(&instruction,word.data(),sizeof instruction);
+    return branch(Site,Original,expected)&&instruction==OriginalWord&&expected==OriginalWord;
 }
 
 AttributionParts Facilities::attributionParts(QObject *worker,bool wantPostRejectProbe,bool wantCondition)const {
