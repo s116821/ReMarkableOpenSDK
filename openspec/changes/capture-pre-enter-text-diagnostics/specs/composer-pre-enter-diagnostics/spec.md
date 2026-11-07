@@ -144,3 +144,25 @@ behavior SHALL require separately selected runtime evidence.
 #### Scenario: Owned ARM controls pass
 - **WHEN** the owned caller proves forwarding and unwind behavior through the real bridge
 - **THEN** that evidence supports source/ABI acceptance while native profile/input qualification remains separate
+
+### Requirement: Build-only diagnostic selection and private arming evidence
+
+The development diagnostic SHALL be selected only by its separate immutable
+build manifest, exact compile-time digest and matching private Qt inputs.
+The ordinary default SHALL leave startup and diagnostic arming disabled.
+The development artifact SHALL leave all other mutation selections disabled
+and SHALL use the existing direct-parent activation and Endpoint checks.
+
+After the dispatcher owns the admitted Capture handle, the existing Endpoint
+SHALL attempt at most one bounded metadata-only arming record to the verified
+private child stderr. The record SHALL bind the current runtime and original
+pending operation, sequence, request digest and absolute lease deadline.
+It SHALL contain no document text, range or native data. On marker failure
+the dispatcher SHALL cancel and release its handle, and the Endpoint SHALL
+retire only the original pending request. The lifetime slot SHALL remain
+consumed. The marker SHALL remain distinct from the terminal wire
+reply and from evidence of stock input, copying or restoration.
+
+#### Scenario: The arming marker is unusable
+- **WHEN** the marker is absent, partial, stale, does not match the pending request, or cannot be checked against the original clock domain
+- **THEN** the observer SHALL withhold the physical-input step and preserve the original request outcome without replay

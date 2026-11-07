@@ -44,6 +44,9 @@
 - [x] Independently review the paired wire and lease contract before implementation.
 - [x] Implement paired Rust/C++ codecs and route the command through the existing Endpoint lease and read-only dispatcher.
 - [x] Verify exact paired vectors, disabled/refused routing, deadline and retirement, stale reply refusal and one-shot handle cleanup in owned fixtures.
+- [x] Specify the build-only diagnostic manifest, private Qt pins, arming marker and human physical-input boundary.
+- [ ] Independently review the exact diagnostic selection and arming-marker precode before implementation or build.
+- [ ] Implement and verify the local diagnostic variant and bounded marker with ordinary refusal, malformed/failed marker and no-retry controls.
 - [ ] Qualify a current runtime profile and select its admitted capture request.
 - [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.

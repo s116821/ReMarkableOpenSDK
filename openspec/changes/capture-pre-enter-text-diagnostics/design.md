@@ -96,6 +96,107 @@ An empty successful reply encodes as `00 00 00`; refusal encodes as `01`.
 Cross-check both codecs and correlation with a changed request count, including
 well-formed replies arriving after the original lease retires.
 
+## Build-only qualification artifact
+
+Reserve `RSDK_BUILD_VARIANT=development-pre-enter-diagnostic-v1` for a local
+development artifact. The eventual build case selects
+`native/rm2_3_28_0_172/development-pre-enter-diagnostic-v1.json`, adds
+`RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1=1` and
+`COMPOSER_TEXT_PRIVATE_QT`, and passes the file's SHA-256 through the existing
+`RSDK_PROFILE_SHA256` definition. The bootstrap must statically check the
+exact digest below for this build case, require the matching private Qt
+opt-in, and reject any combination with insertion, effect, repeat, selection,
+ordinary-close, fixture-reopen or fixture-test gates. The constructor and
+read-only dispatcher share the same compile-time selector. Ordinary builds
+retain the false default and existing profiles. Admission continues through
+the existing independent profile/executable/adapter digest and direct-parent
+checks. No runtime selection is added.
+
+The proposed manifest bytes are UTF-8 without BOM, LF with one final LF,
+750 bytes, SHA-256 `3aff53ec9aa52ecc0ab61e1190dae6cd2dc8e0d78055473ff78a5b5be0d0f2d9`.
+Pin LF for the new file in .gitattributes. The code block specifies the future
+file for review. It is not an admitted artifact.
+
+```json
+{
+  "schema": 1,
+  "profile": "rm2-3.28.0.172-resident-development-pre-enter-diagnostic-v1",
+  "architecture": "arm32-little-endian-hard-float",
+  "qt": "6.10.3",
+  "executable_sha256": "071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df",
+  "executable_size": 22046100,
+  "libc_sha256": "8d741a0db9727c97faebfd17e7f8409183c382241ff3d4c9b55a52e98d8dd832",
+  "qt_core_sha256": "43b0e210d64e59b534490d78c4c82cc1d2958999b0969aa0f77e11a082704e5d",
+  "dobby_archive_sha256": "622b17dc65d0dcad717d83264f783ad12044565ed8ea86f9e5088d9abf5328ef",
+  "wire_revision": 4,
+  "native_observation_page_limit": 17,
+  "mutation_enabled": false,
+  "pre_enter_diagnostic_enabled": true,
+  "qualification": "unqualified-development-pre-enter-diagnostic"
+}
+```
+
+Use the retained RM2 SDK image ID
+`sha256:416c7a7be0038156797b0892f031f352b841d1921fae83f712d0a272e4724618`.
+Require QtCore and QtGui 6.10.3 and GCC 13.4.0 hard-float ARM. The SDK environment
+SHA-256 is `d77b2e8bed5d8ce4bd953b9ae2a5397e3bd8693fc065600cf536bad5dac53606`.
+Derive the four QtCore/QtGui versioned private include paths using the existing
+owned ARM script's sysroot-aware pattern. Require
+`QtGui/6.10.3/QtGui/private/qtextdocument_p.h` SHA-256
+`8f79c3a295f83eaa674c7c77d55fb269df33631a97492d4be1a180d7be452c42`.
+Retain the existing exact Dobby archive and header checks and the ARM
+unwind/NODELETE/eager-link flags. The eventual build must retain its variant,
+exact manifest, adapter digest, compiler/link information and input hashes.
+Candidate adapter and admission hashes are absent until a separately reviewed
+build. Prior ordinary and installed Reader artifacts retain their own pins.
+
+## Private arming marker
+
+The diagnostic build adds one metadata-only line to the same supervisor-owned
+child stderr already used for bounded Endpoint diagnostics. It adds no status
+message to the wire. After `ReadOnlyBackend::submitPreEnter` stores the actual
+Capture handle and lease, it asks the existing Endpoint to emit the marker.
+The Endpoint must be on its GUI thread and require the exact current pending
+lease, pre-Enter kind, authenticated current peer and active original deadline.
+Before writing, compare stderr fd identity against a no-follow read of the
+retained admission directory's `stderr.log`. Require a matching single-link
+mode0600 regular file owned by the admitted UID. Refuse redirected, replaced
+or untrusted stderr.
+
+Use exactly this single LF-terminated ASCII record (one space between fields):
+
+```text
+RSDK_PRE_ENTER_ARMED_V1 pid=<decimal> start_ticks=<decimal> activation=<32hex> sequence=<decimal> operation=<32hex> request_sha256=<64hex> sample_ns=<decimal> deadline_ns=<decimal>
+```
+
+Runtime fields are from the admitted Endpoint, and sequence, operation and
+SHA-256 are from the same pending lease. Hex is lowercase. Decimal is
+unsigned with no leading zero except zero itself. Sample and original
+deadline are nanoseconds in the same device steady-clock epoch, with
+`sample_ns < deadline_ns`. No range, text, pointer, path, peer credential
+or other payload data. Cap the whole line at 383 bytes and format it in fixed
+storage. Use at most one write attempt per resident Endpoint lifetime. Do not
+retry a short write, interrupted write or failure. After a full write and a
+fresh active-lease check, start the existing completion timer. On failure,
+the dispatcher cancels and releases the handle. The Endpoint retires the
+connection only if that exact lease is still pending. The published one-shot
+slot stays consumed. A partial record is never a
+marker. No stderr formatting, I/O or callback in the capture shim or the raw
+installation interval. The write size is bounded. File I/O latency still
+belongs to the existing outer containment and recovery budget.
+
+The observer must independently verify the file/process/admission, full
+request binding and positive remaining time in the appropriate device clock
+domain. Ready, a transmitted request and a marker alone cannot substitute
+for these checks or prove that text was copied or Enter occurred. An absent,
+incomplete, stale or mismatched marker leaves the test without input. The
+first folio case requires a human to press physical Enter once unless an
+authorized, actually available mechanism is separately established. Main
+owns tablet coordination and any selected device operations. This preparation
+assumes no input mechanism and authorizes no synthesized or physical input.
+This supersedes the earlier local handoff's assignment of the physical
+keypress to Main.
+
 ## ARM interception and exception preservation
 Implement these production pieces, rather than testing a substitute C++ fake:
 
