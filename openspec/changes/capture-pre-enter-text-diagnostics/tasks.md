@@ -39,7 +39,8 @@
 - [x] Record the reviewed trusted-kernel group accounting assumptions and the separate shared-address-space premise.
 - [x] Adopt the trusted fresh-exec/ordinary creator model and check explicit loader policy at the private constructor boundary.
 - [x] Integrate private constructor installation with a dormant resident route and verify shared builder success/refusal in owned Linux children.
-- [ ] Qualify a current runtime profile and connect its separately admitted capture arming request.
+- [x] Connect bounded Capture preparation to one immutable resident arming slot and verify its lifetime, refusal and forwarding in the owned ARM route.
+- [ ] Qualify a current runtime profile and select its admitted capture request.
 - [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.
 

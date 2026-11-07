@@ -65,6 +65,11 @@ release or typed-slot reuse.
 
 ### Requirement: Finite historical result
 Preparation SHALL fix an original deadline and bounded range outside interception.
+Preparation SHALL refuse until the private constructor has installed the route.
+The installed route SHALL accept at most one preparation through immutable
+resident publication and retain its state for process lifetime. A losing
+preparation SHALL free only unpublished resources. Cancellation, expiry,
+consumption and handle destruction SHALL NOT reopen the resident slot.
 At most one invocation SHALL claim a preparation. Publication SHALL honor existing
 cancellation/deadline settlement and retain only copied data and scalars.
 The result SHALL NOT confer semantic Submit, consumer-owned range, page/visit,
@@ -74,6 +79,10 @@ addresses SHALL NOT be treated as cross-invocation owner/ABA authority.
 #### Scenario: Distinct repeated Enter
 - **WHEN** later stock Enter actions follow a consumed preparation
 - **THEN** each stock action continues once and the consumed capture is not replayed
+
+#### Scenario: Requests compete for one installed route
+- **WHEN** more than one valid preparation attempts to arm the same installed route
+- **THEN** at most one receives a handle and its retained state cannot be replaced
 
 #### Scenario: Consumer requires a draft lease
 - **WHEN** only the historical pre-Enter diagnostic is available

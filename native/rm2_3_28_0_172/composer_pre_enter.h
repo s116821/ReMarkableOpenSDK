@@ -3,6 +3,7 @@
 #include "composer_pre_enter_arm.h"
 
 namespace remarkable::composer_pre_enter {
+class Capture;
 namespace detail {
 // Internal native ABI view, never publicly admitted or retained after entry.
 struct StockPair { std::uintptr_t item, control; };
@@ -88,26 +89,32 @@ struct State {
         finished.store(true,std::memory_order_release);
     }
 };
-// Prepared state is retained by never-destroyed SDK route allocations; entry
-// only loads a published pointer. Owned tests bind only while idle, without a
-// quiescence boolean.
+// The installed route and its one admitted holder stay resident. Entry only
+// acquires their pointers, leaving SDK ownership bookkeeping outside the shim.
 extern "C" void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
 // Preparation only: pins the already loaded shim DSO with RTLD_NODELETE. Never
 // call from interception or the excluded patch interval. No installation proof.
 bool pinPreparedRouteCode() noexcept;
-namespace patch { class StartupBuilder; class ConstructorStartup; }
+namespace patch { class ConstructorStartup; }
 class Route final {
-    std::shared_ptr<State> retained_;
-    explicit Route(std::shared_ptr<State> s) : retained_(std::move(s)) {}
+    struct Armed { const std::shared_ptr<State> state; };
+    std::atomic<const Armed *> armed_{nullptr};
+    static_assert(decltype(armed_)::is_always_lock_free);
+    Route()=default;
     ~Route()=default; // Only unpublished allocations can be destroyed.
     static std::atomic<Route *> current_;
     static_assert(std::atomic<Route *>::is_always_lock_free);
     friend void remarkable_pre_enter_shim(void *,const StockPair *,const QString *);
+    friend class ::remarkable::composer_pre_enter::Capture;
     friend class patch::ConstructorStartup;
 #ifdef COMPOSER_PRE_ENTER_TESTING
     friend struct OwnedTestAccess;
 #endif
     static Route *current() noexcept { return current_.load(std::memory_order_acquire); }
+    State *state() const noexcept {
+        const auto *armed=armed_.load(std::memory_order_acquire);
+        return armed ? armed->state.get() : nullptr;
+    }
 };
 } // namespace detail
 
@@ -120,7 +127,8 @@ struct Snapshot {
 class Capture final {
     std::shared_ptr<detail::State> state_;
     explicit Capture(std::shared_ptr<detail::State> s) : state_(std::move(s)) {}
-    friend class detail::patch::StartupBuilder;
+    static std::unique_ptr<Capture> armRequest(composer_text::ReadRange,
+                                                std::chrono::milliseconds);
 #ifdef COMPOSER_PRE_ENTER_TESTING
     friend struct TestAccess;
 #endif
@@ -128,12 +136,10 @@ public:
     Capture(const Capture &)=delete;
     Capture &operator=(const Capture &)=delete;
     ~Capture() { cancel(); }
+    // Arms only the installed private route. A successful request consumes its
+    // one lifetime slot, even if the handle is canceled before any Enter.
     static std::unique_ptr<Capture> prepare(const composer_scene::Profile &,
-            composer_text::ReadRange range,std::chrono::milliseconds budget) {
-        if (!composer_text::detail::validRequest(range) || budget.count()<1 ||
-            budget>std::chrono::milliseconds(120000)) return {};
-        return std::unique_ptr<Capture>(new Capture(std::make_shared<detail::State>(range,budget)));
-    }
+            composer_text::ReadRange range,std::chrono::milliseconds budget);
     // Request only; no wait, unpatch, release or unload permission.
     void cancel() noexcept { state_->canceled.store(true,std::memory_order_release); }
     Snapshot snapshot() {

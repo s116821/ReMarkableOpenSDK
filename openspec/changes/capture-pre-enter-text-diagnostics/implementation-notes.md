@@ -137,3 +137,14 @@ function-local lazy Route guard or ordinary Route exit destructor. Preparation
 pins the already loaded code with RTLD_NODELETE and retains the handle; the owned
 shared artifact also has NODELETE set. Actual native ownership remains borrowed.
 Physical unhook, reclamation and unloading remain unavailable.
+
+Capture preparation fixes the bounded range and its independent deadline,
+then competes for the installed route's single atomic arming slot. The winning
+immutable holder keeps one SDK state reference for process lifetime. The shim
+acquires the holder and borrows the state without changing its reference count.
+A losing request destroys its unpublished holder and handle. Cancellation or
+destruction affects that request's result but leaves the slot occupied. Owned
+ARM controls exercise the same arming implementation through the patched shim,
+including concurrent requests and ordinary original calls while dormant or
+after consumption. The owned fixture publishes a fresh dormant route while idle
+between scenarios. Production publishes only the constructor's route.

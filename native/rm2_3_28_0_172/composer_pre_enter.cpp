@@ -1,5 +1,28 @@
 #include "composer_pre_enter.h"
 
+namespace remarkable::composer_pre_enter {
+std::unique_ptr<Capture> Capture::prepare(const composer_scene::Profile &,
+        composer_text::ReadRange range,std::chrono::milliseconds budget) {
+    return armRequest(range,budget);
+}
+
+std::unique_ptr<Capture> Capture::armRequest(composer_text::ReadRange range,
+                                             std::chrono::milliseconds budget) {
+    using detail::Route;
+    auto *route=Route::current();
+    if(!route||route->state()||!composer_text::detail::validRequest(range)||
+       budget.count()<1||budget>std::chrono::milliseconds(120000))return {};
+    auto handle=std::unique_ptr<Capture>(new Capture(std::make_shared<detail::State>(range,budget)));
+    auto *holder=new Route::Armed{handle->state_};
+    const Route::Armed *expected=nullptr;
+    if(route->armed_.compare_exchange_strong(expected,holder,std::memory_order_release,
+                                              std::memory_order_relaxed))
+        return handle; // Ownership belongs to the process-resident route now.
+    delete holder;
+    return {};
+}
+}
+
 namespace remarkable::composer_pre_enter::detail {
 std::atomic<Route *> Route::current_{nullptr};
 #if defined(__linux__)
@@ -22,7 +45,7 @@ bool pinPreparedRouteCode() noexcept {
 extern "C" __attribute__((noinline)) void remarkable_pre_enter_shim(
         void *participant,const StockPair *owner,const QString *text) {
     auto *const route=Route::current();
-    auto *const state=route ? route->retained_.get() : nullptr;
+    auto *const state=route ? route->state() : nullptr;
     const auto original=reinterpret_cast<Insert>(Original);
     const bool claimed=state && !state->claimed.exchange(true,std::memory_order_acq_rel);
     composer_text::Result candidate;

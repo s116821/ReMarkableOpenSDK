@@ -49,11 +49,14 @@ and stock-pair checks. Public callers prepare only range, finite budget and
 cancellation, then obtain copied result/refusal through bounded snapshot storage.
 No public constructor accepts Scene/item/document/native owner pointers.
 
-Prepare state outside interception. Reuse the existing claim/cancellation/
-deadline/publication discipline and resident code lifetime. One prepared capture
-can accept at most one invocation. Unarmed, consumed or nested capture passes
-stock through. Distinct later stock Enter actions must never be deduplicated by
-text/revision; another explicit preparation is a new diagnostic.
+Prepare state and its handle outside interception. Preparation may arm only an
+already installed route. One compare-and-exchange publishes an immutable
+resident holder for the prepared state. Competing preparations refuse and
+release their unpublished allocations. The installed route accepts one
+preparation for its process lifetime, and that preparation accepts at most one
+invocation. Cancellation, expiry, consumption and handle destruction never
+reopen the slot. Unarmed, consumed or nested capture passes stock through.
+Distinct later stock Enter actions continue once without capture or replay.
 
 ## ARM interception and exception preservation
 Implement these production pieces, rather than testing a substitute C++ fake:

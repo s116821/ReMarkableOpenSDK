@@ -51,7 +51,7 @@ Outcome ConstructorStartup::install(resident::Activation &activation,
        activation.captureStartupExpiryBootMs()!=expiry)return Outcome::Refused;
     // The constructor installs a dormant route. A capture request and its
     // independent observation deadline belong to a later qualified profile.
-    auto *route=new Route(std::shared_ptr<State>{});
+    auto *route=new Route;
     try {
         auto capsule=StartupBuilder::prepare(pageSize,
             reinterpret_cast<std::uintptr_t>(&remarkable_pre_enter_shim),expiry);

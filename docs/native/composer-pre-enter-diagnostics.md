@@ -1,17 +1,15 @@
 # Pre-Enter diagnostic source bridge
 
-This source increment implements the finite borrowed reader/state and an A32
-forwarding shim. Production installation returns Unsupported. There is no public
-arming endpoint or bootstrap selection; only the owned test build can bind the
-private route. This is not an activated native text capability.
+The source implements the finite borrowed reader/state, an A32 forwarding shim,
+and private constructor preparation. Current builds leave the constructor path
+unselected. The owned fixture exercises arming and forwarding on an owned ELF.
 
-`Capture::prepare` accepts an already admitted Profile, explicit bounded range
-and original budget of at most120 seconds. Cancellation requests close admission.
-Snapshots contain copied historical data, native refusal and original-return or
-exception observations; they issue no consumer lease. A consumed preparation
-does not capture another Enter. The route retains state after handle destruction;
-its state/code must remain resident through every entry. Cancellation is not
-permission to unpatch or unload. Initialize route storage before interception.
+`Capture::prepare` accepts an admitted Profile, an explicit bounded range and
+a budget of at most 120 seconds. It refuses until the route is installed. One
+request can arm the route for its process lifetime. An immutable holder retains
+the winning state after cancellation, expiry, consumption or handle destruction.
+Snapshots report copied historical data, native refusal and original-return or
+exception observations. Cancellation leaves the route and its code resident.
 
 The internal native read checks the stock pair against current Scene root/control
 before and after copying. It reuses Attachment's join and the same final text
@@ -45,28 +43,22 @@ that reference count. These objects model native layout; they are not Xochitl.
 Controls exercise pre-LF bytes, repeated stock calls after one-shot consumption,
 scope-null native nesting, Qt edit blocks, preedit, stock-pair mismatch, drift
 before recheck, capture throw, original throw, cancellation, expiry, reentry and
-contended publication. Disassembly and unwind tables are retained by the script.
+contended publication. The fixture also checks refusal before installation,
+dormant forwarding, competing requests, and published-state lifetime after
+handle destruction. The script produces disassembly and unwind tables.
 The existing text-copy script also compiles macro-free private/ordinary bridge
 translation units in its maintained host CI path and keeps its existing six
 owned document/delivery groups.
 
 ## Remaining integration
 
-The private production installer is a refusal stub. Actual executable mapping,
-original-site admission, near-veneer allocation and a safe installation interval
-are not implemented as production admission. A caller-set boolean or lack of a
-QCoreApplication cannot supply that proof. The existing private pre-main loader
-is a candidate for stronger one-thread and signal-reentry admission; actual
-profile satisfaction remains unqualified. No live stop-the-world machinery or
-physical unhook/reclaim path is introduced here.
+The implemented private constructor path still requires runtime qualification
+for loader policy, exact stock mappings, owner/thread correspondence, folio and
+OSK forwarding and composition refusal. Direct teardown settlement and
+consumer-owned range, current-visit, Submit and clear authority remain separate.
 
-Maintainer review of the private loader must precede implementation/selection of
-installation and disposable native checks for owner/thread correspondence and preserved stock behavior from folio
-and OSK, and composition refusal. Direct teardown settlement and consumer-owned
-range/current-visit/Submit/clear authority remain outside this source delivery.
-
-Route storage now uses eagerly prepared allocations whose destructor is deleted;
-entry loads only the published pointer. Unpublishing an idle test route never
+The constructor allocates the route before interception. Entry loads the
+published route and armed holder. Replacing an idle owned test route never
 destroys its retained state. Preparation pins the already loaded shim DSO with
 RTLD_NOLOAD|RTLD_NODELETE and retains that loader reference. The owned shim is also
 linked with NODELETE; its symbol control rejects lazy guards and Route exit
@@ -81,9 +73,8 @@ verifies unchanged complete mappings, exact branch bytes and RX site/original/
 veneer/shim spans, then changes only the admitted site page. Cache/protection
 failure rolls back only while exclusion remains established; unexpected code,
 lost exclusion or failed restoration terminates119. Prior-mask restoration occurs
-only after coherent code/protection state. There is no production StartupBuilder:
-only the owned test factory can currently construct a ready capsule, and no
-bootstrap selector or installation call is enabled.
+only after coherent code/protection state. The private StartupBuilder is wired
+into the existing constructor with selection disabled in current builds.
 
 composer_pre_enter_patch_test.sh runs owned Linux children with real pending
 signals, a distinct extra thread, code mismatch, injected cache/protection errors,

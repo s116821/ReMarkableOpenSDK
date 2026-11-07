@@ -16,20 +16,19 @@ namespace pe=composer_pre_enter;
 using pe::detail::StockPair;
 namespace remarkable::composer_pre_enter::detail {
 struct OwnedTestAccess {
-    static void bind(std::shared_ptr<State> s) {
-        // Preparation while the owned route is idle. No guard or exit destructor
-        // can destroy these intentionally resident allocations after publication.
-        auto *r=s ? new Route(std::move(s)) : nullptr;
-        Route::current_.store(r,std::memory_order_release);
+    static void publishDormant() {
+        // Independent owned scenarios reuse the patched callsite while idle.
+        // Production publishes one route and never replaces it.
+        Route::current_.store(new Route,std::memory_order_release);
     }
-    static State *state() { auto *r=Route::current(); return r?r->retained_.get():nullptr; }
+    static State *state() { auto *r=Route::current(); return r?r->state():nullptr; }
 };
 }
 namespace remarkable::composer_pre_enter {
 struct TestAccess {
-    static std::unique_ptr<Capture> create() {
-        return std::unique_ptr<Capture>(new Capture(std::make_shared<detail::State>(
-            composer_text::ReadRange{0,3},std::chrono::seconds(5))));
+    static std::unique_ptr<Capture> arm(composer_text::ReadRange range={0,3},
+            std::chrono::milliseconds budget=std::chrono::seconds(5)) {
+        return Capture::armRequest(range,budget);
     }
     static std::shared_ptr<detail::State> state(Capture &c) { return c.state_; }
 };
@@ -105,10 +104,11 @@ int main(int argc,char **argv) {
     assert(!pe::detail::branch(pe::detail::Site,pe::detail::Original+1,word));
     static_assert(!pe::detail::StartupSelected);
     assert(pe::detail::pinPreparedRouteCode());
-    auto startupState=std::make_shared<pe::detail::State>(composer_text::ReadRange{0,0},std::chrono::seconds(5));
-    startupState->canceled.store(true);
-    pe::detail::OwnedTestAccess::bind(startupState); // Fully prepared, disabled, resident before patch.
+    assert(!pe::TestAccess::arm()); // Uninstalled or disabled profile.
     installOwned();
+    pe::detail::OwnedTestAccess::publishDormant();
+    assert(!pe::TestAccess::arm({-1,3}));
+    assert(!pe::TestAccess::arm({0,3},std::chrono::milliseconds(0)));
     alignas(8) std::array<unsigned char,0x280> scene{};
     alignas(8) std::array<unsigned char,0x60> participant{};
     fixtureScene=scene.data();
@@ -127,12 +127,13 @@ int main(int argc,char **argv) {
     expectedParticipant=participant.data(); expectedOwner=&pair; expectedText=&lf;
     // State storage is owned and retained for all route entries. No native owner
     // or fixture callback is substituted by the production shim.
-    std::vector<std::shared_ptr<pe::detail::State>> states;
+    std::vector<std::unique_ptr<pe::Capture>> handles;
     auto prepare=[&]() -> pe::detail::State & {
         owner->doc().setPlainText(QStringLiteral("abc"));
-        states.push_back(std::make_shared<pe::detail::State>(composer_text::ReadRange{0,3},std::chrono::seconds(5)));
-        auto &state=*states.back(); pe::detail::OwnedTestAccess::bind(states.back());
-        return state;
+        pe::detail::OwnedTestAccess::publishDormant();
+        handles.push_back(pe::TestAccess::arm());
+        assert(handles.back());
+        return *pe::TestAccess::state(*handles.back());
     };
     auto call=[&]() {
         Marker marker; const auto before=calls; const auto repeated=mode==2;
@@ -144,6 +145,11 @@ int main(int argc,char **argv) {
     assert(normal.result.units[0]=='a' && owner->doc().toPlainText()==QStringLiteral("abc\n"));
     assert(calls==1 && owner.use_count()==1);
     call(); assert(calls==2 && normal.result.count==3); // consumed one-shot
+    assert(!pe::TestAccess::arm());
+    pe::detail::OwnedTestAccess::publishDormant();
+    owner->doc().setPlainText(QStringLiteral("abc"));
+    call();
+    assert(!pe::detail::OwnedTestAccess::state()&&owner->doc().toPlainText()==QStringLiteral("abc\n"));
     auto &nesting=prepare(); put(participant.data(),0x44,1); call();
     assert(nesting.result.status==composer_text::Status::Refused); put(participant.data(),0x44,0);
     auto &qtBlock=prepare(); QTextCursor block(&owner->doc()); block.beginEditBlock(); call();
@@ -166,22 +172,23 @@ int main(int argc,char **argv) {
     mode=0;
     auto &canceled=prepare(); canceled.canceled.store(true); call();
     assert(canceled.result.failure==composer_text::Failure::Canceled);
-    auto &expired=prepare();
-    // Constructor accepts an already expired internal fixture deadline; public
-    // preparation rejects invalid budgets. No wall-clock wait is needed.
-    states.push_back(std::make_shared<pe::detail::State>(composer_text::ReadRange{0,3},std::chrono::milliseconds(-1)));
-    pe::detail::OwnedTestAccess::bind(states.back()); call();
-    assert(states.back()->result.failure==composer_text::Failure::Deadline);
-    (void)expired;
+    pe::detail::OwnedTestAccess::publishDormant();
+    auto expired=pe::TestAccess::arm({0,3},std::chrono::milliseconds(1));
+    assert(expired);
+    std::this_thread::sleep_until(pe::TestAccess::state(*expired)->deadline);
+    call();
+    assert(expired->snapshot().text.failure==composer_text::Failure::Deadline);
+    assert(!pe::TestAccess::arm());
     auto &during=prepare(); mode=3; call(); mode=0;
     assert(during.result.failure==composer_text::Failure::Canceled);
     auto &nested=prepare(); mode=2; beforeCalls=calls; call();
     assert(calls==beforeCalls+2 && nested.result.status==composer_text::Status::Copied);
     assert(owner->doc().toPlainText()==QStringLiteral("abc\n\n"));
-    auto observed=pe::TestAccess::create();
+    pe::detail::OwnedTestAccess::publishDormant();
+    auto observed=pe::TestAccess::arm();
+    assert(observed);
     owner->doc().setPlainText(QStringLiteral("abc"));
     auto observedState=pe::TestAccess::state(*observed);
-    pe::detail::OwnedTestAccess::bind(observedState);
     // Publication contention is a real dropped candidate, not a blocking stock
     // call or accepted partial snapshot.
     // A mutex cannot be try_locked by its owning thread. Keep Qt/native entry
@@ -204,16 +211,38 @@ int main(int argc,char **argv) {
     auto snapshot=observed->snapshot();
     assert(snapshot.available && snapshot.finished && snapshot.originalReturned);
     assert(snapshot.text.status==composer_text::Status::Refused && !snapshot.text.count);
-    auto canceledHandle=pe::TestAccess::create();
-    pe::detail::OwnedTestAccess::bind(pe::TestAccess::state(*canceledHandle));
+    pe::detail::OwnedTestAccess::publishDormant();
+    auto canceledHandle=pe::TestAccess::arm();
+    assert(canceledHandle);
     canceledHandle->cancel(); call();
     assert(canceledHandle->snapshot().text.failure==composer_text::Failure::Canceled);
-    auto gone=pe::TestAccess::create();
+    assert(!pe::TestAccess::arm());
+    pe::detail::OwnedTestAccess::publishDormant();
+    auto gone=pe::TestAccess::arm();
+    assert(gone);
     std::weak_ptr<pe::detail::State> weak=pe::TestAccess::state(*gone);
-    pe::detail::OwnedTestAccess::bind(pe::TestAccess::state(*gone));
-    gone.reset(); assert(!weak.expired()); call(); // canceled handle, retained route
+    gone.reset(); assert(!weak.expired()&&!pe::TestAccess::arm());
+    call(); // Canceled handle, retained route.
     assert(weak.lock()->result.failure==composer_text::Failure::Canceled);
-    pe::detail::OwnedTestAccess::bind(nullptr);
-    assert(!weak.expired()); // Unpublishing does not destroy process-resident state.
+
+    pe::detail::OwnedTestAccess::publishDormant();
+    owner->doc().setPlainText(QStringLiteral("abc"));
+    std::array<std::unique_ptr<pe::Capture>,2> competing;
+    std::promise<void> start;
+    auto ready=start.get_future().share();
+    std::thread first([&]{ready.wait(); competing[0]=pe::TestAccess::arm({0,1});});
+    std::thread second([&]{ready.wait(); competing[1]=pe::TestAccess::arm({1,1});});
+    start.set_value();
+    first.join(); second.join();
+    assert(bool(competing[0])!=bool(competing[1]));
+    const auto winner=competing[0] ? 0U : 1U;
+    assert(!pe::TestAccess::arm());
+    call(); call();
+    const auto won=competing[winner]->snapshot();
+    assert(won.finished&&won.originalReturned&&won.text.count==1&&won.text.units[0]=='a'+winner);
+    assert(owner->doc().toPlainText()==QStringLiteral("abc\n\n"));
+    competing[winner].reset();
+    assert(!pe::TestAccess::arm()&&!weak.expired());
+    std::puts("owned ARM arming: dormant and uninstalled routes, competing requests, expiry, cancellation, and retained one-shot state passed");
     std::puts("owned ARM patched BL -> near veneer -> compiled shim: copy, once, refusal, cancellation, reentry and original unwind passed");
 }

@@ -51,9 +51,10 @@ Its internal call after Reader preparation and before queued startup binds:
 - The original absolute deadline, one-use state, coherent publication, exact mask
   restoration and already defined rollback-or-fatal behavior.
 
-The route starts dormant. Runtime selection, capture arming and target behavior
-require their own qualification. The earlier owned ARM run and the current
-owned Linux builder fixture cover different artifacts and execution paths.
+The route starts dormant and accepts one bounded arming request in source.
+Runtime selection and stock target behavior still require qualification. The
+earlier on-device owned capsule, the owned Linux builder and the owned ARM
+arming fixture cover different artifacts and execution paths.
 
 ## Provenance and reproduction limits
 
