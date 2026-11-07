@@ -200,6 +200,9 @@ impl SelectAdjacent {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
+    /// One historical focus classification from the joined Reader.
+    #[cfg(feature = "development-native-reader-focus")]
+    ObserveReaderFocus,
     #[cfg(feature = "development-native-pre-enter")]
     CapturePreEnter {
         offset: u32,
@@ -247,8 +250,23 @@ pub enum Rejection {
     Capacity,
 }
 
+/// Development diagnostic classification from one synchronous Reader sample.
+#[cfg(feature = "development-native-reader-focus")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ReaderFocus {
+    Refused = 0,
+    NoLeaf = 1,
+    ExactScene = 2,
+    InsideScene = 3,
+    ScopeOnly = 4,
+    OutsideScope = 5,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reply {
+    #[cfg(feature = "development-native-reader-focus")]
+    ReaderFocus(ReaderFocus),
     /// Exact UTF-16 units from a historical diagnostic, or terminal refusal.
     #[cfg(feature = "development-native-pre-enter")]
     PreEnterText(Option<Vec<u16>>),
@@ -439,6 +457,13 @@ impl Frame {
             Message::Request(command) => {
                 w.u8(2);
                 match command {
+                    #[cfg(feature = "development-native-reader-focus")]
+                    Command::ObserveReaderFocus => {
+                        if revision != 4 {
+                            return Err(ProtocolError::UnsupportedVersion);
+                        }
+                        w.u8(11);
+                    }
                     #[cfg(feature = "development-native-pre-enter")]
                     Command::CapturePreEnter { offset, count } => {
                         if revision != 4 {
@@ -517,6 +542,14 @@ impl Frame {
                 w.u8(3);
                 w.0.extend(request_sha256);
                 match reply {
+                    #[cfg(feature = "development-native-reader-focus")]
+                    Reply::ReaderFocus(leaf) => {
+                        if revision != 4 {
+                            return Err(ProtocolError::UnsupportedVersion);
+                        }
+                        w.u8(13);
+                        w.u8(*leaf as u8);
+                    }
                     #[cfg(feature = "development-native-pre-enter")]
                     Reply::PreEnterText(text) => {
                         if revision != 4 {
@@ -687,6 +720,8 @@ impl Frame {
             0 => Message::Hello,
             1 => Message::Ready,
             2 => Message::Request(match r.u8()? {
+                #[cfg(feature = "development-native-reader-focus")]
+                11 if revision == 4 => Command::ObserveReaderFocus,
                 #[cfg(feature = "development-native-pre-enter")]
                 10 if revision == 4 => {
                     let (offset, count) = (r.u32()?, r.u16()?);
@@ -742,6 +777,16 @@ impl Frame {
             3 => {
                 let request_sha256 = r.take()?;
                 let reply = match r.u8()? {
+                    #[cfg(feature = "development-native-reader-focus")]
+                    13 if revision == 4 => Reply::ReaderFocus(match r.u8()? {
+                        0 => ReaderFocus::Refused,
+                        1 => ReaderFocus::NoLeaf,
+                        2 => ReaderFocus::ExactScene,
+                        3 => ReaderFocus::InsideScene,
+                        4 => ReaderFocus::ScopeOnly,
+                        5 => ReaderFocus::OutsideScope,
+                        _ => return Err(ProtocolError::Malformed),
+                    }),
                     #[cfg(feature = "development-native-pre-enter")]
                     12 if revision == 4 => Reply::PreEnterText(match r.u8()? {
                         0 => {
@@ -1149,6 +1194,14 @@ impl Session {
             unreachable!()
         };
         let valid = match (command, reply) {
+            #[cfg(feature = "development-native-reader-focus")]
+            (
+                Command::ObserveReaderFocus,
+                Reply::ReaderFocus(_)
+                | Reply::Rejected(Rejection::Unsupported | Rejection::UnknownIdentity),
+            ) => true,
+            #[cfg(feature = "development-native-reader-focus")]
+            (Command::ObserveReaderFocus, _) => false,
             #[cfg(feature = "development-native-pre-enter")]
             (Command::CapturePreEnter { count, .. }, Reply::PreEnterText(Some(units))) => {
                 units.len() == usize::from(*count)

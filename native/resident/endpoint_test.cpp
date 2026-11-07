@@ -118,6 +118,51 @@ static void preEnterMarkers(const Frame &hello,const Frame &observe) {
     }
     std::puts("PASS: pre-Enter marker identity/deadline, private stderr, expiry/retirement and one write attempt");
 }
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+static void readerFocusReceipts(const Frame &hello,const Frame &observe,const Frame &facts) {
+    QTemporaryDir directory;need(directory.isValid());
+    auto c=config(directory.path());c.operationBudgetMs=200;
+    Endpoint::Lease pending;
+    Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+    need(server.start());
+    const auto submit=[&](QLocalSocket &peer,const Frame &ready,quint64 sequence) {
+        pending.reset();
+        auto focus=request(observe,ready,sequence);
+        focus.kind=ReaderFocusRequest;
+        need(peer.write(encode(focus))>0&&until([&]{return bool(pending);}));
+        return focus;
+    };
+    Frame answer;answer.kind=ReaderFocusReply;answer.readerFocus=ReaderFocus::InsideScene;
+    QLocalSocket peer;const auto ready=handshake(peer,c,hello);
+    const auto focus=submit(peer,ready,1);
+    need(server.finish(pending,answer));
+    const auto result=receive(peer);
+    need(result&&result->kind==ReaderFocusReply&&result->readerFocus==answer.readerFocus&&
+         result->requestDigest==fingerprint(focus));
+
+    submit(peer,ready,2);
+    const auto expired=pending;
+    std::this_thread::sleep_until(expired->deadline());
+    need(!expired->active()&&!expired->retirement()->load());
+    need(!server.finish(expired,answer)&&!receive(peer));
+    need(expired->retirement()->load());
+
+    QLocalSocket next;const auto nextReady=handshake(next,c,hello);
+    submit(next,nextReady,1);
+    const auto canceled=pending;
+    next.abort();need(until([&]{return canceled->retirement()->load();}));
+    QLocalSocket successor;const auto successorReady=handshake(successor,c,hello);
+    submit(successor,successorReady,1);
+    need(!server.finish(expired,answer)&&!server.finish(canceled,answer));
+    need(!server.finish(pending,facts)&&!receive(successor));
+
+    QLocalSocket ordinary;const auto ordinaryReady=handshake(ordinary,c,hello);
+    pending.reset();
+    need(ordinary.write(encode(request(observe,ordinaryReady,1)))>0&&until([&]{return bool(pending);}));
+    need(!server.finish(pending,answer)&&!receive(ordinary));
+    std::puts("PASS: reader focus reply correlation, cancellation and original endpoint deadline");
+}
+#endif
 int main(int argc,char **argv) {
     QCoreApplication app(argc,argv);
     if(argc==4&&QByteArray(argv[1])=="--rust-server") {
@@ -157,6 +202,9 @@ int main(int argc,char **argv) {
     need(argc==2);const QString vectors=QString::fromLocal8Bit(argv[1]);
     const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,7);
     preEnterMarkers(hello,observe);
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+    readerFocusReceipts(hello,observe,facts);
+#endif
     {
         QTemporaryDir directory;auto c=config(directory.path());c.operationBudgetMs=500;
         Endpoint::Lease pending;

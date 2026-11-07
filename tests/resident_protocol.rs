@@ -158,6 +158,113 @@ fn every_fragment_boundary_and_coalesced_frames() {
     );
 }
 
+#[cfg(feature = "development-native-reader-focus")]
+#[test]
+fn reader_focus_wire_and_correlation() {
+    let mut client = session();
+    let request = client
+        .begin(OperationId(id(34)), Command::ObserveReaderFocus)
+        .unwrap();
+    let encoded = request.encode().unwrap();
+    assert_eq!(encoded.len(), 208);
+    assert_eq!(encoded[207], 11);
+    assert_eq!(Frame::decode(&encoded[4..]).unwrap(), request);
+    assert!(!Command::ObserveReaderFocus.is_effectful());
+    assert!(Frame::decode(&[&encoded[4..], &[0]].concat()).is_err());
+
+    let leaves = [
+        ReaderFocus::Refused,
+        ReaderFocus::NoLeaf,
+        ReaderFocus::ExactScene,
+        ReaderFocus::InsideScene,
+        ReaderFocus::ScopeOnly,
+        ReaderFocus::OutsideScope,
+    ];
+    for (code, leaf) in leaves.into_iter().enumerate() {
+        let answer = response(&request, Reply::ReaderFocus(leaf));
+        let bytes = answer.encode().unwrap();
+        assert_eq!(bytes.len(), 241);
+        assert_eq!(&bytes[239..], &[13, code as u8]);
+        assert_eq!(Frame::decode(&bytes[4..]).unwrap(), answer);
+    }
+    let receipt = Reply::ReaderFocus(ReaderFocus::InsideScene);
+    let answer = response(&request, receipt.clone());
+    let mut payload = answer.encode().unwrap().split_off(4);
+    payload[236] = 6;
+    assert!(Frame::decode(&payload).is_err());
+    payload.pop();
+    assert!(Frame::decode(&payload).is_err());
+    payload.extend([3, 0]);
+    assert!(Frame::decode(&payload).is_err());
+
+    for wrong in [
+        Reply::Observed(facts()),
+        Reply::Rejected(Rejection::Capacity),
+        Reply::Rejected(Rejection::BeforeDispatch),
+        Reply::Rejected(Rejection::ExecutorBeforeMutation),
+        Reply::Indeterminate,
+    ] {
+        assert_eq!(
+            client.complete(&response(&request, wrong)),
+            Err(ProtocolError::WrongResponse)
+        );
+    }
+    let mut stale = answer.clone();
+    stale.scope.server_nonce = Some(id(25));
+    assert_eq!(client.complete(&stale), Err(ProtocolError::WrongScope));
+    let Message::Response { request_sha256, .. } = &mut stale.message else {
+        unreachable!()
+    };
+    request_sha256[0] ^= 1;
+    stale.scope = answer.scope.clone();
+    assert_eq!(client.complete(&stale), Err(ProtocolError::WrongResponse));
+    assert_eq!(client.complete(&answer).unwrap(), receipt);
+
+    let ordinary = client.begin(OperationId(id(35)), Command::Observe).unwrap();
+    assert_eq!(
+        client.complete(&response(&ordinary, receipt)),
+        Err(ProtocolError::WrongResponse)
+    );
+    assert_eq!(
+        client.complete(&response(&ordinary, Reply::Observed(facts()))),
+        Ok(Reply::Observed(facts()))
+    );
+    for reason in [Rejection::Unsupported, Rejection::UnknownIdentity] {
+        let next = client
+            .begin(OperationId(id(36)), Command::ObserveReaderFocus)
+            .unwrap();
+        let reply = Reply::Rejected(reason);
+        assert_eq!(client.complete(&response(&next, reply.clone())), Ok(reply));
+    }
+    let next = client
+        .begin(OperationId(id(37)), Command::ObserveReaderFocus)
+        .unwrap();
+    assert_eq!(client.close(), LostRequest::NoPendingMutation);
+    assert_eq!(
+        client.complete(&response(
+            &next,
+            Reply::ReaderFocus(ReaderFocus::ExactScene)
+        )),
+        Err(ProtocolError::Closed)
+    );
+}
+
+#[cfg(not(feature = "development-native-reader-focus"))]
+#[test]
+fn ordinary_rust_decoder_refuses_reader_focus_kinds() {
+    let request = session()
+        .begin(OperationId(id(34)), Command::Observe)
+        .unwrap();
+    let mut bytes = request.encode().unwrap();
+    bytes[207] = 11;
+    assert!(Frame::decode(&bytes[4..]).is_err());
+    let mut bytes = response(&request, Reply::Rejected(Rejection::Unsupported))
+        .encode()
+        .unwrap();
+    bytes[239] = 13;
+    assert!(Frame::decode(&bytes[4..]).is_err());
+}
+
 #[test]
 fn every_truncation_fails_decode_and_eof_never_completes() {
     let frame = session()

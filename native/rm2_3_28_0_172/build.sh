@@ -20,6 +20,7 @@ set --
 case "$variant" in
     observation) manifest="$root/profile.json"; probe_flag= ;;
     observation-endpoint-diagnostics-v1) manifest="$root/profile.json"; probe_flag=-DRSDK_ENDPOINT_DIAGNOSTICS_V1=1 ;;
+    development-reader-focus-v1) manifest="$root/development-reader-focus-v1.json"; probe_flag=-DRSDK_DEVELOPMENT_READER_FOCUS_V1=1 ;;
     installed-reader-insert-v1) manifest="$root/installed-reader-insert-v1.json"; probe_flag=-DRSDK_INSTALLED_READER_INSERT_V1=1 ;;
     development-effect-repeat-insert-v1) manifest="$root/development-effect-repeat-insert-v1.json"; probe_flag="-DRSDK_DEVELOPMENT_EFFECT_PROBE_V1=1 -DRSDK_DEVELOPMENT_REPEAT_INSERT_V1=1 -DRSDK_ENDPOINT_DIAGNOSTICS_V1=1" ;;
     development-effect-write-reopen-v1) manifest="$root/development-effect-write-reopen-v1.json"; probe_flag="-DRSDK_DEVELOPMENT_EFFECT_PROBE_V1=1 -DRSDK_DEVELOPMENT_ORDINARY_CLOSE_V1=1 -DRSDK_DEVELOPMENT_FIXTURE_REOPEN_V1=1 -DRSDK_ENDPOINT_DIAGNOSTICS_V1=1" ;;

@@ -79,5 +79,33 @@ int main(int argc,char **argv) {
     for(const char *suffix:{"02","001001","00000100","0100"})
         need(!decode(textBytes.mid(4,236)+QByteArray::fromHex(suffix)));
     textRequest.textRange={0xffffffffU,1};need(encode(textRequest).isEmpty());
+    if(QFile::exists(root+"/reader-focus-request.bin")) {
+        const auto requestBytes=read(root+"/reader-focus-request.bin");
+        const auto replyBytes=read(root+"/reader-focus-reply.bin");
+        const auto focusRequest=decode(requestBytes.mid(4));
+        const auto focusReply=decode(replyBytes.mid(4));
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+        need(requestBytes.size()==208&&requestBytes.mid(207)==QByteArray::fromHex("0b"));
+        need(replyBytes.size()==241&&replyBytes.mid(239)==QByteArray::fromHex("0d03"));
+        need(focusRequest&&focusReply&&validReaderFocusReply(*focusRequest,*focusReply));
+        need(encode(*focusRequest)==requestBytes&&encode(*focusReply)==replyBytes);
+        need(fingerprint(*focusRequest)==read(root+"/reader-focus-request.sha256"));
+        need(fingerprint(*focusReply)==read(root+"/reader-focus-reply.sha256"));
+        need(focusReply->requestDigest==fingerprint(*focusRequest));
+        auto changed=*focusReply;
+        for(int value=0;value<=5;++value) {
+            changed.readerFocus=ReaderFocus(value);
+            const auto roundTrip=decode(encode(changed).mid(4));
+            need(roundTrip&&roundTrip->readerFocus==changed.readerFocus);
+        }
+        need(!decode(requestBytes.mid(4)+'x')&&!decode(replyBytes.mid(4)+'x'));
+        need(!decode(replyBytes.mid(4,236))&&!decode(replyBytes.mid(4,236)+char(6)));
+        need(!validReaderFocusReply(textRequest,*focusReply));
+        need(!validReaderFocusReply(*focusRequest,textReply));
+#else
+        need(!focusRequest&&!focusReply);
+#endif
+        std::puts("PASS: reader focus Rust/Qt framing and feature gate");
+    }
     std::printf("PASS: %d Rust/Qt vectors, %u checks\n",QFile::exists(root+"/23.bin")?28:23,checks);
 }
