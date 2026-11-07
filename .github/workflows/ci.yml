@@ -126,6 +126,7 @@ jobs:
           RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-endpoint" sh native/resident/endpoint_test.sh
           RESIDENT_READER_FOCUS_TEST=1 RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-focus-wire" sh native/resident/wire_test.sh
           RESIDENT_READER_FOCUS_TEST=1 RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-focus-endpoint" sh native/resident/endpoint_test.sh
+          READER_FOCUS_TEST_OUTPUT="$RUNNER_TEMP/reader-focus" sh native/rm2_3_28_0_172/reader_focus_test.sh
           ACTIVATION_TEST_OUTPUT="$RUNNER_TEMP/resident-activation" ACTIVATION_TEST_SANITIZERS=1 sh native/resident/activation_test.sh
           LOADED_ARTIFACT_TEST_OUTPUT="$RUNNER_TEMP/resident-artifact" sh native/resident/loaded_artifact_test.sh
           COMPOSER_OBSERVER_OUTPUT="$RUNNER_TEMP/composer-observer" COMPOSER_OBSERVER_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_document_observer_test.sh
