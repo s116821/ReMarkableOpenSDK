@@ -1,10 +1,19 @@
+#define RSDK_PRE_ENTER_MARKER_TESTING 1
 #include "endpoint.h"
 #include <QElapsedTimer>
 #include <QTemporaryDir>
 #include <QProcess>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
 using namespace remarkable::resident;
+namespace remarkable::resident {
+struct PreEnterMarkerTestAccess {
+    static void writer(Endpoint &endpoint,ssize_t (*fn)(int,const void *,std::size_t)) {
+        endpoint.preEnterWrite_=fn;
+    }
+};
+}
 static unsigned checks=0;
 static void need(bool value){++checks;if(!value){std::fprintf(stderr,"endpoint check %u failed\n",checks);std::abort();}}
 template<class F>static bool until(F predicate,int budget=1500) {
@@ -38,6 +47,76 @@ static Frame handshake(QLocalSocket &socket,const EndpointConfig &c,Frame hello)
 }
 static Frame request(Frame value,const Frame &ready,quint64 sequence) {
     value.runtime=ready.runtime;value.client=ready.client;value.server=ready.server;value.sequence=sequence;return value;
+}
+enum class MarkerCase { Success, WrongMode, Replaced, Short, Interrupted, Error, Expired, Retired };
+static MarkerCase markerCase;
+static unsigned markerWrites=0;
+static ssize_t markerWrite(int fd,const void *data,std::size_t size) {
+    ++markerWrites;
+    if(markerCase==MarkerCase::Short)return ::write(fd,data,size/2);
+    if(markerCase==MarkerCase::Interrupted){errno=EINTR;return -1;}
+    if(markerCase==MarkerCase::Error){errno=EIO;return -1;}
+    return ::write(fd,data,size);
+}
+static void preEnterMarkers(const Frame &hello,const Frame &observe) {
+    for(auto mode:{MarkerCase::Success,MarkerCase::WrongMode,MarkerCase::Replaced,MarkerCase::Short,
+                   MarkerCase::Interrupted,MarkerCase::Error,MarkerCase::Expired,MarkerCase::Retired}) {
+        markerCase=mode;markerWrites=0;
+        QTemporaryDir directory;need(directory.isValid());
+        auto c=config(directory.path());c.operationBudgetMs=500;
+        Endpoint::Lease pending;
+        Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+        PreEnterMarkerTestAccess::writer(server,markerWrite);
+        need(server.start());
+        QLocalSocket peer;auto ready=handshake(peer,c,hello);
+        auto text=request(observe,ready,1);text.kind=PreEnterRequest;text.textRange={2,3};
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        const auto lease=pending;
+        if(mode==MarkerCase::Retired) {
+            peer.abort();need(until([&]{return lease->retirement()->load();}));
+        }else if(mode==MarkerCase::Expired) {
+            std::this_thread::sleep_until(lease->deadline());
+            need(!lease->active()&&!lease->retirement()->load());
+        }
+        const auto path=QFile::encodeName(c.directory+"/stderr.log");
+        const int output=::open(path.constData(),O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,0600);
+        need(output>=0);
+        if(mode==MarkerCase::WrongMode)need(::fchmod(output,0644)==0);
+        if(mode==MarkerCase::Replaced) {
+            const auto moved=path+".old";need(::rename(path.constData(),moved.constData())==0);
+            const int replacement=::open(path.constData(),O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,0600);
+            need(replacement>=0&&::close(replacement)==0);
+        }
+        const int saved=::dup(STDERR_FILENO);need(saved>=0&&::dup2(output,STDERR_FILENO)==STDERR_FILENO);
+        const auto marked=server.notePreEnterArmed(lease);
+        const auto liveAfterMarker=lease->active();
+        const auto repeated=server.notePreEnterArmed(lease);
+        const auto restored=::dup2(saved,STDERR_FILENO);
+        need(restored==STDERR_FILENO&&::close(saved)==0);
+        need(marked==(mode==MarkerCase::Success)&&liveAfterMarker==marked&&
+             !repeated&&!lease->active()&&lease->retirement()->load());
+        const bool attempted=mode==MarkerCase::Success||mode==MarkerCase::Short||
+                             mode==MarkerCase::Interrupted||mode==MarkerCase::Error;
+        need(markerWrites==unsigned(attempted));
+        char bytes[384];
+        const auto size=::pread(output,bytes,sizeof bytes,0);need(size>=0&&::close(output)==0);
+        if(mode==MarkerCase::Success) {
+            const auto prefix=QByteArray("RSDK_PRE_ENTER_ARMED_V1 pid=")+QByteArray::number(::getpid())+
+                " start_ticks="+QByteArray::number(c.peerStart)+" activation="+text.runtime.mid(124,16).toHex()+
+                " sequence=1 operation="+text.operation.toHex()+" request_sha256="+fingerprint(text).toHex()+
+                " sample_ns=";
+            const QByteArray line(bytes,size);
+            need(size<=383&&line.startsWith(prefix)&&line.endsWith('\n')&&line.count('\n')==1);
+            const auto deadline=std::chrono::duration_cast<std::chrono::nanoseconds>(
+                lease->deadline().time_since_epoch()).count();
+            const auto suffix=QByteArray(" deadline_ns=")+QByteArray::number(qlonglong(deadline))+'\n';
+            need(line.endsWith(suffix));
+            bool ok=false;const auto sample=line.mid(prefix.size(),line.size()-prefix.size()-suffix.size()).toULongLong(&ok);
+            need(ok&&sample<qulonglong(deadline));
+        }else if(mode==MarkerCase::Short)need(size>0&&bytes[size-1]!='\n');
+        else need(size==0);
+    }
+    std::puts("PASS: pre-Enter marker identity/deadline, private stderr, expiry/retirement and one write attempt");
 }
 int main(int argc,char **argv) {
     QCoreApplication app(argc,argv);
@@ -77,6 +156,7 @@ int main(int argc,char **argv) {
     }
     need(argc==2);const QString vectors=QString::fromLocal8Bit(argv[1]);
     const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,7);
+    preEnterMarkers(hello,observe);
     {
         QTemporaryDir directory;auto c=config(directory.path());c.operationBudgetMs=500;
         Endpoint::Lease pending;

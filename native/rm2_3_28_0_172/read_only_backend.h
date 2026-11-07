@@ -81,6 +81,11 @@ class ReadOnlyBackend final:public QObject {
             if(!capture){reject(occupied?4:0);return;}
             preEnterLease_=std::move(lease);
             preEnterCapture_=std::move(capture);
+#ifdef RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1
+            try {
+                if(!endpoint_->notePreEnterArmed(preEnterLease_)){clearPreEnter();return;}
+            }catch(...){clearPreEnter();throw;}
+#endif
             preEnterTimer_.start(20);
         }
     }

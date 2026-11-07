@@ -2,7 +2,7 @@
 #if defined(READER_SELECTED_TESTING) || defined(READER_WORKER_NATIVE_TESTING) || defined(READER_RESIDENT_TESTING) || defined(RESIDENT_WORKER_SLOT_TESTING) || defined(READER_INSERTION_LIFECYCLE_TESTING) || defined(READER_INSERTION_GUARD_ENTRY_TESTING) || defined(RESIDENT_MUTATION_TESTING) || defined(RESIDENT_MUTATION_BACKEND_TESTING) || defined(RESIDENT_SELECTION_TESTING) || defined(READER_IDENTITY_CAPTURE_TESTING) || defined(VISUAL_CAPTURE_TESTING)
 #error Fixture hooks must not enter the native artifact.
 #endif
-#if defined(COMPOSER_PRE_ENTER_TESTING) || defined(COMPOSER_PATCH_OWNED_TESTING)
+#if defined(COMPOSER_PRE_ENTER_TESTING) || defined(COMPOSER_PATCH_OWNED_TESTING) || defined(RSDK_PRE_ENTER_MARKER_TESTING)
 #error Fixture hooks must not enter the native artifact.
 #endif
 #ifndef RSDK_PROFILE_SHA256
@@ -19,6 +19,13 @@
 #include <cstdlib>
 #include <cerrno>
 #include <sys/stat.h>
+
+#ifdef RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1
+#if !defined(__arm__) || defined(__thumb__) || !defined(__ARM_PCS_VFP) || __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#error Pre-Enter diagnostic requires little-endian hard-float A32.
+#endif
+static_assert(QT_VERSION==QT_VERSION_CHECK(6,10,3),"Incorrect pre-Enter diagnostic Qt version");
+#endif
 
 namespace remarkable::composer_pre_enter::detail::patch {
 // This type is defined only at the authenticated constructor callsite.

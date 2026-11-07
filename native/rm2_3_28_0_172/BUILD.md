@@ -159,6 +159,21 @@ versus accepted-peer Hello timeout or another explicit retirement. The prior
 mutation-disabled observation library and development-effect artifact stay pinned
 separately; a rebuilt diagnostics library needs its own exact digest admission.
 
+## Development pre-Enter diagnostic build
+
+`RSDK_BUILD_VARIANT=development-pre-enter-diagnostic-v1` is a separate build-only
+artifact. The exact manifest digest selects the private constructor and
+read-only request path with pinned Qt 6.10.3 private inputs. Ordinary builds
+leave startup selection false. Other mutation and test gates cannot be combined
+with this variant. Build output includes its manifest, exact input checksums
+and ARM unwind table.
+
+After an admitted handle is stored, the diagnostic Endpoint can emit one
+metadata-only arming record to the original private child stderr. A failure
+retires the original lease and leaves the capture slot consumed. This record
+is independent of the historical text reply. The build script does not transfer
+the artifact, select activation or perform any tablet action.
+
 The subsequent disconnected-idle-peer fix preserves this trace variant/profile.
 It admits a replacement only after authenticated new-peer checks and existing
 retirement of an already unconnected, decoder-idle, nonpending old transport.
