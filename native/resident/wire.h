@@ -15,6 +15,26 @@ constexpr qsizetype MaxFrame = 65536;
 constexpr qsizetype MaxCapturePng = 1048576, MaxCaptureFrame = MaxCapturePng + MaxFrame;
 constexpr std::size_t MaxPages = 2048;
 constexpr quint8 PreEnterRequest=10,PreEnterReply=12;
+constexpr quint8 ReaderFocusRequest=11,ReaderFocusReply=13;
+inline constexpr bool isReaderFocusRequest([[maybe_unused]] quint8 kind) {
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+    return kind==ReaderFocusRequest;
+#else
+    return false;
+#endif
+}
+inline constexpr bool isReaderFocusReply([[maybe_unused]] quint8 kind) {
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+    return kind==ReaderFocusReply;
+#else
+    return false;
+#endif
+}
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+enum class ReaderFocus : quint8 {
+    Refused=0, NoLeaf=1, ExactScene=2, InsideScene=3, ScopeOnly=4, OutsideScope=5
+};
+#endif
 constexpr quint16 MaxPreEnterUnits=4096;
 struct TextRange {quint32 offset=0;quint16 count=0;};
 inline bool validTextRange(TextRange range) {
@@ -45,6 +65,9 @@ struct Frame {
     Capture capture;
     TextRange textRange;
     std::optional<std::vector<quint16>> text; // Empty optional is a terminal refusal.
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+    ReaderFocus readerFocus=ReaderFocus::Refused;
+#endif
     Id target;
     bool targetPresent=false;
     unsigned char rejection=0;
@@ -54,6 +77,12 @@ inline bool validPreEnterReply(const Frame &request,const Frame &reply) {
     if(reply.kind==3)return reply.rejection==0||reply.rejection==4;
     return reply.kind==PreEnterReply&&(!reply.text||reply.text->size()==request.textRange.count);
 }
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+inline bool validReaderFocusReply(const Frame &request,const Frame &reply) {
+    if(request.kind!=ReaderFocusRequest)return reply.kind!=ReaderFocusReply;
+    return reply.kind==ReaderFocusReply||(reply.kind==3&&(reply.rejection==0||reply.rejection==3));
+}
+#endif
 inline bool validFacts(const Facts &facts) {
     if(!validId(facts.document)||!validId(facts.page)||facts.order.empty()||facts.order.size()>MaxPages)return false;
     QSet<Id> seen;
@@ -141,23 +170,23 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
         f.kind=r.number<quint8>();
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
-        if(f.kind>9&&f.kind!=PreEnterRequest)return {};
+        if(f.kind>9&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))return {};
         if(f.kind==9){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
         else
 #else
-        if(f.kind>8&&f.kind!=PreEnterRequest)return {};
+        if(f.kind>8&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))return {};
 #endif
         if(f.kind==7){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
         else if(f.kind==8){}
         else
 #else
-        if(f.kind>6&&f.kind!=PreEnterRequest)return {};
+        if(f.kind>6&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))return {};
 #endif
         if(f.kind==PreEnterRequest) {
             f.textRange={r.number<quint32>(),r.number<quint16>()};
             if(!validTextRange(f.textRange))return {};
         }else if(f.kind==5) {f.facts=r.facts();if(f.facts.order.size()>17)return {};}
-        else if(f.kind&&f.kind!=6) {
+        else if(f.kind&&f.kind!=6&&!isReaderFocusRequest(f.kind)) {
             f.facts=r.facts();f.target=r.id();
             if(f.kind<=2){for(const auto &id:f.facts.order)if(id==f.target)return {};}
             else if(!validSelection(f.facts,f.target))return {};
@@ -167,12 +196,19 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
         f.requestDigest=r.take(32);f.kind=r.number<quint8>();
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
-        if(f.kind>11&&f.kind!=PreEnterReply)return {};
+        if(f.kind>11&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind))return {};
 #else
-        if(f.kind>10&&f.kind!=PreEnterReply)return {};
+        if(f.kind>10&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind))return {};
 #endif
 #else
-        if(f.kind>8&&f.kind!=PreEnterReply)return {};
+        if(f.kind>8&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind))return {};
+#endif
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+        if(f.kind==ReaderFocusReply) {
+            const auto value=r.number<quint8>();
+            if(value>quint8(ReaderFocus::OutsideScope))return {};
+            f.readerFocus=ReaderFocus(value);
+        }else
 #endif
         if(f.kind==PreEnterReply) {
             const auto status=r.number<quint8>();
@@ -206,7 +242,8 @@ inline QByteArray encode(const Frame &f) {
     if(f.runtime.size()!=140||f.client.size()!=16||f.server.size()!=16||f.operation.size()!=16||
        f.facts.order.size()>MaxPages||f.capture.png.size()>MaxCapturePng||
        (f.text&&f.text->size()>MaxPreEnterUnits))return {};
-    if((f.message==2&&f.kind&&f.kind!=6&&f.kind!=8&&f.kind!=PreEnterRequest)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
+    if((f.message==2&&f.kind&&f.kind!=6&&f.kind!=8&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))||
+       (f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
         if(!validFacts(f.facts))return {};
     }
     if(((f.message==2&&f.kind&&f.kind<5)||(f.message==3&&f.kind==1))&&!validId(f.target))return {};
@@ -219,10 +256,14 @@ inline QByteArray encode(const Frame &f) {
         if(f.kind==PreEnterRequest) {
             if(!validTextRange(f.textRange))return {};
             w.number<quint32>(f.textRange.offset);w.number<quint16>(f.textRange.count);
-        }else if(f.kind&&f.kind!=6&&f.kind!=8){w.facts(f.facts);if(f.kind!=5&&f.kind!=7&&f.kind!=9)w.bytes+=f.target;}
+        }else if(f.kind&&f.kind!=6&&f.kind!=8&&!isReaderFocusRequest(f.kind)){w.facts(f.facts);if(f.kind!=5&&f.kind!=7&&f.kind!=9)w.bytes+=f.target;}
     } else if(f.message==3) {
         if(f.requestDigest.size()!=32)return {};
         w.bytes+=f.requestDigest;w.number<quint8>(f.kind);
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+        if(f.kind==ReaderFocusReply)w.number<quint8>(quint8(f.readerFocus));
+        else
+#endif
         if(f.kind==PreEnterReply) {
             w.number<quint8>(f.text?0:1);
             if(f.text) {

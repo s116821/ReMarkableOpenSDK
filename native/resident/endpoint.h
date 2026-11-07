@@ -206,6 +206,9 @@ public:
     bool finish(const Lease &lease,Frame result) {
         if(!gui()||!pending_||lease.get()!=pending_.get()||!lease->active()||!peerCurrent())return false;
         if(!validPreEnterReply(lease->request(),result)){retireConnection("finish-wrong-text-reply");return false;}
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+        if(!validReaderFocusReply(lease->request(),result)){retireConnection("finish-wrong-reader-focus-reply");return false;}
+#endif
         result.runtime=config_.runtime;result.client=client_;result.server=server_;
         result.sequence=lease->request().sequence;result.operation=lease->request().operation;
         result.message=3;result.requestDigest=lease->digest();

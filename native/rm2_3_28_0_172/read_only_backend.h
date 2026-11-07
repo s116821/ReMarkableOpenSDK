@@ -8,6 +8,23 @@
 #include <algorithm>
 
 namespace remarkable::rm2_3_28_0_172 {
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+inline resident::ReaderFocus readerFocusReceipt(rem61_focus::Leaf leaf) {
+    using Leaf=rem61_focus::Leaf;
+    using Receipt=resident::ReaderFocus;
+    switch(leaf) {
+    case Leaf::NoLeaf: return Receipt::NoLeaf;
+    case Leaf::ExactScene: return Receipt::ExactScene;
+    case Leaf::InsideScene: return Receipt::InsideScene;
+    case Leaf::ScopeOnly: return Receipt::ScopeOnly;
+    case Leaf::OutsideScope: return Receipt::OutsideScope;
+    case Leaf::Refused:
+    case Leaf::NoFocusedWindow:
+    case Leaf::OtherWindow: return Receipt::Refused;
+    }
+    return Receipt::Refused;
+}
+#endif
 // Historical facts only. In particular a presence result never clears an
 // insertion/selection reservation or a resident effect quarantine.
 inline resident::Frame observationReply(const resident::Frame &request,resident::Facts facts) {
@@ -113,7 +130,7 @@ public:
         if(command==resident::PreEnterRequest){submitPreEnter(std::move(lease));return;}
         // Mutation is handled by the separately gated resident dispatcher.
         // This observation facade has no diagnostic one-shot fallback.
-        if(command!=0&&command!=2&&command!=4&&command!=5&&command!=6){reject(0);return;}
+        if(command!=0&&command!=2&&command!=4&&command!=5&&command!=6&&!resident::isReaderFocusRequest(command)){reject(0);return;}
         const QPointer<QQuickWindow> window(qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow()));
         const QPointer<QQmlEngine> engine(window?qmlEngine(window):nullptr);
         const auto permit=[&]{
@@ -122,6 +139,21 @@ public:
                 QGuiApplication::focusWindow()==window&&qmlEngine(window)==engine;
         };
         if(!permit()){reject(3);return;}
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+        if(command==resident::ReaderFocusRequest) {
+            const auto remaining=std::chrono::duration_cast<std::chrono::milliseconds>(
+                lease->deadline()-std::chrono::steady_clock::now()).count();
+            if(remaining<1)return;
+            const int budget=int(std::min(qint64(reader_selected::MaxObservationMs),qint64(remaining)));
+            const auto leaf=reader_selected::focus_diagnostic::observeJoinedLeaf(window,permit,budget);
+            if(!permit()){reject(3);return;}
+            resident::Frame response;
+            response.kind=resident::ReaderFocusReply;
+            response.readerFocus=readerFocusReceipt(leaf);
+            endpoint->finish(lease,std::move(response));
+            return;
+        }
+#endif
         if(command==6) {
             const auto remaining=std::chrono::duration_cast<std::chrono::milliseconds>(lease->deadline()-std::chrono::steady_clock::now()).count();
             if(remaining<1)return;
