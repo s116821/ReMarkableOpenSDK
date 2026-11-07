@@ -1,5 +1,6 @@
 #pragma once
 // Experimental public-accessor diagnostic. Never an action or lifetime lease.
+#include "focus_leaf.h"
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QGuiApplication>
@@ -322,7 +323,7 @@ public:
         // suppress the event or pump an event loop to obtain a better result.
         app->installEventFilter(&epoch);
     }
-    Observation run() {
+    Observation run(rem61_focus::Leaf *focusReceipt = nullptr) {
         Observation r;
         const auto refuse = [&] { Observation f; f.refusal = failure.isEmpty() ? QStringLiteral("relationship-refused") : failure; return f; };
         if (!failure.isEmpty() || !live() || !retain(window) || !retain(root) || !retain(engine)) return refuse();
@@ -480,6 +481,10 @@ public:
         r.observed = true; r.mapCoherent = true;
         r.ready = !r.loading && !r.pageError && !r.documentError && r.status == active && r.pageStatus == pageReady &&
             !r.awaitingTiles && !r.pendingTiles && !r.working;
+        if (focusReceipt && r.ready && !workerAction && !sourceAction) {
+            const std::function<bool()> guarded = [&] { return live(); };
+            *focusReceipt = rem61_focus::sample(window, device, current, guarded);
+        }
         if (workerAction || sourceAction) {
             if (workerAction && sourceAction) { no("source-action-ambiguity"); return refuse(); }
             if (!joinRequested || !r.creationJoinObserved || !r.ready || !controller || !creationController || !live()) {
@@ -509,13 +514,26 @@ public:
         return r;
     }
 };
+
+inline Observation observeSelected(QQuickWindow *window, const std::function<bool()> &permit, int budgetMs,
+        rem61_focus::Leaf *focusReceipt = nullptr) {
+    if (entry.busy) { entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
+    EntryScope scope;
+    return Sample(window, permit, budgetMs).run(focusReceipt);
+}
 } // namespace detail
 
 inline Observation observe(QQuickWindow *window, const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000) {
-    if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
-    detail::EntryScope scope;
-    return detail::Sample(window, permit, budgetMs).run();
+    return detail::observeSelected(window, permit, budgetMs);
 }
+
+namespace focus_diagnostic {
+inline rem61_focus::Leaf observeJoinedLeaf(QQuickWindow *window, const std::function<bool()> &permit, int remainingMs) {
+    auto leaf = rem61_focus::Leaf::Refused;
+    detail::observeSelected(window, permit, remainingMs, &leaf);
+    return leaf;
+}
+} // namespace focus_diagnostic
 
 // The caller resolves the existing controller on this engine's GUI thread before
 // entering the sample. No pointer escapes the call; no singleton is resolved here.

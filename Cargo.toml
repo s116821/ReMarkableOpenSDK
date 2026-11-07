@@ -10,6 +10,8 @@ include = ["/Cargo.toml", "/Cargo.lock", "/src/lib.rs", "/src/capture.rs", "/src
 [features]
 default = []
 development-native-close = ["native-adapter"]
+development-native-pre-enter = ["native-adapter"]
+development-native-reader-focus = ["native-adapter"]
 native-adapter = ["dep:sha2", "dep:nix", "dep:image"]
 mock = ["dep:image", "dep:sha2"]
 development-capture = ["dep:image", "dep:sha2", "dep:serde", "dep:serde_json"]

@@ -118,15 +118,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y qt6-base-dev qt6-base-private-dev qt6-declarative-dev
-          cargo +1.98.1 test --locked --offline --features native-adapter --test resident_wire_vectors -- --ignored
+          cargo +1.98.1 test --locked --offline --features development-native-pre-enter,development-native-reader-focus --test resident_wire_vectors -- --ignored
+          cargo +1.98.1 test --locked --offline --features development-native-pre-enter --test resident_protocol pre_enter_wire_and_correlation
+          cargo +1.98.1 test --locked --offline --features native-adapter --test resident_protocol ordinary_rust_decoder_refuses_reader_focus_kinds
+          cargo +1.98.1 test --locked --offline --features development-native-reader-focus --test resident_protocol reader_focus_wire_and_correlation
           RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-wire" sh native/resident/wire_test.sh
           RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-endpoint" sh native/resident/endpoint_test.sh
+          RESIDENT_READER_FOCUS_TEST=1 RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-focus-wire" sh native/resident/wire_test.sh
+          RESIDENT_READER_FOCUS_TEST=1 RESIDENT_TEST_OUTPUT="$RUNNER_TEMP/resident-focus-endpoint" sh native/resident/endpoint_test.sh
+          READER_FOCUS_TEST_OUTPUT="$RUNNER_TEMP/reader-focus" sh native/rm2_3_28_0_172/reader_focus_test.sh
           ACTIVATION_TEST_OUTPUT="$RUNNER_TEMP/resident-activation" ACTIVATION_TEST_SANITIZERS=1 sh native/resident/activation_test.sh
           LOADED_ARTIFACT_TEST_OUTPUT="$RUNNER_TEMP/resident-artifact" sh native/resident/loaded_artifact_test.sh
           COMPOSER_OBSERVER_OUTPUT="$RUNNER_TEMP/composer-observer" COMPOSER_OBSERVER_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_document_observer_test.sh
           COMPOSER_SCENE_OUTPUT="$RUNNER_TEMP/composer-attachment" COMPOSER_SCENE_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_scene_attachment_test.sh
           COMPOSER_DELIVERY_OUTPUT="$RUNNER_TEMP/composer-delivery" COMPOSER_DELIVERY_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_scene_delivery_test.sh
           COMPOSER_TEXT_OUTPUT="$RUNNER_TEMP/composer-text" COMPOSER_TEXT_SANITIZERS=1 sh native/rm2_3_28_0_172/composer_text_copy_test.sh
+          COMPOSER_PATCH_OUTPUT="$RUNNER_TEMP/composer-patch" sh native/rm2_3_28_0_172/composer_pre_enter_patch_test.sh
           NONLAST_RELEASE_OUTPUT="$RUNNER_TEMP/native-nonlast" NONLAST_RELEASE_SANITIZERS=1 sh native/rm2_3_28_0_172/nonlast_release_test.sh
           RESIDENT_SLOT_OUTPUT="$RUNNER_TEMP/native-slot" RESIDENT_SLOT_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_worker_slot_test.sh
           RESIDENT_CORE_OUTPUT="$RUNNER_TEMP/native-core" RESIDENT_CORE_SANITIZERS=1 sh native/rm2_3_28_0_172/resident_core_lifetime_test.sh

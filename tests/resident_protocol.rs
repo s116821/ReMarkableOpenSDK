@@ -64,6 +64,71 @@ fn inserted() -> Reply {
     }
 }
 
+#[cfg(feature = "development-native-pre-enter")]
+#[test]
+fn pre_enter_wire_and_correlation() {
+    let mut session = session();
+    let request = session
+        .begin(
+            OperationId(id(32)),
+            Command::CapturePreEnter {
+                offset: 2,
+                count: 3,
+            },
+        )
+        .unwrap();
+    let encoded = request.encode().unwrap();
+    assert_eq!(&encoded[207..], &[10, 0, 0, 0, 2, 0, 3]);
+    for wrong in [
+        Reply::PreEnterText(Some(vec![0, 0xd800])),
+        Reply::Indeterminate,
+        Reply::Rejected(Rejection::UnknownIdentity),
+        Reply::Observed(facts()),
+    ] {
+        assert_eq!(
+            session.complete(&response(&request, wrong)),
+            Err(ProtocolError::WrongResponse)
+        );
+    }
+    let reply = Reply::PreEnterText(Some(vec![0, 0xd800, 0x2029]));
+    let answer = response(&request, reply.clone());
+    let encoded = answer.encode().unwrap();
+    assert_eq!(&encoded[239..], &[12, 0, 0, 3, 0, 0, 0xd8, 0, 0x20, 0x29]);
+    assert_eq!(Frame::decode(&encoded[4..]).unwrap(), answer);
+    for change in [vec![2], vec![0, 0x10, 1], vec![0, 0, 1, 0], vec![1, 0]] {
+        let mut malformed = encoded[4..240].to_vec();
+        malformed.extend(change);
+        assert!(Frame::decode(&malformed).is_err());
+    }
+    assert_eq!(session.complete(&answer).unwrap(), reply);
+    assert_eq!(session.complete(&answer), Err(ProtocolError::WrongResponse));
+    let invalid = Frame {
+        message: Message::Request(Command::CapturePreEnter {
+            offset: u32::MAX,
+            count: 1,
+        }),
+        ..request.clone()
+    };
+    assert!(invalid.encode().is_err());
+    for reply in [Reply::PreEnterText(Some(vec![])), Reply::PreEnterText(None)] {
+        let response = response(&request, reply);
+        let bytes = response.encode().unwrap();
+        assert_eq!(Frame::decode(&bytes[4..]).unwrap(), response);
+    }
+}
+
+#[cfg(not(feature = "development-native-pre-enter"))]
+#[test]
+fn ordinary_rust_decoder_refuses_pre_enter_kind() {
+    let request = session()
+        .begin(OperationId(id(32)), Command::Observe)
+        .unwrap();
+    let bytes = request.encode().unwrap();
+    let mut new = bytes[4..bytes.len() - 1].to_vec();
+    new.extend([10, 0, 0, 0, 2, 0, 3]);
+    assert!(Frame::decode(&new).is_err());
+}
+
 #[test]
 fn every_fragment_boundary_and_coalesced_frames() {
     let frame = session()
@@ -91,6 +156,113 @@ fn every_fragment_boundary_and_coalesced_frames() {
         decoder.feed(&joined[used..]).unwrap(),
         (bytes.len(), Some(frame))
     );
+}
+
+#[cfg(feature = "development-native-reader-focus")]
+#[test]
+fn reader_focus_wire_and_correlation() {
+    let mut client = session();
+    let request = client
+        .begin(OperationId(id(34)), Command::ObserveReaderFocus)
+        .unwrap();
+    let encoded = request.encode().unwrap();
+    assert_eq!(encoded.len(), 208);
+    assert_eq!(encoded[207], 11);
+    assert_eq!(Frame::decode(&encoded[4..]).unwrap(), request);
+    assert!(!Command::ObserveReaderFocus.is_effectful());
+    assert!(Frame::decode(&[&encoded[4..], &[0]].concat()).is_err());
+
+    let leaves = [
+        ReaderFocus::Refused,
+        ReaderFocus::NoLeaf,
+        ReaderFocus::ExactScene,
+        ReaderFocus::InsideScene,
+        ReaderFocus::ScopeOnly,
+        ReaderFocus::OutsideScope,
+    ];
+    for (code, leaf) in leaves.into_iter().enumerate() {
+        let answer = response(&request, Reply::ReaderFocus(leaf));
+        let bytes = answer.encode().unwrap();
+        assert_eq!(bytes.len(), 241);
+        assert_eq!(&bytes[239..], &[13, code as u8]);
+        assert_eq!(Frame::decode(&bytes[4..]).unwrap(), answer);
+    }
+    let receipt = Reply::ReaderFocus(ReaderFocus::InsideScene);
+    let answer = response(&request, receipt.clone());
+    let mut payload = answer.encode().unwrap().split_off(4);
+    payload[236] = 6;
+    assert!(Frame::decode(&payload).is_err());
+    payload.pop();
+    assert!(Frame::decode(&payload).is_err());
+    payload.extend([3, 0]);
+    assert!(Frame::decode(&payload).is_err());
+
+    for wrong in [
+        Reply::Observed(facts()),
+        Reply::Rejected(Rejection::Capacity),
+        Reply::Rejected(Rejection::BeforeDispatch),
+        Reply::Rejected(Rejection::ExecutorBeforeMutation),
+        Reply::Indeterminate,
+    ] {
+        assert_eq!(
+            client.complete(&response(&request, wrong)),
+            Err(ProtocolError::WrongResponse)
+        );
+    }
+    let mut stale = answer.clone();
+    stale.scope.server_nonce = Some(id(25));
+    assert_eq!(client.complete(&stale), Err(ProtocolError::WrongScope));
+    let Message::Response { request_sha256, .. } = &mut stale.message else {
+        unreachable!()
+    };
+    request_sha256[0] ^= 1;
+    stale.scope = answer.scope.clone();
+    assert_eq!(client.complete(&stale), Err(ProtocolError::WrongResponse));
+    assert_eq!(client.complete(&answer).unwrap(), receipt);
+
+    let ordinary = client.begin(OperationId(id(35)), Command::Observe).unwrap();
+    assert_eq!(
+        client.complete(&response(&ordinary, receipt)),
+        Err(ProtocolError::WrongResponse)
+    );
+    assert_eq!(
+        client.complete(&response(&ordinary, Reply::Observed(facts()))),
+        Ok(Reply::Observed(facts()))
+    );
+    for reason in [Rejection::Unsupported, Rejection::UnknownIdentity] {
+        let next = client
+            .begin(OperationId(id(36)), Command::ObserveReaderFocus)
+            .unwrap();
+        let reply = Reply::Rejected(reason);
+        assert_eq!(client.complete(&response(&next, reply.clone())), Ok(reply));
+    }
+    let next = client
+        .begin(OperationId(id(37)), Command::ObserveReaderFocus)
+        .unwrap();
+    assert_eq!(client.close(), LostRequest::NoPendingMutation);
+    assert_eq!(
+        client.complete(&response(
+            &next,
+            Reply::ReaderFocus(ReaderFocus::ExactScene)
+        )),
+        Err(ProtocolError::Closed)
+    );
+}
+
+#[cfg(not(feature = "development-native-reader-focus"))]
+#[test]
+fn ordinary_rust_decoder_refuses_reader_focus_kinds() {
+    let request = session()
+        .begin(OperationId(id(34)), Command::Observe)
+        .unwrap();
+    let mut bytes = request.encode().unwrap();
+    bytes[207] = 11;
+    assert!(Frame::decode(&bytes[4..]).is_err());
+    let mut bytes = response(&request, Reply::Rejected(Rejection::Unsupported))
+        .encode()
+        .unwrap();
+    bytes[239] = 13;
+    assert!(Frame::decode(&bytes[4..]).is_err());
 }
 
 #[test]

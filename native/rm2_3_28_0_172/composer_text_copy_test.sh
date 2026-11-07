@@ -24,12 +24,18 @@ if [ "${COMPOSER_TEXT_SANITIZERS:-0}" = 1 ]; then sanitizers='-fsanitize=address
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitizers \
     -DCOMPOSER_TEXT_PRIVATE_QT $private -I"$work" \
     "$root/composer_text_copy_test.cpp" $(pkg-config --cflags --libs Qt6Core Qt6Gui) -ldl -o "$work/text-test"
-printf '%s\n' '#include "composer_scene_delivery.h"' > "$work/production.cpp"
+printf '%s\n' '#include "composer_scene_delivery.h"' '#include "composer_pre_enter.h"' > "$work/production.cpp"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -DCOMPOSER_TEXT_PRIVATE_QT \
     $private -I"$root" $(pkg-config --cflags Qt6Core Qt6Gui) \
     -c "$work/production.cpp" -o "$work/production-private.o"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -I"$root" \
     $(pkg-config --cflags Qt6Core Qt6Gui) -c "$work/production.cpp" -o "$work/production-ordinary.o"
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -DCOMPOSER_TEXT_PRIVATE_QT \
+    $private $(pkg-config --cflags Qt6Core Qt6Gui) \
+    -c "$root/composer_pre_enter.cpp" -o "$work/pre-enter-private.o"
+${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread \
+    $(pkg-config --cflags Qt6Core Qt6Gui) \
+    -c "$root/composer_pre_enter.cpp" -o "$work/pre-enter-ordinary.o"
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     timeout --kill-after=1s 40s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" -E QT_QPA_PLATFORM=offscreen -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" "$work/text-test"
 else

@@ -1,0 +1,168 @@
+## ADDED Requirements
+
+### Requirement: Exact native pre-insertion admission
+The SDK SHALL admit a prepared one-shot pre-Enter diagnostic only at the pinned
+ordinary LF callsite under the matching loaded RM2 profile. It SHALL borrow the
+stock focused-item owner synchronously and verify that item/control, Scene root,
+participant, exact item type and focused IDs correspond throughout copying.
+It SHALL expose no public raw-native-pointer admission API or new native owner
+acquisition/release path.
+
+#### Scenario: Unsupported origin or owner
+- **WHEN** profile, callsite, stock owner control or current native correspondence is unsupported or uncertain
+- **THEN** capture refuses and the original stock call continues exactly once
+
+#### Scenario: List unindent branch
+- **WHEN** accepted Enter takes the separate stock list-unindent path
+- **THEN** stock formatting continues and this LF callsite produces no capture
+
+### Requirement: Bounded quiescent text copy
+The capture SHALL reuse current exact UTF-16, range, structure, inspection budget,
+document type/thread and private-Qt guards. It SHALL refuse active or uncertain
+native scopes/nesting, compose range, virtual extension, Qt edit depth or stored
+preedit. It SHALL revalidate owner/root/composition, revisions and character count
+before accepting the candidate without pumping events, waiting on queues or
+issuing native mutations.
+
+#### Scenario: GUI closure precedes native end
+- **WHEN** the GUI composition flag is clear but native nesting or composition remains active
+- **THEN** capture refuses while original input continues once
+
+#### Scenario: Join changes while copying
+- **WHEN** the current item/control/root or other required guard changes before candidate acceptance
+- **THEN** no copied text is accepted and no input is replayed
+
+### Requirement: One stock invocation with preserved exceptions
+The ARM bridge SHALL preserve the original ABI, arguments, continuation and
+exception propagation. Capture success, refusal, cancellation, expiry, reentry
+or capture exception SHALL cause exactly one original invocation. An original
+exception SHALL unwind through valid registered ARM metadata and SHALL NOT cause
+a second invocation or a successful-stock-edit claim.
+
+#### Scenario: Capture throws
+- **WHEN** the capture attempt throws before forwarding
+- **THEN** it becomes a bounded refusal and original insertion runs once
+
+#### Scenario: Original throws
+- **WHEN** original insertion throws
+- **THEN** the original exception propagates through the bridge without retry or accepted mutation claim
+
+### Requirement: Guarded installation and resident lifetime
+The SDK SHALL require verified original instructions, valid A32 branch/veneer
+encoding and a qualified quiescent installation boundary before changing the
+callsite. It SHALL verify executable mappings and synchronize code visibility.
+Production installation SHALL refuse without those conditions. Cancellation SHALL
+close capture admission without authorizing unpatching, unloading, native-owner
+release or typed-slot reuse.
+
+#### Scenario: Runtime quiescence is unavailable
+- **WHEN** only an aligned instruction write or an owned test result is available
+- **THEN** production hook installation remains Unsupported
+
+#### Scenario: Capture is canceled with a resident route
+- **WHEN** a prepared capture is canceled or consumed
+- **THEN** its route remains resident and forwards later stock calls without another capture
+
+### Requirement: Finite historical result
+Preparation SHALL fix an original deadline and bounded range outside interception.
+Preparation SHALL refuse until the private constructor has installed the route.
+The installed route SHALL accept at most one preparation through immutable
+resident publication and retain its state for process lifetime. A losing
+preparation SHALL free only unpublished resources. Cancellation, expiry,
+consumption and handle destruction SHALL NOT reopen the resident slot.
+At most one invocation SHALL claim a preparation. Publication SHALL honor existing
+cancellation/deadline settlement and retain only copied data and scalars.
+The result SHALL NOT confer semantic Submit, consumer-owned range, page/visit,
+future edit/currentness, clear or retirement authority. Equal revisions, IDs or
+addresses SHALL NOT be treated as cross-invocation owner/ABA authority.
+
+#### Scenario: Distinct repeated Enter
+- **WHEN** later stock Enter actions follow a consumed preparation
+- **THEN** each stock action continues once and the consumed capture is not replayed
+
+#### Scenario: Requests compete for one installed route
+- **WHEN** more than one valid preparation attempts to arm the same installed route
+- **THEN** at most one receives a handle and its retained state cannot be replaced
+
+#### Scenario: Consumer requires a draft lease
+- **WHEN** only the historical pre-Enter diagnostic is available
+- **THEN** a consumer requiring owned-draft/currentness authority continues refusing
+
+### Requirement: Private pre-main exclusion and resident preparation
+Production patch admission SHALL be established inside the existing private
+pre-main loader after all allocating preparation. The final interval SHALL
+verify effective blocked asynchronous-signal delivery, current constructor-thread
+identity and a qualified current kernel thread-group observation. The
+supported kernel SHALL count group tasks before they can run and retain the
+count until they can no longer execute userspace or create another task.
+Production admission SHALL bind a fresh exec with trusted loader policy and
+ordinary process creation. Any temporary out-of-group sharing SHALL retain
+its counted creator until the child leaves the address space, or fatal
+interruption SHALL prevent the originating group from completing admission.
+Independent uncounted sharing SHALL remain outside the supported profile.
+Old task
+counts, absence of a Qt application, repeated directory scans alone or a
+caller-set token SHALL NOT substitute for this admission. The route SHALL be
+eagerly prepared and resident without lazy entry initialization or an ordinary
+exit destructor that can destroy state while patched calls remain possible.
+After mutation, the installer SHALL verify code/cache/protection state and
+restore the prior mask only after coherent publication or verified startup
+rollback. Uncertain partial state SHALL use the existing fail-closed startup
+policy without input replay or later live unhook.
+
+Capture installation SHALL use the authenticated original startup expiry
+from Activation. It SHALL check that absolute CLOCK_BOOTTIME deadline before
+capture preparation and in the raw transaction before mutation and commit.
+Capture installation SHALL preserve the separate endpoint session lifetime.
+
+#### Scenario: A thread or mask check is uncertain
+- **WHEN** an extra task, unsupported kernel count semantics, incomplete signal blocking or unresolved address-space sharing prevents exclusion
+- **THEN** capture installation refuses before changing the stock callsite
+
+#### Scenario: Loader policy is outside the supported profile
+- **WHEN** constructor provenance, preload selection or loader policy is outside the admitted profile
+- **THEN** capture installation refuses before changing the stock callsite
+
+#### Scenario: Startup expiry is exhausted during installation
+- **WHEN** the original startup deadline has passed or its clock is unavailable
+- **THEN** capture installation refuses before mutation or uses the existing rollback or fail-closed policy if mutation has started
+
+#### Scenario: Route requires lazy setup or exit destruction
+- **WHEN** route entry can acquire an initialization guard or ordinary cleanup can destroy its live state
+- **THEN** production patch admission remains Unsupported
+
+#### Scenario: Patch restoration fails
+- **WHEN** code, cache, protection or prior-mask restoration is uncertain after mutation
+- **THEN** startup cannot continue with that uncertainty and no original input is replayed
+
+### Requirement: Real bridge verification boundary
+Verification SHALL exercise the production shim, branch/veneer and installer
+against an owned ARM caller, including original exception unwinding. Fake callback
+tests alone SHALL NOT qualify the ARM bridge. Actual native owner/thread/input
+behavior SHALL require separately selected runtime evidence.
+
+#### Scenario: Owned ARM controls pass
+- **WHEN** the owned caller proves forwarding and unwind behavior through the real bridge
+- **THEN** that evidence supports source/ABI acceptance while native profile/input qualification remains separate
+
+### Requirement: Build-only diagnostic selection and private arming evidence
+
+The development diagnostic SHALL be selected only by its separate immutable
+build manifest, exact compile-time digest and matching private Qt inputs.
+The ordinary default SHALL leave startup and diagnostic arming disabled.
+The development artifact SHALL leave all other mutation selections disabled
+and SHALL use the existing direct-parent activation and Endpoint checks.
+
+After the dispatcher owns the admitted Capture handle, the existing Endpoint
+SHALL attempt at most one bounded metadata-only arming record to the verified
+private child stderr. The record SHALL bind the current runtime and original
+pending operation, sequence, request digest and absolute lease deadline.
+It SHALL contain no document text, range or native data. On marker failure
+the dispatcher SHALL cancel and release its handle, and the Endpoint SHALL
+retire only the original pending request. The lifetime slot SHALL remain
+consumed. The marker SHALL remain distinct from the terminal wire
+reply and from evidence of stock input, copying or restoration.
+
+#### Scenario: The arming marker is unusable
+- **WHEN** the marker is absent, partial, stale, does not match the pending request, or cannot be checked against the original clock domain
+- **THEN** the observer SHALL withhold the physical-input step and preserve the original request outcome without replay

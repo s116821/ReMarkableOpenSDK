@@ -173,6 +173,33 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
         },
         ..visual_request
     });
+    #[cfg(feature = "development-native-pre-enter")]
+    for (count, units) in [(3, vec![0, 0xd800, 0x2029]), (0, vec![])] {
+        let request = Frame {
+            scope: scope.clone(),
+            sequence: 1,
+            operation: OperationId(id(32)),
+            message: Message::Request(Command::CapturePreEnter { offset: 2, count }),
+        };
+        let request_sha256 = request.fingerprint().unwrap();
+        frames.push(request.clone());
+        frames.push(Frame {
+            message: Message::Response {
+                request_sha256,
+                reply: Reply::PreEnterText(Some(units)),
+            },
+            ..request.clone()
+        });
+        if count == 3 {
+            frames.push(Frame {
+                message: Message::Response {
+                    request_sha256,
+                    reply: Reply::PreEnterText(None),
+                },
+                ..request
+            });
+        }
+    }
     for (index, frame) in frames.iter().enumerate() {
         let bytes = frame.encode().unwrap();
         assert_eq!(Frame::decode(&bytes[4..]).unwrap(), *frame);
@@ -181,6 +208,33 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
             path.join(format!("{index:02}.sha256")),
             frame.fingerprint().unwrap(),
         )?;
+    }
+    #[cfg(feature = "development-native-reader-focus")]
+    {
+        let request = Frame {
+            operation: OperationId(id(34)),
+            message: Message::Request(Command::ObserveReaderFocus),
+            ..frames[2].clone()
+        };
+        let reply = Frame {
+            message: Message::Response {
+                request_sha256: request.fingerprint().unwrap(),
+                reply: Reply::ReaderFocus(ReaderFocus::InsideScene),
+            },
+            ..request.clone()
+        };
+        for (stem, frame) in [
+            ("reader-focus-request", request),
+            ("reader-focus-reply", reply),
+        ] {
+            let bytes = frame.encode().unwrap();
+            assert_eq!(Frame::decode(&bytes[4..]).unwrap(), frame);
+            fs::write(path.join(format!("{stem}.bin")), bytes)?;
+            fs::write(
+                path.join(format!("{stem}.sha256")),
+                frame.fingerprint().unwrap(),
+            )?;
+        }
     }
     println!("{} canonical Rust vectors written", frames.len());
     Ok(())
