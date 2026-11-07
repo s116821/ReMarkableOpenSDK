@@ -93,8 +93,18 @@ passes, but SDK QEMU8.2.7 makes its private ARM cacheflush syscall a no-op witho
 setting r0; this fails the capsule's strict native zero-return check in preparation.
 The test reports unsupported instead of weakening the native leaf or claiming an
 ARM patch-transaction pass. The independent actual ARM forwarding/unwind route
-still runs under its existing owned installer. Raw ARM cache maintenance remains
-an actual-provider qualification gap.
+still runs under its existing owned installer. This QEMU refusal remains valid
+for that provider; it is separate from the later successful RM2 own-memory run.
+
+The unchanged capsule-test built from source
+`9df17f96f4aecffcaf74371c62fdc10a1ea8b0a6` subsequently completed its owned
+anonymous-memory cases on the admitted RM2 runtime. The exact success output,
+normal exit, original unit identity, empty groups and independent host/transport
+settlement were checked. This supplies positive raw ARM cache/task/transaction
+evidence under the diagnostic's limited per-process profile. It does not qualify
+aggregate resource enforcement, the stock callsite, a production StartupBuilder
+or composer Submit/currentness/clear/focus. Explicit fallback recovery was not
+exercised. See [bounded native evidence and the remaining source seam](composer-pre-enter-native-evidence.md).
 
 Retained identity reports 5.4.70-v1.6.3-rm11x with source identity unverified. The
 company kernel branch at d54fe67bf86e918468b936f97a2ec39f4f87a3d9 is tagged

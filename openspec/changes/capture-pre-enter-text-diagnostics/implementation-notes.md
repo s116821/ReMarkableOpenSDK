@@ -57,7 +57,7 @@ Primary source:
 Dynamic loader startup semantics are described in
 [ld.so(8)](https://man7.org/linux/man-pages/man8/ld.so.8.html).
 
-## ARM cache-provider limitation
+## ARM provider evidence
 
 The first actual ARM capsule control failed at the preparation cache leaf before
 entering the mask/patch interval. A bounded diagnostic identified SDK QEMU8.2.7:
@@ -69,8 +69,14 @@ The owned ARM capsule reports unsupported in this emulator, preserving the first
 failure rather than substituting a callback or accepting the input address as a
 native success result. Host Linux signal/thread/protection/rollback controls and
 the separate compiled ARM forwarding/unwind controls remain distinct evidence.
-Actual ARM cache-maintenance behavior needs a provider that implements the
-selected syscall contract; no tablet execution follows from this limitation.
+This remains the QEMU provider's result. The later unchanged owned capsule
+completed its raw ARM cache/task/transaction cases on the admitted RM2 runtime;
+that positive target evidence is recorded in
+[bounded native evidence](../../../docs/native/composer-pre-enter-native-evidence.md).
+The run checked the full success output and normal process/group/host/transport
+settlement, without stock access. It does not bind the shipped kernel to the
+candidate company source or construct a production capsule. No additional tablet
+execution, fallback recovery, cleanup or replay follows from either result.
 
 Primary source:
 [QEMU8.2.7 ARM dispatch](https://github.com/qemu/qemu/blob/v8.2.7/linux-user/arm/cpu_loop.c),

@@ -5,6 +5,13 @@ implementation; see implementation-notes.md for evidence and limitations. The
 production StartupBuilder remains absent and the installer Unsupported. No new constructor, runtime
 activation, late patch path or caller-constructible quiescence token is proposed.
 
+The unchanged owned ARM capsule now has positive admitted-RM2 raw-cache/task/
+transaction evidence. Preserve the separate strict QEMU refusal and the remaining
+exact kernel/constructor/stock admission requirements. See
+[bounded native evidence and the next local source seam](../../../docs/native/composer-pre-enter-native-evidence.md).
+This removes a completed diagnostic question from the remaining work; it does
+not enable production construction or select a device operation.
+
 ## Existing source envelope
 
 bootstrap.cpp initialize(), constructor priority200, claims the existing

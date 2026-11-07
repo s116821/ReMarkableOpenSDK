@@ -33,7 +33,9 @@
 - [x] Implement the private fixed-profile raw-leaf capsule and bounded owned Linux signal/thread/protection/rollback/fail-closed controls.
 - [x] Inspect retained kernel identity and primary company clone/exit/count source; record the exact v1.6.3 source-binding gap.
 - [x] Trace initial preload from the existing fresh-exec launch and constructor/Activation source path without a caller phase boolean.
-- [ ] Bind the exact shipped kernel source/build and qualify raw ARM cache maintenance with a provider that implements the native contract; SDK QEMU8.2.7 refuses the capsule before patching.
+- [x] Qualify the unchanged owned ARM raw-cache/task/transaction cases on the admitted RM2 runtime; retain SDK QEMU8.2.7's separate strict pre-patch refusal and diagnostic-only resource limits.
+- [x] Record the successful own-memory result separately from the remaining private constructor-to-capsule source admission seam and stock/composer authority.
+- [ ] Bind the exact shipped kernel source/build and establish the exclusion assumptions required by production admission; the owned ARM result does not supply this binding.
 - [ ] Integrate the real resident arming/installation caller under its established lifetime/quiescence boundary, without automatic bootstrap selection.
 - [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.
