@@ -8,17 +8,37 @@ std::unique_ptr<Capture> Capture::prepare(const composer_scene::Profile &,
 
 std::unique_ptr<Capture> Capture::armRequest(composer_text::ReadRange range,
                                              std::chrono::milliseconds budget) {
+    if(budget.count()<1||budget>std::chrono::milliseconds(120000))return {};
+    bool occupied=false;
+    return armUntil(range,composer_text::Clock::now()+budget,{},occupied);
+}
+
+std::unique_ptr<Capture> Capture::prepareUntil(const composer_scene::Profile &,
+        composer_text::ReadRange range,composer_text::Clock::time_point deadline,
+        std::shared_ptr<const std::atomic<bool>> retirement,bool &occupied) {
+    occupied=false;
+    if(!retirement)return {};
+    return armUntil(range,deadline,std::move(retirement),occupied);
+}
+
+std::unique_ptr<Capture> Capture::armUntil(composer_text::ReadRange range,
+        composer_text::Clock::time_point deadline,
+        std::shared_ptr<const std::atomic<bool>> retirement,bool &occupied) {
     using detail::Route;
+    occupied=false;
     auto *route=Route::current();
-    if(!route||route->state()||!composer_text::detail::validRequest(range)||
-       budget.count()<1||budget>std::chrono::milliseconds(120000))return {};
-    auto handle=std::unique_ptr<Capture>(new Capture(std::make_shared<detail::State>(range,budget)));
+    if(!route||!composer_text::detail::validRequest(range))return {};
+    if(route->state()){occupied=true;return {};}
+    auto handle=std::unique_ptr<Capture>(new Capture(
+        std::make_shared<detail::State>(range,deadline,std::move(retirement))));
     auto *holder=new Route::Armed{handle->state_};
+    if(holder->state->guard().check()!=composer_text::Failure::None){delete holder;return {};}
     const Route::Armed *expected=nullptr;
     if(route->armed_.compare_exchange_strong(expected,holder,std::memory_order_release,
                                               std::memory_order_relaxed))
         return handle; // Ownership belongs to the process-resident route now.
     delete holder;
+    occupied=true;
     return {};
 }
 }

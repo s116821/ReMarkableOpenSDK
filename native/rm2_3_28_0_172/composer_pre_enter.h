@@ -32,6 +32,7 @@ inline composer_scene::Join stockJoin(void *raw, const StockPair *owner) {
 struct State {
     const composer_text::ReadRange range;
     const composer_text::Clock::time_point deadline;
+    const std::shared_ptr<const std::atomic<bool>> retired;
     std::atomic<bool> canceled{false}, claimed{false}, finished{false};
     std::atomic<bool> originalReturned{false}, originalThrew{false};
     std::atomic<composer_scene::Refusal> nativeRefusal{composer_scene::Refusal::None};
@@ -41,11 +42,12 @@ struct State {
     void (*beforeRead)()=nullptr;
     void (*beforeRecheck)()=nullptr;
 #endif
-    State(composer_text::ReadRange r, std::chrono::milliseconds budget)
-        : range(r), deadline(composer_text::Clock::now()+budget) {
+    State(composer_text::ReadRange r, composer_text::Clock::time_point until,
+          std::shared_ptr<const std::atomic<bool>> retirement)
+        : range(r), deadline(until), retired(std::move(retirement)) {
         result.range=r; result.status=composer_text::Status::Pending;
     }
-    composer_text::detail::Guard guard() const { return {canceled,nullptr,deadline}; }
+    composer_text::detail::Guard guard() const { return {canceled,retired.get(),deadline}; }
     composer_text::Result attempt(void *participant, const StockPair *owner) noexcept {
         composer_text::Result candidate; candidate.range=range;
         candidate.status=composer_text::Status::Pending;
@@ -66,6 +68,9 @@ struct State {
 #ifdef COMPOSER_PRE_ENTER_TESTING
                 if (beforeRecheck) beforeRecheck();
 #endif
+                if (const auto fail=guard().check(); fail!=composer_text::Failure::None) {
+                    candidate.refuse(fail); return candidate;
+                }
                 const auto again=stockJoin(participant,owner);
                 nativeRefusal.store(again.refusal,std::memory_order_release);
                 composer_scene::detail::revalidateText(first,again,candidate);
@@ -78,13 +83,15 @@ struct State {
             originalThrew.store(true,std::memory_order_release);
             candidate.refuse(composer_text::Failure::Exception);
         } else originalReturned.store(true,std::memory_order_release);
-        if (const auto fail=guard().check(); fail!=composer_text::Failure::None)
-            candidate.refuse(fail);
         // No mutex is held across the stock call. A contended publication drops
         // the copy; snapshot reports the finished-but-unpublished refusal.
         try {
             std::unique_lock<std::mutex> lock(mutex,std::try_to_lock);
-            if (lock.owns_lock()) result=candidate;
+            if (lock.owns_lock()) {
+                if (const auto fail=guard().check(); fail!=composer_text::Failure::None)
+                    candidate.refuse(fail);
+                result=candidate;
+            }
         } catch (...) {} // Publication failure cannot replace a stock exception.
         finished.store(true,std::memory_order_release);
     }
@@ -129,6 +136,8 @@ class Capture final {
     explicit Capture(std::shared_ptr<detail::State> s) : state_(std::move(s)) {}
     static std::unique_ptr<Capture> armRequest(composer_text::ReadRange,
                                                 std::chrono::milliseconds);
+    static std::unique_ptr<Capture> armUntil(composer_text::ReadRange,
+        composer_text::Clock::time_point,std::shared_ptr<const std::atomic<bool>>,bool &occupied);
 #ifdef COMPOSER_PRE_ENTER_TESTING
     friend struct TestAccess;
 #endif
@@ -140,6 +149,9 @@ public:
     // one lifetime slot, even if the handle is canceled before any Enter.
     static std::unique_ptr<Capture> prepare(const composer_scene::Profile &,
             composer_text::ReadRange range,std::chrono::milliseconds budget);
+    static std::unique_ptr<Capture> prepareUntil(const composer_scene::Profile &,
+        composer_text::ReadRange range,composer_text::Clock::time_point deadline,
+        std::shared_ptr<const std::atomic<bool>> retirement,bool &occupied);
     // Request only; no wait, unpatch, release or unload permission.
     void cancel() noexcept { state_->canceled.store(true,std::memory_order_release); }
     Snapshot snapshot() {

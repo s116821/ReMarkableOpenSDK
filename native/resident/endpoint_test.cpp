@@ -78,6 +78,34 @@ int main(int argc,char **argv) {
     need(argc==2);const QString vectors=QString::fromLocal8Bit(argv[1]);
     const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,7);
     {
+        QTemporaryDir directory;auto c=config(directory.path());c.operationBudgetMs=500;
+        Endpoint::Lease pending;
+        Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+        need(server.start());
+        QLocalSocket peer;const auto ready=handshake(peer,c,hello);
+        auto text=request(observe,ready,1);text.kind=PreEnterRequest;text.textRange={2,3};
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        const auto originalDeadline=pending->deadline();const auto retirement=pending->retirement();
+        need(pending->active()&&!retirement->load());
+        Frame answer;answer.kind=PreEnterReply;
+        answer.text.emplace(std::initializer_list<quint16>{0,0xd800,0x2029});
+        need(server.finish(pending,answer)&&retirement->load()&&pending->deadline()==originalDeadline);
+        const auto result=receive(peer);
+        need(result&&result->kind==PreEnterReply&&result->text==answer.text&&result->requestDigest==fingerprint(text));
+        pending.reset();
+        text.sequence=2;
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        const auto lost=pending;const auto lostGate=lost->retirement();
+        peer.abort();need(until([&]{return lostGate->load();}));
+        QLocalSocket next;const auto nextReady=handshake(next,c,hello);
+        pending.reset();text=request(text,nextReady,1);
+        need(next.write(encode(text))>0&&until([&]{return bool(pending);}));
+        need(!server.finish(lost,answer)&&!next.bytesAvailable());
+        answer.text->pop_back();need(!server.finish(pending,answer));
+        need(until([&]{return next.state()==QLocalSocket::UnconnectedState;}));
+        need(pending->retirement()->load()&&!next.bytesAvailable());
+    }
+    {
         QTemporaryDir directory;auto c=config(directory.path());QProcess child;
         QString program=QCoreApplication::applicationFilePath();
         QStringList arguments={"--client",c.directory,QString::fromLatin1(c.runtime.toHex()),vectors};

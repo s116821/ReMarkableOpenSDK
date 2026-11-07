@@ -95,17 +95,18 @@ struct EndpointConfig {
 // inspect active/deadline but must report through its existing guarded Qt bridge.
 class RequestLease final {
     friend class Endpoint;
-    std::atomic<bool> active_{true};
     std::chrono::steady_clock::time_point deadline_;
+    const std::shared_ptr<std::atomic<bool>> retired_=std::make_shared<std::atomic<bool>>(false);
     Frame request_;
     QByteArray digest_;
     RequestLease(Frame frame,int budget):deadline_(std::chrono::steady_clock::now()+std::chrono::milliseconds(budget)),
         request_(std::move(frame)),digest_(fingerprint(request_)) {}
 public:
-    bool active()const{return active_.load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<deadline_;}
+    bool active()const{return !retired_->load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<deadline_;}
     const Frame &request()const{return request_;}
     const QByteArray &digest()const{return digest_;}
     std::chrono::steady_clock::time_point deadline()const{return deadline_;}
+    std::shared_ptr<const std::atomic<bool>> retirement()const{return retired_;}
 };
 class Endpoint final:public QObject {
 public:
@@ -168,6 +169,7 @@ public:
     // releasing this plain lease says nothing about physical native completion.
     bool finish(const Lease &lease,Frame result) {
         if(!gui()||!pending_||lease.get()!=pending_.get()||!lease->active()||!peerCurrent())return false;
+        if(!validPreEnterReply(lease->request(),result)){retireConnection("finish-wrong-text-reply");return false;}
         result.runtime=config_.runtime;result.client=client_;result.server=server_;
         result.sequence=lease->request().sequence;result.operation=lease->request().operation;
         result.message=3;result.requestDigest=lease->digest();
@@ -176,7 +178,7 @@ public:
         // timer is unable to run on this stack.
         if(bytes.isEmpty()||!lease->active()){retireConnection("finish-invalid-or-expired");return false;}
         outputDeadline_=lease->deadline();
-        pending_->active_.store(false,std::memory_order_release);pending_.reset();
+        pending_->retired_->store(true,std::memory_order_release);pending_.reset();
         if(!send(bytes)){retireConnection("finish-send-refused");return false;}
         if(!refreshOutput())return false;
         return true;
@@ -233,7 +235,7 @@ private:
     }
     void retireConnection(const char *reason,int code=0) {
         trace(reason,code);
-        timer_.stop();if(pending_)pending_->active_.store(false,std::memory_order_release);pending_.reset();
+        timer_.stop();if(pending_)pending_->retired_->store(true,std::memory_order_release);pending_.reset();
         outputDeadline_.reset();
         ready_=false;decoder_.close();client_.clear();server_.clear();
         auto *socket=peer_.data();peer_=nullptr;

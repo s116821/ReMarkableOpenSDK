@@ -14,6 +14,12 @@ namespace remarkable::resident {
 constexpr qsizetype MaxFrame = 65536;
 constexpr qsizetype MaxCapturePng = 1048576, MaxCaptureFrame = MaxCapturePng + MaxFrame;
 constexpr std::size_t MaxPages = 2048;
+constexpr quint8 PreEnterRequest=10,PreEnterReply=12;
+constexpr quint16 MaxPreEnterUnits=4096;
+struct TextRange {quint32 offset=0;quint16 count=0;};
+inline bool validTextRange(TextRange range) {
+    return range.count<=MaxPreEnterUnits&&quint64(range.offset)+range.count<=2147483646;
+}
 using Id = QByteArray; // Exactly sixteen nonzero bytes, validated on the wire.
 inline bool validId(const Id &id) { return id.size()==16 && id!=QByteArray(16,0); }
 struct Facts {
@@ -37,10 +43,17 @@ struct Frame {
     QByteArray requestDigest;
     Facts facts;
     Capture capture;
+    TextRange textRange;
+    std::optional<std::vector<quint16>> text; // Empty optional is a terminal refusal.
     Id target;
     bool targetPresent=false;
     unsigned char rejection=0;
 };
+inline bool validPreEnterReply(const Frame &request,const Frame &reply) {
+    if(request.kind!=PreEnterRequest)return reply.kind!=PreEnterReply;
+    if(reply.kind==3)return reply.rejection==0||reply.rejection==4;
+    return reply.kind==PreEnterReply&&(!reply.text||reply.text->size()==request.textRange.count);
+}
 inline bool validFacts(const Facts &facts) {
     if(!validId(facts.document)||!validId(facts.page)||facts.order.empty()||facts.order.size()>MaxPages)return false;
     QSet<Id> seen;
@@ -128,19 +141,22 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
         f.kind=r.number<quint8>();
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
-        if(f.kind>9)return {};
+        if(f.kind>9&&f.kind!=PreEnterRequest)return {};
         if(f.kind==9){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
         else
 #else
-        if(f.kind>8)return {};
+        if(f.kind>8&&f.kind!=PreEnterRequest)return {};
 #endif
         if(f.kind==7){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
         else if(f.kind==8){}
         else
 #else
-        if(f.kind>6)return {};
+        if(f.kind>6&&f.kind!=PreEnterRequest)return {};
 #endif
-        if(f.kind==5) {f.facts=r.facts();if(f.facts.order.size()>17)return {};}
+        if(f.kind==PreEnterRequest) {
+            f.textRange={r.number<quint32>(),r.number<quint16>()};
+            if(!validTextRange(f.textRange))return {};
+        }else if(f.kind==5) {f.facts=r.facts();if(f.facts.order.size()>17)return {};}
         else if(f.kind&&f.kind!=6) {
             f.facts=r.facts();f.target=r.id();
             if(f.kind<=2){for(const auto &id:f.facts.order)if(id==f.target)return {};}
@@ -151,14 +167,23 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
         f.requestDigest=r.take(32);f.kind=r.number<quint8>();
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
-        if(f.kind>11)return {};
+        if(f.kind>11&&f.kind!=PreEnterReply)return {};
 #else
-        if(f.kind>10)return {};
+        if(f.kind>10&&f.kind!=PreEnterReply)return {};
 #endif
 #else
-        if(f.kind>8)return {};
+        if(f.kind>8&&f.kind!=PreEnterReply)return {};
 #endif
-        if(f.kind==7||f.kind==8) {
+        if(f.kind==PreEnterReply) {
+            const auto status=r.number<quint8>();
+            if(status==0) {
+                const auto count=r.number<quint16>();
+                if(count>MaxPreEnterUnits||r.remaining()!=qsizetype(count)*2)return {};
+                auto &units=f.text.emplace();
+                units.reserve(count);
+                for(unsigned n=0;n<count;++n)units.push_back(r.number<quint16>());
+            }else if(status!=1)return {};
+        }else if(f.kind==7||f.kind==8) {
             auto &c=f.capture;
             if(f.kind==7){f.facts=r.facts();c.after=r.facts();}
             c.width=r.number<quint32>();c.height=r.number<quint32>();c.dprBits=r.number<quint64>();
@@ -179,8 +204,9 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
 inline QByteArray encode(const Frame &f) {
     // Reject oversized fields before appending any caller-controlled collection.
     if(f.runtime.size()!=140||f.client.size()!=16||f.server.size()!=16||f.operation.size()!=16||
-       f.facts.order.size()>MaxPages||f.capture.png.size()>MaxCapturePng)return {};
-    if((f.message==2&&f.kind&&f.kind!=6&&f.kind!=8)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
+       f.facts.order.size()>MaxPages||f.capture.png.size()>MaxCapturePng||
+       (f.text&&f.text->size()>MaxPreEnterUnits))return {};
+    if((f.message==2&&f.kind&&f.kind!=6&&f.kind!=8&&f.kind!=PreEnterRequest)||(f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
         if(!validFacts(f.facts))return {};
     }
     if(((f.message==2&&f.kind&&f.kind<5)||(f.message==3&&f.kind==1))&&!validId(f.target))return {};
@@ -190,11 +216,20 @@ inline QByteArray encode(const Frame &f) {
     w.bytes+=f.client;w.bytes+=f.server;w.number<quint64>(f.sequence);w.bytes+=f.operation;w.number<quint8>(f.message);
     if(f.message==2) {
         w.number<quint8>(f.kind);
-        if(f.kind&&f.kind!=6&&f.kind!=8){w.facts(f.facts);if(f.kind!=5&&f.kind!=7&&f.kind!=9)w.bytes+=f.target;}
+        if(f.kind==PreEnterRequest) {
+            if(!validTextRange(f.textRange))return {};
+            w.number<quint32>(f.textRange.offset);w.number<quint16>(f.textRange.count);
+        }else if(f.kind&&f.kind!=6&&f.kind!=8){w.facts(f.facts);if(f.kind!=5&&f.kind!=7&&f.kind!=9)w.bytes+=f.target;}
     } else if(f.message==3) {
         if(f.requestDigest.size()!=32)return {};
         w.bytes+=f.requestDigest;w.number<quint8>(f.kind);
-        if(f.kind==7||f.kind==8) {
+        if(f.kind==PreEnterReply) {
+            w.number<quint8>(f.text?0:1);
+            if(f.text) {
+                w.number<quint16>(quint16(f.text->size()));
+                for(const auto unit:*f.text)w.number<quint16>(unit);
+            }
+        }else if(f.kind==7||f.kind==8) {
             const auto &c=f.capture;
             if(f.kind==7){w.facts(f.facts);w.facts(c.after);}
             w.number<quint32>(c.width);w.number<quint32>(c.height);w.number<quint64>(c.dprBits);

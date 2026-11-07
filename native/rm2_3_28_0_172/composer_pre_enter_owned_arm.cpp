@@ -31,6 +31,10 @@ struct TestAccess {
         return Capture::armRequest(range,budget);
     }
     static std::shared_ptr<detail::State> state(Capture &c) { return c.state_; }
+    static std::unique_ptr<Capture> armUntil(composer_text::Clock::time_point deadline,
+            std::shared_ptr<const std::atomic<bool>> retirement,bool &occupied) {
+        return Capture::armUntil({0,3},deadline,std::move(retirement),occupied);
+    }
 };
 }
 extern "C" void owned_enter(void *,const StockPair *,const QString *);
@@ -49,6 +53,8 @@ static void *expectedParticipant;
 static const StockPair *expectedOwner;
 static const QString *expectedText;
 static void *fixtureScene;
+static std::atomic<bool> *fixtureRetirement;
+static bool fixtureDeadlineWaited;
 struct Marker { ~Marker() { ++cleanups; } };
 
 extern "C" __attribute__((noinline,section(".stock_original")))
@@ -60,6 +66,7 @@ void stock_original(void *p,const StockPair *o,const QString *s) {
     if (mode==1) throw 72;
     if (mode==2) { mode=0; owned_enter(p,o,s); }
     if (mode==3) pe::detail::OwnedTestAccess::state()->canceled.store(true);
+    if (mode==4) fixtureRetirement->store(true,std::memory_order_release);
     auto &doc=*reinterpret_cast<QTextDocument *>(o->item+0x1ec);
     QTextCursor cursor(&doc); cursor.movePosition(QTextCursor::End); cursor.insertText(*s);
 }
@@ -243,6 +250,48 @@ int main(int argc,char **argv) {
     assert(owner->doc().toPlainText()==QStringLiteral("abc\n\n"));
     competing[winner].reset();
     assert(!pe::TestAccess::arm()&&!weak.expired());
+    pe::detail::OwnedTestAccess::publishDormant();
+    auto retired=std::make_shared<std::atomic<bool>>(true);
+    const auto originalDeadline=composer_text::Clock::now()+std::chrono::seconds(5);
+    bool occupied=false;
+    assert(!pe::TestAccess::armUntil(originalDeadline,retired,occupied)&&!occupied);
+    auto live=std::make_shared<std::atomic<bool>>(false);
+    assert(!pe::TestAccess::armUntil(composer_text::Clock::now(),live,occupied)&&!occupied);
+    auto leased=pe::TestAccess::armUntil(originalDeadline,live,occupied);
+    assert(leased&&pe::TestAccess::state(*leased)->deadline==originalDeadline);
+    owner->doc().setPlainText(QStringLiteral("abc"));
+    fixtureRetirement=live.get();
+    pe::TestAccess::state(*leased)->beforeRecheck=+[] {
+        fixtureRetirement->store(true,std::memory_order_release);
+    };
+    call();
+    assert(live->load()&&leased->snapshot().text.failure==composer_text::Failure::Canceled);
+    assert(!leased->snapshot().text.count);
+    leased.reset();
+    assert(!pe::TestAccess::armUntil(originalDeadline,live,occupied)&&occupied);
+    pe::detail::OwnedTestAccess::publishDormant();
+    auto lateRetirement=std::make_shared<std::atomic<bool>>(false);
+    fixtureRetirement=lateRetirement.get();
+    auto publishing=pe::TestAccess::armUntil(originalDeadline,lateRetirement,occupied);
+    assert(publishing);
+    owner->doc().setPlainText(QStringLiteral("abc"));
+    mode=4;call();mode=0;
+    assert(lateRetirement->load()&&publishing->snapshot().text.failure==composer_text::Failure::Canceled);
+    assert(!publishing->snapshot().text.count);
+    fixtureRetirement=nullptr;
+    pe::detail::OwnedTestAccess::publishDormant();
+    const auto shortDeadline=composer_text::Clock::now()+std::chrono::milliseconds(100);
+    auto expiring=pe::TestAccess::armUntil(shortDeadline,std::make_shared<std::atomic<bool>>(false),occupied);
+    assert(expiring);
+    owner->doc().setPlainText(QStringLiteral("abc"));
+    pe::TestAccess::state(*expiring)->beforeRecheck=+[] {
+        fixtureDeadlineWaited=true;
+        std::this_thread::sleep_until(pe::detail::OwnedTestAccess::state()->deadline);
+    };
+    call();
+    assert(fixtureDeadlineWaited&&expiring->snapshot().text.failure==composer_text::Failure::Deadline);
+    assert(!expiring->snapshot().text.count);
+    std::puts("owned ARM lease: original absolute deadline, in-copy expiry and retirement, and pre-publication retirement passed");
     std::puts("owned ARM arming: dormant and uninstalled routes, competing requests, expiry, cancellation, and retained one-shot state passed");
     std::puts("owned ARM patched BL -> near veneer -> compiled shim: copy, once, refusal, cancellation, reentry and original unwind passed");
 }

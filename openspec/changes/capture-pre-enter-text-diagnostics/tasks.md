@@ -41,9 +41,9 @@
 - [x] Integrate private constructor installation with a dormant resident route and verify shared builder success/refusal in owned Linux children.
 - [x] Connect bounded Capture preparation to one immutable resident arming slot and verify its lifetime, refusal and forwarding in the owned ARM route.
 - [x] Specify the paired opt-in revision-4 text command/reply, exact lease deadline, retirement and compatibility rules.
-- [ ] Independently review the paired wire and lease contract before implementation.
-- [ ] Implement paired Rust/C++ codecs and route the command through the existing Endpoint lease and read-only dispatcher.
-- [ ] Verify exact paired vectors, disabled/refused routing, deadline and retirement, stale reply refusal and one-shot handle cleanup.
+- [x] Independently review the paired wire and lease contract before implementation.
+- [x] Implement paired Rust/C++ codecs and route the command through the existing Endpoint lease and read-only dispatcher.
+- [x] Verify exact paired vectors, disabled/refused routing, deadline and retirement, stale reply refusal and one-shot handle cleanup in owned fixtures.
 - [ ] Qualify a current runtime profile and select its admitted capture request.
 - [ ] The runtime maintainer schedules exact-profile disposable native qualification for stock pair/root/thread, pre-LF text, exactly one stock edit and active-composition refusal from folio and OSK.
 - [ ] Record actual behavior and any remaining teardown/currentness limitations; do not infer semantic Submit or owned-range authority.

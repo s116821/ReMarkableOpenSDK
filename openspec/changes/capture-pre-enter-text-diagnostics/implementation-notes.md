@@ -148,3 +148,20 @@ ARM controls exercise the same arming implementation through the patched shim,
 including concurrent requests and ordinary original calls while dormant or
 after consumption. The owned fixture publishes a fresh dormant route while idle
 between scenarios. Production publishes only the constructor's route.
+
+The paired revision-4 codecs carry a bounded range and raw UTF-16 units.
+The Rust command is opt-in. Updated ordinary native builds decode it and
+reply Unsupported through the existing read-only dispatcher. The private
+selected path takes the exact pending Endpoint deadline and shared retirement
+flag into Capture. It owns one handle while sampling completion on a single
+GUI timer. Endpoint::finish checks the original peer, lease and text count
+before accepting a response. Only the small retirement flag and deadline
+remain with resident capture state after handle cleanup.
+
+Owned coverage checks 28 Rust/Qt wire vectors, original request fingerprint
+and count, an authenticated endpoint exchange, rejection of late output on a
+successor connection, and the ordinary native dispatcher refusal. The patched
+owned ARM fixture checks retirement before arming, during the read and before
+publication, plus expiry at the original deadline. These fixtures establish
+their respective wire, dispatch and guard behavior. The stock selected
+end-to-end path still requires its own qualification.

@@ -200,6 +200,11 @@ impl SelectAdjacent {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
+    #[cfg(feature = "development-native-pre-enter")]
+    CapturePreEnter {
+        offset: u32,
+        count: u16,
+    },
     /// Explicit development ordinary Reader close. Not save completion.
     #[cfg(feature = "development-native-close")]
     CloseOrdinary(ReaderFacts),
@@ -244,6 +249,9 @@ pub enum Rejection {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reply {
+    /// Exact UTF-16 units from a historical diagnostic, or terminal refusal.
+    #[cfg(feature = "development-native-pre-enter")]
+    PreEnterText(Option<Vec<u16>>),
     #[cfg(feature = "development-native-close")]
     OrdinaryCloseDispatched,
     #[cfg(feature = "development-native-close")]
@@ -271,6 +279,13 @@ pub enum Reply {
         current: ReaderFacts,
         target_present: bool,
     },
+}
+
+#[cfg(feature = "development-native-pre-enter")]
+const MAX_PRE_ENTER_UNITS: u16 = 4096;
+#[cfg(feature = "development-native-pre-enter")]
+fn valid_pre_enter_range(offset: u32, count: u16) -> bool {
+    count <= MAX_PRE_ENTER_UNITS && u64::from(offset) + u64::from(count) < i32::MAX as u64
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -424,6 +439,18 @@ impl Frame {
             Message::Request(command) => {
                 w.u8(2);
                 match command {
+                    #[cfg(feature = "development-native-pre-enter")]
+                    Command::CapturePreEnter { offset, count } => {
+                        if revision != 4 {
+                            return Err(ProtocolError::UnsupportedVersion);
+                        }
+                        if !valid_pre_enter_range(*offset, *count) {
+                            return Err(ProtocolError::Malformed);
+                        }
+                        w.u8(10);
+                        w.u32(*offset);
+                        w.u16(*count);
+                    }
                     #[cfg(feature = "development-native-close")]
                     Command::CloseOrdinary(expected) => {
                         if revision < 4 {
@@ -490,6 +517,25 @@ impl Frame {
                 w.u8(3);
                 w.0.extend(request_sha256);
                 match reply {
+                    #[cfg(feature = "development-native-pre-enter")]
+                    Reply::PreEnterText(text) => {
+                        if revision != 4 {
+                            return Err(ProtocolError::UnsupportedVersion);
+                        }
+                        w.u8(12);
+                        if let Some(units) = text {
+                            if units.len() > usize::from(MAX_PRE_ENTER_UNITS) {
+                                return Err(ProtocolError::TooLarge);
+                            }
+                            w.u8(0);
+                            w.u16(units.len() as u16);
+                            for unit in units {
+                                w.u16(*unit);
+                            }
+                        } else {
+                            w.u8(1);
+                        }
+                    }
                     #[cfg(feature = "development-native-close")]
                     Reply::OrdinaryCloseDispatched => {
                         if revision < 4 {
@@ -641,6 +687,14 @@ impl Frame {
             0 => Message::Hello,
             1 => Message::Ready,
             2 => Message::Request(match r.u8()? {
+                #[cfg(feature = "development-native-pre-enter")]
+                10 if revision == 4 => {
+                    let (offset, count) = (r.u32()?, r.u16()?);
+                    if !valid_pre_enter_range(offset, count) {
+                        return Err(ProtocolError::Malformed);
+                    }
+                    Command::CapturePreEnter { offset, count }
+                }
                 #[cfg(feature = "development-native-close")]
                 7 if revision >= 4 => Command::CloseOrdinary(r.facts()?),
                 #[cfg(feature = "development-native-close")]
@@ -688,6 +742,18 @@ impl Frame {
             3 => {
                 let request_sha256 = r.take()?;
                 let reply = match r.u8()? {
+                    #[cfg(feature = "development-native-pre-enter")]
+                    12 if revision == 4 => Reply::PreEnterText(match r.u8()? {
+                        0 => {
+                            let count = r.u16()?;
+                            if count > MAX_PRE_ENTER_UNITS || r.0.len() != usize::from(count) * 2 {
+                                return Err(ProtocolError::Malformed);
+                            }
+                            Some((0..count).map(|_| r.u16()).collect::<Result<_>>()?)
+                        }
+                        1 => None,
+                        _ => return Err(ProtocolError::Malformed),
+                    }),
                     #[cfg(feature = "development-native-close")]
                     9 if revision >= 4 => Reply::OrdinaryCloseDispatched,
                     #[cfg(feature = "development-native-close")]
@@ -1083,6 +1149,18 @@ impl Session {
             unreachable!()
         };
         let valid = match (command, reply) {
+            #[cfg(feature = "development-native-pre-enter")]
+            (Command::CapturePreEnter { count, .. }, Reply::PreEnterText(Some(units))) => {
+                units.len() == usize::from(*count)
+            }
+            #[cfg(feature = "development-native-pre-enter")]
+            (
+                Command::CapturePreEnter { .. },
+                Reply::PreEnterText(None)
+                | Reply::Rejected(Rejection::Unsupported | Rejection::Capacity),
+            ) => true,
+            #[cfg(feature = "development-native-pre-enter")]
+            (Command::CapturePreEnter { .. }, _) => false,
             #[cfg(feature = "development-native-close")]
             (Command::CloseOrdinary(_), Reply::OrdinaryCloseDispatched) => true,
             #[cfg(feature = "development-native-close")]

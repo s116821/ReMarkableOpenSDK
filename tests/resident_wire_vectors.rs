@@ -173,6 +173,33 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
         },
         ..visual_request
     });
+    #[cfg(feature = "development-native-pre-enter")]
+    for (count, units) in [(3, vec![0, 0xd800, 0x2029]), (0, vec![])] {
+        let request = Frame {
+            scope: scope.clone(),
+            sequence: 1,
+            operation: OperationId(id(32)),
+            message: Message::Request(Command::CapturePreEnter { offset: 2, count }),
+        };
+        let request_sha256 = request.fingerprint().unwrap();
+        frames.push(request.clone());
+        frames.push(Frame {
+            message: Message::Response {
+                request_sha256,
+                reply: Reply::PreEnterText(Some(units)),
+            },
+            ..request.clone()
+        });
+        if count == 3 {
+            frames.push(Frame {
+                message: Message::Response {
+                    request_sha256,
+                    reply: Reply::PreEnterText(None),
+                },
+                ..request
+            });
+        }
+    }
     for (index, frame) in frames.iter().enumerate() {
         let bytes = frame.encode().unwrap();
         assert_eq!(Frame::decode(&bytes[4..]).unwrap(), *frame);

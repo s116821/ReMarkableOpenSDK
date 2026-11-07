@@ -64,6 +64,71 @@ fn inserted() -> Reply {
     }
 }
 
+#[cfg(feature = "development-native-pre-enter")]
+#[test]
+fn pre_enter_wire_and_correlation() {
+    let mut session = session();
+    let request = session
+        .begin(
+            OperationId(id(32)),
+            Command::CapturePreEnter {
+                offset: 2,
+                count: 3,
+            },
+        )
+        .unwrap();
+    let encoded = request.encode().unwrap();
+    assert_eq!(&encoded[207..], &[10, 0, 0, 0, 2, 0, 3]);
+    for wrong in [
+        Reply::PreEnterText(Some(vec![0, 0xd800])),
+        Reply::Indeterminate,
+        Reply::Rejected(Rejection::UnknownIdentity),
+        Reply::Observed(facts()),
+    ] {
+        assert_eq!(
+            session.complete(&response(&request, wrong)),
+            Err(ProtocolError::WrongResponse)
+        );
+    }
+    let reply = Reply::PreEnterText(Some(vec![0, 0xd800, 0x2029]));
+    let answer = response(&request, reply.clone());
+    let encoded = answer.encode().unwrap();
+    assert_eq!(&encoded[239..], &[12, 0, 0, 3, 0, 0, 0xd8, 0, 0x20, 0x29]);
+    assert_eq!(Frame::decode(&encoded[4..]).unwrap(), answer);
+    for change in [vec![2], vec![0, 0x10, 1], vec![0, 0, 1, 0], vec![1, 0]] {
+        let mut malformed = encoded[4..240].to_vec();
+        malformed.extend(change);
+        assert!(Frame::decode(&malformed).is_err());
+    }
+    assert_eq!(session.complete(&answer).unwrap(), reply);
+    assert_eq!(session.complete(&answer), Err(ProtocolError::WrongResponse));
+    let invalid = Frame {
+        message: Message::Request(Command::CapturePreEnter {
+            offset: u32::MAX,
+            count: 1,
+        }),
+        ..request.clone()
+    };
+    assert!(invalid.encode().is_err());
+    for reply in [Reply::PreEnterText(Some(vec![])), Reply::PreEnterText(None)] {
+        let response = response(&request, reply);
+        let bytes = response.encode().unwrap();
+        assert_eq!(Frame::decode(&bytes[4..]).unwrap(), response);
+    }
+}
+
+#[cfg(not(feature = "development-native-pre-enter"))]
+#[test]
+fn ordinary_rust_decoder_refuses_pre_enter_kind() {
+    let request = session()
+        .begin(OperationId(id(32)), Command::Observe)
+        .unwrap();
+    let bytes = request.encode().unwrap();
+    let mut new = bytes[4..bytes.len() - 1].to_vec();
+    new.extend([10, 0, 0, 0, 2, 0, 3]);
+    assert!(Frame::decode(&new).is_err());
+}
+
 #[test]
 fn every_fragment_boundary_and_coalesced_frames() {
     let frame = session()
