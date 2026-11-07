@@ -58,6 +58,44 @@ invocation. Cancellation, expiry, consumption and handle destruction never
 reopen the slot. Unarmed, consumed or nested capture passes stock through.
 Distinct later stock Enter actions continue once without capture or replay.
 
+## Resident request and completion
+
+Reserve request kind 10 and reply kind 12 in the revision-4 envelope. Request
+and reply kinds have separate namespaces. The Rust development opt-in
+`development-native-pre-enter` depends on `native-adapter`. It exposes the
+typed command and historical reply. The native codec recognizes the reserved
+forms so the dispatcher can reject a well-formed request with the existing
+Unsupported reply in ordinary builds. The new pair does not enable a profile.
+Keep `StartupSelected` false. A future qualified dispatcher needs the installed
+route, exact loaded composer profile and matching private Qt text support.
+
+The endpoint's one pending RequestLease owns identity, deadline and retirement.
+The existing read-only dispatcher owns at most one Capture for that lease.
+Arm from the original steady-clock deadline and the lease's shared monotonic
+retirement flag, passing both unchanged into the copy guard. The capture holder
+retains only the flag and deadline from the lease. It does not retain the frame,
+endpoint, socket or GUI object. Only the dispatcher holds the handle and lease
+while awaiting completion. It can sample bounded snapshots using one pending
+GUI timer and must stop on completion or lost admission. Interception invokes
+no endpoint, timer or notification callback. Completion passes through the
+existing Endpoint::finish identity and peer checks.
+
+Request retirement or expiration closes copy admission and suppresses any late
+reply. Destroy the dispatcher handle on completion, retirement, or owner
+destruction. Its cancellation never clears the installed route or its lifetime
+slot. A new connection cannot restore an armed request, and the diagnostic
+cannot settle any insertion or selection effect. The Rust client continues to
+enforce its own absolute transport deadline, with no automatic downgrade,
+fallback, or replay. See the resident-native-adapter delta for wire bytes,
+correlation and old/new compatibility.
+
+Codec vectors should pin the exact body bytes after the kind. Offset 2/count 3
+encodes as `00 00 00 02 00 03`. A copied reply with NUL, an isolated high
+surrogate and a paragraph separator encodes as `00 00 03 00 00 d8 00 20 29`.
+An empty successful reply encodes as `00 00 00`; refusal encodes as `01`.
+Cross-check both codecs and correlation with a changed request count, including
+well-formed replies arriving after the original lease retires.
+
 ## ARM interception and exception preservation
 Implement these production pieces, rather than testing a substitute C++ fake:
 

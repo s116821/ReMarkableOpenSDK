@@ -18,6 +18,8 @@ stock editing continues once.
   qualify selected native behavior through the existing runtime workflow.
 - Keep unsuccessful capture independent of stock editing: preserve original
   arguments, one stock invocation and original exception propagation.
+- Carry one opt-in text-range request and its historical reply through the
+  existing authenticated resident endpoint and lease.
 
 ## Capabilities
 ### New Capabilities
@@ -25,14 +27,19 @@ stock editing continues once.
   insertion, with exact-build, owner, composition and lifetime admission.
 
 ### Modified Capabilities
-None. Existing queued Attachment/Delivery contracts retain their admission paths.
-Private read code may be factored without changing their public behavior.
+- `resident-native-adapter`: add a development-only paired pre-Enter request
+  and reply. Preserve the current endpoint, ordinary frame bound and all
+  existing command encodings.
+
+Existing queued Attachment/Delivery contracts retain their admission paths.
 
 ## Impact
 Baseline: actual SDK main d107c2bf778ce35682a6f47e5250f5599d3d7c7c,
 released as v0.6.0. Proposed implementation belongs under
-`native/rm2_3_28_0_172/`, with reuse of current text-copy and resident lifetime
-controls. No generic recorder, public raw-native-pointer API or new owner system.
+`native/rm2_3_28_0_172/` and the paired resident codecs under `native/resident/`
+and `src/native_adapter.rs`. Reuse the existing lease, text copy and resident
+lifetime controls. No generic recorder, public raw-native-pointer API or new
+owner system.
 
 This change does not issue semantic Submit, owned-range/current-visit, conditional
 clear or retirement authority. List unindent remains stock behavior outside the
