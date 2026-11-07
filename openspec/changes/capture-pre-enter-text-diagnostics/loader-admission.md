@@ -7,7 +7,7 @@ activation, late patch path or caller-constructible quiescence token is proposed
 
 The unchanged owned ARM capsule now has positive admitted-RM2 raw-cache/task/
 transaction evidence. Preserve the separate strict QEMU refusal and the remaining
-exact kernel/constructor/stock admission requirements. See
+kernel behavior, constructor and stock admission requirements. See
 [bounded native evidence and the next local source seam](../../../docs/native/composer-pre-enter-native-evidence.md).
 This removes a completed diagnostic question from the remaining work; it does
 not enable production construction or select a device operation.
@@ -70,11 +70,17 @@ installBeforeMain-style callable as evidence of being before main.
   and unambiguous parsing. All file opens, allocations, Qt/loader calls and
   callbacks happen here. Failure remains ordinary preparation refusal.
 - Touch all planned buffers, stack/code paths and patch/rollback inputs before
-  exclusion. Prepare an absolute monotonic installation deadline and a reviewed
-  raw clock leaf; no clock-library first use belongs in the interval. Check the
-  deadline before mutation and at phase boundaries. Expiry after mutation requires
+  exclusion. At the constructor boundary, obtain the authenticated original
+  absolute CLOCK_BOOTTIME expiry from Activation before any capture preparation.
+  A zero result refuses capture preparation. Normalize the same expiry from
+  milliseconds to seconds and nanoseconds outside exclusion, and carry it to
+  Prepared unchanged in meaning. The raw clock leaf reads CLOCK_BOOTTIME at
+  entry, immediately before mutation and before commit. Expiry or clock failure
+  after mutation requires
   excluded rollback or fail-closed exit. Bounded loop/syscall counts do not claim
   hard real-time syscall latency; independent startup recovery remains required.
+  Startup expiry applies to capture installation. The existing endpoint session
+  and the later capture observation each have their own lifetime policy.
 
 ## Phase B: obtain actual exclusion, with no code writes yet
 
@@ -93,17 +99,23 @@ externally minted token can substitute for its checks.
    /proc/self/task with preopened fd, fixed-buffer getdents64 and full parsing,
    requiring exactly this TID. Recheck the kernel count after enumeration.
    No readdir/opendir, malloc, lazy binding, Qt operation or callback is permitted.
-3. The kernel count is a required real observation, not an old numeric fact.
-   Before accepting it, verify the pinned target kernel's count publication and
-   clone/exit ordering support this use. Repeated non-atomic directory enumeration
-   alone cannot prove exclusion. Unsupported procfs/ABI/kernel semantics, extra
-   tasks or ambiguous enumeration must refuse before any site write.
-4. The intended inference is explicit: once the current blocked constructor is
-   the sole task, and the remaining leaf-only path cannot clone or invoke a
-   handler, no in-process peer can enter the site or create a peer during that
-   interval. This depends on the trusted-process boundary: debugger/ptrace,
-   external memory mutation, kernel defects and unreviewed interposers are not
-   neutralized by a signal mask. Do not claim global stop-the-world behavior.
+3. The supported kernel is trusted to provide a fresh conservative count of
+   group tasks that can execute userspace or create peers. It counts a new
+   group task before it can run and removes a task only after its last
+   userspace execution. The candidate vendor source demonstrates this mechanism.
+   Exact build binding can substantiate the assumption, and the production
+   profile may rely on the explicitly reviewed behavioral contract. The proc
+   field name, repeated enumeration and the owned diagnostic alone supply no
+   such guarantee. Unsupported semantics, extra tasks or ambiguity refuse.
+4. The trusted initial-load chain must also exclude out-of-group users of the
+   same address space, including CLONE_VM without CLONE_THREAD. Fresh exec
+   supplies an initial condition. Dependency initializers and Reader
+   preparation must preserve it, a premise still open for production.
+   Given both premises, a blocked constructor that observes itself as the sole
+   counted task and then executes only leaves without clone or callback has no
+   peer that can run or create another peer. The trusted process boundary also
+   excludes debugger/ptrace, external memory mutation and unreviewed
+   interposition.
 
 SIGKILL/SIGSTOP cannot be blocked; they do not run application handlers.
 Synchronous instruction/memory faults are not recoverable installation branches.
@@ -190,3 +202,8 @@ The kernel documents Threads as a process thread count in
 does not qualify the target kernel's concurrent count/clone implementation.
 Fixed-buffer directory parsing uses the kernel interface documented by
 [getdents(2)](https://man7.org/linux/man-pages/man2/getdents.2.html).
+Linux permits address-space sharing independently of group membership
+([clone(2)](https://man7.org/linux/man-pages/man2/clone.2.html)). The candidate
+[kernel helper](https://github.com/reMarkable/linux/blob/d54fe67bf86e918468b936f97a2ec39f4f87a3d9/lib/is_single_threaded.c)
+also checks other address-space users. The reviewed startup path still needs a
+basis for ruling them out.

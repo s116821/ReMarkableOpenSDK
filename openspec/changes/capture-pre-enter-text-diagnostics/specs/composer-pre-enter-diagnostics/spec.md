@@ -83,7 +83,12 @@ addresses SHALL NOT be treated as cross-invocation owner/ABA authority.
 Production patch admission SHALL be established inside the existing private
 pre-main loader after all allocating preparation. The final interval SHALL
 verify effective blocked asynchronous-signal delivery, current constructor-thread
-identity and a qualified current kernel single-thread observation. Old task
+identity and a qualified current kernel thread-group observation. The
+supported kernel SHALL count group tasks before they can run and retain the
+count until they can no longer execute userspace or create another task.
+Production admission SHALL separately establish that the initial-load path
+through preparation leaves no out-of-group task sharing the address space.
+Old task
 counts, absence of a Qt application, repeated directory scans alone or a
 caller-set token SHALL NOT substitute for this admission. The route SHALL be
 eagerly prepared and resident without lazy entry initialization or an ordinary
@@ -93,9 +98,18 @@ restore the prior mask only after coherent publication or verified startup
 rollback. Uncertain partial state SHALL use the existing fail-closed startup
 policy without input replay or later live unhook.
 
+Capture installation SHALL use the authenticated original startup expiry
+from Activation. It SHALL check that absolute CLOCK_BOOTTIME deadline before
+capture preparation and in the raw transaction before mutation and commit.
+Capture installation SHALL preserve the separate endpoint session lifetime.
+
 #### Scenario: A thread or mask check is uncertain
-- **WHEN** an extra task, unsupported kernel count semantics or incomplete signal blocking is observed
+- **WHEN** an extra task, unsupported kernel count semantics, incomplete signal blocking or unresolved address-space sharing prevents exclusion
 - **THEN** capture installation refuses before changing the stock callsite
+
+#### Scenario: Startup expiry is exhausted during installation
+- **WHEN** the original startup deadline has passed or its clock is unavailable
+- **THEN** capture installation refuses before mutation or uses the existing rollback or fail-closed policy if mutation has started
 
 #### Scenario: Route requires lazy setup or exit destruction
 - **WHEN** route entry can acquire an initialization guard or ordinary cleanup can destroy its live state

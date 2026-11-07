@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <asm/unistd.h>
 #include <sys/mman.h>
+#include <time.h>
 
 namespace remarkable::composer_pre_enter::detail::patch {
 // Raw leaves: no libc errno, cancellation wrapper, lazy binding or allocation.
@@ -29,12 +30,12 @@ inline long raw(long n,long x=0,long y=0,long z=0,long u=0,long v=0,long w=0) no
 #endif
 }
 inline long address(const void *p) noexcept { return reinterpret_cast<long>(p); }
-struct Time { std::int64_t seconds=0,nanoseconds=0; };
-inline bool now(Time &t) noexcept {
+struct BootTime { std::int64_t seconds=0,nanoseconds=0; };
+inline bool bootNow(BootTime &t) noexcept {
 #if defined(__arm__)
-    const bool okay=raw(__NR_clock_gettime64,1,address(&t))==0;
+    const bool okay=raw(__NR_clock_gettime64,CLOCK_BOOTTIME,address(&t))==0;
 #else
-    const bool okay=raw(__NR_clock_gettime,1,address(&t))==0;
+    const bool okay=raw(__NR_clock_gettime,CLOCK_BOOTTIME,address(&t))==0;
 #endif
     return okay&&t.seconds>=0&&t.nanoseconds>=0&&t.nanoseconds<1000000000;
 }
@@ -50,7 +51,7 @@ inline bool cache(void *p,std::size_t n) noexcept {
 }
 enum class Outcome { Unprepared, Refused, ExtraThread, Installed, RolledBack };
 #ifdef COMPOSER_PATCH_OWNED_TESTING
-enum class Fault { None, BeforeWrite, AfterWrite, Cache, Protection, RollbackFatal, MaskFatal, ExclusionFatal };
+enum class Fault { None, Expired, BeforeWrite, AfterWrite, Cache, Protection, RollbackFatal, MaskFatal, ExclusionFatal };
 #endif
 
 class Prepared final {
@@ -69,7 +70,8 @@ class Prepared final {
     int maps_=-1,statusFd_=-1,tasks_=-1;
     std::uint32_t encoded_=0;
     std::uint64_t oldMask_=0;
-    Time deadline_{};
+    // Absolute CLOCK_BOOTTIME, normalized from the original startup expiry.
+    BootTime deadline_{};
     bool ready_=false,used_=false;
     std::atomic<unsigned> committed_{0}; // Local patch fact, never consumer authority.
     static_assert(std::atomic<unsigned>::is_always_lock_free);
@@ -173,7 +175,7 @@ class Prepared final {
         return false;
     }
     bool inTime() noexcept {
-        Time t{}; return now(t)&&(t.seconds<deadline_.seconds||
+        BootTime t{}; return bootNow(t)&&(t.seconds<deadline_.seconds||
             (t.seconds==deadline_.seconds&&t.nanoseconds<deadline_.nanoseconds));
     }
     bool protect(int flags) noexcept {return raw(__NR_mprotect,page_,pageSize_,flags)==0;}
@@ -189,6 +191,7 @@ class Prepared final {
     Outcome run() noexcept {
         if(!ready_||used_)return Outcome::Unprepared;
         used_=true;
+        if(!inTime())return Outcome::Refused;
         const std::uint64_t blocked=~std::uint64_t(0)&~(std::uint64_t(1)<<(SIGKILL-1))&
             ~(std::uint64_t(1)<<(SIGSTOP-1));
         if(raw(__NR_rt_sigprocmask,SIG_SETMASK,address(&blocked),address(&oldMask_),8)!=0)
@@ -202,7 +205,7 @@ class Prepared final {
         const auto threads=threadCount();
         if(threads<1)return refuse(Outcome::Refused);
         if(threads!=1)return refuse(Outcome::ExtraThread);
-        if(!onlyTask(tid)||threadCount()!=1||!inTime()||!mapsMatch()||siteWord()!=OriginalWord)
+        if(!onlyTask(tid)||threadCount()!=1||!mapsMatch()||siteWord()!=OriginalWord)
             return refuse(Outcome::Refused);
         std::uint32_t expected=0;
         if(!pageSize_||(pageSize_&(pageSize_-1))||page_!=(Site&~(pageSize_-1))||
@@ -217,7 +220,7 @@ class Prepared final {
         if(pendingSignal_&&raw(__NR_tgkill,tid,tid,pendingSignal_)!=0)fatal();
         if(fault_==Fault::BeforeWrite)return refuse(Outcome::Refused);
 #endif
-        if(!protect(PROT_READ|PROT_WRITE))return refuse(Outcome::Refused);
+        if(!inTime()||!protect(PROT_READ|PROT_WRITE))return refuse(Outcome::Refused);
         *reinterpret_cast<volatile std::uint32_t *>(Site)=encoded_;
         bool flushed=false,readonly=false;
 #ifdef COMPOSER_PATCH_OWNED_TESTING

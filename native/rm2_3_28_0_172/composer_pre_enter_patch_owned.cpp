@@ -40,7 +40,10 @@ struct OwnedAccess {
         c->tasks_=static_cast<int>(raw(__NR_openat,AT_FDCWD,address("/proc/self/task"),O_RDONLY|O_DIRECTORY|O_CLOEXEC));
         assert(c->maps_>=0&&c->statusFd_>=0&&c->tasks_>=0);
         assert(branch(Site,c->veneer_,c->encoded_));
-        assert(now(c->deadline_)); c->deadline_.seconds+=5;
+        if(fault!=Fault::Expired) {
+            assert(bootNow(c->deadline_));
+            c->deadline_.seconds+=5; // Owned fixture budget only.
+        }
         assert(c->readAll(c->maps_,c->baseline_.data(),c->baseline_.size(),c->baselineSize_));
         // This constructor is compiled only for the owned ELF/map fixture. There
         // is intentionally no production builder that treats these observations
@@ -107,7 +110,7 @@ static int child(p::Fault fault,bool signal,bool extra,bool mismatch=false) {
     }
     if(mismatch) {assert(outcome==p::Outcome::Refused&&word==0);return 0;}
     if(fault==p::Fault::None) assert(outcome==p::Outcome::Installed&&word==p::OwnedAccess::expected(*capsule));
-    else if(fault==p::Fault::BeforeWrite) assert(outcome==p::Outcome::Refused&&word==d::OriginalWord);
+    else if(fault==p::Fault::BeforeWrite||fault==p::Fault::Expired) assert(outcome==p::Outcome::Refused&&word==d::OriginalWord);
     else assert(outcome==p::Outcome::RolledBack&&word==d::OriginalWord);
     if(signal) assert(signalsSeen==1&&static_cast<std::uint32_t>(signalWord)==word&&
         signalCommitted==(outcome==p::Outcome::Installed?1:0));
@@ -127,6 +130,7 @@ int main() {
         std::puts("owned capsule: raw-cache ABI or real task observation refuses this environment; no patch was installed");
         return 78;
     }
+    assert(run(p::Fault::Expired)==0);
     assert(run(p::Fault::None,false,true)==0);
     assert(run(p::Fault::None,false,false,true)==0);
     for(auto f:{p::Fault::BeforeWrite,p::Fault::AfterWrite,p::Fault::Cache,p::Fault::Protection})

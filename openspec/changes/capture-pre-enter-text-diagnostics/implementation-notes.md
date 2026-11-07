@@ -25,7 +25,29 @@ remain internal to that actual constructor/Activation path, not accept a caller
 phase boolean. No new builder is enabled here. Runtime satisfaction of that
 selected launch remains separate from this source finding.
 
-## Candidate kernel count mechanism and exact gap
+The inspected Reader path reaches `Core::install` and two calls to the pinned
+`DobbyHook`. The Dobby inline-hook sources route through allocation,
+trampoline/relocation preparation and the POSIX patch leaf. Those inspected
+calls contain no thread or process creation. The admitted Reader artifact
+does contain `pthread_create` call sites in Dobby's
+`base::ThreadInterface::Create` and `OSThread::Start`. Their presence establishes
+linked creator code. The inspected hook chain supplies no call to either
+entry, and no execution of those entries was observed here.
+
+The retained Reader ELF has DT_INIT and DT_INIT_ARRAY plus direct Qt
+Quick/Gui/Qml/Network/Core and libc/runtime dependencies. The
+[glibc initializer source](https://github.com/bminor/glibc/blob/glibc-2.34/elf/dl-init.c)
+explains why dependency initializers can run before the adapter constructor.
+The source checks reject PREINIT, IRELATIVE and TEXTREL in the main image.
+They do not establish the behavior of the earlier dependency initializers
+and resolver paths. The precise remaining evidence gap is the executable's
+initial dependency closure through the constructor and Reader preparation,
+including any reachable creator of a separate task sharing the address space.
+The linked pthread entries are ordinary group-thread creators under the
+supported libc/kernel model. They do not establish the presence or absence
+of out-of-group address-space sharers.
+
+## Candidate kernel count mechanism and production premise
 
 The retained read-only kernel record says 5.4.70-v1.6.3-rm11x and explicitly marks
 exact_source_identity_verified=false. No retained kernel image/source-commit
@@ -42,12 +64,13 @@ d54fe67bf86e918468b936f97a2ec39f4f87a3d9, also the tag RM1XX_5.4.70_v1.6.2:
   path does not resume ordinary userspace execution.
 
 This lock/publication relationship is relevant to the design's sole-thread
-inference: with asynchronous delivery blocked, a properly serialized count of1
-excludes another userspace creator/entrant under that implementation. It is not
-proved merely by two directory scans. The missing link is the exact shipped
-v1.6.3 kernel build/source identity and any vendor changes to those paths.
-Do not label the v1.6.2 source as target compatibility or issue a ready production
-capsule until the missing link is established.
+inference. With blocked asynchronous delivery, the reviewed count/publication
+ordering and no out-of-group address-space sharer, a count of one and a
+non-cloning raw path establish exclusion. Two directory scans cannot supply
+those premises. The current design states the ordering as a trusted kernel
+behavioral assumption. The v1.6.2 source is candidate evidence and the shipped
+v1.6.3 binding remains unverified. Production construction still requires a
+reviewed basis for the separate initialization and address-space premise.
 
 Primary source:
 [proc producer](https://github.com/reMarkable/linux/blob/d54fe67bf86e918468b936f97a2ec39f4f87a3d9/fs/proc/array.c),
@@ -83,6 +106,17 @@ Primary source:
 [candidate ARM cache syscall](https://github.com/reMarkable/linux/blob/d54fe67bf86e918468b936f97a2ec39f4f87a3d9/arch/arm/kernel/traps.c).
 
 ## Owned controls and residency
+
+The startup deadline increment retains the authenticated original expiry in
+Activation for the future constructor boundary. A live capture preparation
+request obtains that absolute CLOCK_BOOTTIME value, and an expired or stale
+claim yields zero. The private raw transaction uses CLOCK_BOOTTIME and checks
+before mutation and commit. The owned fixture's synthetic budget is confined
+to that fixture. Host checks covered real claim expiry, endpoint startup after
+expiry and refusal of the expired capsule. The updated raw capsule compiled
+for ARM hard-float. The earlier exact RM2 result covers the original
+CLOCK_MONOTONIC binary and cannot qualify the changed clock leaf or deadline
+path on the target.
 
 Linux child controls exercise the actual private transaction with raw mask query,
 pending signal delivery after coherent commit/rollback, additional-thread and

@@ -33,6 +33,10 @@ or those libraries. This build directory is not a complete release distribution.
 applies the two compatibility edits, and checks both the adapter and profile
 against the tablet-tested digests before writing a tarball.
 
+Use source revision `8162966a2faac2ec81c72a71de396f43869a159f` to reproduce that
+admitted bundle. Later changes to shared native source, including startup expiry
+retention, require their own artifact identity and admission.
+
 Run it in a Linux container with the RM2 SDK for Qt 6.10.3 and GCC 13.4.0. Set
 `sdk_image` to the image with that toolchain, `sdk_environment` to its environment
 setup file, and `dobby_archive` to the absolute path of the downloaded tarball.

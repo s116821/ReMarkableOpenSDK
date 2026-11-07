@@ -44,6 +44,24 @@ int main(int argc,char **argv) {
         check(!Activation::claim(fixture.root.path(),hashes()));
         Endpoint endpoint(config,{});check(endpoint.start());
     }
+    {
+        Fixture fixture;
+        auto bytes=admission();
+        const auto expiry=bootMilliseconds()+2000;
+        u64(bytes,152,expiry);
+        fixture.write(bytes);
+        auto activation=Activation::claim(fixture.root.path(),hashes());
+        check(bool(activation));
+        check(activation->captureStartupExpiryBootMs()==expiry);
+        const timespec until{time_t(expiry/1000),long(expiry%1000)*1000000L};
+        int sleepResult;
+        do {sleepResult=::clock_nanosleep(CLOCK_BOOTTIME,TIMER_ABSTIME,&until,nullptr);}
+        while(sleepResult==EINTR);
+        check(sleepResult==0&&bootMilliseconds()>=expiry);
+        check(activation->captureStartupExpiryBootMs()==0);
+        Endpoint endpoint(activation->config(),{});
+        check(endpoint.start());
+    }
     for(const int at:{0,7,8,39,40,71,72,103,104,119,136,140,144,164,167})
         refused([at](QByteArray &bytes){bytes[at]=char(uchar(bytes[at])^0xffU);});
     refused([](QByteArray &bytes){bytes.replace(120,16,QByteArray(16,0));});
@@ -86,7 +104,8 @@ int main(int argc,char **argv) {
         Fixture fixture;fixture.write(admission());auto activation=Activation::claim(fixture.root.path(),hashes());check(bool(activation));
         const auto original=fixture.root.path(),moved=original+QStringLiteral("-moved");
         check(QDir().rename(original,moved));check(QDir().mkdir(original));check(::chmod(QFile::encodeName(original).constData(),0700)==0);
-        check(!activation->directoryCurrent());Endpoint endpoint(activation->config(),{});check(!endpoint.start());
+        check(!activation->directoryCurrent());check(activation->captureStartupExpiryBootMs()==0);
+        Endpoint endpoint(activation->config(),{});check(!endpoint.start());
         check(QDir(moved).removeRecursively());
     }
     std::printf("{\"passed\":true,\"checks\":%u,\"native_activation\":false}\n",checks);
