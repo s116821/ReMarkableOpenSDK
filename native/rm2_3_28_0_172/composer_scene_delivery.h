@@ -45,14 +45,14 @@ class Delivery final {
     }
     static std::unique_ptr<Delivery> make(const Profile &profile, Slot &slot,
             const Slot::Token &token, const QString &page, std::chrono::milliseconds budget,
-            SceneRequest request, std::optional<composer_text::ReadRange> range = {}) {
+            SceneRequest request, std::optional<composer_text::ReadRange> range = {}, Mode mode = Mode::Observe) {
         using namespace reader_worker_native;
         if (!worker_detail::gui() || worker_detail::busy || !request || !pageValid(page)) return {};
         const auto owner = slot.match(token);
         if (!owner || !owner->ready || owner->consumed || owner->sceneCancellation || !owner->live())
             return {};
         auto cancellation = std::make_shared<std::atomic<bool>>(false);
-        auto attachment = Attachment::prepare(profile,budget,range,cancellation);
+        auto attachment = Attachment::prepare(profile,budget,range,cancellation,mode);
         if (!attachment) return {};
         return std::unique_ptr<Delivery>(new Delivery(std::make_shared<State>(
             slot,token,page,request,std::move(attachment),std::move(cancellation))));
@@ -70,13 +70,13 @@ public:
     ~Delivery() { close(state_); }
     static std::unique_ptr<Delivery> prepare(const Profile &profile, Slot &slot,
             const Slot::Token &token, const QString &page, std::chrono::milliseconds budget,
-            std::optional<composer_text::ReadRange> range = {}) {
+            std::optional<composer_text::ReadRange> range = {}, Mode mode = Mode::Observe) {
 #if defined(__linux__) && defined(__arm__) && defined(__ARM_PCS_VFP) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) && QT_VERSION == QT_VERSION_CHECK(6,10,3)
         static_assert(sizeof(Callback) == 16 && alignof(Callback) == 4 && sizeof(qulonglong) == 8);
         // Distinct reviewed scene request. Never reinterpret the generic request.
-        return make(profile,slot,token,page,budget,reinterpret_cast<SceneRequest>(0x6d6ce4U),range);
+        return make(profile,slot,token,page,budget,reinterpret_cast<SceneRequest>(0x6d6ce4U),range,mode);
 #else
-        (void)profile; (void)slot; (void)token; (void)page; (void)budget; (void)range;
+        (void)profile; (void)slot; (void)token; (void)page; (void)budget; (void)range; (void)mode;
         return {};
 #endif
     }

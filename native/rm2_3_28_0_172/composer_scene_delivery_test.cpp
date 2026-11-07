@@ -25,20 +25,25 @@ struct SlotAccess {
 }
 namespace remarkable::composer_scene::testing {
 struct Access {
-    static std::unique_ptr<Profile> profile() { return std::unique_ptr<Profile>(new Profile); }
+    static std::unique_ptr<Profile> profile() { return std::unique_ptr<Profile>(new Profile(true)); }
     static void fixture(Attachment &a) {
         a.state_->join=[](::Scene *scene) {
             Join result; result.document=reinterpret_cast<QTextDocument *>(scene);
             result.facts.documentAddress=reinterpret_cast<std::uintptr_t>(scene);
+            result.root=1; result.control=2; result.participant=3; result.privateData=4;
             return result;
+        };
+        a.state_->readCaches=[](const Join &) -> detail::CacheBytes {
+            return std::array<unsigned char, 2>{0, 1};
         };
     }
 };
 struct DeliveryAccess {
     static std::unique_ptr<Delivery> make(const Profile &p,reader_worker_native::ResidentSlot &slot,
             const reader_worker_native::ResidentSlot::Token &token,const QString &page,
-            SceneRequest fn,std::chrono::milliseconds budget=120s) {
-        auto value=Delivery::make(p,slot,token,page,budget,fn);
+            SceneRequest fn,std::chrono::milliseconds budget=120s,Mode mode=Mode::Observe,
+            std::optional<composer_text::ReadRange> range={}) {
+        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode);
         if(value)Access::fixture(*value->state_->attachment);
         return value;
     }
@@ -92,7 +97,7 @@ struct Session {
     std::unique_ptr<Profile> profile=testing::Access::profile();
     std::unique_ptr<Delivery> delivery;
     QString page=QStringLiteral("12345678-1234-1234-1234-123456789abc");
-    explicit Session(std::chrono::milliseconds budget=120s) {
+    explicit Session(std::chrono::milliseconds budget=120s, Mode mode=Mode::Observe) {
         active=&fixture;
         slot.reset(reader_worker_native::testing::SlotAccess::make({
             resolve,acquire,generic,release,QMetaType::fromType<NativeId>().iface(),
@@ -100,7 +105,7 @@ struct Session {
         auto prep=slot->prepare(&fixture.controller,QVariant::fromValue(NativeId{}),
             &fixture.worker,[]{return true;});
         assert(prep.ready); token=prep.token;
-        delivery=testing::DeliveryAccess::make(*profile,*slot,token,page,scene,budget);
+        delivery=testing::DeliveryAccess::make(*profile,*slot,token,page,scene,budget,mode);
         assert(delivery);
     }
     void retained() {
@@ -198,6 +203,36 @@ void permitAndInputRefusal() {
     assert(!s.fixture.copies[0](reinterpret_cast<::Scene *>(&doc)));
     assert(s.delivery->snapshot().attachment.attached);
 }
+void scalarDelivery() {
+    Session s(120s, Mode::Scalars);
+    auto ambiguous=testing::DeliveryAccess::make(*s.profile,*s.slot,s.token,s.page,scene,120s,
+        Mode::Scalars,remarkable::composer_text::ReadRange{0, 1});
+    assert(!ambiguous && s.fixture.requests==0);
+    assert(s.delivery->snapshot().attachment.scalar.status==ScalarStatus::Pending);
+    assert(s.delivery->submit([]{return true;}).accepted);
+    QTextDocument doc;
+    assert(!s.fixture.copies[0](reinterpret_cast<::Scene *>(&doc)));
+    auto state=s.delivery->snapshot();
+    assert(state.available && state.ownersPinned && state.entered==1 && state.returned==1);
+    assert(state.attachment.scalar.status==ScalarStatus::Observed && state.attachment.scalar.sample);
+    assert(!state.attachment.attached && !state.attachment.observations.available);
+    assert(state.attachment.text.status==remarkable::composer_text::Status::NotRequested);
+    assert(state.attachment.scalar.sample->cachedWasRedoAvailable);
+    assert(!s.delivery->submit([]{return true;}).attempted && s.fixture.requests==1);
+    s.delivery->stop();
+    const auto historical=s.delivery->snapshot();
+    assert(historical.attachment.retired && historical.attachment.scalar.sample==state.attachment.scalar.sample);
+    s.retained();
+
+    Session canceled(120s, Mode::Scalars);
+    assert(canceled.delivery->submit([]{return true;}).accepted);
+    assert(canceled.slot->cancel(canceled.token));
+    assert(!canceled.fixture.copies[0](reinterpret_cast<::Scene *>(1)));
+    auto refused=canceled.delivery->snapshot().attachment;
+    assert(refused.retired && !refused.callbackEntered && refused.scalar.status==ScalarStatus::Refused);
+    assert(!refused.scalar.sample);
+    canceled.retained();
+}
 void deadlineAndDuplicate() {
     {
         Session s(1ms);
@@ -228,8 +263,8 @@ void deadlineAndDuplicate() {
 int main(int argc,char **argv) {
     QGuiApplication app(argc,argv);
     successAndLogicalStop(); lateAndSlotCancellation(); ambiguousRequest();
-    permitAndInputRefusal(); deadlineAndDuplicate();
-    std::cout<<"typed scene delivery: 5 owned lifecycle groups passed; Qt "<<qVersion()
+    permitAndInputRefusal(); deadlineAndDuplicate(); scalarDelivery();
+    std::cout<<"typed scene delivery: 6 owned lifecycle/scalar groups passed; Qt "<<qVersion()
              <<"; full 64-bit job preserved; no native enqueue executed\n";
 }
 #include "composer_scene_delivery_test.moc"

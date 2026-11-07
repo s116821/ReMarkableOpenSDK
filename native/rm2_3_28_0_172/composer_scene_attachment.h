@@ -2,6 +2,7 @@
 // Exact-build diagnostic attachment. No native dispatch or draft authority.
 #include "composer_document_observer.h"
 #include "composer_text_copy.h"
+#include <array>
 #include <optional>
 #if defined(__linux__)
 #include "../resident/loaded_artifact.h"
@@ -21,7 +22,7 @@ using Clock = composer_diagnostic::Clock;
 enum class Refusal {
     None, Unsupported, Canceled, Deadline, Duplicate, Busy, NullScene, MissingRoot,
     SceneBackReference, FocusMismatch, ItemType, NativeTransaction, Composition,
-    DocumentThread, QtTransaction, Observer, Text, Exception
+    DocumentThread, QtTransaction, Observer, Text, Exception, Scalar
 };
 struct Facts {
     std::uint32_t idHigh = 0, idLow = 0;
@@ -30,7 +31,32 @@ struct Facts {
     std::int32_t qtEditDepth = 0;
     std::uintptr_t documentAddress = 0; // Correspondence only; never dereferenced later.
 };
-struct Join { QTextDocument *document = nullptr; Facts facts; Refusal refusal = Refusal::None; };
+enum class Mode { Observe, Scalars };
+enum class ScalarStatus { NotRequested, Pending, Observed, Refused };
+struct ScalarSample {
+    bool undoRedoEnabled, undoAvailable, redoAvailable;
+    int maximumBlockCount, revision;
+    bool signalsBlocked, cachedWasUndoAvailable, cachedWasRedoAvailable;
+
+    bool operator==(const ScalarSample &other) const noexcept {
+        return undoRedoEnabled == other.undoRedoEnabled && undoAvailable == other.undoAvailable &&
+            redoAvailable == other.redoAvailable && maximumBlockCount == other.maximumBlockCount &&
+            revision == other.revision && signalsBlocked == other.signalsBlocked &&
+            cachedWasUndoAvailable == other.cachedWasUndoAvailable &&
+            cachedWasRedoAvailable == other.cachedWasRedoAvailable;
+    }
+};
+struct ScalarResult {
+    ScalarStatus status = ScalarStatus::NotRequested;
+    std::optional<ScalarSample> sample;
+};
+struct Join {
+    QTextDocument *document = nullptr;
+    Facts facts;
+    Refusal refusal = Refusal::None;
+    // Borrow-local correspondence. Never copied into the published snapshot.
+    std::uintptr_t root = 0, control = 0, participant = 0, privateData = 0;
+};
 namespace detail {
 
 #if defined(__linux__) && defined(__arm__)
@@ -78,7 +104,8 @@ inline Join join(::Scene *borrowed) {
     if (!scene) { result.refusal = Refusal::NullScene; return result; }
     const auto participant = word(scene, 0x26c);
     const auto item = word(scene, 0x190);
-    if (!participant || !item || !word(scene, 0x194)) {
+    const auto control = word(scene, 0x194);
+    if (!participant || !item || !control) {
         result.refusal = Refusal::MissingRoot; return result;
     }
     if (word(participant, 8) != scene) {
@@ -114,12 +141,49 @@ inline Join join(::Scene *borrowed) {
     if (f.qtEditDepth) { result.refusal = Refusal::QtTransaction; return result; }
     f.documentAddress = reinterpret_cast<std::uintptr_t>(document);
     result.document = document;
+    result.root = item;
+    result.control = control;
+    result.participant = participant;
+    result.privateData = privateData;
 #else
     (void)borrowed;
     result.refusal = Refusal::Unsupported;
 #endif
     return result;
 }
+using CacheBytes = std::optional<std::array<unsigned char, 2>>;
+
+inline CacheBytes readScalarCaches(const Join &joined) {
+#if defined(__linux__) && defined(__arm__) && defined(__ARM_PCS_VFP) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) && QT_VERSION == QT_VERSION_CHECK(6,10,3)
+    std::array<unsigned char, 2> bytes;
+    std::memcpy(bytes.data(), reinterpret_cast<const void *>(joined.privateData + 0x40), bytes.size());
+    return bytes;
+#else
+    (void)joined;
+    return {};
+#endif
+}
+
+inline std::optional<ScalarSample> readScalars(const Join &joined, CacheBytes (*readCaches)(const Join &)) {
+    if (!joined.root || !joined.control || !joined.participant || !joined.privateData ||
+        joined.facts.documentAddress != reinterpret_cast<std::uintptr_t>(joined.document) ||
+        joined.document->thread() != QThread::currentThread())
+        return {};
+    const auto cache = readCaches(joined);
+    if (!cache || (*cache)[0] > 1 || (*cache)[1] > 1) return {};
+    const auto &doc = *joined.document;
+    return ScalarSample{doc.isUndoRedoEnabled(), doc.isUndoAvailable(), doc.isRedoAvailable(),
+        doc.maximumBlockCount(), doc.revision(), doc.signalsBlocked(),
+        (*cache)[0] == 1, (*cache)[1] == 1};
+}
+
+inline bool sameScalarBorrow(const Join &first, const Join &again) {
+    return again.refusal == Refusal::None && again.document == first.document &&
+        again.root == first.root && again.control == first.control &&
+        again.participant == first.participant && again.privateData == first.privateData &&
+        again.facts.idHigh == first.facts.idHigh && again.facts.idLow == first.facts.idLow;
+}
+
 // Shared final read check. Both callers must still hold their admitted native
 // borrow; this helper does not extend it or acquire native ownership.
 inline void revalidateText(const Join &first, const Join &again, composer_text::Result &candidate) {
@@ -140,7 +204,8 @@ class Attachment;
 namespace testing { struct Access; }
 #endif
 class Profile final {
-    Profile() = default;
+    explicit Profile(bool scalarLayout = false) : scalarLayout_(scalarLayout) {}
+    const bool scalarLayout_;
     friend class Attachment;
 #ifdef COMPOSER_SCENE_TESTING
     friend struct testing::Access;
@@ -179,7 +244,19 @@ public:
             detail::word(0x133e750, 0) != 0xfffffff8U ||
             detail::word(0x133e750, 4) != 0x133e618)
             return {};
-        return std::unique_ptr<Profile>(new Profile);
+        // Scalar mode admits the additional public getters only from the
+        // exact QtGui provider already established by the revision anchor.
+        Dl_info gui{};
+        bool scalarLayout = ::dladdr(revision, &gui) && gui.dli_fbase;
+        for (const auto *name : {"_ZNK13QTextDocument17isUndoRedoEnabledEv",
+                "_ZNK13QTextDocument15isUndoAvailableEv", "_ZNK13QTextDocument15isRedoAvailableEv",
+                "_ZNK13QTextDocument17maximumBlockCountEv"}) {
+            Dl_info getter{};
+            void *symbol = ::dlsym(RTLD_DEFAULT, name);
+            scalarLayout = scalarLayout && symbol && ::dladdr(symbol, &getter) &&
+                getter.dli_fbase == gui.dli_fbase;
+        }
+        return std::unique_ptr<Profile>(new Profile(scalarLayout));
 #else
         return {};
 #endif
@@ -191,13 +268,16 @@ struct Snapshot {
     Facts facts;
     composer_diagnostic::Snapshot observations;
     composer_text::Result text;
+    ScalarResult scalar;
 };
 class Attachment final {
     struct State {
         const Clock::time_point deadline;
+        const Mode mode;
         const std::optional<composer_text::ReadRange> range;
         const std::shared_ptr<std::atomic<bool>> externalCancellation;
         composer_text::Result text;
+        ScalarResult scalar;
         std::atomic<bool> canceled{false}, claimed{false};
         std::atomic<Refusal> refusal{Refusal::None};
         std::mutex mutex;
@@ -213,10 +293,12 @@ class Attachment final {
         Facts facts;
         std::unique_ptr<composer_diagnostic::Observer> observer;
         Join (*join)(::Scene *) = detail::join;
+        detail::CacheBytes (*readCaches)(const Join &) = detail::readScalarCaches;
         explicit State(Clock::time_point limit,
                 std::optional<composer_text::ReadRange> read = {},
-                std::shared_ptr<std::atomic<bool>> external = {})
-            : deadline(limit), range(read), externalCancellation(std::move(external)) {
+                std::shared_ptr<std::atomic<bool>> external = {}, Mode requested = Mode::Observe)
+            : deadline(limit), mode(requested), range(read), externalCancellation(std::move(external)) {
+            if (mode == Mode::Scalars) scalar.status = ScalarStatus::Pending;
             if (range) { text.status = composer_text::Status::Pending; text.range = *range; }
         }
         void reject(Refusal reason) noexcept {
@@ -230,6 +312,7 @@ class Attachment final {
             if (Clock::now() >= deadline) reject(Refusal::Deadline);
         }
         void retireLocked() {
+            if (scalar.status == ScalarStatus::Pending) scalar.status = ScalarStatus::Refused;
             if (text.status == composer_text::Status::Pending) {
                 const auto reason = refusal.load(std::memory_order_acquire);
                 text.refuse(reason == Refusal::Deadline ? composer_text::Failure::Deadline :
@@ -240,6 +323,27 @@ class Attachment final {
             retirementSettled = true;
         }
     };
+    static void sampleScalars(State &s, ::Scene *scene, const Join &first) {
+        const auto sample = detail::readScalars(first, s.readCaches);
+        if (!sample) { s.reject(Refusal::Scalar); return; }
+#ifdef COMPOSER_SCENE_TESTING
+        if (s.beforePublish) s.beforePublish(s.hookContext);
+#endif
+        s.expire();
+        if (s.canceled.load(std::memory_order_acquire)) return;
+        const auto again = s.join(scene);
+        if (!detail::sameScalarBorrow(first, again)) {
+            s.reject(again.refusal == Refusal::None ? Refusal::Scalar : again.refusal);
+            return;
+        }
+        s.expire();
+        if (s.canceled.load(std::memory_order_acquire)) return;
+        const auto confirmed = detail::readScalars(again, s.readCaches);
+        if (!confirmed || !(*sample == *confirmed)) { s.reject(Refusal::Scalar); return; }
+        s.expire();
+        if (!s.canceled.load(std::memory_order_acquire)) s.scalar = {ScalarStatus::Observed, sample};
+    }
+
     std::shared_ptr<State> state_;
     explicit Attachment(std::shared_ptr<State> state) : state_(std::move(state)) {}
 #ifdef COMPOSER_SCENE_TESTING
@@ -250,13 +354,15 @@ public:
     Attachment &operator=(const Attachment &) = delete;
     // Serialize handle methods/destruction; delivered callback copies may race.
     ~Attachment() { stop(); }
-    static std::unique_ptr<Attachment> prepare(const Profile &, std::chrono::milliseconds budget,
+    static std::unique_ptr<Attachment> prepare(const Profile &profile, std::chrono::milliseconds budget,
             std::optional<composer_text::ReadRange> range = {},
-            std::shared_ptr<std::atomic<bool>> externalCancellation = {}) {
+            std::shared_ptr<std::atomic<bool>> externalCancellation = {}, Mode mode = Mode::Observe) {
         if (budget.count() < 1 || budget > std::chrono::milliseconds(120000) ||
+            (mode != Mode::Observe && mode != Mode::Scalars) ||
+            (mode == Mode::Scalars && (range || !profile.scalarLayout_)) ||
             (range && !composer_text::detail::validRequest(*range))) return {};
         return std::unique_ptr<Attachment>(new Attachment(std::make_shared<State>(
-            Clock::now() + budget,range,std::move(externalCancellation))));
+            Clock::now() + budget, range, std::move(externalCancellation), mode)));
     }
     Clock::time_point deadline() const noexcept { return state_->deadline; }
     Callback callback() const {
@@ -276,13 +382,18 @@ public:
             if (s->canceled.load(std::memory_order_acquire)) return false;
             try {
                 auto joined = s->join(scene);
-                s->facts = joined.facts; // Scalars only; never store the borrowed pointer.
+                if (s->mode == Mode::Observe) s->facts = joined.facts;
                 if (joined.refusal != Refusal::None || !joined.document) {
                     s->reject(joined.refusal == Refusal::None ? Refusal::Observer : joined.refusal);
                     return false;
                 }
                 s->expire();
                 if (s->canceled.load(std::memory_order_acquire)) return false;
+                if (s->mode == Mode::Scalars) {
+                    sampleScalars(*s, scene, joined);
+                    if (s->canceled.load(std::memory_order_acquire)) s->retireLocked();
+                    return false;
+                }
                 auto observer = composer_diagnostic::Observer::attachUntil(*joined.document, s->deadline);
                 if (!observer) { s->reject(Refusal::Observer); return false; }
                 s->observer = std::move(observer);
@@ -336,6 +447,7 @@ public:
         const auto s = state_;
         s->expire();
         Snapshot result;
+        if (s->mode == Mode::Scalars) result.scalar.status = ScalarStatus::Pending;
         result.refusal = s->refusal.load(std::memory_order_acquire);
         std::unique_lock<std::mutex> lock(s->mutex, std::try_to_lock);
         if (!lock.owns_lock()) return result;
@@ -344,6 +456,7 @@ public:
         result.callbackEntered = s->entered;
         result.facts = s->facts;
         result.text = s->text;
+        result.scalar = s->scalar;
         if (s->observer) result.observations = s->observer->snapshot();
         result.retired = s->retirementSettled;
         result.refusal = s->refusal.load(std::memory_order_acquire);
