@@ -20,7 +20,7 @@ class Issuer final:public QObject {
         const std::shared_ptr<std::atomic<bool>> revoked=std::make_shared<std::atomic<bool>>(false);
         resident::Facts facts;
         resident::Id id,rangeId;
-        resident::Id client,server;
+        QByteArray runtime;
         QPointer<QQuickItem> receiver;
         QPointer<QQuickWindow> window;
         QPointer<QObject> worker;
@@ -50,6 +50,8 @@ class Issuer final:public QObject {
     Gate &effects_=Gate::process();
     std::shared_ptr<Visit> visit_;
     std::shared_ptr<Active> active_;
+    QPointer<resident::Endpoint> endpoint_;
+    bool endpointBound_=false;
     QTimer timer_;
     // Bounded process-local request admission, not durable deduplication. The
     // consumer's existing durable journal owns replay across process restart.
@@ -71,6 +73,16 @@ class Issuer final:public QObject {
 #endif
     static bool sameFacts(const resident::Facts &a,const resident::Facts &b) {
         return a.document==b.document&&a.page==b.page&&a.order==b.order;
+    }
+    bool sameVisit(const resident::Frame &request)const {
+        return visit_&&!visit_->revoked->load(std::memory_order_acquire)&&visit_->range&&
+            visit_->runtime==request.runtime&&sameFacts(visit_->facts,request.facts)&&
+            visit_->id==request.composer.visit&&visit_->rangeId==request.composer.range;
+    }
+    bool bindEndpoint(resident::Endpoint *endpoint) {
+        if(!endpoint||(endpointBound_&&endpoint_!=endpoint))return false;
+        if(!endpointBound_){endpoint_=endpoint;endpointBound_=true;}
+        return true;
     }
     static bool watch(const std::shared_ptr<Visit> &visit,QObject *object,QMetaMethod signal) {
         if(!object||!signal.isValid()||signal.methodType()!=QMetaMethod::Signal)return false;
@@ -301,20 +313,22 @@ public:
         const auto reject=[&](quint8 reason){resident::Frame r;r.kind=3;r.rejection=reason;endpoint->finish(lease,r);};
         const auto &request=lease->request();
         if(!resident::isComposerRequest(request.kind)||!resident::validFacts(request.facts)){reject(0);return;}
+        // The maintained Endpoint authenticates every accepted socket against
+        // the same admitted uid/PID/start and every frame against its fixed
+        // installed runtime. Socket nonce rotation is not native visit loss.
+        if(!bindEndpoint(endpoint)){reject(3);return;}
         retireIdleVisit();
         if(quarantined_||active_||executor_->busy()||slot_->occupied()||consumed_.size()>=256||consumed_.contains(request.operation)){reject(4);return;}
         consumed_.insert(request.operation);
         if(request.kind==12) {
             if(visit_){reject(4);return;}
             auto v=std::make_shared<Visit>();v->facts=request.facts;v->id=resident::freshNonce();v->rangeId=resident::freshNonce();
-            v->client=request.client;v->server=request.server;
+            v->runtime=request.runtime;
             v->window=qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow());
             v->receiver=v->window?v->window->activeFocusItem():nullptr;
             if(!resident::validId(v->id)||!resident::validId(v->rangeId)||!install(v)){reject(3);return;}
             visit_=std::move(v);
-        } else if(!visit_||visit_->revoked->load(std::memory_order_acquire)||!visit_->range||
-                visit_->client!=request.client||visit_->server!=request.server||!sameFacts(visit_->facts,request.facts)||
-                visit_->id!=request.composer.visit||visit_->rangeId!=request.composer.range) {reject(3);return;}
+        } else if(!sameVisit(request)) {reject(3);return;}
         auto a=std::make_shared<Active>();a->lease=lease;a->endpoint=endpoint;a->visit=visit_;
         a->deadline=lease->deadline(); // Endpoint minted the single original <=20s deadline.
         a->retirement=composer_scene::SnapshotRetirement::createWriter(a->deadline,request.kind==12||request.kind==14);
