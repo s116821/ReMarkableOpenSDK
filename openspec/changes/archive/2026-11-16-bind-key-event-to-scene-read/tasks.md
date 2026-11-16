@@ -14,8 +14,8 @@
 - [x] Wire focused fixtures into the existing CI step.
 
 ## 3. Review and closeout
-- [ ] Independently review the source and exact evidence without claiming Submit/currentness authority.
-- [ ] Synchronize the bounded capability into SDK specs, archive this source increment and validate.
+- [x] Independently review the source and exact evidence without claiming Submit/currentness authority.
+- [x] Synchronize the bounded capability into SDK specs, archive this source increment and validate.
 - [x] Record progress/evidence in the canonical issue and coordinate the bounded consumer seam; final reviewed revision still follows.
 
 ## 4. Continuing primary composer work
