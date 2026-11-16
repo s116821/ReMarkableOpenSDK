@@ -6,9 +6,9 @@
 //! This module neither launches a runtime nor grants native capabilities.
 use super::*;
 use nix::errno::Errno;
-use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
+use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
 use nix::sys::socket::{
-    connect, getsockopt, socket, sockopt, AddressFamily, SockFlag, SockType, UnixAddr,
+    AddressFamily, SockFlag, SockType, UnixAddr, connect, getsockopt, socket, sockopt,
 };
 use std::fs::{self, File, Metadata};
 use std::io::{self, Read, Write};
@@ -468,11 +468,12 @@ mod tests {
 
     #[test]
     fn final_decoded_reply_progress_refusal_or_identity_change_preserves_pending() {
-        use nix::sys::socket::{recv, MsgFlags};
+        use nix::sys::socket::{MsgFlags, recv};
         use std::os::unix::{fs::PermissionsExt, net::UnixListener};
         use std::sync::{
+            Arc,
             atomic::{AtomicBool, Ordering},
-            mpsc, Arc,
+            mpsc,
         };
         use std::thread;
         let id = |n| Uuid::parse(&format!("00000000-0000-0000-0000-{n:012x}")).unwrap();
