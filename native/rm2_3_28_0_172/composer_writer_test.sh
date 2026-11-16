@@ -17,6 +17,10 @@ ${CXX:-c++} $flags $private -DCOMPOSER_TEXT_TESTING -DCOMPOSER_SCENE_TESTING "$r
 printf '%s\n' '#include "composer_native_action.h"' '#include "composer_anchor_walk.h"' '#include "composer_plain_edit.h"' '#include "composer_native_insert.h"' '#include "composer_owned_edit.h"' > "$out/production.cpp"
 ${CXX:-c++} $flags $private -I"$root" $(pkg-config --cflags Qt6Core Qt6Gui) \
     -c "$out/production.cpp" -o "$out/production.o"
+printf '%s\n' '#include "mutation_backend.h"' > "$out/issuer.cpp"
+${CXX:-c++} $flags $private -DRSDK_DEVELOPMENT_COMPOSER_V1 -I"$root" \
+    $(pkg-config --cflags Qt6Core Qt6Gui Qt6Network Qt6Qml Qt6Quick) \
+    -c "$out/issuer.cpp" -o "$out/issuer.o"
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
     timeout --kill-after=1s 40s "$OECORE_NATIVE_SYSROOT/usr/bin/qemu-arm" -L "$SDKTARGETSYSROOT" -E QT_QPA_PLATFORM=offscreen -E QT_PLUGIN_PATH="$SDKTARGETSYSROOT/usr/lib/plugins" "$out/writer-test"
 else

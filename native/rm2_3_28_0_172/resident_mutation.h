@@ -3,6 +3,7 @@
 #include "reader_retirement_scope.h"
 #include "resident_effect_gate.h"
 
+namespace remarkable::composer_writer { class Issuer; }
 namespace reader_worker_native {
 #ifdef RESIDENT_MUTATION_TESTING
 namespace testing {struct MutationAccess;}
@@ -11,6 +12,7 @@ namespace testing {struct MutationAccess;}
 // uncertain work retains that slot, independently of read-only observations.
 // Private QObject inheritance prevents external deletion/parenting/deleteLater.
 class ResidentMutation final:private QObject {
+    friend class remarkable::composer_writer::Issuer;
     using Entry=reader_insertion_entry::Coordinator;
     using Result=reader_insertion_entry::Result;
     struct Active;

@@ -9,6 +9,7 @@
 
 namespace remarkable::composer_writer {
 class Issuer;
+class Attachment;
 enum class EditStatus { Refused, ProjectionVerified, Unknown };
 enum class EditFailure {
     None, Thread, Context, Canceled, Deadline, Plain, Incarnation, Anchors,
@@ -66,6 +67,7 @@ class OwnedEdit final {
             return detail::inspectSequence(root,text,guard);
         };
     friend class Issuer;
+    friend class Attachment;
 #ifdef COMPOSER_WRITER_TESTING
     friend struct testing::Access;
 #endif

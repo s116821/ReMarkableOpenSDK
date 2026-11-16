@@ -4,6 +4,7 @@
 #include "composer_plain_edit.h"
 #include "composer_native_insert.h"
 #include "composer_owned_edit.h"
+#include "composer_writer_attachment.h"
 #include <QGuiApplication>
 #include <QTextCursor>
 #include <cassert>
@@ -269,6 +270,7 @@ struct TransactionState {
     std::shared_ptr<std::atomic<bool>> canceled;
     std::shared_ptr<std::atomic<bool>> visit;
     std::u16string draft=u"draft";
+    std::function<void()> duringSubmit;
 };
 thread_local TransactionState transaction;
 composer_scene::Join transactionJoin(::Scene *) {
@@ -323,6 +325,7 @@ bool transactionMatchesInsert(const ActionOwner &owner,std::uintptr_t,int,const 
 InsertedInterval transactionIds(const ActionOwner &) { return {{1000,0x70000},{1001,0x70000}}; }
 void transactionSubmit(void *stack,const ActionOwner *owner) {
     assert(stack==reinterpret_cast<void *>(0x3000) && owner->object==0x2010);
+    if(transaction.duringSubmit)transaction.duringSubmit();
     QTextCursor cursor(transaction.document);
     cursor.setPosition(transaction.position);
     if(transaction.removing) {
@@ -508,8 +511,33 @@ void remarkable::composer_writer::testing::Access::transactions() {
                 document.setPlainText(QStringLiteral("outside!\ndraft\n"));
                 assert(!issued.range->document);
             }
-            const auto result=engine.clear(scene,*issued.range,scenario==1?revision-1:revision,
-                scenario==2?QStringLiteral("other"):exactDraft,guard);
+            EditReceipt result;
+            if(scenario==0||scenario==5||scenario==7||scenario==11) {
+                // Same private transaction through the retained callback: its
+                // bool is stock damage flush, including attempted Unknown.
+                auto borrowedEngine=std::shared_ptr<OwnedEdit>(&engine,[](OwnedEdit*){});
+                auto lease=std::make_shared<std::atomic<bool>>(false);
+                auto attachment=Attachment::prepare(Attachment::Command::Clear,borrowedEngine,guard.deadline,
+                    transaction.canceled,visit,issued.range,revision,exactDraft,lease);
+                assert(attachment);
+                if(scenario==0)transaction.duringSubmit=[attachment] {
+                    bool closed=true;
+                    std::thread contender([&]{closed=attachment->closeBorrow();});
+                    contender.join();assert(!closed); // Cannot seal an entered borrow.
+                };
+                auto callback=attachment->callback();
+                assert(callback(scene)); // True for known success AND post-effect unknown.
+                transaction.duringSubmit={};
+                const auto saved=attachment->snapshot();assert(saved&&saved->entered&&saved->finished);
+                result=saved->edit;
+                const auto joins=transaction.joins;
+                assert(!callback(reinterpret_cast<::Scene*>(2))&&transaction.joins==joins);
+                assert(attachment->closeBorrow());
+                assert(!callback(reinterpret_cast<::Scene*>(2))&&transaction.joins==joins);
+            } else {
+                result=engine.clear(scene,*issued.range,scenario==1?revision-1:revision,
+                    scenario==2?QStringLiteral("other"):exactDraft,guard);
+            }
             const bool attempted=scenario==0 || scenario==5 || scenario==6 || scenario==7 || scenario==11 || scenario>=14;
             assert(transaction.removeCalls==int(attempted));
             assert(result.action.submissionAttempted==attempted);

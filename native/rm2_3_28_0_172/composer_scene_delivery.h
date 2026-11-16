@@ -3,6 +3,9 @@
 #include "composer_scene_attachment.h"
 #include "resident_worker_slot.h"
 #include "composer_snapshot_retirement.h"
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+#include "composer_writer_attachment.h"
+#endif
 #include <thread>
 
 namespace remarkable::composer_scene {
@@ -20,6 +23,7 @@ struct DeliverySnapshot {
 namespace testing { struct DeliveryAccess; }
 #endif
 class Delivery final {
+    friend class remarkable::composer_writer::Issuer;
     using Slot = reader_worker_native::ResidentSlot;
     using Submission = reader_worker_native::Submission;
     using Permit = reader_worker_native::Permit;
@@ -36,6 +40,9 @@ class Delivery final {
         const QString page;
         const SceneRequest request;
         std::shared_ptr<Attachment> attachment;
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        std::shared_ptr<composer_writer::Attachment> writer;
+#endif
         const std::shared_ptr<std::atomic<bool>> canceled;
         const std::shared_ptr<Counters> counters = std::make_shared<Counters>();
         std::shared_ptr<SnapshotRetirement> retirement;
@@ -45,6 +52,30 @@ class Delivery final {
               std::unique_ptr<Attachment> observer, std::shared_ptr<std::atomic<bool>> cancellation)
             : owners(&slot), token(std::move(owner)), page(std::move(value)), request(fn),
               attachment(std::move(observer)), canceled(std::move(cancellation)) {}
+        Clock::time_point deadline()const {
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+            if(writer)return writer->deadline();
+#endif
+            return attachment->deadline();
+        }
+        Callback callback()const {
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+            if(writer)return writer->callback();
+#endif
+            return attachment->callback();
+        }
+        bool closeBorrow() {
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+            if(writer)return writer->closeBorrow();
+#endif
+            return attachment->closeSnapshotBorrow();
+        }
+        void revoke() {
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+            if(writer){writer->revoke();return;}
+#endif
+            if(attachment->snapshotOnly())attachment->revoke();else attachment->stop();
+        }
     };
     std::shared_ptr<State> state_;
     explicit Delivery(std::shared_ptr<State> s) : state_(std::move(s)) {}
@@ -78,10 +109,28 @@ class Delivery final {
     }
     static void close(const std::shared_ptr<State> &s) noexcept {
         s->canceled->store(true,std::memory_order_release);
-        if (s->attachment->snapshotOnly()) s->attachment->revoke();
-        else s->attachment->stop();
+        s->revoke();
         if (s->ownsSlot && worker_detail::gui()) s->owners->cancel(s->token);
     }
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    static std::unique_ptr<Delivery> prepareWriter(Slot &slot,const Slot::Token &token,const QString &page,
+            std::shared_ptr<composer_writer::Attachment> writer,std::shared_ptr<std::atomic<bool>> canceled,
+            std::shared_ptr<SnapshotRetirement> retirement) {
+#if defined(__linux__) && defined(__arm__) && defined(__ARM_PCS_VFP) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) && QT_VERSION == QT_VERSION_CHECK(6,10,3)
+        if(!worker_detail::gui()||worker_detail::busy||!pageValid(page)||!writer||!canceled||!retirement||
+                retirement->deadline_!=writer->deadline()||canceled->load(std::memory_order_acquire))return {};
+        const auto owner=slot.match(token);
+        if(!owner||!owner->ready||owner->consumed||owner->sceneCancellation||!owner->live())return {};
+        if((retirement->kind_==reader_retirement::Kind::Mutation)!=writer->mutation())return {};
+        auto state=std::make_shared<State>(slot,token,page,reinterpret_cast<SceneRequest>(0x6d6ce4U),nullptr,std::move(canceled));
+        state->writer=std::move(writer);state->retirement=std::move(retirement);
+        state->counters->workerThread=reinterpret_cast<std::uintptr_t>(owner->publicWorker.data());
+        return std::unique_ptr<Delivery>(new Delivery(std::move(state)));
+#else
+        (void)slot;(void)token;(void)page;(void)writer;(void)canceled;(void)retirement;return {};
+#endif
+    }
+#endif
 public:
     Delivery(const Delivery &) = delete;
     Delivery &operator=(const Delivery &) = delete;
@@ -132,7 +181,7 @@ public:
         };
         if (!owner || !owner->ready || owner->consumed || owner->sceneCancellation ||
             !owner->live() || s->canceled->load(std::memory_order_acquire) ||
-            Clock::now() >= s->attachment->deadline())
+            Clock::now() >= s->deadline())
             return refused("scene-submission-refused");
         owner->consumed=true; owner->submitting=true; s->ownsSlot=true;
         struct Finished {
@@ -142,7 +191,7 @@ public:
         const QString page=s->page;
         Callback retained;
         try {
-            auto observe=s->attachment->callback();
+            auto observe=s->callback();
             auto canceled=s->canceled;
             auto counts=s->counters;
             const bool requireExactWorker=bool(s->retirement);
@@ -167,7 +216,7 @@ public:
                     canceled->store(true,std::memory_order_release);
                     return false;
                 }
-                if (!canceled->load(std::memory_order_acquire)) observe(scene);
+                if (!canceled->load(std::memory_order_acquire)) return observe(scene);
                 return false;
             };
         } catch (...) { return refused("scene-callback-copy-refused"); }
@@ -178,7 +227,7 @@ public:
                         s->counters->entered.load(std::memory_order_acquire)!=1 ||
                         s->counters->offGui.load(std::memory_order_acquire)!=1 ||
                         s->counters->onWorker.load(std::memory_order_acquire)!=1)return false;
-                if(!s->attachment->closeSnapshotBorrow())return false;
+                if(!s->closeBorrow())return false;
                 s->counters->borrowClosed.store(true,std::memory_order_release);
                 return true;
             },[s,worker] {
@@ -194,7 +243,7 @@ public:
         }
         if (!worker_detail::allowed(permit) || !owner->live() ||
             s->canceled->load(std::memory_order_acquire) ||
-            Clock::now() >= s->attachment->deadline())
+            Clock::now() >= s->deadline())
             return refused("scene-permit-refused");
 
         // Installed before native entry, even if it throws after retaining a copy.
@@ -226,10 +275,9 @@ public:
         DeliverySnapshot result;
         if (!worker_detail::gui()) return result;
         if (s->canceled->load(std::memory_order_acquire)) {
-            if (s->attachment->snapshotOnly()) s->attachment->revoke();
-            else s->attachment->stop();
+            s->revoke();
         }
-        result.attachment=s->attachment->snapshot();
+        if(s->attachment)result.attachment=s->attachment->snapshot();
         result.canceled=s->canceled->load(std::memory_order_acquire);
         result.entered=s->counters->entered.load(std::memory_order_acquire);
         result.returned=s->counters->returned.load(std::memory_order_acquire);

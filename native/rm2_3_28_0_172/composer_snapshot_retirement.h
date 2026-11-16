@@ -7,6 +7,7 @@
 #include <QUuid>
 #include <chrono>
 
+namespace remarkable::composer_writer { class Issuer; }
 namespace remarkable::composer_scene {
 class Delivery;
 class KeyDelivery;
@@ -21,11 +22,13 @@ class SnapshotRetirement final : public QObject {
     Q_OBJECT
     friend class Delivery;
     friend class KeyDelivery;
+    friend class remarkable::composer_writer::Issuer;
 #ifdef COMPOSER_DELIVERY_TESTING
     friend struct testing::DeliveryAccess;
 #endif
     using Clock=std::chrono::steady_clock;
     const Clock::time_point deadline_;
+    const reader_retirement::Kind kind_;
     reader_retirement::Fence fence_{this};
     reader_retirement::Token frameToken_;
     reader_request_scope::Binding binding_;
@@ -42,8 +45,8 @@ class SnapshotRetirement final : public QObject {
     // Keep the private witness alive after a public handle is destroyed. Native
     // callbacks never own this QObject or either GUI function.
     std::shared_ptr<SnapshotRetirement> keepAlive_;
-    explicit SnapshotRetirement(Clock::time_point deadline):deadline_(deadline) {
-        frameToken_=fence_.begin(QUuid::createUuid().toString(QUuid::Id128).toLatin1(),reader_retirement::Kind::ReadOnly);
+    explicit SnapshotRetirement(Clock::time_point deadline,reader_retirement::Kind kind=reader_retirement::Kind::ReadOnly):deadline_(deadline),kind_(kind) {
+        frameToken_=fence_.begin(QUuid::createUuid().toString(QUuid::Id128).toLatin1(),kind_);
         binding_=reader_retirement::binding(&fence_,frameToken_);
         timer_.setInterval(5);
         connect(&timer_,&QTimer::timeout,this,[this]{maintain();});
@@ -51,6 +54,12 @@ class SnapshotRetirement final : public QObject {
     static std::shared_ptr<SnapshotRetirement> create(Clock::time_point deadline) {
         if(!reader_worker_native::detail::gui() || deadline<=Clock::now())return {};
         auto result=std::shared_ptr<SnapshotRetirement>(new SnapshotRetirement(deadline));
+        return result->frameToken_?result:nullptr;
+    }
+    static std::shared_ptr<SnapshotRetirement> createWriter(Clock::time_point deadline,bool mutation) {
+        if(!reader_worker_native::detail::gui() || deadline<=Clock::now())return {};
+        auto result=std::shared_ptr<SnapshotRetirement>(new SnapshotRetirement(deadline,
+            mutation?reader_retirement::Kind::Mutation:reader_retirement::Kind::ReadOnly));
         return result->frameToken_?result:nullptr;
     }
     bool watch(QObject *worker,std::function<bool()> seal,std::function<bool()> release,
@@ -110,7 +119,8 @@ class SnapshotRetirement final : public QObject {
             // a false result is a nonblocking refusal, never a count-based drain.
             if(!seal_())return;
             status_.closed=true;
-            if(!fence_.requestRetire(frameToken_,[]{},reader_retirement::Effect::NoMutationAttempted))
+            if(!fence_.requestRetire(frameToken_,[]{},kind_==reader_retirement::Kind::Mutation?
+                    reader_retirement::Effect::ReconciliationRequired:reader_retirement::Effect::NoMutationAttempted))
                 fail(QStringLiteral("snapshot-frame-retirement-refused"));
             return;
         }

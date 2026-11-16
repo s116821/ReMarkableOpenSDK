@@ -98,7 +98,7 @@ __attribute__((constructor(200))) void initialize() {
             if(!patch::ConstructorStartup::trustedLoader(reinterpret_cast<const void*>(&artifactAnchor)))refuse();
         // The original loader independently verifies executable/provider hashes,
         // mapped code, eager bindings and pre-main conditions before any hook.
-#if defined(RSDK_INSTALLED_READER_INSERT_V1) || defined(RSDK_DEVELOPMENT_EFFECT_PROBE_V1)
+#if defined(RSDK_INSTALLED_READER_INSERT_V1) || defined(RSDK_DEVELOPMENT_EFFECT_PROBE_V1) || defined(RSDK_DEVELOPMENT_COMPOSER_V1)
         facilities=reader_insertion_native_profile::installBeforeMain(true);
 #else
         facilities=reader_insertion_native_profile::installBeforeMain(false);

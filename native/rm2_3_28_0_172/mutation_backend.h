@@ -2,6 +2,9 @@
 #include "read_only_backend.h"
 #include "resident_mutation.h"
 #include "resident_selection.h"
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+#include "composer_issuer.h"
+#endif
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #include "reader_ordinary_close.h"
 #include "reader_closed_view.h"
@@ -42,6 +45,9 @@ class MutationBackend final:public QObject {
     reader_worker_native::ResidentMutation *mutation_=nullptr;
     ResidentSelection *selection_=nullptr;
     QPointer<resident::Endpoint> endpoint_;
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    composer_writer::Issuer *composer_=nullptr;
+#endif
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
     bool closeConsumed_=false,closeDispatched_=false;
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
@@ -74,7 +80,11 @@ public:
 #else
         ResidentSelection::create(profile)
 #endif
-        ){}
+        ){
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+            composer_=composer_writer::Issuer::create(mutation_,this);
+#endif
+        }
 #ifdef RESIDENT_MUTATION_BACKEND_TESTING
     MutationBackend(TestStart start,std::function<bool()> busy,QObject *parent=nullptr)
         :QObject(parent),readOnly_(nullptr,this),testStart_(std::move(start)),testBusy_(std::move(busy)){}
@@ -88,6 +98,13 @@ public:
         const QPointer<resident::Endpoint> endpoint(endpoint_);
         const QPointer<QGuiApplication> app(qobject_cast<QGuiApplication*>(QCoreApplication::instance()));
         if(!app||!endpoint||!lease||!lease->active()||QThread::currentThread()!=app->thread()||thread()!=app->thread())return;
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        if(resident::isComposerRequest(lease->request().kind)) {
+            if(composer_)composer_->submit(endpoint,std::move(lease));
+            else {resident::Frame r;r.kind=3;r.rejection=0;endpoint->finish(lease,r);}
+            return;
+        }
+#endif
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
         if(lease->request().kind==9){submitFixtureReopen(std::move(lease));return;}
