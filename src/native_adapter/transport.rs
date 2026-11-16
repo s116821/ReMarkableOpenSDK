@@ -6,9 +6,9 @@
 //! This module neither launches a runtime nor grants native capabilities.
 use super::*;
 use nix::errno::Errno;
-use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
+use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
 use nix::sys::socket::{
-    AddressFamily, SockFlag, SockType, UnixAddr, connect, getsockopt, socket, sockopt,
+    connect, getsockopt, socket, sockopt, AddressFamily, SockFlag, SockType, UnixAddr,
 };
 use std::fs::{self, File, Metadata};
 use std::io::{self, Read, Write};
@@ -185,6 +185,10 @@ impl Client {
                 session,
             } = self;
             let mut serviced = || {
+                check_deadline(deadline)?;
+                // Callers may publish a diagnostic cue from progress. Reject
+                // already-invalid transport identity before that callout too.
+                authenticate(stream, directory, *socket_identity, *uid, runtime)?;
                 check_deadline(deadline)?;
                 progress().map_err(Failure::Progress)?;
                 check_deadline(deadline)?;
@@ -464,12 +468,11 @@ mod tests {
 
     #[test]
     fn final_decoded_reply_progress_refusal_or_identity_change_preserves_pending() {
-        use nix::sys::socket::{MsgFlags, recv};
+        use nix::sys::socket::{recv, MsgFlags};
         use std::os::unix::{fs::PermissionsExt, net::UnixListener};
         use std::sync::{
-            Arc,
             atomic::{AtomicBool, Ordering},
-            mpsc,
+            mpsc, Arc,
         };
         use std::thread;
         let id = |n| Uuid::parse(&format!("00000000-0000-0000-0000-{n:012x}")).unwrap();
