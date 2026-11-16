@@ -14,7 +14,7 @@ flags='-std=c++17 -Wall -Wextra -Werror -fPIC -no-pie -pthread'
 if [ "${COMPOSER_WRITER_SANITIZERS:-0}" = 1 ]; then flags="$flags -fsanitize=address,undefined -fno-omit-frame-pointer"; fi
 ${CXX:-c++} $flags $private -DCOMPOSER_TEXT_TESTING -DCOMPOSER_SCENE_TESTING "$root/composer_writer_test.cpp" \
     $(pkg-config --cflags --libs Qt6Core Qt6Gui) -ldl -o "$out/writer-test"
-printf '%s\n' '#include "composer_native_action.h"' '#include "composer_anchor_walk.h"' '#include "composer_plain_edit.h"' > "$out/production.cpp"
+printf '%s\n' '#include "composer_native_action.h"' '#include "composer_anchor_walk.h"' '#include "composer_plain_edit.h"' '#include "composer_native_insert.h"' '#include "composer_owned_edit.h"' > "$out/production.cpp"
 ${CXX:-c++} $flags $private -I"$root" $(pkg-config --cflags Qt6Core Qt6Gui) \
     -c "$out/production.cpp" -o "$out/production.o"
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then

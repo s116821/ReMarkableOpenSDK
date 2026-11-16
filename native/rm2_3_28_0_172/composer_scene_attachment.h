@@ -215,6 +215,8 @@ public:
     // runtime selection follows. Call before callback dispatch, never in a signal.
     Profile(const Profile &) = delete;
     Profile &operator=(const Profile &) = delete;
+    // Provider correspondence only, not a read/write admission or native lease.
+    bool supportsScalarGetters() const noexcept { return scalarLayout_; }
     static std::unique_ptr<Profile> load() {
 #if defined(__linux__) && defined(__arm__) && defined(__ARM_PCS_VFP) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) && QT_VERSION == QT_VERSION_CHECK(6,10,3)
         static_assert(sizeof(Callback) == 16 && alignof(Callback) == 4);

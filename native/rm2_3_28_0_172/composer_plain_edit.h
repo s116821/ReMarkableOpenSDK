@@ -28,10 +28,13 @@ class PlainProfile final {
 #ifdef COMPOSER_WRITER_TESTING
     friend struct remarkable::composer_writer::testing::Access;
 #endif
+    static bool acceptsProviders(const composer_scene::Profile &profile) noexcept {
+        return profile.supportsScalarGetters();
+    }
     static std::unique_ptr<PlainProfile> load() {
 #if defined(__linux__) && defined(__arm__) && defined(__ARM_PCS_VFP) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) && QT_VERSION == QT_VERSION_CHECK(6,10,3)
         auto providers = composer_scene::Profile::load();
-        if (!providers) return {};
+        if (!providers || !acceptsProviders(*providers)) return {};
         Dl_info gui{};
         void *revision = ::dlsym(RTLD_DEFAULT, "_ZNK13QTextDocument8revisionEv");
         if (!revision || !::dladdr(revision, &gui) || !gui.dli_fbase) return {};

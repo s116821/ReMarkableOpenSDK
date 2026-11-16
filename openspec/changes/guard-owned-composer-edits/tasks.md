@@ -8,6 +8,7 @@
 - [ ] Implement private owned-range proof and live owner/revision/text compare at the native first-effect boundary.
 - [ ] Implement the supported native apply/settlement path with copied results, outside-range preservation and explicit unknown/no-retry behavior.
 - [ ] Bind causal post-key observation without revision arithmetic; keep unsupported clear paths draft-preserving.
+- [ ] Separate practical full-page streaming shape/anchor comparison from the 4096-unit draft capture bound before claiming ordinary conversation-page support; the first whole-page 4096-unit profile is only a bounded early implementation.
 
 ## 3. Verification and closeout
 - [ ] Test absent/custom layout, rich content outside range, stale/missing/recreated anchors, unsupported namespace, wrong owner/thread, changed revision/text and bounded traversal with zero native calls on refusal.

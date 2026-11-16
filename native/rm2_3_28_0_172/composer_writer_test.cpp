@@ -2,6 +2,8 @@
 #include "composer_native_action.h"
 #include "composer_anchor_walk.h"
 #include "composer_plain_edit.h"
+#include "composer_native_insert.h"
+#include "composer_owned_edit.h"
 #include <QGuiApplication>
 #include <QTextCursor>
 #include <cassert>
@@ -11,9 +13,18 @@
 #include <stdexcept>
 #include <vector>
 #include <thread>
+#include <new>
 
+namespace remarkable::composer_scene::testing {
+struct Access {
+    static std::unique_ptr<Profile> providers(bool scalars) {
+        return std::unique_ptr<Profile>(new Profile(scalars));
+    }
+};
+}
 namespace remarkable::composer_writer::testing {
 struct Access {
+    static void transactions();
     static inline std::array<unsigned char,2> caches{1,0};
     static composer_scene::detail::CacheBytes readCaches(const composer_scene::Join &) { return caches; }
     static inline int makes = 0, submits = 0, releases = 0;
@@ -36,6 +47,53 @@ struct Access {
     static void release(void *control) {
         ++releases; assert(control == reinterpret_cast<void *>(0x2000));
         if (mode == 5) throw std::runtime_error("unknown decrement");
+    }
+    static void makeInsert(detail::ActionOwner *out, void *item, int start, QString *text,
+            const std::uint32_t *format) {
+        ++makes;
+        assert(item == reinterpret_cast<void *>(0x1000) && start == 1 && *text == QStringLiteral("\n\n"));
+        assert(format && format[0] == 0 && format[1] == 0);
+        if (mode == 1) throw std::runtime_error("factory before return");
+        *out = {0x2010,0x2000};
+        if (mode == 2) throw std::runtime_error("partial result");
+        if (mode == 7) *text = QStringLiteral("normalized unexpectedly");
+    }
+    static bool matchesInsert(const detail::ActionOwner &owner, std::uintptr_t, int, const QString &) {
+        return mode != 3 && owner.object == 0x2010 && owner.control == 0x2000;
+    }
+    static detail::InsertedInterval readIds(const detail::ActionOwner &) {
+        return {{101,0x70000},{mode == 6 ? 103U : 102U,0x70000}};
+    }
+    static void insert() {
+        for (mode = 0; mode != 8; ++mode) {
+            makes = submits = releases = 0;
+            detail::InsertProfile profile(makeInsert,submit,release,matchesInsert,readIds);
+            detail::ActionReceipt receipt;
+            {
+                detail::Insertion insertion(profile);
+                assert(!insertion.prepare(0x1000,1,{}));
+                assert(!insertion.prepare(0x1000,1,QStringLiteral("\r")));
+                assert(!insertion.prepare(0x1000,1,QString(QChar(0xd800))));
+                assert(!insertion.prepare(0x1000,INT_MAX,QStringLiteral("\n\n")));
+                assert(makes == 0);
+                const bool prepared = insertion.prepare(0x1000,1,QStringLiteral("\n\n"));
+                assert(prepared == (mode == 0 || mode == 4 || mode == 5 || mode == 6));
+                assert(!insertion.interval());
+                insertion.submit(0x3000); insertion.submit(0x3000);
+                assert(bool(insertion.interval()) == (mode == 0 || mode == 5));
+                insertion.finish(); insertion.finish();
+                assert(!insertion.interval());
+                receipt = insertion.receipt();
+            }
+            const bool prepared = mode == 0 || mode == 4 || mode == 5 || mode == 6;
+            assert(makes == 1 && submits == int(prepared) && releases == int(prepared));
+            assert(receipt.submissionAttempted == prepared);
+            assert(receipt.submissionReturned == (prepared && mode != 4));
+            assert(receipt.quarantined == (mode == 2 || mode == 3 || mode == 5 || mode == 7));
+        }
+        mode = 0;
+        assert(!detail::InsertProfile::load());
+        std::cout << "PASS insertion preparation, exact optional ABI, interval and unknown ownership\n";
     }
     static void run() {
         for (mode = 0; mode != 6; ++mode) {
@@ -77,6 +135,10 @@ struct Access {
         std::cout << "PASS native action local ownership, refusal, unknown and no retry\n";
     }
     static void plain() {
+        const auto baseOnly = composer_scene::testing::Access::providers(false);
+        const auto withScalars = composer_scene::testing::Access::providers(true);
+        assert(!detail::PlainProfile::acceptsProviders(*baseOnly));
+        assert(detail::PlainProfile::acceptsProviders(*withScalars));
         QTextDocument document;
         document.setPlainText(QStringLiteral("outside\nowned draft\noutside"));
         auto *layout = document.documentLayout(); // Explicit fixture setup, not admission.
@@ -198,11 +260,89 @@ struct Fixture {
         return walkAnchors(root, left, right, projection, guard, memory);
     }
 };
+struct TransactionState {
+    QTextDocument *document = nullptr;
+    Fixture *native = nullptr;
+    unsigned mode = 0;
+    int position = 0, length = 0, insertCalls = 0, removeCalls = 0, releases = 0, joins = 0;
+    bool removing = false, effected = false;
+    std::shared_ptr<std::atomic<bool>> canceled;
+};
+thread_local TransactionState transaction;
+composer_scene::Join transactionJoin(::Scene *) {
+    ++transaction.joins;
+    if (transaction.mode == 7 && transaction.removing && transaction.effected)
+        throw std::runtime_error("post-effect join");
+    composer_scene::Join joined;
+    joined.document = transaction.document;
+    joined.root = Fixture::root; joined.control = 2; joined.participant = 3;
+    joined.privateData = reinterpret_cast<std::uintptr_t>(QTextDocumentPrivate::get(joined.document));
+    joined.facts.documentAddress = reinterpret_cast<std::uintptr_t>(joined.document);
+    return joined;
+}
+std::uintptr_t transactionContext(::Scene *,const composer_scene::Join &) { return 0x3000; }
+AnchorPositions transactionAnchors(std::uintptr_t root,NativeId left,NativeId right,
+        const composer_text::Result &text,const composer_text::detail::Guard &guard) {
+    return walkAnchors(root,left,right,text,guard,transaction.native->memory);
+}
+AnchorPositions transactionSequence(std::uintptr_t root,const composer_text::Result &text,
+        const composer_text::detail::Guard &guard) {
+    return inspectSequence(root,text,guard,transaction.native->memory);
+}
+void resetNative(bool draft, bool deleted = false, bool changedOutside = false) {
+    auto &f=*transaction.native;
+    f.memory={};f.nodes.clear();f.projection={};f.projection.status=composer_text::Status::Copied;
+    f.memory.words[Fixture::sentinel]=Fixture::sentinel;f.memory.words[Fixture::sentinel+4]=Fixture::sentinel;
+    f.add({100,0x70000},u"outside!");
+    f.add({1000,0x70000},u"\n");
+    if(draft)f.add({2000,0x70000},u"draft");
+    if(deleted)f.add({2000,0x70000},u"",5);
+    f.add({1001,0x70000},u"\n");
+    if(changedOutside)f.add({3000,0x70000},u"X");
+}
+void transactionMakeRemove(ActionOwner *out,void *root,int start,int length,int kind) {
+    assert(root==reinterpret_cast<void *>(Fixture::root) && kind==0);
+    transaction.position=start;transaction.length=length;transaction.removing=true;
+    *out={0x2010,0x2000};
+    if(transaction.mode==4) {
+        QTextCursor cursor(transaction.document);cursor.movePosition(QTextCursor::End);cursor.insertText(QStringLiteral("X"));
+        resetNative(true,false,true);
+    }
+    if(transaction.mode==10)transaction.canceled->store(true);
+}
+void transactionMakeInsert(ActionOwner *out,void *root,int start,QString *text,const std::uint32_t *flags) {
+    assert(root==reinterpret_cast<void *>(Fixture::root) && *text==QStringLiteral("\n\n") && flags && !flags[1]);
+    transaction.position=start;transaction.removing=false;*out={0x2010,0x2000};
+}
+bool transactionMatchesRemove(const ActionOwner &owner,std::uintptr_t,int,int) { return owner.object==0x2010; }
+bool transactionMatchesInsert(const ActionOwner &owner,std::uintptr_t,int,const QString &) { return owner.object==0x2010; }
+InsertedInterval transactionIds(const ActionOwner &) { return {{1000,0x70000},{1001,0x70000}}; }
+void transactionSubmit(void *stack,const ActionOwner *owner) {
+    assert(stack==reinterpret_cast<void *>(0x3000) && owner->object==0x2010);
+    QTextCursor cursor(transaction.document);
+    cursor.setPosition(transaction.position);
+    if(transaction.removing) {
+        ++transaction.removeCalls;
+        cursor.setPosition(transaction.position+transaction.length,QTextCursor::KeepAnchor);
+        cursor.removeSelectedText();transaction.effected=true;
+        resetNative(false,true);
+        if(transaction.mode==5)throw std::runtime_error("native effect followed by throw");
+        if(transaction.mode==6) {
+            cursor.movePosition(QTextCursor::End);cursor.insertText(QStringLiteral("X"));
+            resetNative(false,true,true);
+        }
+        if(transaction.mode==11)transaction.canceled->store(true);
+    } else {
+        ++transaction.insertCalls;cursor.insertText(QStringLiteral("\n\n"));resetNative(false);
+    }
+}
+void transactionRelease(void *control) { assert(control==reinterpret_cast<void *>(0x2000));++transaction.releases; }
 void anchors() {
     {
         Fixture f; f.add({100,0x70000}, u"a\nhey\nz");
         const auto result = f.walk();
         assert(result.matched && result.left == 1 && result.right == 5 && result.nodes == 1);
+        assert(result.draftCount==3 && result.draft[0]==u'h' && result.draft[2]==u'y');
         assert(f.walk({0,0x70000},{105,0x70000}).failure == AnchorFailure::InvalidId);
     }
     {
@@ -220,7 +360,14 @@ void anchors() {
     {
         Fixture f; f.add({100,0x70000}, u"a\nhey\nz");
         f.add({101,0x70000}, u"", 1);
-        assert(f.walk().failure == AnchorFailure::Tombstone);
+        const auto result=f.walk();
+        assert(result.failure == AnchorFailure::Tombstone && result.draftCount==0);
+        assert(std::all_of(result.draft.begin(),result.draft.end(),[](auto unit){return unit==0;}));
+    }
+    {
+        Fixture f;f.add({100,0x70000},u"a\nhey\nthere\nz");
+        const auto result=f.walk({101,0x70000},{111,0x70000});
+        assert(result.matched && result.draftCount==9 && result.draft[3]==0x000a);
     }
     {
         Fixture f; f.add({100,0x70000}, u"a\nhey\nz");
@@ -287,9 +434,95 @@ void anchors() {
     std::cout << "PASS bounded native anchor walk, tombstones, live IDs, UTF16 and projection\n";
 }
 }
+void remarkable::composer_writer::testing::Access::transactions() {
+    const auto gui=std::this_thread::get_id();
+    {
+        OwnedEdit guiDenied(1,{},{},{});
+        std::atomic<bool> canceled{false};
+        composer_text::detail::Guard guard{canceled,nullptr,composer_text::Clock::now()+std::chrono::seconds(1)};
+        const auto denied=guiDenied.provision(reinterpret_cast<::Scene *>(1),guard,std::make_shared<std::atomic<bool>>(false));
+        assert(denied.receipt.failure==EditFailure::Thread && !denied.receipt.action.constructionAttempted);
+    }
+    auto *worker=QThread::create([gui] {
+        for(unsigned scenario=0;scenario!=14;++scenario) {
+            QTextDocument document;
+            document.setPlainText(QStringLiteral("outside"));
+            auto *layout=document.documentLayout();
+            QTextCursor cursor(&document);cursor.movePosition(QTextCursor::End);cursor.insertText(QStringLiteral("!"));
+            Fixture memory;memory.add({100,0x70000},u"outside!");
+            transaction={};transaction.document=&document;transaction.native=&memory;transaction.mode=scenario;
+            transaction.canceled=std::make_shared<std::atomic<bool>>(false);
+            std::uintptr_t vptr=0,rtti=0;
+            std::memcpy(&vptr,layout,sizeof vptr);
+            std::memcpy(&rtti,reinterpret_cast<const void *>(vptr-sizeof(void *)),sizeof rtti);
+            auto plain=std::unique_ptr<detail::PlainProfile>(new detail::PlainProfile(vptr,rtti));
+            plain->readCaches_=readCaches;
+            auto remove=std::unique_ptr<detail::ActionProfile>(new detail::ActionProfile(
+                transactionMakeRemove,transactionSubmit,transactionRelease,transactionMatchesRemove));
+            auto insert=std::unique_ptr<detail::InsertProfile>(new detail::InsertProfile(
+                transactionMakeInsert,transactionSubmit,transactionRelease,transactionMatchesInsert,transactionIds));
+            OwnedEdit engine(scenario==13?1:reinterpret_cast<std::uintptr_t>(QThread::currentThread()),std::move(remove),std::move(insert),std::move(plain),gui);
+            engine.join_=transactionJoin;engine.context_=transactionContext;engine.anchors_=transactionAnchors;
+            engine.sequence_=transactionSequence;
+            auto visit=std::make_shared<std::atomic<bool>>(false);
+            composer_text::detail::Guard guard{*transaction.canceled,nullptr,composer_text::Clock::now()+std::chrono::seconds(5)};
+            auto *scene=reinterpret_cast<::Scene *>(1); // Only the owned join sees this value.
+            if(scenario==12)memory.memory.words[memory.nodes[0]+0x2c]=1;
+            const auto issued=engine.provision(scene,guard,visit);
+            if(scenario==13) {
+                assert(issued.receipt.failure==EditFailure::Thread && transaction.joins==0 && transaction.insertCalls==0);continue;
+            }
+            if(scenario==12) {
+                assert(issued.receipt.status==EditStatus::Refused && !issued.range && transaction.insertCalls==0);
+                assert(document.toPlainText()==QStringLiteral("outside!"));continue;
+            }
+            assert(issued.receipt.status==EditStatus::ProjectionVerified && issued.range &&
+                issued.receipt.action.submissionAttempted && issued.receipt.action.releaseReturned);
+            assert(transaction.insertCalls==1 && transaction.removeCalls==0 && document.toPlainText()==QStringLiteral("outside!\n\n"));
+            cursor.setPosition(9);cursor.insertText(QStringLiteral("draft"));resetNative(true);
+            const auto revision=document.revision();
+            const auto observed=engine.observe(scene,*issued.range,guard);
+            assert(observed.observed && observed.text==QStringLiteral("draft") && observed.revision==revision);
+            if(scenario==3)visit->store(true);
+            if(scenario==8) {
+                // Original LF is tombstoned; a recreated-looking LF has a new ID.
+                memory.memory.words[memory.nodes[1]+0x30]=1;
+                memory.add({9999,0x70000},u"\n");
+            }
+            if(scenario==9) {
+                // Actual object destruction/reconstruction at the SAME address.
+                // A QPointer to the old embedded incarnation must stay null.
+                document.~QTextDocument();new (&document) QTextDocument;
+                document.setPlainText(QStringLiteral("outside!\ndraft\n"));
+                assert(!issued.range->document);
+            }
+            const auto result=engine.clear(scene,*issued.range,scenario==1?revision-1:revision,
+                scenario==2?QStringLiteral("other"):QStringLiteral("draft"),guard);
+            const bool attempted=scenario==0 || scenario==5 || scenario==6 || scenario==7 || scenario==11;
+            assert(transaction.removeCalls==int(attempted));
+            assert(result.action.submissionAttempted==attempted);
+            if(scenario==0) {
+                assert(result.status==EditStatus::ProjectionVerified && result.revisionsPresent);
+                assert(document.toPlainText()==QStringLiteral("outside!\n\n"));
+            } else if(attempted) {
+                assert(result.status==EditStatus::Unknown && !result.revisionsPresent);
+                assert(transaction.releases==2);
+            } else {
+                assert(result.status==EditStatus::Refused);
+                assert(document.toPlainText().contains(QStringLiteral("draft")));
+            }
+            if(scenario==4 || scenario==10)assert(result.action.constructionAttempted && result.action.releaseReturned);
+            assert(result.status!=EditStatus::ProjectionVerified || !visit->load());
+        }
+    });
+    worker->start();assert(worker->wait(20000));delete worker;
+    std::cout << "PASS private provision/readback and conditional clear, stale/unknown/draft controls\n";
+}
 int main(int argc, char **argv) {
     QGuiApplication application(argc, argv);
     remarkable::composer_writer::testing::Access::run();
+    remarkable::composer_writer::testing::Access::insert();
     remarkable::composer_writer::testing::Access::plain();
     anchors();
+    remarkable::composer_writer::testing::Access::transactions();
 }

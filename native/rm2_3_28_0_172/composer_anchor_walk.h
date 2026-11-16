@@ -26,6 +26,8 @@ struct AnchorPositions {
     int left = -1, right = -1;
     std::size_t nodes = 0, units = 0;
     bool matched = false;
+    std::array<std::uint16_t,composer_text::Result::Capacity> draft{};
+    std::size_t draftCount = 0;
 };
 struct NativeSequenceReader {
     static std::uint32_t word(std::uintptr_t base, std::size_t offset) noexcept {
@@ -47,9 +49,11 @@ struct NativeSequenceReader {
 template<class Reader = NativeSequenceReader>
 inline AnchorPositions walkAnchors(std::uintptr_t root, NativeId left, NativeId right,
         const composer_text::Result &projection, const composer_text::detail::Guard &guard,
-        const Reader &reader = {}) {
+        const Reader &reader = {}, bool requireAnchors = true) {
     AnchorPositions result;
-    auto fail = [&](AnchorFailure why) { result.failure = why; return result; };
+    auto fail = [&](AnchorFailure why) {
+        result.failure = why; result.draft.fill(0); result.draftCount=0; return result;
+    };
     auto interrupted = [&]() {
         const auto check = guard.check();
         if (check == composer_text::Failure::Canceled) return AnchorFailure::Canceled;
@@ -59,7 +63,7 @@ inline AnchorPositions walkAnchors(std::uintptr_t root, NativeId left, NativeId 
     if (const auto why = interrupted(); why != AnchorFailure::None) return fail(why);
     if (!root || root > std::numeric_limits<std::uintptr_t>::max() - 0x80)
         return fail(AnchorFailure::Link);
-    if (left.empty() || right.empty() || left == right) return fail(AnchorFailure::InvalidId);
+    if (requireAnchors && (left.empty() || right.empty() || left == right)) return fail(AnchorFailure::InvalidId);
     if (projection.status != composer_text::Status::Copied || projection.range.start != 0 ||
         projection.count > composer_text::Result::Capacity ||
         projection.range.length != static_cast<std::int64_t>(projection.count) ||
@@ -89,6 +93,7 @@ inline AnchorPositions walkAnchors(std::uintptr_t root, NativeId left, NativeId 
         if (length && length - 1 > MaximumCounter - base.counter())
             return fail(AnchorFailure::CounterOverflow);
         auto offset = [&](NativeId anchor) -> std::optional<std::size_t> {
+            if (!requireAnchors) return {};
             if (anchor.author() != base.author() || anchor.counter() < base.counter() ||
                 anchor.counter() - base.counter() >= length) return {};
             return static_cast<std::size_t>(anchor.counter() - base.counter());
@@ -119,6 +124,8 @@ inline AnchorPositions walkAnchors(std::uintptr_t root, NativeId left, NativeId 
                         result.right = static_cast<int>(result.units + at); foundRight = true;
                     }
                 }
+                if (foundLeft && !foundRight && !(leftAt && *leftAt == at))
+                    result.draft[result.draftCount++]=native;
                 // Qt's actual paragraph separator represents a native LF.
                 // No visible text delimiter can substitute for the native ID.
                 const auto qt = native == 0x000a ? 0x2029 : native;
@@ -135,10 +142,17 @@ inline AnchorPositions walkAnchors(std::uintptr_t root, NativeId left, NativeId 
         reader.word(sentinel, 4) != tail)
         return fail(AnchorFailure::Link);
     if (result.units != projection.count) return fail(AnchorFailure::Projection);
-    if (!foundLeft || !foundRight) return fail(AnchorFailure::Missing);
-    if (result.left >= result.right) return fail(AnchorFailure::Order);
+    if (requireAnchors && (!foundLeft || !foundRight)) return fail(AnchorFailure::Missing);
+    if (requireAnchors && result.left >= result.right) return fail(AnchorFailure::Order);
     if (const auto why = interrupted(); why != AnchorFailure::None) return fail(why);
     result.matched = true;
     return result;
+}
+template<class Reader = NativeSequenceReader>
+inline AnchorPositions inspectSequence(std::uintptr_t root,const composer_text::Result &projection,
+        const composer_text::detail::Guard &guard,const Reader &reader = {}) {
+    // Complete native shape/projection admission before initial provisioning.
+    // No anchors, range or ownership are produced by this form.
+    return walkAnchors(root,{}, {},projection,guard,reader,false);
 }
 } // namespace remarkable::composer_writer::detail
