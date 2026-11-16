@@ -1,0 +1,11 @@
+# Design
+
+`KeyDelivery` arms one actual receiver event filter. Its production acquisition callback invokes `observeInputReceiver`, then acquires the existing `ResidentSlot` owner and submits `Delivery` while the synchronous selection guard remains live. The queue receives the read before this filter forwards the triggering stock event. This is ordering within the same admitted worker, not proof that every writer is excluded or that a later clear is safe.
+
+The filter records key, modifiers, auto-repeat, count, native codes, spontaneous flag and bounded UTF-16 event text. These fields do not identify physical versus on-screen origin. The OSK's retained Enter branch sends KeyPress with no KeyRelease, so arming cannot require a release. This layer defines no Submit grammar and never accepts, rewrites or replays an event. If admission destroys the receiver, it consumes that delivery only as Qt requires to avoid forwarding to freed memory.
+
+The copied facts and the single Delivery form one receipt. No QKeyEvent, native Scene/document pointer or selection guard escapes into the worker callback. The existing callback performs the bounded read on its borrowed Scene, with the original absolute deadline and atomic cancellation. Further key presses, IME events, focus/receiver identity changes, stop or destruction cancel the pending result. Callback copies cannot grant a second acquisition.
+
+Native Task physical retirement remains unqualified. The same permanent native-owner pin and occupied-slot behavior applies, including ambiguous enqueue. This source increment must stay unenabled until the production issuer, writer serialization, genuine revision/owned-range condition, retirement/reuse and native qualification are delivered.
+
+Static basis: exact xochitl SHA256 `071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df`; SceneView key entry `0x4c80fc`, reducer `0x4c04d8`, controller key action `0x4a95f0`, Enter branch `0x4a9968`, key-job enqueue `0x4a9078` to `0x6e0814`. Accepted Scene request is `0x6d6ce4`. Retained OSK Enter at `0x2a55d8..0x2a5638` sends key `0x01000005`, modifiers zero, repeat false, count one. R36 contains separately labelled ordinary objdump evidence; retained REA exports remain their original evidence source. None is hardware qualification.

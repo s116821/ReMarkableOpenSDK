@@ -357,12 +357,19 @@ public:
     static std::unique_ptr<Attachment> prepare(const Profile &profile, std::chrono::milliseconds budget,
             std::optional<composer_text::ReadRange> range = {},
             std::shared_ptr<std::atomic<bool>> externalCancellation = {}, Mode mode = Mode::Observe) {
-        if (budget.count() < 1 || budget > std::chrono::milliseconds(120000) ||
+        if (budget.count() < 1 || budget > std::chrono::milliseconds(120000)) return {};
+        return prepareUntil(profile, Clock::now() + budget, range, std::move(externalCancellation), mode);
+    }
+    static std::unique_ptr<Attachment> prepareUntil(const Profile &profile, Clock::time_point deadline,
+            std::optional<composer_text::ReadRange> range = {},
+            std::shared_ptr<std::atomic<bool>> externalCancellation = {}, Mode mode = Mode::Observe) {
+        const auto now = Clock::now();
+        if (deadline <= now || deadline - now > std::chrono::milliseconds(120000) ||
             (mode != Mode::Observe && mode != Mode::Scalars) ||
             (mode == Mode::Scalars && (range || !profile.scalarLayout_)) ||
             (range && !composer_text::detail::validRequest(*range))) return {};
         return std::unique_ptr<Attachment>(new Attachment(std::make_shared<State>(
-            Clock::now() + budget, range, std::move(externalCancellation), mode)));
+            deadline, range, std::move(externalCancellation), mode)));
     }
     Clock::time_point deadline() const noexcept { return state_->deadline; }
     Callback callback() const {

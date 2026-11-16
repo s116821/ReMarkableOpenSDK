@@ -42,8 +42,8 @@ struct DeliveryAccess {
     static std::unique_ptr<Delivery> make(const Profile &p,reader_worker_native::ResidentSlot &slot,
             const reader_worker_native::ResidentSlot::Token &token,const QString &page,
             SceneRequest fn,std::chrono::milliseconds budget=120s,Mode mode=Mode::Observe,
-            std::optional<composer_text::ReadRange> range={}) {
-        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode);
+            std::optional<composer_text::ReadRange> range={}, std::optional<Clock::time_point> deadline={}) {
+        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode,deadline);
         if(value)Access::fixture(*value->state_->attachment);
         return value;
     }
@@ -266,5 +266,6 @@ int main(int argc,char **argv) {
     permitAndInputRefusal(); deadlineAndDuplicate(); scalarDelivery();
     std::cout<<"typed scene delivery: 6 owned lifecycle/scalar groups passed; Qt "<<qVersion()
              <<"; full 64-bit job preserved; no native enqueue executed\n";
+    return 0;
 }
 #include "composer_scene_delivery_test.moc"
