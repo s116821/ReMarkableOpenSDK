@@ -107,5 +107,49 @@ int main(int argc,char **argv) {
 #endif
         std::puts("PASS: reader focus Rust/Qt framing and feature gate");
     }
+    for(const auto *name:{"provision","observe","clear","key"}) {
+        const auto stem=root+"/composer-"+QString::fromLatin1(name);
+#ifndef RSDK_DEVELOPMENT_COMPOSER_V1
+        if(!QFile::exists(stem+"-request.bin"))continue;
+#endif
+        const auto requestBytes=read(stem+"-request.bin"),replyBytes=read(stem+"-reply.bin");
+        const auto request=decode(requestBytes.mid(4)),reply=decode(replyBytes.mid(4));
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        need(request&&reply&&validComposerReply(*request,*reply));
+        need(encode(*request)==requestBytes&&encode(*reply)==replyBytes);
+        need(fingerprint(*request)==read(stem+"-request.sha256"));
+        need(fingerprint(*reply)==read(stem+"-reply.sha256"));
+        need(reply->requestDigest==fingerprint(*request));
+        need(!validComposerReply(textRequest,*reply)&&!validComposerReply(*request,textReply));
+        for(const auto &bytes:{requestBytes,replyBytes}) {
+            need(!decode(bytes.mid(4)+'x'));
+            for(qsizetype size=0;size<bytes.size()-4;++size)need(!decode(bytes.mid(4,size)));
+        }
+        auto changed=*reply;changed.facts.page=QByteArray(16,'z');need(!validComposerReply(*request,changed));
+        if(request->kind!=12){changed=*reply;changed.composer.visit=QByteArray(16,'z');need(!validComposerReply(*request,changed));}
+        if(request->kind==14){changed=*reply;++changed.composer.revision;need(!validComposerReply(*request,changed));}
+        if(request->kind==15) {
+            changed=*reply;changed.composer.inputSerial=0;need(encode(changed).isEmpty());
+            auto duplicate=*request;duplicate.composer.keys={1,1};need(encode(duplicate).isEmpty());
+            auto bad=replyBytes;
+            bad[bad.size()-2-qsizetype(reply->composer.keyText.size())*2-2]=char(2);
+            need(!decode(bad.mid(4)));
+        }
+        for(unsigned status=0;status!=4;++status)for(unsigned attempts=0;attempts!=256;++attempts) {
+            changed=*reply;changed.composer.status=quint8(status);changed.composer.attempts=quint8(attempts);
+            const bool effect=reply->kind==14||reply->kind==16;
+            const bool expected=status==0?attempts==unsigned(effect?7:5):status==1?(attempts==0||attempts==5):
+                status==2?(attempts==1||attempts==5||(effect&&(attempts==3||attempts==7))):false;
+            need(validComposerOutcome(changed.kind,changed.composer)==expected);
+        }
+        changed=*reply;changed.composer.status=1;changed.composer.attempts=5;
+        const auto refused=encode(changed);need(refused.size()==242); // No stale copied draft/token bytes.
+        const auto refusedDecoded=decode(refused.mid(4));need(refusedDecoded&&refusedDecoded->composer.text.empty()&&refusedDecoded->composer.visit.isEmpty());
+        Frame generic;generic.kind=4;need(!validComposerReply(*request,generic));
+        generic.kind=3;for(unsigned reason=0;reason!=5;++reason){generic.rejection=reason;need(validComposerReply(*request,generic)==(reason==0||reason==3||reason==4));}
+#else
+        need(!request&&!reply);
+#endif
+    }
     std::printf("PASS: %d Rust/Qt vectors, %u checks\n",QFile::exists(root+"/23.bin")?28:23,checks);
 }

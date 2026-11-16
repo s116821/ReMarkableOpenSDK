@@ -12,7 +12,7 @@
 
 ## 3. Verification and closeout
 - [ ] Test absent/custom layout, rich content outside range, stale/missing/recreated anchors, unsupported namespace, wrong owner/thread, changed revision/text and bounded traversal with zero native calls on refusal.
-- [ ] Test successful exact apply, preserved outside text/separators, completion order and partial/unknown outcomes using owned fixtures; run host/ARM checks with disposable generated outputs.
+- [ ] Cover successful exact apply, preserved outside text/separators, completion order and partial/unknown outcomes in the existing CI regressions; use the real available tablet for integrated build/run/edge-case E2E, and use a simulator only when the tablet is occupied for parallel work.
 - [ ] Independently review exact source/evidence; distinguish native qualification from owned fixtures.
 - [ ] Synchronize/archive the finite SDK capability and update REM-61 with exact tested/reviewed revisions and remaining integration/qualification work.
 

@@ -9,6 +9,7 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 
 namespace remarkable::resident {
 constexpr qsizetype MaxFrame = 65536;
@@ -16,6 +17,20 @@ constexpr qsizetype MaxCapturePng = 1048576, MaxCaptureFrame = MaxCapturePng + M
 constexpr std::size_t MaxPages = 2048;
 constexpr quint8 PreEnterRequest=10,PreEnterReply=12;
 constexpr quint8 ReaderFocusRequest=11,ReaderFocusReply=13;
+inline constexpr bool isComposerRequest(quint8 kind) {
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    return kind>=12&&kind<=15;
+#else
+    (void)kind;return false;
+#endif
+}
+inline constexpr bool isComposerReply(quint8 kind) {
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    return kind>=14&&kind<=17;
+#else
+    (void)kind;return false;
+#endif
+}
 inline constexpr bool isReaderFocusRequest([[maybe_unused]] quint8 kind) {
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
     return kind==ReaderFocusRequest;
@@ -53,6 +68,43 @@ struct Capture {
     quint8 procedure=1;
     QByteArray sha256,png;
 };
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+struct Composer {
+    quint8 status=1,attempts=0;
+    Id visit,range,event;
+    qint32 revision=0,afterRevision=0;
+    std::vector<quint16> text,keyText;
+    std::vector<qint32> keys;
+    quint64 inputSerial=0;
+    qint32 key=0;
+    quint16 count=0;
+    quint32 modifiers=0,nativeScan=0,nativeVirtual=0,nativeModifiers=0;
+    bool autoRepeat=false,spontaneous=false;
+};
+inline bool validComposerKeys(const std::vector<qint32> &keys) {
+    if(keys.empty()||keys.size()>4)return false;
+    QSet<qint32> seen;
+    for(auto key:keys) {
+        if(key<=0||key>=0x01ffffff||seen.contains(key))return false;
+        seen.insert(key);
+    }
+    return true;
+}
+inline bool validComposerOutcome(quint8 kind,const Composer &c) {
+    if(!isComposerReply(kind)||c.status>2||(c.attempts&~quint8(7)))return false;
+    const bool effect=kind==14||kind==16;
+    if(!effect&&(c.attempts&2))return false;
+    if(c.status==0) {
+        if(c.attempts!=(effect?7:5)||!validId(c.visit)||!validId(c.range)||c.revision<0)return false;
+        if(kind==16&&c.afterRevision<0)return false;
+        if((kind==15||kind==17)&&c.text.size()>4096)return false;
+        if(kind==17&&(!validId(c.event)||!c.inputSerial||c.key<=0||c.key>=0x01ffffff||c.keyText.size()>64))return false;
+        return true;
+    }
+    if(c.status==1)return c.attempts==0||c.attempts==5;
+    return (c.attempts&1)!=0;
+}
+#endif
 struct Frame {
     // Exact wire runtime: three digests, boot UUID, PID, start ticks, activation UUID.
     QByteArray runtime;
@@ -71,11 +123,31 @@ struct Frame {
     Id target;
     bool targetPresent=false;
     unsigned char rejection=0;
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    Composer composer;
+#endif
 };
 inline bool validPreEnterReply(const Frame &request,const Frame &reply) {
     if(request.kind!=PreEnterRequest)return reply.kind!=PreEnterReply;
     if(reply.kind==3)return reply.rejection==0||reply.rejection==4;
     return reply.kind==PreEnterReply&&(!reply.text||reply.text->size()==request.textRange.count);
+}
+inline bool validComposerReply(const Frame &request,const Frame &reply) {
+    if(!isComposerRequest(request.kind))return !isComposerReply(reply.kind);
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    if(reply.kind==3)return reply.rejection==0||reply.rejection==3||reply.rejection==4;
+    if(reply.kind!=request.kind+2||!validComposerOutcome(reply.kind,reply.composer))return false;
+    const auto &result=reply.composer;
+    if(result.status!=0)return true;
+    if(reply.facts.document!=request.facts.document||reply.facts.page!=request.facts.page||
+       reply.facts.order!=request.facts.order)return false;
+    if(request.kind!=12&&(result.visit!=request.composer.visit||result.range!=request.composer.range))return false;
+    if(request.kind==14&&result.revision!=request.composer.revision)return false;
+    if(request.kind==15&&std::find(request.composer.keys.begin(),request.composer.keys.end(),result.key)==request.composer.keys.end())return false;
+    return true;
+#else
+    return false;
+#endif
 }
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
 inline bool validReaderFocusReply(const Frame &request,const Frame &reply) {
@@ -152,6 +224,76 @@ public:
     void order(const std::vector<Id> &ids){number<quint16>(quint16(ids.size()));for(const auto &id:ids)bytes+=id;}
     void facts(const Facts &value){bytes+=value.document;bytes+=value.page;order(value.order);}
 };
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+inline std::vector<quint16> composerUnits(Reader &reader,std::size_t maximum) {
+    const auto count=reader.number<quint16>();std::vector<quint16> units;
+    if(count>maximum||qsizetype(count)*2>reader.remaining()){reader.good=false;return units;}
+    units.reserve(count);
+    for(unsigned i=0;i<count;++i)units.push_back(reader.number<quint16>());
+    return units;
+}
+inline void composerUnits(Writer &writer,const std::vector<quint16> &units) {
+    writer.number<quint16>(quint16(units.size()));
+    for(auto unit:units)writer.number<quint16>(unit);
+}
+inline bool readComposerRequest(Reader &r,Frame &f) {
+    f.facts=r.facts();auto &c=f.composer;
+    if(f.kind==12)return r.good;
+    c.visit=r.id();c.range=r.id();
+    if(f.kind==14){c.revision=r.number<qint32>();c.text=composerUnits(r,4096);if(c.revision<0)return false;}
+    if(f.kind==15) {
+        const auto count=r.number<quint8>();if(!count||count>4)return false;
+        for(unsigned i=0;i<count;++i)c.keys.push_back(r.number<qint32>());
+        if(!validComposerKeys(c.keys))return false;
+    }
+    return r.good;
+}
+inline bool writeComposerRequest(Writer &w,const Frame &f) {
+    const auto &c=f.composer;
+    if(!validFacts(f.facts)||(f.kind!=12&&(!validId(c.visit)||!validId(c.range))))return false;
+    if(f.kind==14&&(c.revision<0||c.text.size()>4096))return false;
+    if(f.kind==15&&!validComposerKeys(c.keys))return false;
+    w.facts(f.facts);
+    if(f.kind==12)return true;
+    w.bytes+=c.visit;w.bytes+=c.range;
+    if(f.kind==14){w.number<qint32>(c.revision);composerUnits(w,c.text);}
+    if(f.kind==15){w.number<quint8>(quint8(c.keys.size()));for(auto key:c.keys)w.number<qint32>(key);}
+    return true;
+}
+inline bool readComposerReply(Reader &r,Frame &f) {
+    auto &c=f.composer;c.status=r.number<quint8>();c.attempts=r.number<quint8>();
+    if(c.status==0) {
+        f.facts=r.facts();c.visit=r.id();c.range=r.id();c.revision=r.number<qint32>();
+        if(f.kind==16)c.afterRevision=r.number<qint32>();
+        if(f.kind==15||f.kind==17)c.text=composerUnits(r,4096);
+        if(f.kind==17) {
+            c.event=r.id();c.inputSerial=r.number<quint64>();c.key=r.number<qint32>();c.count=r.number<quint16>();
+            c.modifiers=r.number<quint32>();c.nativeScan=r.number<quint32>();c.nativeVirtual=r.number<quint32>();
+            c.nativeModifiers=r.number<quint32>();const auto repeat=r.number<quint8>(),spontaneous=r.number<quint8>();
+            if(repeat>1||spontaneous>1)return false;
+            c.autoRepeat=repeat;c.spontaneous=spontaneous;c.keyText=composerUnits(r,64);
+        }
+    }
+    return r.good&&validComposerOutcome(f.kind,c);
+}
+inline bool writeComposerReply(Writer &w,const Frame &f) {
+    const auto &c=f.composer;
+    if(!validComposerOutcome(f.kind,c))return false;
+    w.number<quint8>(c.status);w.number<quint8>(c.attempts);
+    if(c.status!=0)return true;
+    if(!validFacts(f.facts))return false;
+    w.facts(f.facts);w.bytes+=c.visit;w.bytes+=c.range;w.number<qint32>(c.revision);
+    if(f.kind==16)w.number<qint32>(c.afterRevision);
+    if(f.kind==15||f.kind==17)composerUnits(w,c.text);
+    if(f.kind==17) {
+        w.bytes+=c.event;w.number<quint64>(c.inputSerial);w.number<qint32>(c.key);w.number<quint16>(c.count);
+        w.number<quint32>(c.modifiers);w.number<quint32>(c.nativeScan);w.number<quint32>(c.nativeVirtual);
+        w.number<quint32>(c.nativeModifiers);w.number<quint8>(c.autoRepeat);w.number<quint8>(c.spontaneous);
+        composerUnits(w,c.keyText);
+    }
+    return true;
+}
+#endif
 }
 inline std::optional<Frame> decode(const QByteArray &payload) {
     if(payload.size()>MaxCaptureFrame)return {};
@@ -170,17 +312,21 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
         f.kind=r.number<quint8>();
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
-        if(f.kind>9&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))return {};
+        if(f.kind>9&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind)&&!isComposerRequest(f.kind))return {};
         if(f.kind==9){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
         else
 #else
-        if(f.kind>8&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))return {};
+        if(f.kind>8&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind)&&!isComposerRequest(f.kind))return {};
 #endif
         if(f.kind==7){f.facts=r.facts();if(f.facts.order.size()>16)return {};}
         else if(f.kind==8){}
         else
 #else
-        if(f.kind>6&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))return {};
+        if(f.kind>6&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind)&&!isComposerRequest(f.kind))return {};
+#endif
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        if(isComposerRequest(f.kind)) {if(!detail::readComposerRequest(r,f))return {};}
+        else
 #endif
         if(f.kind==PreEnterRequest) {
             f.textRange={r.number<quint32>(),r.number<quint16>()};
@@ -196,12 +342,12 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
         f.requestDigest=r.take(32);f.kind=r.number<quint8>();
 #ifdef RSDK_DEVELOPMENT_ORDINARY_CLOSE_V1
 #ifdef RSDK_DEVELOPMENT_FIXTURE_REOPEN_V1
-        if(f.kind>11&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind))return {};
+        if(f.kind>11&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind)&&!isComposerReply(f.kind))return {};
 #else
-        if(f.kind>10&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind))return {};
+        if(f.kind>10&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind)&&!isComposerReply(f.kind))return {};
 #endif
 #else
-        if(f.kind>8&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind))return {};
+        if(f.kind>8&&f.kind!=PreEnterReply&&!isReaderFocusReply(f.kind)&&!isComposerReply(f.kind))return {};
 #endif
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
         if(f.kind==ReaderFocusReply) {
@@ -209,6 +355,10 @@ inline std::optional<Frame> decode(const QByteArray &payload) {
             if(value>quint8(ReaderFocus::OutsideScope))return {};
             f.readerFocus=ReaderFocus(value);
         }else
+#endif
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        if(isComposerReply(f.kind)) {if(!detail::readComposerReply(r,f))return {};}
+        else
 #endif
         if(f.kind==PreEnterReply) {
             const auto status=r.number<quint8>();
@@ -242,6 +392,9 @@ inline QByteArray encode(const Frame &f) {
     if(f.runtime.size()!=140||f.client.size()!=16||f.server.size()!=16||f.operation.size()!=16||
        f.facts.order.size()>MaxPages||f.capture.png.size()>MaxCapturePng||
        (f.text&&f.text->size()>MaxPreEnterUnits))return {};
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    if(f.composer.text.size()>4096||f.composer.keyText.size()>64||f.composer.keys.size()>4)return {};
+#endif
     if((f.message==2&&f.kind&&f.kind!=6&&f.kind!=8&&f.kind!=PreEnterRequest&&!isReaderFocusRequest(f.kind))||
        (f.message==3&&(f.kind<3||f.kind==5||f.kind==6))) {
         if(!validFacts(f.facts))return {};
@@ -253,6 +406,10 @@ inline QByteArray encode(const Frame &f) {
     w.bytes+=f.client;w.bytes+=f.server;w.number<quint64>(f.sequence);w.bytes+=f.operation;w.number<quint8>(f.message);
     if(f.message==2) {
         w.number<quint8>(f.kind);
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        if(isComposerRequest(f.kind)){if(!detail::writeComposerRequest(w,f))return {};}
+        else
+#endif
         if(f.kind==PreEnterRequest) {
             if(!validTextRange(f.textRange))return {};
             w.number<quint32>(f.textRange.offset);w.number<quint16>(f.textRange.count);
@@ -262,6 +419,10 @@ inline QByteArray encode(const Frame &f) {
         w.bytes+=f.requestDigest;w.number<quint8>(f.kind);
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
         if(f.kind==ReaderFocusReply)w.number<quint8>(quint8(f.readerFocus));
+        else
+#endif
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+        if(isComposerReply(f.kind)){if(!detail::writeComposerReply(w,f))return {};}
         else
 #endif
         if(f.kind==PreEnterReply) {

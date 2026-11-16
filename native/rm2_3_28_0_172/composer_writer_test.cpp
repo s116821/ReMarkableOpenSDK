@@ -267,6 +267,8 @@ struct TransactionState {
     int position = 0, length = 0, insertCalls = 0, removeCalls = 0, releases = 0, joins = 0;
     bool removing = false, effected = false;
     std::shared_ptr<std::atomic<bool>> canceled;
+    std::shared_ptr<std::atomic<bool>> visit;
+    std::u16string draft=u"draft";
 };
 thread_local TransactionState transaction;
 composer_scene::Join transactionJoin(::Scene *) {
@@ -283,7 +285,9 @@ composer_scene::Join transactionJoin(::Scene *) {
 std::uintptr_t transactionContext(::Scene *,const composer_scene::Join &) { return 0x3000; }
 AnchorPositions transactionAnchors(std::uintptr_t root,NativeId left,NativeId right,
         const composer_text::Result &text,const composer_text::detail::Guard &guard) {
-    return walkAnchors(root,left,right,text,guard,transaction.native->memory);
+    const auto result=walkAnchors(root,left,right,text,guard,transaction.native->memory);
+    if(transaction.mode==17 && transaction.removing && transaction.effected)transaction.visit->store(true);
+    return result;
 }
 AnchorPositions transactionSequence(std::uintptr_t root,const composer_text::Result &text,
         const composer_text::detail::Guard &guard) {
@@ -295,8 +299,8 @@ void resetNative(bool draft, bool deleted = false, bool changedOutside = false) 
     f.memory.words[Fixture::sentinel]=Fixture::sentinel;f.memory.words[Fixture::sentinel+4]=Fixture::sentinel;
     f.add({100,0x70000},u"outside!");
     f.add({1000,0x70000},u"\n");
-    if(draft)f.add({2000,0x70000},u"draft");
-    if(deleted)f.add({2000,0x70000},u"",5);
+    if(draft)f.add({2000,0x70000},transaction.draft);
+    if(deleted)f.add({2000,0x70000},u"",static_cast<std::uint32_t>(transaction.draft.size()));
     f.add({1001,0x70000},u"\n");
     if(changedOutside)f.add({3000,0x70000},u"X");
 }
@@ -336,7 +340,10 @@ void transactionSubmit(void *stack,const ActionOwner *owner) {
         ++transaction.insertCalls;cursor.insertText(QStringLiteral("\n\n"));resetNative(false);
     }
 }
-void transactionRelease(void *control) { assert(control==reinterpret_cast<void *>(0x2000));++transaction.releases; }
+void transactionRelease(void *control) {
+    assert(control==reinterpret_cast<void *>(0x2000));++transaction.releases;
+    if(transaction.mode==16 && transaction.removing)transaction.visit->store(true);
+}
 void anchors() {
     {
         Fixture f; f.add({100,0x70000}, u"a\nhey\nz");
@@ -444,7 +451,7 @@ void remarkable::composer_writer::testing::Access::transactions() {
         assert(denied.receipt.failure==EditFailure::Thread && !denied.receipt.action.constructionAttempted);
     }
     auto *worker=QThread::create([gui] {
-        for(unsigned scenario=0;scenario!=14;++scenario) {
+        for(unsigned scenario=0;scenario!=18;++scenario) {
             QTextDocument document;
             document.setPlainText(QStringLiteral("outside"));
             auto *layout=document.documentLayout();
@@ -452,6 +459,8 @@ void remarkable::composer_writer::testing::Access::transactions() {
             Fixture memory;memory.add({100,0x70000},u"outside!");
             transaction={};transaction.document=&document;transaction.native=&memory;transaction.mode=scenario;
             transaction.canceled=std::make_shared<std::atomic<bool>>(false);
+            if(scenario==14)transaction.draft={char16_t(0xfeff),u'x'};
+            if(scenario==15)transaction.draft={char16_t(0xfffe),u'x'};
             std::uintptr_t vptr=0,rtti=0;
             std::memcpy(&vptr,layout,sizeof vptr);
             std::memcpy(&rtti,reinterpret_cast<const void *>(vptr-sizeof(void *)),sizeof rtti);
@@ -465,6 +474,7 @@ void remarkable::composer_writer::testing::Access::transactions() {
             engine.join_=transactionJoin;engine.context_=transactionContext;engine.anchors_=transactionAnchors;
             engine.sequence_=transactionSequence;
             auto visit=std::make_shared<std::atomic<bool>>(false);
+            transaction.visit=visit;
             composer_text::detail::Guard guard{*transaction.canceled,nullptr,composer_text::Clock::now()+std::chrono::seconds(5)};
             auto *scene=reinterpret_cast<::Scene *>(1); // Only the owned join sees this value.
             if(scenario==12)memory.memory.words[memory.nodes[0]+0x2c]=1;
@@ -479,10 +489,12 @@ void remarkable::composer_writer::testing::Access::transactions() {
             assert(issued.receipt.status==EditStatus::ProjectionVerified && issued.range &&
                 issued.receipt.action.submissionAttempted && issued.receipt.action.releaseReturned);
             assert(transaction.insertCalls==1 && transaction.removeCalls==0 && document.toPlainText()==QStringLiteral("outside!\n\n"));
-            cursor.setPosition(9);cursor.insertText(QStringLiteral("draft"));resetNative(true);
+            QString exactDraft;exactDraft.resize(static_cast<qsizetype>(transaction.draft.size()));
+            for(std::size_t i=0;i<transaction.draft.size();++i)exactDraft[static_cast<qsizetype>(i)]=QChar(transaction.draft[i]);
+            cursor.setPosition(9);cursor.insertText(exactDraft);resetNative(true);
             const auto revision=document.revision();
             const auto observed=engine.observe(scene,*issued.range,guard);
-            assert(observed.observed && observed.text==QStringLiteral("draft") && observed.revision==revision);
+            assert(observed.observed && observed.text==exactDraft && observed.revision==revision);
             if(scenario==3)visit->store(true);
             if(scenario==8) {
                 // Original LF is tombstoned; a recreated-looking LF has a new ID.
@@ -497,11 +509,11 @@ void remarkable::composer_writer::testing::Access::transactions() {
                 assert(!issued.range->document);
             }
             const auto result=engine.clear(scene,*issued.range,scenario==1?revision-1:revision,
-                scenario==2?QStringLiteral("other"):QStringLiteral("draft"),guard);
-            const bool attempted=scenario==0 || scenario==5 || scenario==6 || scenario==7 || scenario==11;
+                scenario==2?QStringLiteral("other"):exactDraft,guard);
+            const bool attempted=scenario==0 || scenario==5 || scenario==6 || scenario==7 || scenario==11 || scenario>=14;
             assert(transaction.removeCalls==int(attempted));
             assert(result.action.submissionAttempted==attempted);
-            if(scenario==0) {
+            if(scenario==0 || scenario==14 || scenario==15) {
                 assert(result.status==EditStatus::ProjectionVerified && result.revisionsPresent);
                 assert(document.toPlainText()==QStringLiteral("outside!\n\n"));
             } else if(attempted) {

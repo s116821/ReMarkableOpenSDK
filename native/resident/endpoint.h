@@ -206,6 +206,7 @@ public:
     bool finish(const Lease &lease,Frame result) {
         if(!gui()||!pending_||lease.get()!=pending_.get()||!lease->active()||!peerCurrent())return false;
         if(!validPreEnterReply(lease->request(),result)){retireConnection("finish-wrong-text-reply");return false;}
+        if(!validComposerReply(lease->request(),result)){retireConnection("finish-wrong-composer-reply");return false;}
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
         if(!validReaderFocusReply(lease->request(),result)){retireConnection("finish-wrong-reader-focus-reply");return false;}
 #endif

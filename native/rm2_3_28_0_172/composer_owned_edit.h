@@ -101,12 +101,17 @@ class OwnedEdit final {
         if (!nonzero) return 0;
         unsigned char bypass = 0;
         std::memcpy(&bypass,reinterpret_cast<const void *>(0x1524a48),1);
-        if (bypass || !(__atomic_load_n(reinterpret_cast<const std::uint32_t *>(0x1524a4c),__ATOMIC_ACQUIRE) & 1U))
-            return 0;
+        if (bypass) return 0;
         // Refuse the lazy/category-filter and debug-message callout paths;
         // never initialize/change logging from the native write callback.
-        const auto *category = reinterpret_cast<const QLoggingCategory *>(0x1524a50);
-        if (category->isDebugEnabled()) return 0;
+        // Both SceneActionStack and the nested CRDT first-effect routines have
+        // their own category. Admission must not skip the latter's callout.
+        for (const std::uintptr_t guard : {std::uintptr_t(0x1524a4c),std::uintptr_t(0x1525134),
+                std::uintptr_t(0x1525120),std::uintptr_t(0x152510c)}) {
+            if (!(__atomic_load_n(reinterpret_cast<const std::uint32_t *>(guard),__ATOMIC_ACQUIRE) & 1U))return 0;
+            const auto *category = reinterpret_cast<const QLoggingCategory *>(guard+4);
+            if(category->isDebugEnabled())return 0;
+        }
         return stack;
 #else
         (void)borrowed; (void)joined;
@@ -217,8 +222,11 @@ class OwnedEdit final {
             if(!anchors.matched)return refuse(EditFailure::Anchors);
             const auto again=join_(scene);
             if(!matches(range,again) || !composer_scene::detail::sameScalarBorrow(joined,again))return refuse(EditFailure::Incarnation);
-            output.text=QString::fromUtf16(reinterpret_cast<const char16_t *>(anchors.draft.data()),
-                static_cast<qsizetype>(anchors.draftCount));
+            // fromUtf16 is a BOM-detecting decoder: it may remove an initial
+            // FEFF or byte-swap after FFFE. Native code units must stay exact.
+            output.text.resize(static_cast<qsizetype>(anchors.draftCount));
+            for(std::size_t i=0;i<anchors.draftCount;++i)
+                output.text[static_cast<qsizetype>(i)]=QChar(anchors.draft[i]);
             if(again.document->revision()!=plain.text.revisionAfter || again.document->characterCount()!=plain.text.characterCount)
                 return refuse(EditFailure::Revision);
             if(const auto why=interrupted(guard);why!=EditFailure::None)return refuse(why);
@@ -279,6 +287,7 @@ class OwnedEdit final {
         }
         action->finish(); result.action=action->receipt();
         if (!verified) return refuse(EditFailure::Settlement);
+        if (!matches(range,settledJoin)) return refuse(EditFailure::Incarnation);
         if (!result.action.releaseReturned) return refuse(EditFailure::Release);
         if (const auto why=interrupted(guard);why!=EditFailure::None) return refuse(why);
         result.beforeRevision=before.text.revisionAfter;result.afterRevision=after.text.revisionAfter;

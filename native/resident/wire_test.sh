@@ -6,7 +6,8 @@ mkdir -p "$out"
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then . "$QT_PROBE_SDK_ENV"; fi
 set --
-if [ "${RESIDENT_READER_FOCUS_TEST:-0}" = 1 ]; then set -- -DRSDK_DEVELOPMENT_READER_FOCUS_V1=1; fi
+if [ "${RESIDENT_READER_FOCUS_TEST:-0}" = 1 ]; then set -- "$@" -DRSDK_DEVELOPMENT_READER_FOCUS_V1=1; fi
+if [ "${RESIDENT_COMPOSER_TEST:-0}" = 1 ]; then set -- "$@" -DRSDK_DEVELOPMENT_COMPOSER_V1=1; fi
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC \
     "$@" "$root/wire_test.cpp" $(pkg-config --cflags --libs Qt6Core) -o "$out/wire-test"
 if [ -n "${QT_PROBE_SDK_ENV:-}" ]; then
