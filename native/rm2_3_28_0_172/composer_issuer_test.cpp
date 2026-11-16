@@ -15,7 +15,7 @@ static bool retainLast=false;
 static Released releaseOwner(Kind kind,std::uintptr_t,std::uintptr_t) {
     ++releases;
     if(!retainLast)assert(kind==(releases==1?Kind::Worker:Kind::Document));
-    return retainLast?Released::RefusedIdentity:Released::Released;
+    return retainLast?Released::RetainedLast:Released::Released;
 }
 namespace reader_worker_native::testing {
 struct SlotAccess {

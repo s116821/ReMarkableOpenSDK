@@ -399,7 +399,8 @@ private:
            frame.sequence!=sequence_+1){retireConnection("request-scope-or-sequence");return;}
         sequence_=frame.sequence;pending_=std::shared_ptr<RequestLease>(new RequestLease(frame,config_.operationBudgetMs));
         if(!pending_->active()){retireConnection("request-expired");return;}
-        timer_.start(config_.operationBudgetMs);
+        const auto remaining=std::chrono::ceil<std::chrono::milliseconds>(pending_->deadline()-std::chrono::steady_clock::now()).count();
+        timer_.start(int(qMax(qint64(1),qint64(remaining))));
         if(!submit_){Frame unsupported;unsupported.kind=3;unsupported.rejection=0;finish(pending_,unsupported);return;}
         auto submit=submit_;const Lease lease=pending_;
         // No endpoint access after invoking a possibly reentrant internal backend.
