@@ -271,6 +271,7 @@ struct Snapshot {
     ScalarResult scalar;
 };
 class Attachment final {
+    friend class Delivery;
     struct State {
         const Clock::time_point deadline;
         const Mode mode;
@@ -281,7 +282,7 @@ class Attachment final {
         std::atomic<bool> canceled{false}, claimed{false};
         std::atomic<Refusal> refusal{Refusal::None};
         std::mutex mutex;
-        bool entered = false, retirementSettled = false;
+        bool entered = false, retirementSettled = false, borrowClosed = false;
 #ifdef COMPOSER_SCENE_TESTING
         void *hookContext = nullptr;
         void (*stopContended)(void *) = nullptr;
@@ -346,6 +347,16 @@ class Attachment final {
 
     std::shared_ptr<State> state_;
     explicit Attachment(std::shared_ptr<State> state) : state_(std::move(state)) {}
+    // Only the private typed completion proof can seal. Cancellation alone is
+    // not admission closure: the same mutex linearizes this with every join.
+    bool closeSnapshotBorrow() noexcept {
+        const auto s=state_;
+        if(s->mode!=Mode::Snapshot)return false;
+        std::unique_lock<std::mutex> lock(s->mutex,std::try_to_lock);
+        if(!lock.owns_lock())return false;
+        s->borrowClosed=true;
+        return !s->observer;
+    }
 #ifdef COMPOSER_SCENE_TESTING
     friend struct testing::Access;
 #endif
@@ -381,14 +392,24 @@ public:
         return [s](::Scene *scene) noexcept -> bool {
             s->expire();
             if (s->canceled.load(std::memory_order_acquire)) return false;
-            if (s->claimed.exchange(true, std::memory_order_acq_rel)) {
-                s->reject(Refusal::Duplicate);
-                std::unique_lock<std::mutex> lock(s->mutex, std::try_to_lock);
-                if (lock.owns_lock()) s->retireLocked();
-                return false;
+            std::unique_lock<std::mutex> lock(s->mutex,std::defer_lock);
+            if(s->mode==Mode::Snapshot) {
+                // Admission, sealing and active borrowing share one mutex.
+                // A retained copy after sealing is inert, including with an
+                // invalid Scene; it does not invalidate the historical copy.
+                if(!lock.try_lock()) { s->reject(Refusal::Busy); return false; }
+                if(s->borrowClosed)return false;
+                if(s->claimed.exchange(true,std::memory_order_acq_rel)) {
+                    s->reject(Refusal::Duplicate); s->retireLocked(); return false;
+                }
+            } else {
+                if(s->claimed.exchange(true,std::memory_order_acq_rel)) {
+                    s->reject(Refusal::Duplicate);
+                    if(lock.try_lock())s->retireLocked();
+                    return false;
+                }
+                if(!lock.try_lock()) { s->reject(Refusal::Busy); return false; }
             }
-            std::unique_lock<std::mutex> lock(s->mutex, std::try_to_lock);
-            if (!lock.owns_lock()) { s->reject(Refusal::Busy); return false; }
             s->entered = true;
             if (s->canceled.load(std::memory_order_acquire)) return false;
             try {

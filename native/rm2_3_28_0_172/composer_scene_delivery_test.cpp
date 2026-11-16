@@ -13,13 +13,22 @@ using namespace remarkable::composer_scene;
 struct NativeId { std::uint32_t words[3]={17,23,31}; };
 Q_DECLARE_METATYPE(NativeId)
 namespace xofm::libs::library { class DocumentController final:public QObject { Q_OBJECT }; }
-class DocumentWorker final:public QThread { Q_OBJECT };
+class DocumentWorker final:public QThread { Q_OBJECT
+public:
+    std::function<void()> ownedWork;
+    void run() override { if(ownedWork)ownedWork(); }
+signals:
+    void jobCompleted(qulonglong);
+};
 namespace reader_worker_native::testing {
 struct SlotAccess {
     static ResidentSlot *make(detail::Functions fn) { return new ResidentSlot(fn,nullptr); }
     static void destroy(ResidentSlot *slot) { delete slot; }
     static auto retire(ResidentSlot &slot,const ResidentSlot::Token &token) {
         return slot.retirePhysically(token);
+    }
+    static void releaser(ResidentSlot &slot,decltype(ResidentSlot::testRelease_) release) {
+        slot.testRelease_=release;
     }
 };
 }
@@ -40,20 +49,40 @@ struct Access {
     static void beforePublish(Attachment &a,void *context,void (*hook)(void *)) {
         a.state_->hookContext=context; a.state_->beforePublish=hook;
     }
+    static void holdBorrowLock(Attachment &a,std::promise<void> &entered,std::shared_future<void> release) {
+        std::unique_lock<std::mutex> lock(a.state_->mutex);
+        entered.set_value(); release.wait();
+    }
 };
 struct DeliveryAccess {
+    static auto retirement(Clock::time_point deadline) { return SnapshotRetirement::create(deadline); }
+    static auto frames(const std::shared_ptr<SnapshotRetirement> &retirement) { return retirement->binding_; }
+    static auto reusable(const Profile &p,reader_worker_native::ResidentSlot &slot,
+            const reader_worker_native::ResidentSlot::Token &token,const QString &page,
+            SceneRequest fn,std::chrono::milliseconds budget,
+            std::optional<composer_text::ReadRange> range={}) {
+        const auto deadline=Clock::now()+budget;
+        auto retirement=SnapshotRetirement::create(deadline);
+        auto value=Delivery::make(p,slot,token,page,0ms,fn,range,Mode::Snapshot,deadline,{},retirement);
+        if(value)Access::fixture(*value->state_->attachment);
+        return value;
+    }
+    static auto frames(const Delivery &d) { return d.state_->retirement->binding_; }
     static std::unique_ptr<Delivery> make(const Profile &p,reader_worker_native::ResidentSlot &slot,
             const reader_worker_native::ResidentSlot::Token &token,const QString &page,
             SceneRequest fn,std::chrono::milliseconds budget=120s,Mode mode=Mode::Observe,
             std::optional<composer_text::ReadRange> range={}, std::optional<Clock::time_point> deadline={},
-            std::shared_ptr<std::atomic<bool>> cancellation={}) {
-        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode,deadline,std::move(cancellation));
+            std::shared_ptr<std::atomic<bool>> cancellation={},std::shared_ptr<SnapshotRetirement> retirement={}) {
+        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode,deadline,std::move(cancellation),std::move(retirement));
         if(value)Access::fixture(*value->state_->attachment);
         return value;
     }
     static Clock::time_point deadline(const Delivery &d) { return d.state_->attachment->deadline(); }
     static void beforePublish(Delivery &d,void *context,void (*hook)(void *)) {
         Access::beforePublish(*d.state_->attachment,context,hook);
+    }
+    static void holdBorrowLock(Delivery &d,std::promise<void> &entered,std::shared_future<void> release) {
+        Access::holdBorrowLock(*d.state_->attachment,entered,std::move(release));
     }
 };
 }

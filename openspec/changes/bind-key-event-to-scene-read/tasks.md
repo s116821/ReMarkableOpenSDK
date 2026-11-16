@@ -8,9 +8,9 @@
 ## 2. Review corrections and reusable snapshot
 - [x] Verify immediate thread-safe notification revocation, held-worker nonblocking input/destruction/polling, and refused-receiver key privacy.
 - [x] Use snapshot-only text/revision copying with no persistent document observer.
-- [ ] Retain exact kind27 completion/Task destruction evidence and implement a private closed/drained typed retirement proof using the existing original token and later GUI frame fence.
-- [ ] Reclaim only with exact known-return/full-ID/same-worker completion and existing worker-before-document nonlast consumption; keep unknown/last/refusal quarantined.
-- [ ] Exercise completion-before-return, wrong/repeated/missing completion, canceled/late/contended callback, reentrant GUI, partial release, stale tokens and repeated successful reads in owned fixtures.
+- [x] Retain exact kind27 completion/Task destruction evidence and implement a private closed/drained typed retirement proof using the existing original token and later GUI frame fence.
+- [x] Reclaim only with exact known-return/full-ID/same-worker completion and existing worker-before-document nonlast consumption; keep unknown/last/refusal quarantined.
+- [x] Exercise completion-before-return, wrong/repeated/missing completion, canceled/late/contended callback, reentrant GUI, partial release, stale tokens and repeated successful reads in owned fixtures.
 - [x] Wire focused fixtures into the existing CI step.
 
 ## 3. Review and closeout

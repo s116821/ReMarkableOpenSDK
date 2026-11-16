@@ -26,6 +26,10 @@ struct KeyAccess {
     static void beforeSnapshot(KeyDelivery &delivery,std::function<void()> hook) {
         delivery.state_->beforeSceneSnapshot=std::move(hook);
     }
+    static auto framed(QQuickItem *receiver,Clock::time_point deadline,KeyDelivery::Acquire acquire,
+                       reader_request_scope::Binding binding) {
+        return KeyDelivery::makeUntil(receiver,deadline,std::move(acquire),std::move(binding));
+    }
 };
 }
 namespace {
@@ -239,11 +243,217 @@ void offThreadRevocationDuringHeldBorrow() {
     release.set_value(); reader.join();
     assert(!callback(reinterpret_cast<::Scene *>(1))); s.retained();
 }
+using OwnerKind=reader_insertion_native_profile::NativeOwnerKind;
+using ReleaseResult=reader_insertion_native_profile::OwnerReleaseResult;
+std::vector<OwnerKind> releases;
+int releaseRefusal=0;
+ReleaseResult nonlast(OwnerKind kind,std::uintptr_t raw,std::uintptr_t control) {
+    assert(raw && control); releases.push_back(kind);
+    if(releaseRefusal==1 && kind==OwnerKind::Worker)return ReleaseResult::RetainedLast;
+    if(releaseRefusal==2 && kind==OwnerKind::Document)return ReleaseResult::RetainedBusy;
+    return ReleaseResult::Released;
+}
+void pumpFor(std::chrono::milliseconds duration) {
+    const auto end=Clock::now()+duration;
+    do { QCoreApplication::processEvents(); std::this_thread::sleep_for(1ms); } while(Clock::now()<end);
+}
+void armSnapshot(Session &s,std::chrono::milliseconds budget=300ms) {
+    releases.clear(); releaseRefusal=0;
+    reader_worker_native::testing::SlotAccess::releaser(*s.slot,nonlast);
+    s.delivery=testing::DeliveryAccess::reusable(*s.profile,*s.slot,s.token,s.page,scene,budget,
+        remarkable::composer_text::ReadRange{0,3});
+    assert(s.delivery);
+}
+void readAndComplete(Session &s,qulonglong id,bool emitCompletion=true,bool duplicate=false) {
+    s.fixture.worker.ownedWork=[&] {
+        QTextDocument doc; doc.setPlainText(QStringLiteral("new"));
+        assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(&doc)));
+        if(duplicate)assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));
+        if(emitCompletion)emit s.fixture.worker.jobCompleted(id);
+    };
+    s.fixture.worker.start(); assert(s.fixture.worker.wait(2000)); s.fixture.worker.ownedWork={};
+}
+void waitSnapshot(Session &s) {
+    const auto limit=Clock::now()+2s;
+    while(!s.delivery->snapshot().retirement.settled && Clock::now()<limit)pumpFor(2ms);
+    assert(s.delivery->snapshot().retirement.settled);
+    pumpFor(2ms); // Drop private GUI captures; not a native Task destruction claim.
+}
+void reusableSnapshotControls() {
+    for(int mode=0;mode<15;++mode) {
+        Session s; armSnapshot(s,120ms);
+        if(mode==4)s.fixture.job=0;
+        if(mode==5)s.fixture.throws=true;
+        if(mode==14)s.fixture.onRequest=[&] {s.delivery->stop();};
+        if(mode==1)s.fixture.onRequest=[&] {
+            readAndComplete(s,s.fixture.job);
+            pumpFor(8ms); // Exact completion before native request return.
+            assert(s.slot->occupied() && releases.empty());
+        };
+        const auto sent=s.delivery->submit([]{return true;});
+        if(mode==4||mode==5||mode==14) {
+            assert(sent.attempted && sent.unknown && !sent.accepted);
+            assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));
+        } else {
+            assert(sent.accepted);
+            if(mode==2)readAndComplete(s,s.fixture.job^0x100000000ULL); // Full ID, not low word.
+            else if(mode==3)readAndComplete(s,s.fixture.job,false);
+            else if(mode==6) {
+                QTextDocument doc; doc.setPlainText("new");
+                assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(&doc)));
+                emit s.fixture.worker.jobCompleted(s.fixture.job); // GUI callback is insufficient.
+            } else if(mode==7)readAndComplete(s,s.fixture.job,true,true);
+            else if(mode==8) {
+                s.delivery->stop();
+                readAndComplete(s,s.fixture.job); // Revoked callback borrows nothing; exact completion still retires owners.
+            } else if(mode==9) {
+                readAndComplete(s,s.fixture.job);
+                emit s.fixture.worker.jobCompleted(s.fixture.job);
+            } else if(mode==12) {
+                readAndComplete(s,s.fixture.job,false);
+                DocumentWorker unrelated; emit unrelated.jobCompleted(s.fixture.job);
+            } else if(mode==13) {
+                std::thread unrelated([&] {
+                    QTextDocument doc; doc.setPlainText("new");
+                    assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(&doc)));
+                    emit s.fixture.worker.jobCompleted(s.fixture.job);
+                });
+                unrelated.join(); // Off-GUI alone does not establish exact worker.
+            } else if(mode!=1)readAndComplete(s,s.fixture.job);
+            if(mode==10)releaseRefusal=1;
+            if(mode==11)releaseRefusal=2;
+        }
+        waitSnapshot(s);
+        const auto result=s.delivery->snapshot();
+        const bool reclaimed=mode==0||mode==1||mode==8;
+        assert(result.retirement.reclaimed==reclaimed && s.slot->occupied()!=reclaimed);
+        if(reclaimed || mode==10 || mode==11) {
+            assert((releases==std::vector<OwnerKind>{OwnerKind::Worker,OwnerKind::Document}));
+            assert(result.retirement.closed && result.retirement.matched);
+        } else assert(releases.empty());
+        if(mode==0||mode==1) {
+            assert(!result.canceled && result.attachment.text.status==remarkable::composer_text::Status::Copied);
+            assert(result.attachment.text.count==3 && result.attachment.text.revisionBefore==result.attachment.text.revisionAfter);
+        }
+        if(mode==8)assert(result.canceled && !result.attachment.callbackEntered);
+        // Retained native function copies can outlive owner release, but cannot
+        // dereference even a deliberately invalid Scene after admission closes.
+        assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));
+        if(mode==0||mode==1) {
+            const auto late=s.delivery->snapshot();
+            assert(!late.canceled && late.attachment.refusal==Refusal::None &&
+                late.attachment.text.status==remarkable::composer_text::Status::Copied);
+        }
+        if(!reclaimed)assert(s.slot->occupied());
+    }
+}
+void reusableFramesAndGenerations() {
+    Session s; armSnapshot(s,500ms);
+    const auto first=s.token;
+    assert(s.delivery->submit([]{return true;}).accepted);
+    {
+        const reader_request_scope::Scope frame(testing::DeliveryAccess::frames(*s.delivery));
+        assert(frame.active());
+        readAndComplete(s,s.fixture.job); pumpFor(25ms);
+        assert(s.delivery->snapshot().retirement.closed && s.slot->occupied() && releases.empty());
+        // An apparently later nested event-loop turn cannot release under this frame.
+        pumpFor(20ms); assert(s.slot->occupied() && releases.empty());
+    }
+    waitSnapshot(s); assert(!s.slot->occupied());
+    for(int generation=0;generation<3;++generation) {
+        auto prep=s.slot->prepare(&s.fixture.controller,QVariant::fromValue(NativeId{}),&s.fixture.worker,[]{return true;});
+        assert(prep.ready); s.token=prep.token;
+        assert(!s.slot->cancel(first)); // Old weak generation cannot revoke replacement.
+        const auto priorJob=s.fixture.job++;
+        armSnapshot(s); assert(s.delivery->submit([]{return true;}).accepted);
+        emit s.fixture.worker.jobCompleted(priorJob); pumpFor(8ms);
+        assert(s.slot->occupied() && releases.empty());
+        readAndComplete(s,s.fixture.job); waitSnapshot(s);
+        assert(!s.slot->occupied() && !s.delivery->snapshot().ownersPinned);
+    }
+}
+void reusableHeldBorrowAndDeletedHandle() {
+    Session s; armSnapshot(s,500ms);
+    std::promise<void> entered,release;
+    struct Held { std::promise<void> &entered; std::shared_future<void> release; } held{entered,release.get_future().share()};
+    testing::DeliveryAccess::beforePublish(*s.delivery,&held,[](void *p) {
+        auto &h=*static_cast<Held*>(p); h.entered.set_value(); h.release.wait();
+    });
+    assert(s.delivery->submit([]{return true;}).accepted);
+    s.fixture.worker.ownedWork=[&] {
+        QTextDocument doc; doc.setPlainText("new");
+        assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(&doc)));
+        emit s.fixture.worker.jobCompleted(s.fixture.job);
+    };
+    s.fixture.worker.start();
+    entered.get_future().wait();
+    // A dishonest premature completion cannot drain the active borrow.
+    emit s.fixture.worker.jobCompleted(s.fixture.job);
+    pumpFor(20ms); assert(s.slot->occupied() && releases.empty());
+    s.delivery.reset(); // Nonblocking public handle destruction under the borrow.
+    release.set_value(); assert(s.fixture.worker.wait(2000)); s.fixture.worker.ownedWork={};
+    pumpFor(520ms);
+    assert(s.slot->occupied() && releases.empty()); // Two completions quarantine.
+    assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));
+
+    Session clean; armSnapshot(clean,500ms);
+    assert(clean.delivery->submit([]{return true;}).accepted);
+    clean.delivery.reset();
+    readAndComplete(clean,clean.fixture.job); pumpFor(30ms);
+    assert(!clean.slot->occupied() && releases.size()==2); // Private witness survives handle.
+}
+void keyFrameOwnsWholeAcquisition() {
+    Session s; QQuickWindow window; KeyReceiver receiver(window.contentItem());
+    releases.clear(); releaseRefusal=0;
+    reader_worker_native::testing::SlotAccess::releaser(*s.slot,nonlast);
+    const auto deadline=Clock::now()+500ms;
+    const auto retirement=testing::DeliveryAccess::retirement(deadline);
+    auto ingress=testing::KeyAccess::framed(&receiver,deadline,
+        [&](QQuickItem *,Clock::time_point original,const std::shared_ptr<std::atomic<bool>> &revoked,
+                const reader_worker_native::Permit &permit) {
+            auto d=testing::DeliveryAccess::make(*s.profile,*s.slot,s.token,s.page,scene,0ms,Mode::Snapshot,
+                remarkable::composer_text::ReadRange{0,3},original,revoked,retirement);
+            assert(d && d->submit(permit).accepted);
+            readAndComplete(s,s.fixture.job);
+            // The submit frame is gone, but the real key filter's acquisition
+            // and its local capture destruction are still on the GUI stack.
+            pumpFor(20ms);
+            assert(d->snapshot().retirement.closed && s.slot->occupied() && releases.empty());
+            return d;
+        },testing::DeliveryAccess::frames(retirement));
+    QKeyEvent enter(QEvent::KeyPress,Qt::Key_Enter,Qt::NoModifier);
+    QCoreApplication::sendEvent(&receiver,&enter);
+    assert(receiver.forwarded==1 && s.slot->occupied());
+    pumpFor(25ms);
+    const auto result=ingress->snapshot();
+    assert(result.key && !result.canceled && result.scene.retirement.reclaimed && !s.slot->occupied());
+    assert(result.scene.attachment.text.status==remarkable::composer_text::Status::Copied);
+}
+void countsDoNotReplaceBorrowClosure() {
+    Session s; armSnapshot(s,500ms);
+    assert(s.delivery->submit([]{return true;}).accepted);
+    readAndComplete(s,s.fixture.job,false);
+    assert(s.delivery->snapshot().returned==1);
+    std::promise<void> held,release;
+    auto ready=held.get_future(); auto resume=release.get_future().share();
+    std::thread lockHolder([&] { testing::DeliveryAccess::holdBorrowLock(*s.delivery,held,resume); });
+    ready.wait();
+    emit s.fixture.worker.jobCompleted(s.fixture.job);
+    pumpFor(25ms);
+    const auto pending=s.delivery->snapshot();
+    assert(pending.entered==1 && pending.returned==1 && pending.retirement.matched);
+    assert(!pending.retirement.closed && s.slot->occupied() && releases.empty());
+    release.set_value(); lockHolder.join();
+    waitSnapshot(s); assert(!s.slot->occupied());
+}
 }
 int main(int argc,char **argv) {
     QGuiApplication app(argc,argv);
     factsAndOrdering(); invalidationAndNoRelease(); refusalAndLifetime(); exactTextAtOwnedQueueBoundary();
     offThreadRevocationDuringHeldBorrow();
-    std::cout<<"key-to-Scene handoff: owned Qt dispatch, exact facts, stock forwarding, ordering, cancellation and lifetime passed; no native execution\n";
+    reusableSnapshotControls(); reusableFramesAndGenerations(); reusableHeldBorrowAndDeletedHandle();
+    keyFrameOwnsWholeAcquisition();
+    countsDoNotReplaceBorrowClosure();
+    std::cout<<"key-to-Scene handoff: owned Qt dispatch, exact facts, stock forwarding, ordering, cancellation, lifetime and 15 snapshot retirement controls plus generations/frames/held-borrow passed; no native execution\n";
 }
 #include "composer_key_delivery_test.moc"

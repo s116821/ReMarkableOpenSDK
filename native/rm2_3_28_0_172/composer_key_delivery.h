@@ -43,10 +43,12 @@ class KeyDelivery final : public QObject {
         std::optional<KeyFacts> key;
         std::unique_ptr<Delivery> delivery;
         Acquire acquire;
+        const reader_request_scope::Binding binding;
 #ifdef COMPOSER_KEY_DELIVERY_TESTING
         std::function<void()> beforeSceneSnapshot;
 #endif
-        explicit State(Clock::time_point limit, Acquire fn) : deadline(limit), acquire(std::move(fn)) {}
+        explicit State(Clock::time_point limit, Acquire fn,reader_request_scope::Binding frames={})
+            : deadline(limit), acquire(std::move(fn)),binding(std::move(frames)) {}
         void cancel() { revoked->store(true,std::memory_order_release); }
         bool canceled() const { return revoked->load(std::memory_order_acquire); }
     };
@@ -54,8 +56,8 @@ class KeyDelivery final : public QObject {
     QPointer<QQuickItem> receiver_;
     QPointer<QQuickWindow> window_;
     QList<QMetaObject::Connection> revocations_;
-    KeyDelivery(QQuickItem *receiver, std::chrono::milliseconds budget, Acquire acquire)
-        : state_(std::make_shared<State>(Clock::now() + budget, std::move(acquire))),
+    KeyDelivery(QQuickItem *receiver, Clock::time_point deadline, Acquire acquire,reader_request_scope::Binding binding)
+        : state_(std::make_shared<State>(deadline, std::move(acquire),std::move(binding))),
           receiver_(receiver), window_(receiver->window()) {}
     bool watch(QObject *object, const char *signal) {
         if (!object) return false;
@@ -98,9 +100,14 @@ class KeyDelivery final : public QObject {
         return true;
     }
     static std::unique_ptr<KeyDelivery> make(QQuickItem *receiver, std::chrono::milliseconds budget, Acquire acquire) {
+        if(budget.count()<1 || budget.count()>reader_selected::MaxObservationMs)return {};
+        return makeUntil(receiver,Clock::now()+budget,std::move(acquire),{});
+    }
+    static std::unique_ptr<KeyDelivery> makeUntil(QQuickItem *receiver,Clock::time_point deadline,Acquire acquire,
+                                                reader_request_scope::Binding binding) {
         if (!reader_worker_native::detail::gui() || !receiver || receiver->thread() != QThread::currentThread() || !acquire ||
-                budget.count() < 1 || budget.count() > reader_selected::MaxObservationMs) return {};
-        auto result = std::unique_ptr<KeyDelivery>(new KeyDelivery(receiver, budget, std::move(acquire)));
+                Clock::now()>=deadline) return {};
+        auto result = std::unique_ptr<KeyDelivery>(new KeyDelivery(receiver, deadline, std::move(acquire),std::move(binding)));
         if (!result->install()) return {};
         return result;
     }
@@ -108,8 +115,10 @@ class KeyDelivery final : public QObject {
     friend struct testing::KeyAccess;
 #endif
     bool eventFilter(QObject *receiver, QEvent *event) override {
+        const reader_request_scope::Scope scope(state_->binding);
         const auto state = state_; // Survives reentrant destruction during admission.
         if (receiver != receiver_ || !event) return false;
+        if(!scope.active()) { state->cancel(); return false; }
         if (event->type() == QEvent::InputMethod || event->type() == QEvent::FocusOut ||
                 event->type() == QEvent::Hide || event->type() == QEvent::ParentChange) state->cancel();
         if (event->type() != QEvent::KeyPress || state->canceled()) return false;
@@ -151,6 +160,7 @@ class KeyDelivery final : public QObject {
     }
 public:
     ~KeyDelivery() override {
+        const reader_request_scope::Scope scope(state_->binding);
         state_->cancel();
         // Do not rely on a short-lived context's QObject destructor to detach
         // direct functors while another thread emits. Explicit disconnect keeps
@@ -166,10 +176,15 @@ public:
             std::unique_ptr<Profile> profile, Slot &slot, std::chrono::milliseconds budget,
             std::optional<composer_text::ReadRange> range = {}) {
         if (!reader_worker_native::detail::gui() || !profile || !creationController ||
-                creationController->thread() != QThread::currentThread()) return {};
+                creationController->thread() != QThread::currentThread() ||
+                budget.count()<1 || budget.count()>reader_selected::MaxObservationMs) return {};
+        const auto deadline=Clock::now()+budget;
+        // Construct the QObject/fence before the selected-view Sample exists.
+        const auto retirement=SnapshotRetirement::create(deadline);
+        if(!retirement)return {};
         QPointer<QObject> creation(creationController);
         auto ownedProfile = std::shared_ptr<Profile>(std::move(profile));
-        return make(receiver, budget, [creation, ownedProfile, &slot, range](QQuickItem *target, Clock::time_point deadline,
+        return makeUntil(receiver, deadline, [creation, ownedProfile, &slot, range,retirement](QQuickItem *target, Clock::time_point deadline,
                 const std::shared_ptr<std::atomic<bool>> &revoked,
                 const reader_worker_native::Permit &permit) -> std::unique_ptr<Delivery> {
             if (!target || !creation || !permit()) return {};
@@ -183,7 +198,7 @@ public:
                     if (!preparation.ready) return;
                     if (!joined()) { slot.cancel(preparation.token); return; }
                     result = Delivery::prepareUntil(*ownedProfile, slot, preparation.token, before.pageId,
-                        deadline, range, Mode::Snapshot, revoked);
+                        deadline, range, Mode::Snapshot, revoked,retirement);
                     // Submit must happen while the synchronous join is still live.
                     if (result) {
                         // Keep attempted/unknown submission and pinned-owner
@@ -192,9 +207,10 @@ public:
                     } else slot.cancel(preparation.token);
                 });
             return result;
-        });
+        },retirement->binding_);
     }
     KeySnapshot snapshot() {
+        const reader_request_scope::Scope scope(state_->binding);
         KeySnapshot result;
         if (!reader_worker_native::detail::gui()) return result;
         const auto state = state_;
