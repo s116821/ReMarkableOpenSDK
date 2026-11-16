@@ -14,8 +14,12 @@ fi
 sanitizers=
 if [ "${COMPOSER_DELIVERY_SANITIZERS:-0}" = 1 ]; then sanitizers='-fsanitize=address,undefined -fno-omit-frame-pointer -no-pie'; fi
 "$moc" "$root/composer_scene_delivery_test.cpp" -o "$work/composer_scene_delivery_test.moc"
+for header in composer_snapshot_retirement reader_request_retirement; do
+    "$moc" "$root/$header.h" -o "$work/moc_$header.cpp"
+done
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitizers -I"$work" \
-    "$root/composer_scene_delivery_test.cpp" $(pkg-config --cflags --libs Qt6Core Qt6Gui) -ldl -o "$work/delivery-test"
+    "$root/composer_scene_delivery_test.cpp" "$work/moc_composer_snapshot_retirement.cpp" "$work/moc_reader_request_retirement.cpp" \
+    $(pkg-config --cflags --libs Qt6Core Qt6Gui) -ldl -o "$work/delivery-test"
 printf '%s\n' '#include "composer_scene_delivery.h"' > "$work/production.cpp"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -I"$root" \
     $(pkg-config --cflags Qt6Core Qt6Gui) -c "$work/production.cpp" -o "$work/production.o"

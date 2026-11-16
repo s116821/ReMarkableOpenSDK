@@ -40,6 +40,18 @@ unknown. Observation closes and no retry is allowed, including when a native
 copy was retained before the failure. No stale selected-page guard or QObject
 getter is consulted after enqueue.
 
+## Historical scalar mode
+
+Select Mode::Scalars at preparation with no text range. The default remains
+Mode::Observe, including the optional exact text-copy range. The scalar mode
+uses the same copied page, one-shot typed request and original deadline.
+
+The attachment reports NotRequested, Pending, Observed or Refused separately
+from snapshot availability and recorder attachment. Observed carries only
+historical values, even after logical retirement. No observer is created.
+Cancellation, callback return and a completed scalar sample preserve the
+typed native owner pins.
+
 ## Lifetime and cancellation
 
 Serialize handle operations/destruction on the GUI thread. Permit callbacks may

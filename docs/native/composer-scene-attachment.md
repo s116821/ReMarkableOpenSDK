@@ -73,6 +73,26 @@ delivery/lifetime owner establishes retirement. Recorder signal-coalescing,
 thread and revision limits remain in
 [the observer contract](composer-document-diagnostics.md).
 
+## Historical scalar observation
+
+The exclusive scalar mode requires the exact ARM QtGui private layout and
+resolves the public document getters from the pinned revision provider. The
+callback joins the same root, control, participant, document and private
+identity twice on document affinity with zero native, IME and Qt edit scope.
+The control value is opaque and all identities stay inside the borrow.
+
+The callback reads public undo/redo enablement and availability, maximum block
+count, revision and blocked signals. It separately reads the Qt private
+comparison caches at 0x40 and 0x41. Both must be literal 0 or 1. Qt can update
+these caches after signal activation returns. The cache values carry no
+receiver-delivery evidence. The full tuple must agree across the two joins,
+and cancellation and the original deadline are checked before publication.
+
+Observed values can include blocked signals, redo availability or disagreement
+between public predicates and private caches. They describe a historical read
+and confer no edit, clear or currentness authority. The callback returns false
+without creating a recorder, copying text or inspecting receivers.
+
 ## Verification boundary
 
 Focused real-Qt lifecycle controls exercise retained callback copies, duplicate

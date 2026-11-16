@@ -17,7 +17,7 @@
 #include <cerrno>
 #include <climits>
 #include <cstring>
-#ifdef RSDK_ENDPOINT_DIAGNOSTICS_V1
+#if defined(RSDK_ENDPOINT_DIAGNOSTICS_V1) || defined(RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1) || defined(RSDK_PRE_ENTER_MARKER_TESTING)
 #include <cstdio>
 #endif
 #include <fcntl.h>
@@ -95,17 +95,18 @@ struct EndpointConfig {
 // inspect active/deadline but must report through its existing guarded Qt bridge.
 class RequestLease final {
     friend class Endpoint;
-    std::atomic<bool> active_{true};
     std::chrono::steady_clock::time_point deadline_;
+    const std::shared_ptr<std::atomic<bool>> retired_=std::make_shared<std::atomic<bool>>(false);
     Frame request_;
     QByteArray digest_;
     RequestLease(Frame frame,int budget):deadline_(std::chrono::steady_clock::now()+std::chrono::milliseconds(budget)),
         request_(std::move(frame)),digest_(fingerprint(request_)) {}
 public:
-    bool active()const{return active_.load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<deadline_;}
+    bool active()const{return !retired_->load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<deadline_;}
     const Frame &request()const{return request_;}
     const QByteArray &digest()const{return digest_;}
     std::chrono::steady_clock::time_point deadline()const{return deadline_;}
+    std::shared_ptr<const std::atomic<bool>> retirement()const{return retired_;}
 };
 class Endpoint final:public QObject {
 public:
@@ -164,10 +165,50 @@ public:
         connect(notifier_,&QSocketNotifier::activated,this,[this]{acceptOne();});
         return true;
     }
+#if defined(RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1) || defined(RSDK_PRE_ENTER_MARKER_TESTING)
+    // Called only after the dispatcher owns the capture handle.
+    bool notePreEnterArmed(const Lease &lease) {
+        if(!gui()||!pending_||lease.get()!=pending_.get()||
+           lease->request().kind!=PreEnterRequest)return false;
+        const auto fail=[this]{retireConnection("pre-enter-marker-refused");return false;};
+        if(preEnterMarkerAttempted_)return fail();
+        preEnterMarkerAttempted_=true;
+        if(!lease->active()||!peerCurrent()||!preEnterStderrCurrent())return fail();
+        const auto &request=lease->request();
+        const auto *runtime=reinterpret_cast<const uchar *>(request.runtime.constData());
+        char activation[33]{},operation[33]{},digest[65]{};
+        markerHex(activation,runtime+124,16);
+        markerHex(operation,reinterpret_cast<const uchar *>(request.operation.constData()),16);
+        markerHex(digest,reinterpret_cast<const uchar *>(lease->digest().constData()),32);
+        using namespace std::chrono;
+        const auto sample=duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+        const auto deadline=duration_cast<nanoseconds>(lease->deadline().time_since_epoch()).count();
+        if(sample<0||deadline<=sample)return fail();
+        char line[384];
+        const auto length=std::snprintf(line,sizeof line,
+            "RSDK_PRE_ENTER_ARMED_V1 pid=%u start_ticks=%llu activation=%s sequence=%llu operation=%s request_sha256=%s sample_ns=%llu deadline_ns=%llu\n",
+            unsigned(qFromBigEndian<quint32>(runtime+112)),
+            static_cast<unsigned long long>(qFromBigEndian<quint64>(runtime+116)),activation,
+            static_cast<unsigned long long>(request.sequence),operation,digest,
+            static_cast<unsigned long long>(sample),static_cast<unsigned long long>(deadline));
+        if(length<=0||length>=int(sizeof line)||!lease->active())return fail();
+#ifdef RSDK_PRE_ENTER_MARKER_TESTING
+        const auto written=preEnterWrite_(STDERR_FILENO,line,std::size_t(length));
+#else
+        const auto written=::write(STDERR_FILENO,line,std::size_t(length));
+#endif
+        if(written!=length||!lease->active()||!peerCurrent())return fail();
+        return true;
+    }
+#endif
     // GUI-only. Completion invalidates publication/getter authority immediately;
     // releasing this plain lease says nothing about physical native completion.
     bool finish(const Lease &lease,Frame result) {
         if(!gui()||!pending_||lease.get()!=pending_.get()||!lease->active()||!peerCurrent())return false;
+        if(!validPreEnterReply(lease->request(),result)){retireConnection("finish-wrong-text-reply");return false;}
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+        if(!validReaderFocusReply(lease->request(),result)){retireConnection("finish-wrong-reader-focus-reply");return false;}
+#endif
         result.runtime=config_.runtime;result.client=client_;result.server=server_;
         result.sequence=lease->request().sequence;result.operation=lease->request().operation;
         result.message=3;result.requestDigest=lease->digest();
@@ -176,7 +217,7 @@ public:
         // timer is unable to run on this stack.
         if(bytes.isEmpty()||!lease->active()){retireConnection("finish-invalid-or-expired");return false;}
         outputDeadline_=lease->deadline();
-        pending_->active_.store(false,std::memory_order_release);pending_.reset();
+        pending_->retired_->store(true,std::memory_order_release);pending_.reset();
         if(!send(bytes)){retireConnection("finish-send-refused");return false;}
         if(!refreshOutput())return false;
         return true;
@@ -195,6 +236,25 @@ private:
     quint64 sequence_=0,connectionGeneration_=0;
     std::shared_ptr<RequestLease> pending_;
     std::optional<std::chrono::steady_clock::time_point> outputDeadline_;
+#if defined(RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1) || defined(RSDK_PRE_ENTER_MARKER_TESTING)
+    bool preEnterMarkerAttempted_=false;
+#ifdef RSDK_PRE_ENTER_MARKER_TESTING
+    friend struct PreEnterMarkerTestAccess;
+    ssize_t (*preEnterWrite_)(int,const void *,std::size_t)=::write;
+#endif
+    static void markerHex(char *out,const uchar *in,std::size_t size) noexcept {
+        constexpr char hex[]="0123456789abcdef";
+        for(std::size_t n=0;n<size;++n) {
+            out[2*n]=hex[in[n]>>4];out[2*n+1]=hex[in[n]&15];
+        }
+    }
+    bool preEnterStderrCurrent()const noexcept {
+        struct stat descriptor{},named{};
+        return !::fstat(STDERR_FILENO,&descriptor)&&S_ISREG(descriptor.st_mode)&&
+            (descriptor.st_mode&07777)==0600&&descriptor.st_uid==config_.peerUid&&descriptor.st_nlink==1&&
+            !::fstatat(root_,"stderr.log",&named,AT_SYMLINK_NOFOLLOW)&&named.st_nlink==1&&same(descriptor,named);
+    }
+#endif
     bool gui()const{return QCoreApplication::instance()&&!QCoreApplication::closingDown()&&QThread::currentThread()==thread()&&thread()==QCoreApplication::instance()->thread();}
     static bool same(const struct stat&a,const struct stat&b){return a.st_dev==b.st_dev&&a.st_ino==b.st_ino&&a.st_uid==b.st_uid&&a.st_mode==b.st_mode;}
     bool directoryCurrent()const {
@@ -233,7 +293,7 @@ private:
     }
     void retireConnection(const char *reason,int code=0) {
         trace(reason,code);
-        timer_.stop();if(pending_)pending_->active_.store(false,std::memory_order_release);pending_.reset();
+        timer_.stop();if(pending_)pending_->retired_->store(true,std::memory_order_release);pending_.reset();
         outputDeadline_.reset();
         ready_=false;decoder_.close();client_.clear();server_.clear();
         auto *socket=peer_.data();peer_=nullptr;

@@ -35,6 +35,8 @@ public:
     const std::uintptr_t outerReturnPC,innerReturnPC;
     const unsigned observedTaskCount;
     const bool applicationAbsent;
+    // Private composer startup preparation, after the Reader hooks are installed.
+    bool composerPatchSite(std::size_t pageSize) const;
     // GUI/outside-critical construction only. Caller retains actual strong owners
     // through candidate exit; a QObject pointer does not supply that ownership.
     AttributionParts attributionParts(QObject *stronglyRetainedWorker, bool wantPostRejectProbe=false,

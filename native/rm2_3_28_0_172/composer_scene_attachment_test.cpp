@@ -16,7 +16,15 @@ struct Access {
 }
 namespace remarkable::composer_scene::testing {
 struct Access {
-    static std::unique_ptr<Profile> profile() { return std::unique_ptr<Profile>(new Profile); }
+    static std::unique_ptr<Profile> profile(bool scalarLayout = true) {
+        return std::unique_ptr<Profile>(new Profile(scalarLayout));
+    }
+    static void caches(Attachment &a, detail::CacheBytes (*read)(const Join &)) {
+        a.state_->readCaches = read;
+    }
+    static void publishHook(Attachment &a, void *context, void (*hook)(void *)) {
+        a.state_->hookContext = context; a.state_->beforePublish = hook;
+    }
     static void join(Attachment &a, Join (*join)(::Scene *)) { a.state_->join = join; }
     static void stopHook(Attachment &a, void *p, void (*hook)(void *)) {
         a.state_->hookContext = p; a.state_->stopContended = hook;
@@ -64,6 +72,7 @@ static void admissionAndLifetime() {
     assert(!callback(reinterpret_cast<::Scene *>(&fixture)));
     auto state = a->snapshot();
     assert(state.available && state.attached && state.callbackEntered && fixture.calls == 1);
+    assert(state.scalar.status == ScalarStatus::NotRequested && !state.scalar.sample);
     assert(testing::Access::deadline(*a) == testing::Access::recorderDeadline(*a));
     doc.setPlainText(QString::fromUtf8("A\xcc\x81 \xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x92\xbb"));
     auto edited = a->snapshot();
@@ -197,6 +206,140 @@ static void duplicateDuringJoin() {
     auto state = a->snapshot();
     assert(state.retired && state.refusal == Refusal::Duplicate && !state.attached);
 }
+struct ScalarFixture {
+    Join joined;
+    detail::CacheBytes cache = std::array<unsigned char, 2>{1, 0};
+    unsigned joins = 0, reads = 0;
+
+    explicit ScalarFixture(QTextDocument &doc) {
+        joined.document = &doc;
+        joined.facts.documentAddress = reinterpret_cast<std::uintptr_t>(&doc);
+        joined.facts.idHigh = 7;
+        joined.facts.idLow = 9;
+        joined.root = 1;
+        joined.control = 2;
+        joined.participant = 3;
+        joined.privateData = reinterpret_cast<std::uintptr_t>(this);
+    }
+    ::Scene *borrow() { return reinterpret_cast<::Scene *>(this); }
+};
+static std::unique_ptr<Attachment> scalarAttachment(
+        std::shared_ptr<std::atomic<bool>> canceled = {}, std::chrono::milliseconds budget = 120s) {
+    auto profile = testing::Access::profile();
+    auto a = Attachment::prepare(*profile, budget, {}, canceled, Mode::Scalars);
+    assert(a);
+    testing::Access::join(*a, [](::Scene *scene) {
+        auto &fixture = *reinterpret_cast<ScalarFixture *>(scene);
+        ++fixture.joins;
+        return fixture.joined;
+    });
+    testing::Access::caches(*a, [](const Join &join) {
+        auto &fixture = *reinterpret_cast<ScalarFixture *>(join.privateData);
+        ++fixture.reads;
+        return fixture.cache;
+    });
+    return a;
+}
+static void scalarObservation() {
+    QTextDocument doc;
+    QTextCursor cursor(&doc);
+    cursor.insertText(QStringLiteral("owned fixture"));
+    doc.undo();
+    doc.blockSignals(true);
+    assert(doc.isUndoRedoEnabled() && !doc.isUndoAvailable() && doc.isRedoAvailable());
+    auto profile = testing::Access::profile();
+    assert(!Attachment::prepare(*profile, 1s, remarkable::composer_text::ReadRange{0, 1}, {}, Mode::Scalars));
+    assert(!Attachment::prepare(*profile, 1s, {}, {}, static_cast<Mode>(99)));
+    auto missingLayout = testing::Access::profile(false);
+    assert(!Attachment::prepare(*missingLayout, 1s, {}, {}, Mode::Scalars));
+
+    ScalarFixture fixture(doc);
+    auto a = scalarAttachment();
+    const auto pending = a->snapshot();
+    assert(pending.available && pending.scalar.status == ScalarStatus::Pending && !pending.scalar.sample);
+    auto callback = a->callback();
+    assert(!callback(fixture.borrow()));
+    auto observed = a->snapshot();
+    assert(observed.available && observed.callbackEntered && !observed.attached && !observed.retired);
+    assert(!observed.observations.available && !observed.facts.documentAddress);
+    assert(observed.text.status == remarkable::composer_text::Status::NotRequested);
+    assert(observed.scalar.status == ScalarStatus::Observed && observed.scalar.sample);
+    const auto sample = *observed.scalar.sample;
+    assert(sample.undoRedoEnabled && !sample.undoAvailable && sample.redoAvailable);
+    assert(sample.maximumBlockCount == doc.maximumBlockCount() && sample.revision == doc.revision());
+    assert(sample.signalsBlocked && sample.cachedWasUndoAvailable && !sample.cachedWasRedoAvailable);
+
+    doc.redo();
+    assert(!callback(reinterpret_cast<::Scene *>(1))); // Duplicate never joins.
+    auto historical = a->snapshot();
+    assert(historical.retired && historical.refusal == Refusal::Duplicate);
+    assert(historical.scalar.status == ScalarStatus::Observed && historical.scalar.sample == sample);
+    assert(fixture.joins == 2 && fixture.reads == 2);
+}
+static void scalarRefusals() {
+
+    using Change = void (*)(void *);
+    const Change drift[] = {
+        [](void *p) { ++static_cast<ScalarFixture *>(p)->joined.root; },
+        [](void *p) { ++static_cast<ScalarFixture *>(p)->joined.control; },
+        [](void *p) { ++static_cast<ScalarFixture *>(p)->joined.participant; },
+        [](void *p) { static_cast<ScalarFixture *>(p)->joined.document = nullptr; },
+        [](void *p) { ++static_cast<ScalarFixture *>(p)->joined.privateData; },
+        [](void *p) { ++static_cast<ScalarFixture *>(p)->joined.facts.idLow; },
+        [](void *p) { static_cast<ScalarFixture *>(p)->joined.document->setPlainText(QStringLiteral("changed")); },
+        [](void *p) { static_cast<ScalarFixture *>(p)->joined.document->blockSignals(true); },
+        [](void *p) { static_cast<ScalarFixture *>(p)->cache = std::array<unsigned char, 2>{0, 1}; },
+    };
+    auto refused = [](Attachment &a, Refusal reason) {
+        const auto state = a.snapshot();
+        assert(state.available && state.retired && !state.attached && !state.observations.available);
+        assert(state.scalar.status == ScalarStatus::Refused && !state.scalar.sample);
+        assert(state.refusal == reason);
+    };
+    for (auto change : drift) {
+        QTextDocument doc;
+        ScalarFixture fixture(doc);
+        auto a = scalarAttachment();
+        testing::Access::publishHook(*a, &fixture, change);
+        assert(!a->callback()(fixture.borrow()));
+        refused(*a, Refusal::Scalar);
+        assert(fixture.joins == 2);
+    }
+    for (detail::CacheBytes cache : {detail::CacheBytes{}, detail::CacheBytes{std::array<unsigned char, 2>{0, 2}},
+            detail::CacheBytes{std::array<unsigned char, 2>{255, 0}}}) {
+        QTextDocument doc;
+        ScalarFixture fixture(doc);
+        fixture.cache = cache;
+        auto a = scalarAttachment();
+        assert(!a->callback()(fixture.borrow()));
+        refused(*a, Refusal::Scalar);
+        assert(fixture.joins == 1 && fixture.reads == 1);
+    }
+    QTextDocument doc;
+    ScalarFixture fixture(doc);
+    auto wrongThread = scalarAttachment();
+    std::thread foreign([&] { assert(!wrongThread->callback()(fixture.borrow())); });
+    foreign.join();
+    refused(*wrongThread, Refusal::Scalar);
+    assert(fixture.joins == 1 && fixture.reads == 0);
+
+    auto gate = std::make_shared<std::atomic<bool>>(false);
+    auto canceled = scalarAttachment(gate);
+    testing::Access::publishHook(*canceled, gate.get(), [](void *p) {
+        static_cast<std::atomic<bool> *>(p)->store(true, std::memory_order_release);
+    });
+    assert(!canceled->callback()(fixture.borrow()));
+    refused(*canceled, Refusal::Canceled);
+
+    auto expired = scalarAttachment({}, 1s);
+    auto deadline = testing::Access::deadline(*expired);
+    testing::Access::publishHook(*expired, &deadline, [](void *p) {
+        std::this_thread::sleep_until(*static_cast<Clock::time_point *>(p));
+    });
+    assert(!expired->callback()(fixture.borrow()));
+    refused(*expired, Refusal::Deadline);
+}
+
 #if defined(__arm__) && defined(__ARM_PCS_VFP)
 static void nativeLayout() {
     static_assert(sizeof(void *) == 4 && sizeof(Callback) == 16 && alignof(Callback) == 4);
@@ -215,6 +358,14 @@ static void nativeLayout() {
     assert(joined.document == doc && joined.refusal == Refusal::None);
     assert(joined.facts.idHigh == 7 && joined.facts.idLow == 9);
     assert(detail::join(nullptr).refusal == Refusal::NullScene);
+    auto profile = testing::Access::profile();
+    auto scalars = Attachment::prepare(*profile, 1s, {}, {}, Mode::Scalars);
+    assert(scalars);
+    assert(!scalars->callback()(borrow));
+    auto state = scalars->snapshot();
+    assert(state.scalar.status == ScalarStatus::Observed && state.scalar.sample);
+    assert(!state.scalar.sample->cachedWasUndoAvailable && !state.scalar.sample->cachedWasRedoAvailable);
+    assert(state.scalar.sample->revision == doc->revision() && !state.observations.available);
     struct Case { void *base; std::size_t offset; std::uint32_t value; Refusal refusal; };
     const Case cases[] = {
         {scene,0x26c,0,Refusal::MissingRoot}, {scene,0x190,0,Refusal::MissingRoot},
@@ -248,12 +399,13 @@ int main(int argc, char **argv) {
     QGuiApplication app(argc,argv);
     admissionAndLifetime(); rejectionAndDuplicate(); destruction();
     stopDuringJoin(); stopDuringPublication(); duplicateDuringJoin();
+    scalarObservation(); scalarRefusals();
 #if defined(__arm__) && defined(__ARM_PCS_VFP)
     nativeLayout();
-    std::cout << "scene attachment: 6 lifecycle groups and ARM synthetic layout/refusal matrix passed; ";
+    std::cout << "scene attachment: 8 lifecycle/scalar groups and ARM synthetic layout/refusal matrix passed; ";
 #else
     assert(detail::join(nullptr).refusal == Refusal::Unsupported);
-    std::cout << "scene attachment: 6 lifecycle groups passed; native layout not exercised; ";
+    std::cout << "scene attachment: 8 lifecycle/scalar groups passed; native layout not exercised; ";
 #endif
     std::cout << "Qt " << qVersion() << "; no native callback executed\n";
 }

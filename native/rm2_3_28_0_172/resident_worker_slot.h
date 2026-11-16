@@ -132,6 +132,27 @@ private:
         }
         return result;
     }
+    // Only Delivery's private snapshot completion/fence path calls this. Unlike
+    // generic retirement it proves closed borrowed reads, not Task destruction.
+    Retirement retireSnapshot(const Token &token,const std::shared_ptr<std::atomic<bool>> &cancellation) {
+        Retirement result;
+        if(!detail::gui()||detail::busy)return result;
+        detail::Gate gate; const auto state=match(token);
+        if(!state||state->preparing||state->submitting||state->physicalRetired||
+                !state->ready||!state->consumed||!cancellation||state->sceneCancellation!=cancellation)return result;
+        result.matched=true; result.unknown=state->unknown;
+        if(state->unknown||state->attributionAttempted||!state->controller||!state->publicWorker)return result;
+        // Snapshot admission was sealed independently. Retirement is not input
+        // revocation and must not mark a successfully copied receipt canceled.
+        state->canceled=true;
+        state->physicalRetired=true; result.retired=true;
+        release(state->worker,Kind::Worker);
+        release(state->document,Kind::Document);
+        result.worker=state->worker.last; result.document=state->document.last;
+        result.workerRetained=!state->worker.settled(); result.documentRetained=!state->document.settled();
+        if(!result.workerRetained&&!result.documentRetained) { current_.reset(); result.reclaimed=true; }
+        return result;
+    }
 public:
     ResidentSlot(const ResidentSlot &)=delete;
     ResidentSlot &operator=(const ResidentSlot &)=delete;

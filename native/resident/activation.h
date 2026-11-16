@@ -26,6 +26,7 @@ class Activation final {
     explicit Activation(QString directory):directory_(std::move(directory)) {}
     QString directory_;
     EndpointConfig config_;
+    quint64 startupExpiryBootMs_=0;
     static bool same(const struct stat &a,const struct stat &b) {
         return a.st_dev==b.st_dev&&a.st_ino==b.st_ino&&a.st_uid==b.st_uid&&a.st_mode==b.st_mode;
     }
@@ -38,6 +39,12 @@ public:
     Activation&operator=(const Activation&)=delete;
     ~Activation(){if(root_>=0)::close(root_);}
     const EndpointConfig &config()const{return config_;}
+    // Internal capture preparation input. Zero refuses an expired or stale claim.
+    quint64 captureStartupExpiryBootMs()const {
+        if(!directoryCurrent())return 0;
+        const auto now=bootMilliseconds();
+        return now&&now<startupExpiryBootMs_?startupExpiryBootMs_:0;
+    }
     bool directoryCurrent()const {
         struct stat current{},named{};
         const auto name=QFile::encodeName(directory_);
@@ -96,6 +103,7 @@ public:
            !sameFile(before,after)||consumed.st_nlink!=2||after.st_nlink!=2||
            !result->directoryCurrent()||::getppid()!=parent||processStart(parent)!=parentStart||
            !claimedAt||claimedAt>=expires)return {};
+        result->startupExpiryBootMs_=expires;
         auto &config=result->config_;
         config.directory=result->directory_;
         config.peerUid=::geteuid();config.peerPid=parent;config.peerStart=parentStart;

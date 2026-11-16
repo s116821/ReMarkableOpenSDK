@@ -1,10 +1,19 @@
+#define RSDK_PRE_ENTER_MARKER_TESTING 1
 #include "endpoint.h"
 #include <QElapsedTimer>
 #include <QTemporaryDir>
 #include <QProcess>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
 using namespace remarkable::resident;
+namespace remarkable::resident {
+struct PreEnterMarkerTestAccess {
+    static void writer(Endpoint &endpoint,ssize_t (*fn)(int,const void *,std::size_t)) {
+        endpoint.preEnterWrite_=fn;
+    }
+};
+}
 static unsigned checks=0;
 static void need(bool value){++checks;if(!value){std::fprintf(stderr,"endpoint check %u failed\n",checks);std::abort();}}
 template<class F>static bool until(F predicate,int budget=1500) {
@@ -39,6 +48,121 @@ static Frame handshake(QLocalSocket &socket,const EndpointConfig &c,Frame hello)
 static Frame request(Frame value,const Frame &ready,quint64 sequence) {
     value.runtime=ready.runtime;value.client=ready.client;value.server=ready.server;value.sequence=sequence;return value;
 }
+enum class MarkerCase { Success, WrongMode, Replaced, Short, Interrupted, Error, Expired, Retired };
+static MarkerCase markerCase;
+static unsigned markerWrites=0;
+static ssize_t markerWrite(int fd,const void *data,std::size_t size) {
+    ++markerWrites;
+    if(markerCase==MarkerCase::Short)return ::write(fd,data,size/2);
+    if(markerCase==MarkerCase::Interrupted){errno=EINTR;return -1;}
+    if(markerCase==MarkerCase::Error){errno=EIO;return -1;}
+    return ::write(fd,data,size);
+}
+static void preEnterMarkers(const Frame &hello,const Frame &observe) {
+    for(auto mode:{MarkerCase::Success,MarkerCase::WrongMode,MarkerCase::Replaced,MarkerCase::Short,
+                   MarkerCase::Interrupted,MarkerCase::Error,MarkerCase::Expired,MarkerCase::Retired}) {
+        markerCase=mode;markerWrites=0;
+        QTemporaryDir directory;need(directory.isValid());
+        auto c=config(directory.path());c.operationBudgetMs=500;
+        Endpoint::Lease pending;
+        Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+        PreEnterMarkerTestAccess::writer(server,markerWrite);
+        need(server.start());
+        QLocalSocket peer;auto ready=handshake(peer,c,hello);
+        auto text=request(observe,ready,1);text.kind=PreEnterRequest;text.textRange={2,3};
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        const auto lease=pending;
+        if(mode==MarkerCase::Retired) {
+            peer.abort();need(until([&]{return lease->retirement()->load();}));
+        }else if(mode==MarkerCase::Expired) {
+            std::this_thread::sleep_until(lease->deadline());
+            need(!lease->active()&&!lease->retirement()->load());
+        }
+        const auto path=QFile::encodeName(c.directory+"/stderr.log");
+        const int output=::open(path.constData(),O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,0600);
+        need(output>=0);
+        if(mode==MarkerCase::WrongMode)need(::fchmod(output,0644)==0);
+        if(mode==MarkerCase::Replaced) {
+            const auto moved=path+".old";need(::rename(path.constData(),moved.constData())==0);
+            const int replacement=::open(path.constData(),O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,0600);
+            need(replacement>=0&&::close(replacement)==0);
+        }
+        const int saved=::dup(STDERR_FILENO);need(saved>=0&&::dup2(output,STDERR_FILENO)==STDERR_FILENO);
+        const auto marked=server.notePreEnterArmed(lease);
+        const auto liveAfterMarker=lease->active();
+        const auto repeated=server.notePreEnterArmed(lease);
+        const auto restored=::dup2(saved,STDERR_FILENO);
+        need(restored==STDERR_FILENO&&::close(saved)==0);
+        need(marked==(mode==MarkerCase::Success)&&liveAfterMarker==marked&&
+             !repeated&&!lease->active()&&lease->retirement()->load());
+        const bool attempted=mode==MarkerCase::Success||mode==MarkerCase::Short||
+                             mode==MarkerCase::Interrupted||mode==MarkerCase::Error;
+        need(markerWrites==unsigned(attempted));
+        char bytes[384];
+        const auto size=::pread(output,bytes,sizeof bytes,0);need(size>=0&&::close(output)==0);
+        if(mode==MarkerCase::Success) {
+            const auto prefix=QByteArray("RSDK_PRE_ENTER_ARMED_V1 pid=")+QByteArray::number(::getpid())+
+                " start_ticks="+QByteArray::number(c.peerStart)+" activation="+text.runtime.mid(124,16).toHex()+
+                " sequence=1 operation="+text.operation.toHex()+" request_sha256="+fingerprint(text).toHex()+
+                " sample_ns=";
+            const QByteArray line(bytes,size);
+            need(size<=383&&line.startsWith(prefix)&&line.endsWith('\n')&&line.count('\n')==1);
+            const auto deadline=std::chrono::duration_cast<std::chrono::nanoseconds>(
+                lease->deadline().time_since_epoch()).count();
+            const auto suffix=QByteArray(" deadline_ns=")+QByteArray::number(qlonglong(deadline))+'\n';
+            need(line.endsWith(suffix));
+            bool ok=false;const auto sample=line.mid(prefix.size(),line.size()-prefix.size()-suffix.size()).toULongLong(&ok);
+            need(ok&&sample<qulonglong(deadline));
+        }else if(mode==MarkerCase::Short)need(size>0&&bytes[size-1]!='\n');
+        else need(size==0);
+    }
+    std::puts("PASS: pre-Enter marker identity/deadline, private stderr, expiry/retirement and one write attempt");
+}
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+static void readerFocusReceipts(const Frame &hello,const Frame &observe,const Frame &facts) {
+    QTemporaryDir directory;need(directory.isValid());
+    auto c=config(directory.path());c.operationBudgetMs=200;
+    Endpoint::Lease pending;
+    Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+    need(server.start());
+    const auto submit=[&](QLocalSocket &peer,const Frame &ready,quint64 sequence) {
+        pending.reset();
+        auto focus=request(observe,ready,sequence);
+        focus.kind=ReaderFocusRequest;
+        need(peer.write(encode(focus))>0&&until([&]{return bool(pending);}));
+        return focus;
+    };
+    Frame answer;answer.kind=ReaderFocusReply;answer.readerFocus=ReaderFocus::InsideScene;
+    QLocalSocket peer;const auto ready=handshake(peer,c,hello);
+    const auto focus=submit(peer,ready,1);
+    need(server.finish(pending,answer));
+    const auto result=receive(peer);
+    need(result&&result->kind==ReaderFocusReply&&result->readerFocus==answer.readerFocus&&
+         result->requestDigest==fingerprint(focus));
+
+    submit(peer,ready,2);
+    const auto expired=pending;
+    std::this_thread::sleep_until(expired->deadline());
+    need(!expired->active()&&!expired->retirement()->load());
+    need(!server.finish(expired,answer)&&!receive(peer));
+    need(expired->retirement()->load());
+
+    QLocalSocket next;const auto nextReady=handshake(next,c,hello);
+    submit(next,nextReady,1);
+    const auto canceled=pending;
+    next.abort();need(until([&]{return canceled->retirement()->load();}));
+    QLocalSocket successor;const auto successorReady=handshake(successor,c,hello);
+    submit(successor,successorReady,1);
+    need(!server.finish(expired,answer)&&!server.finish(canceled,answer));
+    need(!server.finish(pending,facts)&&!receive(successor));
+
+    QLocalSocket ordinary;const auto ordinaryReady=handshake(ordinary,c,hello);
+    pending.reset();
+    need(ordinary.write(encode(request(observe,ordinaryReady,1)))>0&&until([&]{return bool(pending);}));
+    need(!server.finish(pending,answer)&&!receive(ordinary));
+    std::puts("PASS: reader focus reply correlation, cancellation and original endpoint deadline");
+}
+#endif
 int main(int argc,char **argv) {
     QCoreApplication app(argc,argv);
     if(argc==4&&QByteArray(argv[1])=="--rust-server") {
@@ -77,6 +201,38 @@ int main(int argc,char **argv) {
     }
     need(argc==2);const QString vectors=QString::fromLocal8Bit(argv[1]);
     const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,7);
+    preEnterMarkers(hello,observe);
+#ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
+    readerFocusReceipts(hello,observe,facts);
+#endif
+    {
+        QTemporaryDir directory;auto c=config(directory.path());c.operationBudgetMs=500;
+        Endpoint::Lease pending;
+        Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+        need(server.start());
+        QLocalSocket peer;const auto ready=handshake(peer,c,hello);
+        auto text=request(observe,ready,1);text.kind=PreEnterRequest;text.textRange={2,3};
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        const auto originalDeadline=pending->deadline();const auto retirement=pending->retirement();
+        need(pending->active()&&!retirement->load());
+        Frame answer;answer.kind=PreEnterReply;
+        answer.text.emplace(std::initializer_list<quint16>{0,0xd800,0x2029});
+        need(server.finish(pending,answer)&&retirement->load()&&pending->deadline()==originalDeadline);
+        const auto result=receive(peer);
+        need(result&&result->kind==PreEnterReply&&result->text==answer.text&&result->requestDigest==fingerprint(text));
+        pending.reset();
+        text.sequence=2;
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        const auto lost=pending;const auto lostGate=lost->retirement();
+        peer.abort();need(until([&]{return lostGate->load();}));
+        QLocalSocket next;const auto nextReady=handshake(next,c,hello);
+        pending.reset();text=request(text,nextReady,1);
+        need(next.write(encode(text))>0&&until([&]{return bool(pending);}));
+        need(!server.finish(lost,answer)&&!next.bytesAvailable());
+        answer.text->pop_back();need(!server.finish(pending,answer));
+        need(until([&]{return next.state()==QLocalSocket::UnconnectedState;}));
+        need(pending->retirement()->load()&&!next.bytesAvailable());
+    }
     {
         QTemporaryDir directory;auto c=config(directory.path());QProcess child;
         QString program=QCoreApplication::applicationFilePath();
