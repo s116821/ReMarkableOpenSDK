@@ -4,6 +4,7 @@
 #include <memory>
 
 namespace reader_worker_native {class ResidentMutation;namespace testing {struct MutationAccess;}}
+namespace remarkable::composer_writer {class Issuer;}
 namespace remarkable::rm2_3_28_0_172 {
 class ResidentSelection;
 // A single process-resident effect reservation shared across executor facades.
@@ -31,6 +32,7 @@ private:
     ResidentEffectGate &operator=(const ResidentEffectGate&)=delete;
     friend class reader_worker_native::ResidentMutation;
     friend class ResidentSelection;
+    friend class remarkable::composer_writer::Issuer;
 #ifdef RESIDENT_MUTATION_TESTING
     friend struct reader_worker_native::testing::MutationAccess;
 #endif

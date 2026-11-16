@@ -6,6 +6,7 @@
 #include <atomic>
 
 namespace remarkable::composer_scene { class Delivery; }
+namespace remarkable::composer_writer { class Issuer; }
 
 namespace reader_worker_native {
 class ResidentMutation;
@@ -69,6 +70,7 @@ private:
     ~ResidentSlot()=default; // Only process-resident construction is public.
     friend class ResidentMutation;
     friend class remarkable::composer_scene::Delivery;
+    friend class remarkable::composer_writer::Issuer;
 #ifdef RESIDENT_WORKER_SLOT_TESTING
     friend struct testing::SlotAccess;
     ReleaseResult (*testRelease_)(Kind,std::uintptr_t,std::uintptr_t)=nullptr;

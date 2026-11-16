@@ -44,6 +44,10 @@ using ValidatedWorkerAction = std::function<void(QObject *, const QVariant &, QO
     const Observation &, const std::function<bool()> &)>;
 using ValidatedSourceAction = std::function<void(QObject *, QObject *, QObject *, const QVariant &,
     const Observation &, const std::function<bool()> &)>;
+// Same synchronous source lifetime, additionally joined to the exact focused
+// receiver and worker. No borrowed argument or permission may escape.
+using ValidatedInputSourceAction = std::function<void(QObject *,QObject *,QObject *,const QVariant &,QObject *,
+    const Observation &,const std::function<bool()> &)>;
 
 namespace detail {
 inline constexpr char CreationControllerClass[] = "xofm::libs::library::DocumentController";
@@ -75,6 +79,7 @@ class Sample {
     bool joinRequested;
     ValidatedWorkerAction workerAction;
     ValidatedSourceAction sourceAction;
+    ValidatedInputSourceAction inputAction;
     QElapsedTimer timer;
     int budget;
     const std::function<bool()> &permit;
@@ -313,9 +318,9 @@ class Sample {
 public:
     Sample(QQuickWindow *w, const std::function<bool()> &permission, int ms,
            QObject *creation = nullptr, bool join = false, ValidatedWorkerAction action = {}, ValidatedSourceAction source = {},
-           QQuickItem *input = nullptr)
+           QQuickItem *input = nullptr,ValidatedInputSourceAction inputSource = {})
         : creationController(creation), inputReceiver(input), inputRequested(input != nullptr),
-          joinRequested(join), workerAction(std::move(action)), sourceAction(std::move(source)), budget(ms), permit(permission) {
+          joinRequested(join), workerAction(std::move(action)), sourceAction(std::move(source)), inputAction(std::move(inputSource)), budget(ms), permit(permission) {
         timer.start();
         app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
         if (!app || QThread::currentThread() != app->thread() || !w || w->thread() != app->thread()) {
@@ -407,7 +412,7 @@ public:
         for (int depth = 0; sceneMeta && depth < 16; ++depth, sceneMeta = sceneMeta->superClass())
             if (qstrcmp(sceneMeta->className(), "SceneView") == 0) { nativeScene = true; break; }
         if (!nativeScene || !live()) { no("native-scene-type"); return refuse(); }
-        if (inputRequested && (inputReceiver != current || !workerAction || sourceAction ||
+        if (inputRequested && (inputReceiver != current || (!workerAction&&!inputAction) || sourceAction ||
                 !signal(window, "activeFocusItemChanged()") || !signal(current, "activeFocusChanged(bool)"))) {
             no("input-receiver-mismatch"); return refuse();
         }
@@ -489,17 +494,17 @@ public:
         r.observed = true; r.mapCoherent = true;
         r.ready = !r.loading && !r.pageError && !r.documentError && r.status == active && r.pageStatus == pageReady &&
             !r.awaitingTiles && !r.pendingTiles && !r.working;
-        if (focusReceipt && r.ready && !workerAction && !sourceAction) {
+        if (focusReceipt && r.ready && !workerAction && !sourceAction && !inputAction) {
             const std::function<bool()> guarded = [&] { return live(); };
             *focusReceipt = rem61_focus::sample(window, device, current, guarded);
         }
-        if (workerAction || sourceAction) {
-            if (workerAction && sourceAction) { no("source-action-ambiguity"); return refuse(); }
+        if (workerAction || sourceAction || inputAction) {
+            if (int(bool(workerAction))+int(bool(sourceAction))+int(bool(inputAction))!=1 || (inputAction&&!inputRequested)) { no("source-action-ambiguity"); return refuse(); }
             if (!joinRequested || !r.creationJoinObserved || !r.ready || !controller || !creationController || !live()) {
                 no("worker-source-unready"); return refuse();
             }
             QPointer<QObject> worker;
-            if (workerAction) {
+            if (workerAction || inputAction) {
                 const QMetaObject *meta = controller->metaObject();
                 const int index = meta->indexOfProperty("worker");
                 if (index < 0 || !meta->property(index).isConstant()) { no("worker-property-contract"); return refuse(); }
@@ -517,7 +522,8 @@ public:
                 no("input-receiver-focus"); return refuse();
             }
             try {
-                if (workerAction) workerAction(creationController, actualId, worker, r, guarded);
+                if (inputAction) inputAction(reader,document,creationController,actualId,worker,r,guarded);
+                else if (workerAction) workerAction(creationController, actualId, worker, r, guarded);
                 else sourceAction(reader, document, creationController, actualId, r, guarded);
             }
             catch (...) { Observation failed; failed.refusal = workerAction ? QStringLiteral("worker-action-exception") : QStringLiteral("source-action-exception"); return failed; }
@@ -573,12 +579,15 @@ inline Observation observeInputReceiver(QQuickWindow *window, QObject *controlle
 // imported singleton may initialize it; this never creates a separate engine.
 inline Observation observeCreationJoin(QQuickWindow *window,
         const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000,
-        ValidatedWorkerAction action = {}, ValidatedSourceAction source = {}) {
+        ValidatedWorkerAction action = {}, ValidatedSourceAction source = {},
+        QQuickItem *input = nullptr,ValidatedInputSourceAction inputSource = {}) {
     const auto refuse = [](const char *reason) { Observation r; r.refusal = QString::fromLatin1(reason); return r; };
     if (detail::entry.busy) { detail::entry.reentered = true; return refuse("sample-reentered"); }
     detail::EntryScope scope;
     if (budgetMs < 1 || budgetMs > MaxObservationMs) return refuse("budget-invalid");
     QElapsedTimer elapsed; elapsed.start();
+    const bool wantsInput=input!=nullptr;
+    const QPointer<QQuickItem> inputGuard(input);
     QPointer<QGuiApplication> app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
     if (!app || QThread::currentThread() != app->thread() || !window || window->thread() != app->thread())
         return refuse("application-thread");
@@ -589,6 +598,7 @@ inline Observation observeCreationJoin(QQuickWindow *window,
         return app && w && root && engine && !QCoreApplication::closingDown() &&
             !detail::entry.reentered && elapsed.elapsed() < budgetMs &&
             w->thread() == app->thread() && engine->thread() == app->thread() &&
+            (!wantsInput||(inputGuard&&inputGuard->thread()==app->thread()&&inputGuard->window()==w))&&
             w->contentItem() == root && qmlEngine(w) == engine &&
             w->isActive() && w->isVisible() && QGuiApplication::focusWindow() == w;
     };
@@ -614,7 +624,7 @@ inline Observation observeCreationJoin(QQuickWindow *window,
         if (!controller || !allowed()) return refuse("creation-preparation-refused");
         const int remaining = budgetMs - int(elapsed.elapsed());
         if (remaining <= 0) return refuse("deadline");
-        return detail::Sample(w, permit, remaining, controller, true, std::move(action), std::move(source)).run();
+        return detail::Sample(w, permit, remaining, controller, true, std::move(action), std::move(source),inputGuard,std::move(inputSource)).run();
     }();
     // Include component/helper unwind in this mode's original cooperative cap.
     if (elapsed.elapsed() >= budgetMs) return refuse("deadline");

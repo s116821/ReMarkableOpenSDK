@@ -9,7 +9,7 @@ mkdir -p "$work"
 : "${RSDK_DOBBY_ARCHIVE:?reviewed Dobby archive required}"
 : "${RSDK_DOBBY_INCLUDE:?matching Dobby headers required}"
 variant=${RSDK_BUILD_VARIANT:-observation}
-if [ "$variant" = development-pre-enter-diagnostic-v1 ]; then
+if [ "$variant" = development-pre-enter-diagnostic-v1 ] || [ "$variant" = development-composer-v1 ]; then
     test "$(sha256sum "$QT_PROBE_SDK_ENV" | cut -d ' ' -f 1)" = d77b2e8bed5d8ce4bd953b9ae2a5397e3bd8693fc065600cf536bad5dac53606
 fi
 . "$QT_PROBE_SDK_ENV"
@@ -26,9 +26,13 @@ case "$variant" in
     development-effect-write-reopen-v1) manifest="$root/development-effect-write-reopen-v1.json"; probe_flag="-DRSDK_DEVELOPMENT_EFFECT_PROBE_V1=1 -DRSDK_DEVELOPMENT_ORDINARY_CLOSE_V1=1 -DRSDK_DEVELOPMENT_FIXTURE_REOPEN_V1=1 -DRSDK_ENDPOINT_DIAGNOSTICS_V1=1" ;;
     development-effect-close-probe-v1) manifest="$root/development-effect-close-probe-v1.json"; probe_flag="-DRSDK_DEVELOPMENT_EFFECT_PROBE_V1=1 -DRSDK_DEVELOPMENT_ORDINARY_CLOSE_V1=1 -DRSDK_ENDPOINT_DIAGNOSTICS_V1=1" ;;
     development-effect-probe-v1) manifest="$root/development-effect-probe-v1.json"; probe_flag=-DRSDK_DEVELOPMENT_EFFECT_PROBE_V1=1 ;;
-    development-pre-enter-diagnostic-v1)
-        manifest="$root/development-pre-enter-diagnostic-v1.json"
-        probe_flag="-DRSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1=1 -DCOMPOSER_TEXT_PRIVATE_QT -funwind-tables"
+    development-pre-enter-diagnostic-v1|development-composer-v1)
+        manifest="$root/$variant.json"
+        if [ "$variant" = development-composer-v1 ]; then
+            probe_flag="-DRSDK_DEVELOPMENT_COMPOSER_V1=1 -DCOMPOSER_TEXT_PRIVATE_QT -funwind-tables"
+        else
+            probe_flag="-DRSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1=1 -DCOMPOSER_TEXT_PRIVATE_QT -funwind-tables"
+        fi
         test "$(${CXX:?} -dumpfullversion)" = 13.4.0
         version=$(pkg-config --modversion Qt6Gui)
         test "$version" = 6.10.3
@@ -48,6 +52,9 @@ profile=$(sha256sum "$manifest" | cut -d ' ' -f 1)
 for name in reader_selected_view_probe reader_joined_creation_witness reader_worker_callback_witness reader_insertion_guard_entry reader_request_retirement; do
     "$OECORE_NATIVE_SYSROOT/usr/libexec/moc" "$root/$name.h" -o "$work/moc_$name.cpp"
 done
+if [ "$variant" = development-composer-v1 ]; then
+    "$OECORE_NATIVE_SYSROOT/usr/libexec/moc" "$root/composer_snapshot_retirement.h" -o "$work/moc_composer_snapshot_retirement.cpp"
+fi
 "$OECORE_NATIVE_SYSROOT/usr/libexec/moc" "$root/qt_qml_creation_bridge.h" -o "$work/qt_qml_creation_bridge.moc"
 ${CXX:?} -std=c++17 -marm -Wall -Wextra -Werror -O2 -fPIC -fexceptions -frtti \
     -fno-lto -fno-gnu-unique -fvisibility=hidden -ftls-model=initial-exec \
@@ -66,7 +73,7 @@ sha256sum "$root/bootstrap.cpp" "$root/composer_pre_enter.cpp" "$root/reader_ins
     "$root/resident_mutation.cpp" "$root"/*.h "$root/../resident"/*.h "$manifest" "$root/build.sh" "$RSDK_DOBBY_INCLUDE/dobby.h" \
     "$work"/moc_*.cpp "$work/qt_qml_creation_bridge.moc" > "$work/inputs.sha256"
 ${CXX:?} --version > "$work/compiler.txt"
-if [ "$variant" = development-pre-enter-diagnostic-v1 ]; then
+if [ "$variant" = development-pre-enter-diagnostic-v1 ] || [ "$variant" = development-composer-v1 ]; then
     ${READELF:-readelf} --unwind "$work/libremarkable-resident.so" > "$work/unwind.txt"
     sha256sum "$QT_PROBE_SDK_ENV" "$private_header" >> "$work/inputs.sha256"
 fi

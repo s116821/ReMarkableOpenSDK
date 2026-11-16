@@ -126,7 +126,7 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
         operation: OperationId(id(31)),
         message: Message::Request(Command::CaptureSource(facts.clone())),
     };
-    let captured = capture_support::capture(facts, 160, 120);
+    let captured = capture_support::capture(facts.clone(), 160, 120);
     frames.push(capture_request.clone());
     frames.push(Frame {
         message: Message::Response {
@@ -236,6 +236,113 @@ fn export_vectors() -> Result<(), Box<dyn std::error::Error>> {
             )?;
         }
     }
-    println!("{} canonical Rust vectors written", frames.len());
+    #[cfg(feature = "development-composer-v1")]
+    {
+        use composer::{
+            Attempts, ClearReceipt, Draft, KeyFacts, KeyObservation, Outcome, RangeIdentity,
+            RangeState,
+        };
+        let state = RangeState {
+            identity: RangeIdentity {
+                facts,
+                visit: id(40),
+                range: id(41),
+            },
+            revision: 37,
+        };
+        let draft = Draft {
+            state: state.clone(),
+            units: vec![0xfeff, 0xfffe, 0, 0xd800, 0x000a, 0x2029],
+        };
+        let mutation = Attempts::from_bits(7).unwrap();
+        let observation = Attempts::from_bits(5).unwrap();
+        for (index, (name, command, result)) in [
+            (
+                "provision",
+                composer::Command::Provision(state.identity.facts.clone()),
+                composer::Reply::Provisioned(Outcome::Verified {
+                    attempts: mutation,
+                    value: state.clone(),
+                }),
+            ),
+            (
+                "observe",
+                composer::Command::Observe(state.identity.clone()),
+                composer::Reply::Observed(Outcome::Verified {
+                    attempts: observation,
+                    value: draft.clone(),
+                }),
+            ),
+            (
+                "clear",
+                composer::Command::Clear(draft.clone()),
+                composer::Reply::Cleared(Outcome::Verified {
+                    attempts: mutation,
+                    value: ClearReceipt {
+                        identity: state.identity.clone(),
+                        before_revision: 37,
+                        after_revision: 42,
+                    },
+                }),
+            ),
+            (
+                "key",
+                composer::Command::AwaitKey {
+                    identity: state.identity.clone(),
+                    keys: vec![0x0100_0004, 0x0100_0005],
+                },
+                composer::Reply::KeyObserved(Outcome::Verified {
+                    attempts: observation,
+                    value: KeyObservation {
+                        draft,
+                        event: id(42),
+                        input_serial: 0x0123_4567_89ab_cdef,
+                        key: KeyFacts {
+                            key: 0x0100_0004,
+                            count: 0,
+                            modifiers: 0x1234_5678,
+                            native_scan_code: 0x8765_4321,
+                            native_virtual_key: 0x1122_3344,
+                            native_modifiers: 0x5566_7788,
+                            auto_repeat: false,
+                            spontaneous: true,
+                            text: vec![0xfffe, 0xd800, 0x000a],
+                        },
+                    },
+                }),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let request = Frame {
+                scope: scope.clone(),
+                sequence: 1,
+                operation: OperationId(id(50 + index as u32)),
+                message: Message::Request(Command::Composer(command)),
+            };
+            let response = Frame {
+                message: Message::Response {
+                    request_sha256: request.fingerprint().unwrap(),
+                    reply: Reply::Composer(result),
+                },
+                ..request.clone()
+            };
+            for (suffix, frame) in [("request", request), ("reply", response)] {
+                let stem = format!("composer-{name}-{suffix}");
+                let bytes = frame.encode().unwrap();
+                assert_eq!(Frame::decode(&bytes[4..]).unwrap(), frame);
+                fs::write(path.join(format!("{stem}.bin")), bytes)?;
+                fs::write(
+                    path.join(format!("{stem}.sha256")),
+                    frame.fingerprint().unwrap(),
+                )?;
+            }
+        }
+    }
+    println!(
+        "{} canonical numbered Rust vectors plus enabled named extensions written",
+        frames.len()
+    );
     Ok(())
 }

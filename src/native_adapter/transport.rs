@@ -186,6 +186,10 @@ impl Client {
             } = self;
             let mut serviced = || {
                 check_deadline(deadline)?;
+                // Callers may publish a diagnostic cue from progress. Reject
+                // already-invalid transport identity before that callout too.
+                authenticate(stream, directory, *socket_identity, *uid, runtime)?;
+                check_deadline(deadline)?;
                 progress().map_err(Failure::Progress)?;
                 check_deadline(deadline)?;
                 authenticate(stream, directory, *socket_identity, *uid, runtime)
@@ -203,7 +207,7 @@ impl Client {
             let response = read_frame(stream, deadline, &mut serviced)?;
             check_progress(deadline, &mut serviced)?;
             let reply = session.complete(&response)?;
-            if reply == Reply::Indeterminate {
+            if reply.is_indeterminate() {
                 self.close();
             }
             Ok(reply)
