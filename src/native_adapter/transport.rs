@@ -203,7 +203,7 @@ impl Client {
             let response = read_frame(stream, deadline, &mut serviced)?;
             check_progress(deadline, &mut serviced)?;
             let reply = session.complete(&response)?;
-            if reply == Reply::Indeterminate {
+            if reply.is_indeterminate() {
                 self.close();
             }
             Ok(reply)

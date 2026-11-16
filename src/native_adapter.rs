@@ -9,6 +9,9 @@ use std::collections::HashSet;
 #[cfg(target_os = "linux")]
 pub mod transport;
 
+#[cfg(feature = "development-composer-v1")]
+pub mod composer;
+
 mod capture;
 pub use capture::{
     CAPTURE_PROCEDURE, HistoricalCapture, HistoricalVisual, MAX_CAPTURE_PIXELS, MAX_CAPTURE_PNG,
@@ -200,6 +203,9 @@ impl SelectAdjacent {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
+    /// Development composer mechanics; no product Submit grammar or activation.
+    #[cfg(feature = "development-composer-v1")]
+    Composer(composer::Command),
     /// One historical focus classification from the joined Reader.
     #[cfg(feature = "development-native-reader-focus")]
     ObserveReaderFocus,
@@ -233,6 +239,10 @@ pub enum Command {
 }
 impl Command {
     pub fn is_effectful(&self) -> bool {
+        #[cfg(feature = "development-composer-v1")]
+        if let Self::Composer(command) = self {
+            return command.is_effectful();
+        }
         #[cfg(feature = "development-native-close")]
         if matches!(self, Self::CloseOrdinary(_) | Self::ReopenFixture(_)) {
             return true;
@@ -265,6 +275,8 @@ pub enum ReaderFocus {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reply {
+    #[cfg(feature = "development-composer-v1")]
+    Composer(composer::Reply),
     #[cfg(feature = "development-native-reader-focus")]
     ReaderFocus(ReaderFocus),
     /// Exact UTF-16 units from a historical diagnostic, or terminal refusal.
@@ -297,6 +309,16 @@ pub enum Reply {
         current: ReaderFacts,
         target_present: bool,
     },
+}
+
+impl Reply {
+    fn is_indeterminate(&self) -> bool {
+        #[cfg(feature = "development-composer-v1")]
+        if let Self::Composer(reply) = self {
+            return reply.is_unknown();
+        }
+        matches!(self, Self::Indeterminate)
+    }
 }
 
 #[cfg(feature = "development-native-pre-enter")]
@@ -457,6 +479,13 @@ impl Frame {
             Message::Request(command) => {
                 w.u8(2);
                 match command {
+                    #[cfg(feature = "development-composer-v1")]
+                    Command::Composer(command) => {
+                        if revision != 4 {
+                            return Err(ProtocolError::UnsupportedVersion);
+                        }
+                        command.encode(&mut w)?;
+                    }
                     #[cfg(feature = "development-native-reader-focus")]
                     Command::ObserveReaderFocus => {
                         if revision != 4 {
@@ -542,6 +571,13 @@ impl Frame {
                 w.u8(3);
                 w.0.extend(request_sha256);
                 match reply {
+                    #[cfg(feature = "development-composer-v1")]
+                    Reply::Composer(reply) => {
+                        if revision != 4 {
+                            return Err(ProtocolError::UnsupportedVersion);
+                        }
+                        reply.encode(&mut w)?;
+                    }
                     #[cfg(feature = "development-native-reader-focus")]
                     Reply::ReaderFocus(leaf) => {
                         if revision != 4 {
@@ -720,6 +756,10 @@ impl Frame {
             0 => Message::Hello,
             1 => Message::Ready,
             2 => Message::Request(match r.u8()? {
+                #[cfg(feature = "development-composer-v1")]
+                tag @ 12..=15 if revision == 4 => {
+                    Command::Composer(composer::Command::decode(tag, &mut r)?)
+                }
                 #[cfg(feature = "development-native-reader-focus")]
                 11 if revision == 4 => Command::ObserveReaderFocus,
                 #[cfg(feature = "development-native-pre-enter")]
@@ -777,6 +817,10 @@ impl Frame {
             3 => {
                 let request_sha256 = r.take()?;
                 let reply = match r.u8()? {
+                    #[cfg(feature = "development-composer-v1")]
+                    tag @ 14..=17 if revision == 4 => {
+                        Reply::Composer(composer::Reply::decode(tag, &mut r)?)
+                    }
                     #[cfg(feature = "development-native-reader-focus")]
                     13 if revision == 4 => Reply::ReaderFocus(match r.u8()? {
                         0 => ReaderFocus::Refused,
@@ -1194,6 +1238,17 @@ impl Session {
             unreachable!()
         };
         let valid = match (command, reply) {
+            #[cfg(feature = "development-composer-v1")]
+            (Command::Composer(command), Reply::Composer(reply)) => reply.corresponds(command),
+            #[cfg(feature = "development-composer-v1")]
+            (
+                Command::Composer(_),
+                Reply::Rejected(
+                    Rejection::Unsupported | Rejection::UnknownIdentity | Rejection::Capacity,
+                ),
+            ) => true,
+            #[cfg(feature = "development-composer-v1")]
+            (Command::Composer(_), _) => false,
             #[cfg(feature = "development-native-reader-focus")]
             (
                 Command::ObserveReaderFocus,
@@ -1270,7 +1325,7 @@ impl Session {
         if !valid {
             return Err(ProtocolError::WrongResponse);
         }
-        if command.is_effectful() && *reply == Reply::Indeterminate {
+        if command.is_effectful() && reply.is_indeterminate() {
             let reply = reply.clone();
             self.close();
             return Ok(reply);
