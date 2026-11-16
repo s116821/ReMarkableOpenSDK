@@ -10,6 +10,9 @@
 
 namespace remarkable::composer_writer {
 class Issuer final:public QObject {
+#ifdef COMPOSER_ISSUER_TESTING
+    friend struct testing::IssuerAccess;
+#endif
     using Slot=reader_worker_native::ResidentSlot;
     using Clock=composer_text::Clock;
     using Gate=rm2_3_28_0_172::ResidentEffectGate;
@@ -17,6 +20,7 @@ class Issuer final:public QObject {
         const std::shared_ptr<std::atomic<bool>> revoked=std::make_shared<std::atomic<bool>>(false);
         resident::Facts facts;
         resident::Id id,rangeId;
+        resident::Id client,server;
         QPointer<QQuickItem> receiver;
         QPointer<QQuickWindow> window;
         QPointer<QObject> worker;
@@ -35,9 +39,11 @@ class Issuer final:public QObject {
         Gate::Token effect;
         std::shared_ptr<composer_scene::SnapshotRetirement> retirement;
         std::shared_ptr<Attachment> attachment;
+        std::shared_ptr<OwnedEdit::Range> candidateRange;
         std::unique_ptr<composer_scene::Delivery> delivery;
+        Slot::Token preparedToken;
         resident::Composer key;
-        bool awaiting=false,keyCaptured=false,starting=false,finishing=false;
+        bool awaiting=false,keyCaptured=false,starting=false,finishing=false,prepared=false;
     };
     reader_worker_native::ResidentMutation *const executor_;
     Slot *const slot_;
@@ -60,6 +66,9 @@ class Issuer final:public QObject {
             }
         });
     }
+#ifdef COMPOSER_ISSUER_TESTING
+    explicit Issuer(Slot *slot):QObject(nullptr),executor_(nullptr),slot_(slot){}
+#endif
     static bool sameFacts(const resident::Facts &a,const resident::Facts &b) {
         return a.document==b.document&&a.page==b.page&&a.order==b.order;
     }
@@ -92,6 +101,12 @@ class Issuer final:public QObject {
             if(!signal(visit,receiver,s))return false;
         for(const auto *s:{"destroyed(QObject*)","activeFocusItemChanged()","activeChanged()","visibleChanged(bool)"})
             if(!signal(visit,window,s))return false;
+        unsigned ancestors=0;
+        for(auto *item=receiver->parentItem();item;item=item->parentItem()) {
+            if(++ancestors>32||item->thread()!=QThread::currentThread())return false;
+            for(const auto *s:{"destroyed(QObject*)","parentChanged(QQuickItem*)","windowChanged(QQuickWindow*)","visibleChanged()","enabledChanged()"})
+                if(!signal(visit,item,s))return false;
+        }
         if(!signal(visit,QCoreApplication::instance(),"aboutToQuit()")||
                 !signal(visit,QCoreApplication::instance(),"focusWindowChanged(QWindow*)"))return false;
         receiver->installEventFilter(this);return true;
@@ -106,30 +121,59 @@ class Issuer final:public QObject {
         if(visit_){visit_->revoked->store(true,std::memory_order_release);if(visit_->receiver)visit_->receiver->removeEventFilter(this);}
         visit_.reset();
     }
+    void retireIdleVisit() {
+        if(!active_&&visit_&&visit_->revoked->load(std::memory_order_acquire))detachVisit();
+    }
     void reply(const std::shared_ptr<Active> &a,resident::Frame value,bool safeRelease) {
         if(active_!=a)return;
-        if(safeRelease&&a->effect)effects_.release(a->effect);
-        if(value.composer.status==2){quarantined_=true;detachVisit();}
+        const auto status=value.composer.status;
+        if(status==2){quarantined_=true;detachVisit();}
         const auto endpoint=a->endpoint;const auto lease=a->lease;
+        const QPointer<Issuer> self(this);
+        // Endpoint rechecks the SAME original capped lease after encoding and
+        // carries that deadline through output drain. Do not install a provision
+        // capability or release effect admission on an unpublishable success.
+        const bool published=endpoint&&lease->active()&&endpoint->finish(lease,std::move(value));
+        if(!self)return;
+        if(status==0&&!published){quarantined_=true;detachVisit();safeRelease=false;}
+        if(status==0&&published&&lease->request().kind==12)a->visit->range=a->candidateRange;
+        if(safeRelease&&a->effect)effects_.release(a->effect);
         active_.reset();timer_.stop();
-        // Destruction/retirement stays independent of connection liveness.
-        if(endpoint&&lease->active())endpoint->finish(lease,std::move(value));
     }
     void refuse(const std::shared_ptr<Active> &a) {
         if(a->finishing)return;
         a->finishing=true;
-        // Leave the selected Sample, key filter and adapter frame before
-        // releasing effect admission or calling the endpoint's completion.
-        QTimer::singleShot(0,this,[this,a] {
-            if(active_!=a)return;
-            resident::Frame value;value.kind=a->lease->request().kind+2;value.composer.status=1;
-            if(a->lease->request().kind==12)detachVisit();
-            reply(a,std::move(value),!slot_->occupied());
-        });
+        a->canceled->store(true,std::memory_order_release);
+        if(a->delivery)a->delivery->stop();
+        // A completion-watch refusal may already have closed its watcher. No
+        // native request was entered, so settle original adapter frames before
+        // disposing only proven nonlast owners; cancel alone is not disposal.
+        a->retirement->finish();
+        if(!a->retirement->fence_.requestRetire(a->retirement->frameToken_,[]{},reader_retirement::Effect::NoMutationAttempted)) {
+            quarantined_=true;return;
+        }
+        timer_.start();
+    }
+    void finishRefusal(const std::shared_ptr<Active> &a) {
+        if(!a->retirement->fence_.handoffReady(a->retirement->frameToken_))return;
+        bool reclaimed=!slot_->occupied();
+        if(!reclaimed&&a->delivery)reclaimed=a->delivery->retireUnsubmitted();
+        else if(!reclaimed&&a->prepared) {
+            const auto owner=slot_->match(a->preparedToken);
+            if(owner&&!owner->preparing&&!owner->submitting&&!owner->consumed&&!owner->unknown&&
+                    !owner->sceneCancellation&&!owner->attributionAttempted)
+                reclaimed=slot_->retirePhysically(a->preparedToken).reclaimed;
+        }
+        if(!reclaimed)quarantined_=true;
+        resident::Frame value;value.kind=a->lease->request().kind+2;value.composer.status=1;
+        if(a->lease->request().kind==12)detachVisit();
+        reply(a,std::move(value),reclaimed);
     }
     void dispatch(const std::shared_ptr<Active> &a) {
-        if(!allowed(a)||a->starting||a->delivery)return;
+        if(a->starting||a->delivery||a->finishing)return;
+        if(!allowed(a)){refuse(a);return;}
         a->starting=true;
+        struct Starting {Active &active;~Starting(){active.starting=false;}} starting{*a};
         const auto deadline=a->deadline;
         const bool mutation=a->lease->request().kind==12||a->lease->request().kind==14;
         if(!a->retirement){a->starting=false;refuse(a);return;}
@@ -149,13 +193,15 @@ class Issuer final:public QObject {
                     // These connections retain only a sticky latch; the joined
                     // QObject arguments themselves never escape this callback.
                     if(!signal(a->visit,document,"destroyed(QObject*)")||!signal(a->visit,document,"pageMapChanged()")||
-                            !property(a->visit,document,"pageCount")||!property(a->visit,reader,"document")||
+                            !property(a->visit,document,"pageCount")||!property(a->visit,document,"loadError")||
+                            !property(a->visit,reader,"document")||!property(a->visit,reader,"currentPage")||
                             !property(a->visit,reader,"currentPageId")||!property(a->visit,reader,"sceneController"))return;
                     v.worker=worker;
                     v.engine=OwnedEdit::prepare(reinterpret_cast<std::uintptr_t>(worker));
                 }
                 if(v.worker!=worker||!v.engine||!joined()||!allowed(a))return;
                 auto prepared=slot_->prepare(controller,id,worker,joined);
+                a->preparedToken=prepared.token;a->prepared=true;
                 if(!prepared.ready)return;
                 const auto &request=a->lease->request();
                 QString expected;expected.resize(qsizetype(request.composer.text.size()));
@@ -176,13 +222,16 @@ class Issuer final:public QObject {
     }
     void maintain() {
         const auto a=active_;if(!a)return;
+        if(a->finishing){finishRefusal(a);return;}
         if(!allowed(a))a->canceled->store(true,std::memory_order_release);
         if(a->awaiting&&!a->keyCaptured) {
             if(a->canceled->load(std::memory_order_acquire))refuse(a);
             return;
         }
-        if(!a->delivery||a->starting)return;
+        if(a->starting)return;
+        if(!a->delivery){refuse(a);return;}
         const auto scene=a->delivery->snapshot();
+        if(!scene.submission.attempted){refuse(a);return;}
         if(scene.submission.attempted&&!scene.retirement.settled&&Clock::now()<a->deadline)return;
         const auto result=a->attachment->snapshot();
         resident::Frame value;value.kind=a->lease->request().kind+2;auto &c=value.composer;
@@ -196,7 +245,7 @@ class Issuer final:public QObject {
             const bool verified=edit?result->edit.status==EditStatus::ProjectionVerified:result->observed.observed;
             if(verified) {
                 c.status=0;value.facts=a->visit->facts;c.visit=a->visit->id;c.range=a->visit->rangeId;
-                if(a->lease->request().kind==12){a->visit->range=result->range;c.revision=result->edit.afterRevision;}
+                if(a->lease->request().kind==12){a->candidateRange=result->range;c.revision=result->edit.afterRevision;}
                 else if(a->lease->request().kind==14){c.revision=result->edit.beforeRevision;c.afterRevision=result->edit.afterRevision;}
                 else {
                     c.revision=result->observed.revision;
@@ -236,7 +285,7 @@ class Issuer final:public QObject {
         if(!resident::validId(facts.event)){a->canceled->store(true,std::memory_order_release);return false;}
         a->keyCaptured=true;a->key=std::move(facts);
         const QPointer<QQuickItem> target(v->receiver);
-        try{dispatch(a);}catch(...){a->canceled->store(true,std::memory_order_release);quarantined_=true;}
+        try{dispatch(a);}catch(...){a->canceled->store(true,std::memory_order_release);}
         // The copied result is historical pre-key input. Forwarding Enter may
         // enqueue a separate native edit; no +1 or causal clear is inferred.
         return !target;
@@ -252,19 +301,22 @@ public:
         const auto reject=[&](quint8 reason){resident::Frame r;r.kind=3;r.rejection=reason;endpoint->finish(lease,r);};
         const auto &request=lease->request();
         if(!resident::isComposerRequest(request.kind)||!resident::validFacts(request.facts)){reject(0);return;}
+        retireIdleVisit();
         if(quarantined_||active_||executor_->busy()||slot_->occupied()||consumed_.size()>=256||consumed_.contains(request.operation)){reject(4);return;}
         consumed_.insert(request.operation);
         if(request.kind==12) {
             if(visit_){reject(4);return;}
             auto v=std::make_shared<Visit>();v->facts=request.facts;v->id=resident::freshNonce();v->rangeId=resident::freshNonce();
+            v->client=request.client;v->server=request.server;
             v->window=qobject_cast<QQuickWindow*>(QGuiApplication::focusWindow());
             v->receiver=v->window?v->window->activeFocusItem():nullptr;
             if(!resident::validId(v->id)||!resident::validId(v->rangeId)||!install(v)){reject(3);return;}
             visit_=std::move(v);
         } else if(!visit_||visit_->revoked->load(std::memory_order_acquire)||!visit_->range||
-                !sameFacts(visit_->facts,request.facts)||visit_->id!=request.composer.visit||visit_->rangeId!=request.composer.range) {reject(3);return;}
+                visit_->client!=request.client||visit_->server!=request.server||!sameFacts(visit_->facts,request.facts)||
+                visit_->id!=request.composer.visit||visit_->rangeId!=request.composer.range) {reject(3);return;}
         auto a=std::make_shared<Active>();a->lease=lease;a->endpoint=endpoint;a->visit=visit_;
-        a->deadline=std::min(lease->deadline(),Clock::now()+std::chrono::seconds(20));
+        a->deadline=lease->deadline(); // Endpoint minted the single original <=20s deadline.
         a->retirement=composer_scene::SnapshotRetirement::createWriter(a->deadline,request.kind==12||request.kind==14);
         if(!a->retirement){if(request.kind==12)detachVisit();reject(0);return;}
         if(request.kind==12||request.kind==14){a->effect=effects_.acquire();if(!a->effect){reject(4);return;}}

@@ -46,7 +46,7 @@ class Delivery final {
         const std::shared_ptr<std::atomic<bool>> canceled;
         const std::shared_ptr<Counters> counters = std::make_shared<Counters>();
         std::shared_ptr<SnapshotRetirement> retirement;
-        bool consumed = false, pinned = false, ownsSlot = false;
+        bool consumed = false, pinned = false, ownsSlot = false, requestEntered = false;
         Submission result;
         State(Slot &slot, Slot::Token owner, QString value, SceneRequest fn,
               std::unique_ptr<Attachment> observer, std::shared_ptr<std::atomic<bool>> cancellation)
@@ -113,6 +113,15 @@ class Delivery final {
         if (s->ownsSlot && worker_detail::gui()) s->owners->cancel(s->token);
     }
 #ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    bool retireUnsubmitted() {
+        const auto s=state_;
+        if(!worker_detail::gui()||s->requestEntered||s->result.attempted)return false;
+        const auto owner=s->owners->match(s->token);
+        if(!owner||owner->preparing||owner->submitting||owner->unknown||owner->sceneCancellation||owner->attributionAttempted)return false;
+        // Private issuer invokes only after its original adapter frame fence
+        // settles. No typed or generic native request exists on this path.
+        return s->owners->retirePhysically(s->token).reclaimed;
+    }
     static std::unique_ptr<Delivery> prepareWriter(Slot &slot,const Slot::Token &token,const QString &page,
             std::shared_ptr<composer_writer::Attachment> writer,std::shared_ptr<std::atomic<bool>> canceled,
             std::shared_ptr<SnapshotRetirement> retirement) {
@@ -249,6 +258,7 @@ public:
         // Installed before native entry, even if it throws after retaining a copy.
         // This excludes the generic physical-retirement path.
         owner->sceneCancellation=s->canceled; s->pinned=true; result.attempted=true;
+        s->requestEntered=true;
         try { result.jobId=s->request(reinterpret_cast<void *>(owner->worker.words[0]),page,retained); }
         catch (...) {
             owner->unknown=true; result.unknown=true;
@@ -284,7 +294,11 @@ public:
         if(s->counters->wrongThread.load(std::memory_order_acquire))result.callbackRefusal=Refusal::DocumentThread;
         result.ownersPinned=s->pinned;
         if(s->retirement)result.retirement=s->retirement->status_;
-        result.submission=s->result; result.available=true;
+        result.submission=s->result;
+        if(s->requestEntered&&!result.submission.attempted) {
+            result.submission.attempted=true;result.submission.unknown=true;result.submission.accepted=false;
+        }
+        result.available=true;
         return result;
     }
 };

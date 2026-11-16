@@ -28,6 +28,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#ifdef COMPOSER_ISSUER_TESTING
+namespace remarkable::composer_writer::testing {struct IssuerAccess;}
+#endif
 namespace remarkable::resident {
 inline bool sameSocketObject(const struct stat &a,const struct stat &b) {
     return S_ISSOCK(a.st_mode)&&S_ISSOCK(b.st_mode)&&a.st_dev==b.st_dev&&a.st_ino==b.st_ino&&a.st_uid==b.st_uid;
@@ -95,11 +98,15 @@ struct EndpointConfig {
 // inspect active/deadline but must report through its existing guarded Qt bridge.
 class RequestLease final {
     friend class Endpoint;
+#ifdef COMPOSER_ISSUER_TESTING
+    friend struct remarkable::composer_writer::testing::IssuerAccess;
+#endif
     std::chrono::steady_clock::time_point deadline_;
     const std::shared_ptr<std::atomic<bool>> retired_=std::make_shared<std::atomic<bool>>(false);
     Frame request_;
     QByteArray digest_;
-    RequestLease(Frame frame,int budget):deadline_(std::chrono::steady_clock::now()+std::chrono::milliseconds(budget)),
+    RequestLease(Frame frame,int budget):deadline_(std::chrono::steady_clock::now()+std::chrono::milliseconds(
+            isComposerRequest(frame.kind)?std::min(budget,20000):budget)),
         request_(std::move(frame)),digest_(fingerprint(request_)) {}
 public:
     bool active()const{return !retired_->load(std::memory_order_acquire)&&std::chrono::steady_clock::now()<deadline_;}
