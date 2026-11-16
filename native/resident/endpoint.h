@@ -17,9 +17,10 @@
 #include <cerrno>
 #include <climits>
 #include <cstring>
-#if defined(RSDK_ENDPOINT_DIAGNOSTICS_V1) || defined(RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1) || defined(RSDK_PRE_ENTER_MARKER_TESTING)
+#if defined(RSDK_ENDPOINT_DIAGNOSTICS_V1) || defined(RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1) || defined(RSDK_PRE_ENTER_MARKER_TESTING) || defined(RSDK_DEVELOPMENT_COMPOSER_V1) || defined(RSDK_COMPOSER_MARKER_TESTING)
 #include <cstdio>
 #endif
+#include <time.h>
 #include <fcntl.h>
 #include <sys/random.h>
 #include <sys/socket.h>
@@ -105,6 +106,9 @@ class RequestLease final {
     const std::shared_ptr<std::atomic<bool>> retired_=std::make_shared<std::atomic<bool>>(false);
     Frame request_;
     QByteArray digest_;
+#if defined(RSDK_DEVELOPMENT_COMPOSER_V1) || defined(RSDK_COMPOSER_MARKER_TESTING)
+    mutable bool composerMarkerAttempted_=false; // GUI-only, once per actual lease.
+#endif
     RequestLease(Frame frame,int budget):deadline_(std::chrono::steady_clock::now()+std::chrono::milliseconds(
             isComposerRequest(frame.kind)?std::min(budget,20000):budget)),
         request_(std::move(frame)),digest_(fingerprint(request_)) {}
@@ -208,6 +212,46 @@ public:
         return true;
     }
 #endif
+#if defined(RSDK_DEVELOPMENT_COMPOSER_V1) || defined(RSDK_COMPOSER_MARKER_TESTING)
+    // Diagnostic only: caller has installed this exact active AwaitKey. This is
+    // an armed-at-sample witness, never a new terminal protocol reply or lease.
+    bool noteComposerArmed(const Lease &lease) {
+        if(!gui()||!pending_||lease.get()!=pending_.get()||lease->request().kind!=15)return false;
+        const auto fail=[this]{retireConnection("composer-marker-refused");return false;};
+        if(lease->composerMarkerAttempted_)return fail();
+        lease->composerMarkerAttempted_=true;
+        if(!lease->active()||!peerCurrent()||!preEnterStderrCurrent())return fail();
+        const auto &r=lease->request();
+        if(r.runtime.size()!=140||r.client.size()!=16||r.server.size()!=16||r.operation.size()!=16||
+           r.composer.visit.size()!=16||r.composer.range.size()!=16||lease->digest().size()!=32)return fail();
+        // Sample explicit Linux monotonic time FIRST. Adding floor(remaining)
+        // sampled later cannot overstate the original steady-clock deadline.
+        timespec sample{};
+        if(::clock_gettime(CLOCK_MONOTONIC,&sample)||sample.tv_sec<0||sample.tv_nsec<0||sample.tv_nsec>=1000000000)return fail();
+        const auto remaining=std::chrono::duration_cast<std::chrono::nanoseconds>(lease->deadline()-std::chrono::steady_clock::now()).count();
+        if(remaining<=0||remaining>20000000000LL)return fail();
+        constexpr quint64 Billion=1000000000ULL;
+        if(quint64(sample.tv_sec)>(std::numeric_limits<quint64>::max()-quint64(sample.tv_nsec)-quint64(remaining))/Billion)return fail();
+        const auto expiry=quint64(sample.tv_sec)*Billion+quint64(sample.tv_nsec)+quint64(remaining);
+        char runtime[281]{},client[33]{},server[33]{},operation[33]{},digest[65]{},visit[33]{},range[33]{};
+        const auto hex=[](char *out,const QByteArray &bytes){markerHex(out,reinterpret_cast<const uchar *>(bytes.constData()),std::size_t(bytes.size()));};
+        hex(runtime,r.runtime);hex(client,r.client);hex(server,r.server);hex(operation,r.operation);
+        hex(digest,lease->digest());hex(visit,r.composer.visit);hex(range,r.composer.range);
+        char line[1024];
+        const int length=std::snprintf(line,sizeof line,
+            "RSDK_COMPOSER_ARMED_V1 runtime=%s client=%s server=%s sequence=%llu operation=%s request_sha256=%s visit=%s range=%s expiry_ns=%llu\n",
+            runtime,client,server,static_cast<unsigned long long>(r.sequence),operation,digest,visit,range,
+            static_cast<unsigned long long>(expiry));
+        if(length<=0||length>=int(sizeof line)||!lease->active()||!peerCurrent()||!preEnterStderrCurrent())return fail();
+#ifdef RSDK_COMPOSER_MARKER_TESTING
+        const auto written=composerWrite_(STDERR_FILENO,line,std::size_t(length));
+#else
+        const auto written=::write(STDERR_FILENO,line,std::size_t(length));
+#endif
+        if(written!=length||!lease->active()||!peerCurrent()||!preEnterStderrCurrent())return fail();
+        return true;
+    }
+#endif
     // GUI-only. Completion invalidates publication/getter authority immediately;
     // releasing this plain lease says nothing about physical native completion.
     bool finish(const Lease &lease,Frame result) {
@@ -250,6 +294,12 @@ private:
     friend struct PreEnterMarkerTestAccess;
     ssize_t (*preEnterWrite_)(int,const void *,std::size_t)=::write;
 #endif
+#endif
+#ifdef RSDK_COMPOSER_MARKER_TESTING
+    friend struct ComposerMarkerTestAccess;
+    ssize_t (*composerWrite_)(int,const void *,std::size_t)=::write;
+#endif
+#if defined(RSDK_DEVELOPMENT_PRE_ENTER_DIAGNOSTIC_V1) || defined(RSDK_PRE_ENTER_MARKER_TESTING) || defined(RSDK_DEVELOPMENT_COMPOSER_V1) || defined(RSDK_COMPOSER_MARKER_TESTING)
     static void markerHex(char *out,const uchar *in,std::size_t size) noexcept {
         constexpr char hex[]="0123456789abcdef";
         for(std::size_t n=0;n<size;++n) {

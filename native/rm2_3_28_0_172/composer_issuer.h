@@ -335,7 +335,11 @@ public:
         if(!a->retirement){if(request.kind==12)detachVisit();reject(0);return;}
         if(request.kind==12||request.kind==14){a->effect=effects_.acquire();if(!a->effect){reject(4);return;}}
         a->awaiting=request.kind==15;active_=a;timer_.start();
-        if(!a->awaiting)dispatch(a);
+        if(a->awaiting) {
+            if(!allowed(a)||a->keyCaptured||!endpoint->noteComposerArmed(lease)||!allowed(a)) {
+                a->canceled->store(true,std::memory_order_release);refuse(a);
+            }
+        } else dispatch(a);
     }
 };
 } // namespace remarkable::composer_writer

@@ -1,4 +1,7 @@
 #define RSDK_PRE_ENTER_MARKER_TESTING 1
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+#define RSDK_COMPOSER_MARKER_TESTING 1
+#endif
 #include "endpoint.h"
 #include <QElapsedTimer>
 #include <QTemporaryDir>
@@ -13,6 +16,13 @@ struct PreEnterMarkerTestAccess {
         endpoint.preEnterWrite_=fn;
     }
 };
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+struct ComposerMarkerTestAccess {
+    static void writer(Endpoint &endpoint,ssize_t (*fn)(int,const void *,std::size_t)) {
+        endpoint.composerWrite_=fn;
+    }
+};
+#endif
 }
 static unsigned checks=0;
 static void need(bool value){++checks;if(!value){std::fprintf(stderr,"endpoint check %u failed\n",checks);std::abort();}}
@@ -118,6 +128,67 @@ static void preEnterMarkers(const Frame &hello,const Frame &observe) {
     }
     std::puts("PASS: pre-Enter marker identity/deadline, private stderr, expiry/retirement and one write attempt");
 }
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+static void composerMarkers(const Frame &hello,const Frame &observe,const Frame &facts) {
+    for(auto mode:{MarkerCase::Success,MarkerCase::WrongMode,MarkerCase::Replaced,MarkerCase::Short,
+                   MarkerCase::Interrupted,MarkerCase::Error,MarkerCase::Expired,MarkerCase::Retired}) {
+        markerCase=mode;markerWrites=0;
+        QTemporaryDir directory;need(directory.isValid());
+        auto c=config(directory.path());c.operationBudgetMs=500;
+        Endpoint::Lease pending;
+        Endpoint server(c,[&](Endpoint::Lease lease){pending=std::move(lease);});
+        ComposerMarkerTestAccess::writer(server,markerWrite);need(server.start());
+        QLocalSocket peer;const auto ready=handshake(peer,c,hello);
+        auto text=request(observe,ready,1);text.kind=15;text.facts=facts.facts;
+        text.composer.visit=Id(16,7);text.composer.range=Id(16,8);text.composer.keys={0x01000004};
+        need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+        auto lease=pending;
+        if(mode==MarkerCase::Retired){peer.abort();need(until([&]{return lease->retirement()->load();}));}
+        else if(mode==MarkerCase::Expired)std::this_thread::sleep_until(lease->deadline());
+        const auto path=QFile::encodeName(c.directory+"/stderr.log");
+        const int output=::open(path.constData(),O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,0600);need(output>=0);
+        if(mode==MarkerCase::WrongMode)need(::fchmod(output,0644)==0);
+        if(mode==MarkerCase::Replaced) {
+            need(::rename(path.constData(),(path+".old").constData())==0);
+            const int replacement=::open(path.constData(),O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,0600);
+            need(replacement>=0&&::close(replacement)==0);
+        }
+        const int saved=::dup(STDERR_FILENO);need(saved>=0&&::dup2(output,STDERR_FILENO)==STDERR_FILENO);
+        const auto marked=server.noteComposerArmed(lease);
+        bool second=false;
+        if(mode==MarkerCase::Success) {
+            // The idle wait and subsequent real wait are different leases. A
+            // successful earlier marker must not consume a process-global latch.
+            Frame refused;refused.kind=3;
+            need(server.finish(lease,refused)&&bool(receive(peer)));
+            pending.reset();text.sequence=2;text.operation=Id(16,9);
+            need(peer.write(encode(text))>0&&until([&]{return bool(pending);}));
+            lease=pending;second=server.noteComposerArmed(lease);
+        }
+        const auto repeated=server.noteComposerArmed(lease);
+        const auto restored=::dup2(saved,STDERR_FILENO);need(restored==STDERR_FILENO&&::close(saved)==0);
+        need(marked==(mode==MarkerCase::Success)&&second==marked&&!repeated&&!lease->active());
+        const bool attempted=mode==MarkerCase::Short||mode==MarkerCase::Interrupted||mode==MarkerCase::Error;
+        need(markerWrites==(marked?2u:unsigned(attempted)));
+        char bytes[2048];const auto size=::pread(output,bytes,sizeof bytes,0);need(size>=0&&::close(output)==0);
+        if(marked) {
+            const QByteArray all(bytes,size);need(all.count('\n')==2);
+            const auto lines=all.split('\n');const auto &line=lines[1];
+            const auto prefix=QByteArray("RSDK_COMPOSER_ARMED_V1 runtime=")+text.runtime.toHex()+
+                " client="+text.client.toHex()+" server="+text.server.toHex()+" sequence=2 operation="+
+                text.operation.toHex()+" request_sha256="+fingerprint(text).toHex()+" visit="+
+                text.composer.visit.toHex()+" range="+text.composer.range.toHex()+" expiry_ns=";
+            need(line.startsWith(prefix)&&line.size()<1024);
+            bool ok=false;const auto expiry=line.mid(prefix.size()).toULongLong(&ok);
+            timespec sample{};need(!::clock_gettime(CLOCK_MONOTONIC,&sample));
+            const auto now=quint64(sample.tv_sec)*1000000000ULL+quint64(sample.tv_nsec);
+            need(ok&&expiry>now&&expiry-now<=500000000ULL);
+        }else if(mode==MarkerCase::Short)need(size>0&&bytes[size-1]!='\n');
+        else need(size==0);
+    }
+    std::puts("PASS: composer per-lease armed identity/expiry, two waits, private stderr and no retry after failed write");
+}
+#endif
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
 static void readerFocusReceipts(const Frame &hello,const Frame &observe,const Frame &facts) {
     QTemporaryDir directory;need(directory.isValid());
@@ -202,6 +273,9 @@ int main(int argc,char **argv) {
     need(argc==2);const QString vectors=QString::fromLocal8Bit(argv[1]);
     const auto hello=vector(vectors,0),observe=vector(vectors,2),insert=vector(vectors,3),facts=vector(vectors,7);
     preEnterMarkers(hello,observe);
+#ifdef RSDK_DEVELOPMENT_COMPOSER_V1
+    composerMarkers(hello,observe,facts);
+#endif
 #ifdef RSDK_DEVELOPMENT_READER_FOCUS_V1
     readerFocusReceipts(hello,observe,facts);
 #endif

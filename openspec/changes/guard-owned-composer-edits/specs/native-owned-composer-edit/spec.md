@@ -28,3 +28,14 @@ A pre-key snapshot SHALL NOT authorize a later composer clear after stock input 
 #### Scenario: Forwarded Enter changes the draft
 - **WHEN** stock Enter inserts a newline or applies formatting after the pre-key read
 - **THEN** any later clear requires separately verified current owned state or leaves the draft intact
+
+### Requirement: Same-attempt development arming evidence
+The development trial SHALL invite input only after a bounded complete diagnostic from its actual installed AwaitKey, correlated with the prepared request and original deadline. This SHALL NOT change terminal protocol replies or confer live edit, key, render or persistence authority. Failed or ambiguous diagnostic publication SHALL cancel the original no-send wait without replay.
+
+#### Scenario: Idle wait precedes the real input wait
+- **WHEN** a distinct admitted AwaitKey follows the idle wait in the same still-valid native visit
+- **THEN** it may emit its own once-only arming record, and the earlier record cannot satisfy the new request's correlation
+
+#### Scenario: Diagnostic is partial or belongs to another attempt
+- **WHEN** the record is incomplete, stale, duplicate, mismatched, over bound or read from a replaced log inode
+- **THEN** the trial keeps input uninvited, retains failure evidence and does not retry the original effect or wait

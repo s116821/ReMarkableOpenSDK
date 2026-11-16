@@ -11,6 +11,7 @@
 - [ ] Separate practical full-page streaming shape/anchor comparison from the 4096-unit draft capture bound before claiming ordinary conversation-page support; the first whole-page 4096-unit profile is only a bounded early implementation.
 
 ## 3. Verification and closeout
+- [ ] Review and qualify the development-only same-attempt arming diagnostic through existing endpoint CI controls and the coordinated real-tablet trial; keep terminal v4 replies and original deadlines unchanged.
 - [ ] Test absent/custom layout, rich content outside range, stale/missing/recreated anchors, unsupported namespace, wrong owner/thread, changed revision/text and bounded traversal with zero native calls on refusal.
 - [ ] Cover successful exact apply, preserved outside text/separators, completion order and partial/unknown outcomes in the existing CI regressions; use the real available tablet for integrated build/run/edge-case E2E, and use a simulator only when the tablet is occupied for parallel work.
 - [ ] Independently review exact source/evidence; distinguish native qualification from owned fixtures.
