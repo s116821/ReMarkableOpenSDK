@@ -40,3 +40,7 @@ Snapshot-only reads SHALL retain no persistent document observer. Their native o
 #### Scenario: Proof or release is incomplete
 - **WHEN** submission/completion is unknown or mismatched, borrowing is not drained, or an owner release refuses
 - **THEN** the request remains quarantined without ordinary release, retry, fabricated retirement proof or slot reuse
+
+#### Scenario: Snapshot callback arrives on the wrong thread
+- **WHEN** a retirement-bound snapshot callback runs on GUI or a thread other than the pinned worker
+- **THEN** it refuses before any Scene access, records the thread refusal and preserves the quarantined native owners

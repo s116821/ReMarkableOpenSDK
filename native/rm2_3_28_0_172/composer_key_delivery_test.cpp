@@ -299,8 +299,7 @@ void reusableSnapshotControls() {
             if(mode==2)readAndComplete(s,s.fixture.job^0x100000000ULL); // Full ID, not low word.
             else if(mode==3)readAndComplete(s,s.fixture.job,false);
             else if(mode==6) {
-                QTextDocument doc; doc.setPlainText("new");
-                assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(&doc)));
+                assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));
                 emit s.fixture.worker.jobCompleted(s.fixture.job); // GUI callback is insufficient.
             } else if(mode==7)readAndComplete(s,s.fixture.job,true,true);
             else if(mode==8) {
@@ -314,8 +313,7 @@ void reusableSnapshotControls() {
                 DocumentWorker unrelated; emit unrelated.jobCompleted(s.fixture.job);
             } else if(mode==13) {
                 std::thread unrelated([&] {
-                    QTextDocument doc; doc.setPlainText("new");
-                    assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(&doc)));
+                    assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));
                     emit s.fixture.worker.jobCompleted(s.fixture.job);
                 });
                 unrelated.join(); // Off-GUI alone does not establish exact worker.
@@ -336,6 +334,10 @@ void reusableSnapshotControls() {
             assert(result.attachment.text.count==3 && result.attachment.text.revisionBefore==result.attachment.text.revisionAfter);
         }
         if(mode==8)assert(result.canceled && !result.attachment.callbackEntered);
+        if(mode==6||mode==13) {
+            assert(result.canceled && result.callbackRefusal==Refusal::DocumentThread);
+            assert(!result.attachment.callbackEntered && result.attachment.text.status!=remarkable::composer_text::Status::Copied);
+        }
         // Retained native function copies can outlive owner release, but cannot
         // dereference even a deliberately invalid Scene after admission closes.
         assert(!s.fixture.copies.back()(reinterpret_cast<::Scene *>(1)));

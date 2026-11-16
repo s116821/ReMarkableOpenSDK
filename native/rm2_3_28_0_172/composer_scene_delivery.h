@@ -13,6 +13,7 @@ struct DeliverySnapshot {
     unsigned entered = 0, returned = 0;
     reader_worker_native::Submission submission;
     Snapshot attachment;
+    Refusal callbackRefusal = Refusal::None;
     SnapshotRetirementStatus retirement;
 };
 #ifdef COMPOSER_DELIVERY_TESTING
@@ -26,6 +27,8 @@ class Delivery final {
         const std::thread::id gui=std::this_thread::get_id();
         std::uintptr_t workerThread=0; // Comparison only; never dereferenced by a callback.
         std::atomic<unsigned> entered{0}, returned{0}, offGui{0}, onWorker{0};
+        std::atomic<bool> wrongThread{false};
+        std::atomic<bool> borrowClosed{false}; // Published only after the private mutex seal.
     };
     struct State {
         Slot *const owners; // Process-resident, never captured by the native callback.
@@ -142,15 +145,28 @@ public:
             auto observe=s->attachment->callback();
             auto canceled=s->canceled;
             auto counts=s->counters;
-            retained=[observe=std::move(observe),canceled,counts](::Scene *scene) noexcept {
+            const bool requireExactWorker=bool(s->retirement);
+            retained=[observe=std::move(observe),canceled,counts,requireExactWorker](::Scene *scene) noexcept {
                 counts->entered.fetch_add(1,std::memory_order_acq_rel);
-                if(std::this_thread::get_id()!=counts->gui)counts->offGui.fetch_add(1,std::memory_order_relaxed);
-                if(reinterpret_cast<std::uintptr_t>(QThread::currentThread())==counts->workerThread)
-                    counts->onWorker.fetch_add(1,std::memory_order_relaxed);
+                const bool offGui=std::this_thread::get_id()!=counts->gui;
+                const bool onWorker=reinterpret_cast<std::uintptr_t>(QThread::currentThread())==counts->workerThread;
+                if(offGui)counts->offGui.fetch_add(1,std::memory_order_relaxed);
+                if(onWorker)counts->onWorker.fetch_add(1,std::memory_order_relaxed);
                 struct Returned {
                     std::shared_ptr<Counters> counts;
                     ~Returned() { counts->returned.fetch_add(1,std::memory_order_release); }
                 } returning{counts};
+                // After the linearized seal a retained copy is inert on every
+                // thread. This cached fact never authorizes owner release.
+                if(requireExactWorker && counts->borrowClosed.load(std::memory_order_acquire))return false;
+                // Admission precedes every Scene dereference, including the
+                // raw native join fields before QTextDocument thread checking.
+                // The original diagnostic modes keep their existing contract.
+                if(requireExactWorker && (!offGui || !onWorker)) {
+                    counts->wrongThread.store(true,std::memory_order_release);
+                    canceled->store(true,std::memory_order_release);
+                    return false;
+                }
                 if (!canceled->load(std::memory_order_acquire)) observe(scene);
                 return false;
             };
@@ -162,7 +178,9 @@ public:
                         s->counters->entered.load(std::memory_order_acquire)!=1 ||
                         s->counters->offGui.load(std::memory_order_acquire)!=1 ||
                         s->counters->onWorker.load(std::memory_order_acquire)!=1)return false;
-                return s->attachment->closeSnapshotBorrow();
+                if(!s->attachment->closeSnapshotBorrow())return false;
+                s->counters->borrowClosed.store(true,std::memory_order_release);
+                return true;
             },[s,worker] {
                 const auto current=s->owners->match(s->token);
                 if(!worker || !current || current->publicWorker!=worker)return false;
@@ -215,6 +233,7 @@ public:
         result.canceled=s->canceled->load(std::memory_order_acquire);
         result.entered=s->counters->entered.load(std::memory_order_acquire);
         result.returned=s->counters->returned.load(std::memory_order_acquire);
+        if(s->counters->wrongThread.load(std::memory_order_acquire))result.callbackRefusal=Refusal::DocumentThread;
         result.ownersPinned=s->pinned;
         if(s->retirement)result.retirement=s->retirement->status_;
         result.submission=s->result; result.available=true;
