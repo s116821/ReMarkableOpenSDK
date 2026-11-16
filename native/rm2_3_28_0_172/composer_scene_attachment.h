@@ -31,7 +31,7 @@ struct Facts {
     std::int32_t qtEditDepth = 0;
     std::uintptr_t documentAddress = 0; // Correspondence only; never dereferenced later.
 };
-enum class Mode { Observe, Scalars };
+enum class Mode { Observe, Scalars, Snapshot };
 enum class ScalarStatus { NotRequested, Pending, Observed, Refused };
 struct ScalarSample {
     bool undoRedoEnabled, undoAvailable, redoAvailable;
@@ -353,7 +353,7 @@ public:
     Attachment(const Attachment &) = delete;
     Attachment &operator=(const Attachment &) = delete;
     // Serialize handle methods/destruction; delivered callback copies may race.
-    ~Attachment() { stop(); }
+    ~Attachment() { if (snapshotOnly()) revoke(); else stop(); }
     static std::unique_ptr<Attachment> prepare(const Profile &profile, std::chrono::milliseconds budget,
             std::optional<composer_text::ReadRange> range = {},
             std::shared_ptr<std::atomic<bool>> externalCancellation = {}, Mode mode = Mode::Observe) {
@@ -365,13 +365,17 @@ public:
             std::shared_ptr<std::atomic<bool>> externalCancellation = {}, Mode mode = Mode::Observe) {
         const auto now = Clock::now();
         if (deadline <= now || deadline - now > std::chrono::milliseconds(120000) ||
-            (mode != Mode::Observe && mode != Mode::Scalars) ||
+            (mode != Mode::Observe && mode != Mode::Scalars && mode != Mode::Snapshot) ||
             (mode == Mode::Scalars && (range || !profile.scalarLayout_)) ||
             (range && !composer_text::detail::validRequest(*range))) return {};
         return std::unique_ptr<Attachment>(new Attachment(std::make_shared<State>(
             deadline, range, std::move(externalCancellation), mode)));
     }
     Clock::time_point deadline() const noexcept { return state_->deadline; }
+    bool snapshotOnly() const noexcept { return state_->mode == Mode::Snapshot; }
+    // Nonblocking revocation. Snapshot mode has no persistent document observer;
+    // the callback owns its shared state until its borrowed read has returned.
+    void revoke() noexcept { state_->reject(Refusal::Canceled); }
     Callback callback() const {
         const auto s = state_;
         return [s](::Scene *scene) noexcept -> bool {
@@ -389,7 +393,7 @@ public:
             if (s->canceled.load(std::memory_order_acquire)) return false;
             try {
                 auto joined = s->join(scene);
-                if (s->mode == Mode::Observe) s->facts = joined.facts;
+                if (s->mode != Mode::Scalars) s->facts = joined.facts;
                 if (joined.refusal != Refusal::None || !joined.document) {
                     s->reject(joined.refusal == Refusal::None ? Refusal::Observer : joined.refusal);
                     return false;
@@ -401,9 +405,11 @@ public:
                     if (s->canceled.load(std::memory_order_acquire)) s->retireLocked();
                     return false;
                 }
-                auto observer = composer_diagnostic::Observer::attachUntil(*joined.document, s->deadline);
-                if (!observer) { s->reject(Refusal::Observer); return false; }
-                s->observer = std::move(observer);
+                if (s->mode == Mode::Observe) {
+                    auto observer = composer_diagnostic::Observer::attachUntil(*joined.document, s->deadline);
+                    if (!observer) { s->reject(Refusal::Observer); return false; }
+                    s->observer = std::move(observer);
+                }
                 composer_text::Result candidate;
                 if (s->range) {
                     candidate = composer_text::detail::copy(*joined.document,*s->range,

@@ -29,8 +29,8 @@ ${CXX:-c++} $flags $private -DCOMPOSER_SCENE_TESTING= -DCOMPOSER_DELIVERY_TESTIN
     -DRESIDENT_WORKER_SLOT_TESTING= -DCOMPOSER_KEY_DELIVERY_TESTING= -I"$out" "$root/composer_key_delivery_test.cpp" \
     "$out/moc_composer_key_delivery.cpp" "$out/moc_reader_selected_view_probe.cpp" \
     $(pkg-config --cflags --libs $modules) -ldl -o "$out/key-test"
-${CXX:-c++} $flags -I"$out" "$root/reader_input_receiver_test.cpp" \
-    "$out/moc_reader_selected_view_probe.cpp" $(pkg-config --cflags --libs $modules) -o "$out/receiver-test"
+${CXX:-c++} $flags $private -DCOMPOSER_KEY_DELIVERY_TESTING= -I"$out" "$root/reader_input_receiver_test.cpp" \
+    "$out/moc_reader_selected_view_probe.cpp" "$out/moc_composer_key_delivery.cpp" $(pkg-config --cflags --libs $modules) -ldl -o "$out/receiver-test"
 printf '%s\n' '#include "composer_key_delivery.h"' > "$out/production.cpp"
 ${CXX:-c++} $flags -I"$root" $(pkg-config --cflags $modules) -c "$out/production.cpp" -o "$out/production.o"
 for binary in key-test receiver-test; do

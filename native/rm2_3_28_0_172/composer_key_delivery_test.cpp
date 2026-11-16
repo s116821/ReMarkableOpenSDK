@@ -27,16 +27,19 @@ struct KeyAccess {
 }
 namespace {
 auto arm(KeyReceiver &receiver, Session &s, std::chrono::milliseconds budget = 10s,
-         std::function<void()> before = {}) {
+         std::function<void()> before = {}, std::function<void(Delivery &)> configure = {}) {
     return testing::KeyAccess::make(&receiver, budget,
-        [&s, before](QQuickItem *, Clock::time_point deadline, const reader_worker_native::Permit &permit) {
+        [&s, before, configure](QQuickItem *, Clock::time_point deadline,
+                const std::shared_ptr<std::atomic<bool>> &revoked,const reader_worker_native::Permit &permit) {
             if (before) before();
             if (!permit()) return std::unique_ptr<Delivery>{};
             // Owned callback fake only. The separate receiver fixture exercises
             // the real production selected-view join; this is not native proof.
             auto d = testing::DeliveryAccess::make(*s.profile,*s.slot,s.token,s.page,scene,
-                0ms,Mode::Observe,{},deadline);
-            assert(d && testing::DeliveryAccess::deadline(*d)==deadline); d->submit(permit);
+                0ms,Mode::Snapshot,{},deadline,revoked);
+            assert(d && testing::DeliveryAccess::deadline(*d)==deadline);
+            if(configure)configure(*d);
+            d->submit(permit);
             return d;
         });
 }
@@ -59,7 +62,8 @@ void factsAndOrdering() {
         QTextDocument doc;
         assert(!s.fixture.copies[0](reinterpret_cast<::Scene *>(&doc)));
         r=ingress->snapshot();
-        assert(r.scene.entered==1 && r.scene.returned==1 && r.scene.attachment.attached);
+        assert(r.scene.entered==1 && r.scene.returned==1 && r.scene.attachment.callbackEntered &&
+            r.scene.attachment.available && !r.scene.attachment.attached);
         assert(r.scene.ownersPinned && r.scene.submission.accepted);
         s.retained();
     }
@@ -77,7 +81,9 @@ void invalidationAndNoRelease() {
         if(mode==3) { QFocusEvent out(QEvent::FocusOut); QCoreApplication::sendEvent(&receiver,&out); }
         if(mode==4) ingress.reset();
         assert(!s.fixture.copies[0](reinterpret_cast<::Scene *>(1)));
-        if(ingress) { auto r=ingress->snapshot(); assert(r.canceled && !r.scene.attachment.attached); }
+        if(ingress) { auto r=ingress->snapshot();
+            if(!r.canceled)std::cerr<<"revocation mode "<<mode<<" did not latch\n";
+            assert(r.canceled && !r.scene.attachment.attached); }
         assert(s.fixture.requests==1); s.retained();
     }
 }
@@ -111,7 +117,7 @@ void refusalAndLifetime() {
         auto ingress=arm(receiver,s);
         QKeyEvent huge(QEvent::KeyPress,Qt::Key_A,Qt::NoModifier,QString(65,'a'));
         QCoreApplication::sendEvent(&receiver,&huge);
-        assert(receiver.forwarded==1 && s.fixture.requests==0 && ingress->snapshot().refusal=="key-text-limit");
+        assert(receiver.forwarded==1 && s.fixture.requests==0 && ingress->snapshot().refusal=="key-text-limit" && !ingress->snapshot().key);
     }
     {
         Session s; QQuickWindow window; KeyReceiver receiver(window.contentItem());
@@ -125,7 +131,7 @@ void refusalAndLifetime() {
         auto ingress=arm(*receiver,s,10s,[&]{receiver.reset();});
         QKeyEvent event(QEvent::KeyPress,Qt::Key_Return,Qt::NoModifier);
         QCoreApplication::sendEvent(receiver.get(),&event);
-        assert(!receiver && s.fixture.requests==0 && ingress->snapshot().canceled);
+        assert(!receiver && s.fixture.requests==0 && ingress->snapshot().canceled && !ingress->snapshot().key);
     }
     {
         Session s; QQuickWindow window; auto receiver=std::make_unique<KeyReceiver>(window.contentItem());
@@ -162,9 +168,10 @@ void exactTextAtOwnedQueueBoundary() {
     const QString draft=QString::fromUtf8("new \xf0\x9f\x99\x82 question");
     doc.setPlainText(draft);
     auto ingress=testing::KeyAccess::make(&receiver,10s,
-        [&](QQuickItem *,Clock::time_point deadline,const reader_worker_native::Permit &permit) {
+        [&](QQuickItem *,Clock::time_point deadline,const std::shared_ptr<std::atomic<bool>> &revoked,
+                const reader_worker_native::Permit &permit) {
             auto d=testing::DeliveryAccess::make(*s.profile,*s.slot,s.token,s.page,scene,0ms,
-                Mode::Observe,remarkable::composer_text::ReadRange{0,draft.size()},deadline);
+                Mode::Snapshot,remarkable::composer_text::ReadRange{0,draft.size()},deadline,revoked);
             assert(d && d->submit(permit).accepted);
             return d;
         });
@@ -186,10 +193,44 @@ void exactTextAtOwnedQueueBoundary() {
     assert(doc.toPlainText()==draft); // Handoff itself neither clears nor inserts.
     s.retained();
 }
+void offThreadRevocationDuringHeldBorrow() {
+    Session s; QQuickWindow window; KeyReceiver receiver(window.contentItem());
+    std::promise<void> entered, release;
+    struct Held { std::promise<void> &entered; std::shared_future<void> released; } held{entered,release.get_future().share()};
+    auto ingress=arm(receiver,s,10s,{},[&](Delivery &d) {
+        testing::DeliveryAccess::beforePublish(d,&held,[](void *p) {
+            auto &h=*static_cast<Held *>(p); h.entered.set_value(); h.released.wait();
+        });
+    });
+    QKeyEvent enter(QEvent::KeyPress,Qt::Key_Enter,Qt::NoModifier);
+    QCoreApplication::sendEvent(&receiver,&enter);
+    const auto callback=s.fixture.copies[0];
+    std::thread reader([&]{QTextDocument doc; assert(!callback(reinterpret_cast<::Scene *>(&doc)));});
+    entered.get_future().wait(); // Worker deliberately still owns borrow mutex.
+    std::atomic<bool> notify{true}, emitted{false};
+    std::thread notifier([&]{
+        while(notify.load(std::memory_order_acquire)) {
+            emit receiver.pageIdChanged(); emitted.store(true,std::memory_order_release);
+        }
+    });
+    // No event loop is pumped: the foreign-thread latch must already revoke.
+    while(!emitted.load(std::memory_order_acquire))std::this_thread::yield();
+    for(int i=0;i<64;++i) assert(ingress->snapshot().canceled);
+    auto r=ingress->snapshot();
+    assert(r.canceled && !r.scene.attachment.available && !r.scene.attachment.attached);
+    QKeyEvent next(QEvent::KeyPress,Qt::Key_A,Qt::NoModifier,"a");
+    QCoreApplication::sendEvent(&receiver,&next);
+    assert(receiver.forwarded==2 && s.fixture.requests==1);
+    ingress.reset(); // Neither forwarding, polling nor destruction may wait.
+    notify.store(false,std::memory_order_release); notifier.join();
+    release.set_value(); reader.join();
+    assert(!callback(reinterpret_cast<::Scene *>(1))); s.retained();
+}
 }
 int main(int argc,char **argv) {
     QGuiApplication app(argc,argv);
     factsAndOrdering(); invalidationAndNoRelease(); refusalAndLifetime(); exactTextAtOwnedQueueBoundary();
+    offThreadRevocationDuringHeldBorrow();
     std::cout<<"key-to-Scene handoff: owned Qt dispatch, exact facts, stock forwarding, ordering, cancellation and lifetime passed; no native execution\n";
 }
 #include "composer_key_delivery_test.moc"

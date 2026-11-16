@@ -37,17 +37,24 @@ struct Access {
             return std::array<unsigned char, 2>{0, 1};
         };
     }
+    static void beforePublish(Attachment &a,void *context,void (*hook)(void *)) {
+        a.state_->hookContext=context; a.state_->beforePublish=hook;
+    }
 };
 struct DeliveryAccess {
     static std::unique_ptr<Delivery> make(const Profile &p,reader_worker_native::ResidentSlot &slot,
             const reader_worker_native::ResidentSlot::Token &token,const QString &page,
             SceneRequest fn,std::chrono::milliseconds budget=120s,Mode mode=Mode::Observe,
-            std::optional<composer_text::ReadRange> range={}, std::optional<Clock::time_point> deadline={}) {
-        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode,deadline);
+            std::optional<composer_text::ReadRange> range={}, std::optional<Clock::time_point> deadline={},
+            std::shared_ptr<std::atomic<bool>> cancellation={}) {
+        auto value=Delivery::make(p,slot,token,page,budget,fn,range,mode,deadline,std::move(cancellation));
         if(value)Access::fixture(*value->state_->attachment);
         return value;
     }
     static Clock::time_point deadline(const Delivery &d) { return d.state_->attachment->deadline(); }
+    static void beforePublish(Delivery &d,void *context,void (*hook)(void *)) {
+        Access::beforePublish(*d.state_->attachment,context,hook);
+    }
 };
 }
 namespace {

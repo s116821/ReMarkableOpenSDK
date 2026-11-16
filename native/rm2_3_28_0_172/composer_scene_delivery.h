@@ -46,13 +46,15 @@ class Delivery final {
     static std::unique_ptr<Delivery> make(const Profile &profile, Slot &slot,
             const Slot::Token &token, const QString &page, std::chrono::milliseconds budget,
             SceneRequest request, std::optional<composer_text::ReadRange> range = {}, Mode mode = Mode::Observe,
-            std::optional<Clock::time_point> deadline = {}) {
+            std::optional<Clock::time_point> deadline = {},
+            std::shared_ptr<std::atomic<bool>> cancellation = {}) {
         using namespace reader_worker_native;
         if (!worker_detail::gui() || worker_detail::busy || !request || !pageValid(page)) return {};
         const auto owner = slot.match(token);
         if (!owner || !owner->ready || owner->consumed || owner->sceneCancellation || !owner->live())
             return {};
-        auto cancellation = std::make_shared<std::atomic<bool>>(false);
+        if (!cancellation) cancellation = std::make_shared<std::atomic<bool>>(false);
+        if (cancellation->load(std::memory_order_acquire)) return {};
         auto attachment = deadline ? Attachment::prepareUntil(profile,*deadline,range,cancellation,mode)
                                    : Attachment::prepare(profile,budget,range,cancellation,mode);
         if (!attachment) return {};
@@ -61,7 +63,8 @@ class Delivery final {
     }
     static void close(const std::shared_ptr<State> &s) noexcept {
         s->canceled->store(true,std::memory_order_release);
-        s->attachment->stop();
+        if (s->attachment->snapshotOnly()) s->attachment->revoke();
+        else s->attachment->stop();
         if (s->ownsSlot && worker_detail::gui()) s->owners->cancel(s->token);
     }
 public:
@@ -78,13 +81,14 @@ public:
     }
     static std::unique_ptr<Delivery> prepareUntil(const Profile &profile, Slot &slot,
             const Slot::Token &token, const QString &page, Clock::time_point deadline,
-            std::optional<composer_text::ReadRange> range = {}, Mode mode = Mode::Observe) {
+            std::optional<composer_text::ReadRange> range = {}, Mode mode = Mode::Observe,
+            std::shared_ptr<std::atomic<bool>> cancellation = {}) {
 #if defined(__linux__) && defined(__arm__) && defined(__ARM_PCS_VFP) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) && QT_VERSION == QT_VERSION_CHECK(6,10,3)
         static_assert(sizeof(Callback) == 16 && alignof(Callback) == 4 && sizeof(qulonglong) == 8);
         // Distinct reviewed scene request. Never reinterpret the generic request.
-        return make(profile,slot,token,page,std::chrono::milliseconds(0),reinterpret_cast<SceneRequest>(0x6d6ce4U),range,mode,deadline);
+        return make(profile,slot,token,page,std::chrono::milliseconds(0),reinterpret_cast<SceneRequest>(0x6d6ce4U),range,mode,deadline,std::move(cancellation));
 #else
-        (void)profile; (void)slot; (void)token; (void)page; (void)deadline; (void)range; (void)mode;
+        (void)profile; (void)slot; (void)token; (void)page; (void)deadline; (void)range; (void)mode; (void)cancellation;
         return {};
 #endif
     }
@@ -156,7 +160,10 @@ public:
         const auto s=state_;
         DeliverySnapshot result;
         if (!worker_detail::gui()) return result;
-        if (s->canceled->load(std::memory_order_acquire)) s->attachment->stop();
+        if (s->canceled->load(std::memory_order_acquire)) {
+            if (s->attachment->snapshotOnly()) s->attachment->revoke();
+            else s->attachment->stop();
+        }
         result.attachment=s->attachment->snapshot();
         result.canceled=s->canceled->load(std::memory_order_acquire);
         result.entered=s->counters->entered.load(std::memory_order_acquire);
