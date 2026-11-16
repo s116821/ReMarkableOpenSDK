@@ -1325,7 +1325,12 @@ impl Session {
         if !valid {
             return Err(ProtocolError::WrongResponse);
         }
-        if command.is_effectful() && reply.is_indeterminate() {
+        let terminal_unknown = match reply {
+            #[cfg(feature = "development-composer-v1")]
+            Reply::Composer(outcome) => outcome.is_unknown(),
+            _ => command.is_effectful() && reply.is_indeterminate(),
+        };
+        if terminal_unknown {
             let reply = reply.clone();
             self.close();
             return Ok(reply);

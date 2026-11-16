@@ -260,6 +260,46 @@ mod enabled {
     }
 
     #[test]
+    fn unknown_read_retires_direct_session_without_inventing_a_mutation() {
+        for (command, key_request) in [
+            (composer::Command::Observe(draft().state.identity), false),
+            (
+                composer::Command::AwaitKey {
+                    identity: draft().state.identity,
+                    keys: vec![0x0100_0004],
+                },
+                true,
+            ),
+        ] {
+            for bits in [1, 5] {
+                let mut session = session();
+                let request = session
+                    .begin(OperationId(id(40)), Command::Composer(command.clone()))
+                    .unwrap();
+                let reply = if key_request {
+                    composer::Reply::KeyObserved(Outcome::Unknown {
+                        attempts: attempts(bits),
+                    })
+                } else {
+                    composer::Reply::Observed(Outcome::Unknown {
+                        attempts: attempts(bits),
+                    })
+                };
+                assert!(
+                    session
+                        .complete(&response(&request, Reply::Composer(reply)))
+                        .is_ok()
+                );
+                assert_eq!(session.close(), LostRequest::NoPendingMutation);
+                assert_eq!(
+                    session.begin(OperationId(id(40)), Command::Composer(command.clone())),
+                    Err(ProtocolError::Closed)
+                );
+            }
+        }
+    }
+
+    #[test]
     fn wrong_capability_revision_or_result_cannot_consume_pending_clear() {
         let expected = draft();
         let valid = ClearReceipt {
