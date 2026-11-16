@@ -23,6 +23,9 @@ struct KeyAccess {
     static auto make(QQuickItem *receiver, std::chrono::milliseconds budget, KeyDelivery::Acquire acquire) {
         return KeyDelivery::make(receiver, budget, std::move(acquire));
     }
+    static void beforeSnapshot(KeyDelivery &delivery,std::function<void()> hook) {
+        delivery.state_->beforeSceneSnapshot=std::move(hook);
+    }
 };
 }
 namespace {
@@ -191,6 +194,16 @@ void exactTextAtOwnedQueueBoundary() {
     assert(r.scene.attachment.text.count==std::size_t(draft.size()));
     for(qsizetype i=0;i<draft.size();++i) assert(r.scene.attachment.text.units[std::size_t(i)]==draft.at(i).unicode());
     assert(doc.toPlainText()==draft); // Handoff itself neither clears nor inserts.
+    // Force foreign revocation between the outer cancellation sample and the
+    // nested Scene snapshot. Preserve copied history, never a contradictory
+    // top-level usable receipt.
+    std::promise<void> notify,notified;
+    std::thread notifier([&] { notify.get_future().wait(); emit receiver.pageIdChanged(); notified.set_value(); });
+    testing::KeyAccess::beforeSnapshot(*ingress,[&] { notify.set_value(); notified.get_future().wait(); });
+    const auto revoked=ingress->snapshot(); notifier.join();
+    testing::KeyAccess::beforeSnapshot(*ingress,{});
+    assert(revoked.canceled && revoked.scene.canceled && revoked.scene.attachment.text.status==remarkable::composer_text::Status::Copied);
+    assert(revoked.scene.attachment.text.count==r.scene.attachment.text.count);
     s.retained();
 }
 void offThreadRevocationDuringHeldBorrow() {

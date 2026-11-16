@@ -43,6 +43,9 @@ class KeyDelivery final : public QObject {
         std::optional<KeyFacts> key;
         std::unique_ptr<Delivery> delivery;
         Acquire acquire;
+#ifdef COMPOSER_KEY_DELIVERY_TESTING
+        std::function<void()> beforeSceneSnapshot;
+#endif
         explicit State(Clock::time_point limit, Acquire fn) : deadline(limit), acquire(std::move(fn)) {}
         void cancel() { revoked->store(true,std::memory_order_release); }
         bool canceled() const { return revoked->load(std::memory_order_acquire); }
@@ -198,7 +201,13 @@ public:
         if (Clock::now() >= state->deadline) state->cancel();
         result.entered = state->entered; result.canceled = state->canceled();
         result.refusal = state->refusal; result.key = state->key;
+#ifdef COMPOSER_KEY_DELIVERY_TESTING
+        if(state->beforeSceneSnapshot)state->beforeSceneSnapshot();
+#endif
         if (state->delivery) result.scene = state->delivery->snapshot();
+        // Copied text may remain as historical evidence. Revocation dominates
+        // the complete receipt; neither Copied nor a past revision is a lease.
+        result.canceled = result.canceled || result.scene.canceled || state->canceled();
         return result;
     }
 };
