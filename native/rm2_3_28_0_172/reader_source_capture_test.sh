@@ -24,7 +24,7 @@ ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -O1 -g -fPIC -pthread $sanitize -I"
 printf '#include "read_only_backend.h"\n' > "$out/production.cpp"
 ${CXX:-c++} -std=c++17 -Wall -Wextra -Werror -fPIC -pthread -I"$root" \
     $(pkg-config --cflags Qt6Core Qt6Gui Qt6Qml Qt6Quick Qt6Network) -c "$out/production.cpp" -o "$out/production.o"
-for macro in READER_IDENTITY_CAPTURE_TESTING VISUAL_CAPTURE_TESTING; do
+for macro in READER_IDENTITY_CAPTURE_TESTING VISUAL_CAPTURE_TESTING COMPOSER_PRE_ENTER_TESTING COMPOSER_PATCH_OWNED_TESTING; do
     if ${CXX:-c++} -std=c++17 -fPIC -D"$macro" -E "$root/bootstrap.cpp" \
         $(pkg-config --cflags Qt6Core Qt6Gui Qt6Qml Qt6Quick Qt6Network) > "$out/forbidden-$macro.log" 2>&1; then
         echo "Fixture macro entered production bootstrap: $macro" >&2; exit 1

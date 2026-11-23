@@ -1,5 +1,6 @@
 #pragma once
 // Experimental public-accessor diagnostic. Never an action or lifetime lease.
+#include "focus_leaf.h"
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QGuiApplication>
@@ -69,6 +70,8 @@ class Sample {
     QPointer<QQmlEngine> engine;
     QPointer<QQmlContext> lexicalSeed;
     QPointer<QObject> creationController;
+    QPointer<QQuickItem> inputReceiver;
+    bool inputRequested = false;
     bool joinRequested;
     ValidatedWorkerAction workerAction;
     ValidatedSourceAction sourceAction;
@@ -309,8 +312,10 @@ class Sample {
     }
 public:
     Sample(QQuickWindow *w, const std::function<bool()> &permission, int ms,
-           QObject *creation = nullptr, bool join = false, ValidatedWorkerAction action = {}, ValidatedSourceAction source = {})
-        : creationController(creation), joinRequested(join), workerAction(std::move(action)), sourceAction(std::move(source)), budget(ms), permit(permission) {
+           QObject *creation = nullptr, bool join = false, ValidatedWorkerAction action = {}, ValidatedSourceAction source = {},
+           QQuickItem *input = nullptr)
+        : creationController(creation), inputReceiver(input), inputRequested(input != nullptr),
+          joinRequested(join), workerAction(std::move(action)), sourceAction(std::move(source)), budget(ms), permit(permission) {
         timer.start();
         app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
         if (!app || QThread::currentThread() != app->thread() || !w || w->thread() != app->thread()) {
@@ -322,7 +327,7 @@ public:
         // suppress the event or pump an event loop to obtain a better result.
         app->installEventFilter(&epoch);
     }
-    Observation run() {
+    Observation run(rem61_focus::Leaf *focusReceipt = nullptr) {
         Observation r;
         const auto refuse = [&] { Observation f; f.refusal = failure.isEmpty() ? QStringLiteral("relationship-refused") : failure; return f; };
         if (!failure.isEmpty() || !live() || !retain(window) || !retain(root) || !retain(engine)) return refuse();
@@ -402,6 +407,10 @@ public:
         for (int depth = 0; sceneMeta && depth < 16; ++depth, sceneMeta = sceneMeta->superClass())
             if (qstrcmp(sceneMeta->className(), "SceneView") == 0) { nativeScene = true; break; }
         if (!nativeScene || !live()) { no("native-scene-type"); return refuse(); }
+        if (inputRequested && (inputReceiver != current || !workerAction || sourceAction ||
+                !signal(window, "activeFocusItemChanged()") || !signal(current, "activeFocusChanged(bool)"))) {
+            no("input-receiver-mismatch"); return refuse();
+        }
         const QList<QPointer<QQuickItem>> visualOwners{reader, device, container, current};
         for (const auto &item : visualOwners)
             if (!item || !watchMany(item, {"parent", "visible", "enabled"}) || !signal(item, "windowChanged(QQuickWindow*)")) return refuse();
@@ -480,6 +489,10 @@ public:
         r.observed = true; r.mapCoherent = true;
         r.ready = !r.loading && !r.pageError && !r.documentError && r.status == active && r.pageStatus == pageReady &&
             !r.awaitingTiles && !r.pendingTiles && !r.working;
+        if (focusReceipt && r.ready && !workerAction && !sourceAction) {
+            const std::function<bool()> guarded = [&] { return live(); };
+            *focusReceipt = rem61_focus::sample(window, device, current, guarded);
+        }
         if (workerAction || sourceAction) {
             if (workerAction && sourceAction) { no("source-action-ambiguity"); return refuse(); }
             if (!joinRequested || !r.creationJoinObserved || !r.ready || !controller || !creationController || !live()) {
@@ -498,6 +511,11 @@ public:
             if (!actualId.isValid() || actualId.metaType().flags().testFlag(QMetaType::IsPointer) ||
                 !id(document, checkedId) || checkedId != r.documentId || !relationship() || !live()) return refuse();
             const std::function<bool()> guarded = [&] { return live(); };
+            if (inputRequested && (inputReceiver != current ||
+                    rem61_focus::sample(window, device, current, guarded) != rem61_focus::Leaf::ExactScene ||
+                    !live())) {
+                no("input-receiver-focus"); return refuse();
+            }
             try {
                 if (workerAction) workerAction(creationController, actualId, worker, r, guarded);
                 else sourceAction(reader, document, creationController, actualId, r, guarded);
@@ -509,13 +527,26 @@ public:
         return r;
     }
 };
+
+inline Observation observeSelected(QQuickWindow *window, const std::function<bool()> &permit, int budgetMs,
+        rem61_focus::Leaf *focusReceipt = nullptr) {
+    if (entry.busy) { entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
+    EntryScope scope;
+    return Sample(window, permit, budgetMs).run(focusReceipt);
+}
 } // namespace detail
 
 inline Observation observe(QQuickWindow *window, const std::function<bool()> &permit = [] { return true; }, int budgetMs = 1000) {
-    if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
-    detail::EntryScope scope;
-    return detail::Sample(window, permit, budgetMs).run();
+    return detail::observeSelected(window, permit, budgetMs);
 }
+
+namespace focus_diagnostic {
+inline rem61_focus::Leaf observeJoinedLeaf(QQuickWindow *window, const std::function<bool()> &permit, int remainingMs) {
+    auto leaf = rem61_focus::Leaf::Refused;
+    detail::observeSelected(window, permit, remainingMs, &leaf);
+    return leaf;
+}
+} // namespace focus_diagnostic
 
 // The caller resolves the existing controller on this engine's GUI thread before
 // entering the sample. No pointer escapes the call; no singleton is resolved here.
@@ -525,6 +556,17 @@ inline Observation observeWithCreationController(QQuickWindow *window, QObject *
     if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
     detail::EntryScope scope;
     return detail::Sample(window, permit, budgetMs, controller, true, std::move(action), std::move(source)).run();
+}
+
+// Used synchronously from an actual receiver's event filter. The selected-view
+// and native-worker join remains local to this call; it is not a draft lease.
+inline Observation observeInputReceiver(QQuickWindow *window, QObject *controller,
+        QQuickItem *receiver, const std::function<bool()> &permit, int budgetMs,
+        ValidatedWorkerAction action) {
+    if (!receiver || !action) { Observation r; r.refusal = QStringLiteral("input-receiver-missing"); return r; }
+    if (detail::entry.busy) { detail::entry.reentered = true; Observation r; r.refusal = QStringLiteral("sample-reentered"); return r; }
+    detail::EntryScope scope;
+    return detail::Sample(window, permit, budgetMs, controller, true, std::move(action), {}, receiver).run();
 }
 
 // Explicit stateful preparation on the already admitted engine. Resolving an
