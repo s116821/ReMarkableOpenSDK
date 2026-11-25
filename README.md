@@ -18,6 +18,9 @@ mutations must be durably recorded before that callback returns success.
 This is an integration boundary under implementation; native qualification is open.
 Enabling it does not activate xochitl or change `UnqualifiedPlatform` capabilities.
 
+See the [RM2 firmware comparison](docs/native/resident-components.md#rm2-firmware-comparison)
+for measured changes between stock builds and the status of the Buddy preview.
+
 Native facts have no fabricated content revision or input epoch and cannot become
 operational `PageObservation` guards. Insertion observations do not prove durable
 commit, current target selection or writing authority. Persist the original

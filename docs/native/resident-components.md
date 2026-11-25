@@ -5,6 +5,41 @@ request protocol and Linux/Qt endpoint. `native/rm2_3_28_0_172` contains the nat
 Reader mechanisms being integrated for the exact RM2 3.28.0.172 profile. These
 components do not yet form a qualified, activatable product adapter.
 
+## RM2 firmware comparison
+
+The November 25, 2026 readback compared the running stock UI on an RM2 with the
+previous [SDK profile](../../native/rm2_3_28_0_172/profile.json) and the
+[Buddy preview's install policy](https://github.com/s116821/ReMarkableBuddies/blob/df6275605ed5ad3effe44d5b5bed92a2c84744e8/cicd/deploy/rm2-resident/policy.json).
+Library hashes on the new build came from the files loaded by that same running
+process.
+
+| Measurement | 3.28.0.172 | 3.29.2.1 |
+| --- | --- | --- |
+| Kernel release | `5.4.70-v1.6.3-rm11x` | `5.4.70-v1.6.4-rm11x` |
+| Stock UI executable (`xochitl`) | 22,046,100 bytes | 23,551,528 bytes |
+| Stock UI SHA-256 | `071d85beef3ef2d4cc0e11002140b27b82a2cc04a2ed740a5669f591069b77df` | `dec257e07b443685a612a058119a88ede6dcba5365b81e265180785851ada6cc` |
+| Qt Core version | `6.10.3` | `6.10.3` (loaded filename) |
+| Qt Core SHA-256 | `43b0e210d64e59b534490d78c4c82cc1d2958999b0969aa0f77e11a082704e5d` | `8ccfa91dce01fc1e215cde624fca22afb3c6903f673676e17d73af27b5869181` |
+| libc SHA-256 | `8d741a0db9727c97faebfd17e7f8409183c382241ff3d4c9b55a52e98d8dd832` | `6ca83a4beba7de5230f99e5ffd2570447ee66205e3540b32999606601af5142c` |
+
+The stock `xochitl.service` unit and its `xochitl-service-override.conf` drop-in
+both matched the previous policy byte for byte. The signed Buddy preview
+`0.79.0_pre10-r0` requires `3.28.0.172`, so installation stopped before transfer.
+Current-page identification, capture, adjacent-page insertion and answer display
+on `3.29.2.1` still need hardware validation. These build differences alone
+cannot establish which SDK code needs changing.
+
+For the next firmware comparison, record the exact device model, OS and kernel
+release, the running stock executable, its loaded Qt Core and libc, and the active
+stock service files. Compare those measurements with the last tested profile.
+Then record the SDK and consumer revisions used for each hardware result. For
+Buddy, start with a one-page notebook and one handwritten question. Observe the
+original page, capture it, open the adjacent page, and verify that the answer is
+visible and the original handwriting is intact. Record the first step that
+fails and any component that worked unchanged. Include the tablet orientation
+when comparing gestures across this update. reMarkable describes a change to
+automatic rotation in its [3.29 release notes](https://support.remarkable.com/articles/Knowledge/Software-Release-3-29).
+
 ## Source provenance
 
 The native profile, selected-Reader join, insertion predicate, conditional hook
